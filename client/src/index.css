@@ -5,97 +5,94 @@
 @tailwind utilities;
 
 :root {
-  /* Modern Trade Palette with Liquid Glass Theme */
-  --background: 30 20% 98%; /* Offwhite */
-  --foreground: 0 0% 0%; /* Black */
+  /* Modern Trade Palette: Deep Blue & Safety Orange */
+  --background: 30 20% 96%; /* Warm off-white */
+  --foreground: 0 0% 15%; /* Soft black */
 
-  --card: 0 0% 100%; /* White */
-  --card-foreground: 0 0% 0%;
+  --card: 0 0% 100%; /* Pure white */
+  --card-foreground: 0 0% 15%;
   
   --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 0%;
+  --popover-foreground: 0 0% 15%;
   
-  /* Primary: Neon Orange */
-  --primary: 25 100% 50%; 
+  /* Primary: Professional Safety Orange */
+  --primary: 18 90% 55%; 
   --primary-foreground: 0 0% 100%;
   
-  /* Secondary: Dark brown/grey */
-  --secondary: 30 15% 30%; 
+  /* Secondary: Dark slate/brown for headers */
+  --secondary: 0 0% 18%; 
   --secondary-foreground: 0 0% 100%;
   
-  /* Muted: Gray */
-  --muted: 30 10% 92%;
-  --muted-foreground: 30 10% 40%;
+  /* Muted: Soft grays */
+  --muted: 0 0% 93%;
+  --muted-foreground: 0 0% 45%;
   
-  /* Accent: Neon Orange */
-  --accent: 25 100% 50%;
+  /* Accent: Professional Safety Orange */
+  --accent: 18 90% 55%;
   --accent-foreground: 0 0% 100%;
   
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 0 0% 100% / 0.1;
-  --input: 30 10% 85%;
-  --ring: 25 100% 50%;
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
+  --ring: 18 90% 55%;
   
-  --radius: 1.25rem;
+  --radius: 1.5rem; /* Large rounded corners as seen in screenshot */
 }
 
 .dark {
-  --background: 30 15% 10%;
-  --foreground: 30 10% 98%;
+  --background: 0 0% 10%;
+  --foreground: 0 0% 95%;
   
-  --card: 30 15% 15%;
-  --card-foreground: 30 10% 98%;
+  --card: 0 0% 13%;
+  --card-foreground: 0 0% 95%;
   
-  --popover: 30 15% 15%;
-  --popover-foreground: 30 10% 98%;
+  --popover: 0 0% 13%;
+  --popover-foreground: 0 0% 95%;
   
-  --primary: 25 100% 50%;
+  --primary: 18 90% 55%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 30 15% 25%;
+  --secondary: 0 0% 25%;
   --secondary-foreground: 0 0% 100%;
   
-  --muted: 30 10% 20%;
-  --muted-foreground: 30 10% 70%;
+  --muted: 0 0% 20%;
+  --muted-foreground: 0 0% 70%;
   
-  --accent: 25 100% 50%;
+  --accent: 18 90% 55%;
   --accent-foreground: 0 0% 100%;
   
   --destructive: 0 62% 30%;
-  --destructive-foreground: 30 10% 98%;
+  --destructive-foreground: 0 0% 100%;
   
-  --border: 0 0% 100% / 0.1;
-  --input: 30 10% 30%;
-  --ring: 25 100% 50%;
+  --border: 0 0% 20%;
+  --input: 0 0% 20%;
+  --ring: 18 90% 55%;
 }
 
 @layer base {
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Manrope', sans-serif;
-    background-image: 
-      radial-gradient(at 0% 0%, hsla(25, 100%, 50%, 0.05) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, hsla(30, 15%, 30%, 0.05) 0px, transparent 50%);
-    background-attachment: fixed;
   }
 }
 
 @layer components {
-  .glass-panel {
-    @apply bg-white/70 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-xl;
+  /* High-contrast header as seen in screenshot */
+  .header-card {
+    @apply bg-secondary rounded-[2rem] p-8 text-white shadow-xl;
   }
   
-  .glass-card {
-    @apply bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg hover:bg-white/60 dark:hover:bg-white/10 transition-all duration-300;
+  /* Action tile styling */
+  .action-tile {
+    @apply bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-black/5 hover:bg-black/[0.02] transition-colors;
+  }
+
+  .nav-bar {
+    @apply fixed bottom-8 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-xl border border-black/5 rounded-full px-6 py-3 flex items-center gap-8 shadow-2xl z-50;
   }
 }
-
-@layer base {
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-bold tracking-tight;
-  }
 
   /* Optimize touch targets for tradespeople */
   button, a, input, select, textarea {
