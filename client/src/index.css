@@ -93,6 +93,10 @@
     @apply fixed bottom-8 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-xl border border-black/5 rounded-full px-6 py-3 flex items-center gap-8 shadow-2xl z-50;
   }
 }
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
 
   /* Optimize touch targets for tradespeople */
   button, a, input, select, textarea {
