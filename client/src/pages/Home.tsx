@@ -121,24 +121,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Floating Bottom Nav */}
-      <nav className="nav-bar">
-        <Link href="/">
-          <HomeIcon className="w-7 h-7 text-foreground/80 hover:text-primary transition-colors cursor-pointer" />
-        </Link>
-        <Link href="/quotes">
-          <FileText className="w-7 h-7 text-foreground/40 hover:text-primary transition-colors cursor-pointer" />
-        </Link>
-        <Link href="/jobs">
-          <Calendar className="w-7 h-7 text-foreground/40 hover:text-primary transition-colors cursor-pointer" />
-        </Link>
-        <Link href="/messages">
-          <MessageSquare className="w-7 h-7 text-foreground/40 hover:text-primary transition-colors cursor-pointer" />
-        </Link>
-        <Link href="/profile">
-          <User className="w-7 h-7 text-foreground/40 hover:text-primary transition-colors cursor-pointer" />
-        </Link>
-      </nav>
     </div>
   );
 }
