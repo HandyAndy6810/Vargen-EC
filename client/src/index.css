@@ -86,7 +86,7 @@
   
   /* Action tile styling */
   .action-tile {
-    @apply bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-black/5 hover:bg-black/[0.02] transition-colors;
+    @apply bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-black/5 hover:bg-primary/5 hover:border-primary transition-all duration-300;
   }
 
   .nav-bar {
