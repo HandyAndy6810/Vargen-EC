@@ -14,6 +14,8 @@ import JobDetail from "@/pages/JobDetail";
 import Quotes from "@/pages/Quotes";
 import QuoteDetail from "@/pages/QuoteDetail";
 
+import QuoteCreate from "@/pages/QuoteCreate";
+
 function Router() {
   return (
     <Layout>
@@ -25,6 +27,7 @@ function Router() {
         <Route path="/jobs" component={Jobs} />
         <Route path="/jobs/:id" component={JobDetail} />
         <Route path="/quotes" component={Quotes} />
+        <Route path="/quotes/new" component={QuoteCreate} />
         <Route path="/quotes/:id" component={QuoteDetail} />
         <Route component={NotFound} />
       </Switch>
