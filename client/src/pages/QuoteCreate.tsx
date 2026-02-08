@@ -11,7 +11,6 @@ import {
   Loader2,
   Check,
   FileText,
-  Save,
   RotateCcw,
   Truck,
   Percent,
@@ -19,7 +18,6 @@ import {
   ChevronDown,
   Trash2,
   Plus,
-  Pencil,
   Link2,
   Mail,
   Copy,
@@ -144,7 +142,6 @@ export default function QuoteCreate() {
   const [lineItems, setLineItems] = useState<QuoteLineItem[]>([]);
   const [estimatedHours, setEstimatedHours] = useState(0);
 
-  const [editingItem, setEditingItem] = useState<QuoteLineItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addTab, setAddTab] = useState<"custom" | "saved">("custom");
   const [newItemDesc, setNewItemDesc] = useState("");
@@ -335,11 +332,6 @@ export default function QuoteCreate() {
 
   const deleteItem = (id: string) => {
     setLineItems(prev => prev.filter(item => item.id !== id));
-  };
-
-  const updateItem = (updated: QuoteLineItem) => {
-    setLineItems(prev => prev.map(item => item.id === updated.id ? updated : item));
-    setEditingItem(null);
   };
 
   const addCustomItem = () => {
@@ -676,33 +668,58 @@ export default function QuoteCreate() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {lineItems.map((item, i) => (
-                    <div key={item.id}
-                      className="flex items-start gap-3 p-4 bg-[#FAFAFA] rounded-2xl group"
-                      data-testid={`quote-item-${i}`}>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-[#1A1A1A] text-sm">{item.description}</p>
-                        <p className="text-xs text-[#999999] mt-1">
-                          {item.quantity} {item.unit} x ${item.unitPrice.toFixed(2)}
-                        </p>
+                  {lineItems.map((item, i) => {
+                    const updateField = <K extends keyof QuoteLineItem>(field: K, value: QuoteLineItem[K]) => {
+                      setLineItems(prev => prev.map(li => li.id === item.id ? { ...li, [field]: value } : li));
+                    };
+                    return (
+                      <div key={item.id}
+                        className="p-4 bg-[#FAFAFA] rounded-2xl"
+                        data-testid={`quote-item-${i}`}>
+                        <div className="flex items-start gap-2 mb-2">
+                          <input
+                            type="text"
+                            value={item.description}
+                            onChange={(e) => updateField("description", e.target.value)}
+                            className="flex-1 min-w-0 bg-transparent border-0 border-b border-transparent focus:border-primary/30 outline-none text-sm font-medium text-[#1A1A1A] py-0.5 transition-colors"
+                            data-testid={`input-item-desc-${i}`}
+                          />
+                          <button onClick={() => deleteItem(item.id)}
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-[#CCCCCC] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 mt-0.5"
+                            data-testid={`button-delete-item-${i}`}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-[#999999]">Qty</span>
+                            <input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => updateField("quantity", Math.max(1, Number(e.target.value) || 1))}
+                              className="w-12 bg-white border border-black/10 rounded-lg text-center text-sm font-medium text-[#1A1A1A] py-1 outline-none focus:border-primary/40 transition-colors"
+                              data-testid={`input-item-qty-${i}`}
+                            />
+                          </div>
+                          <span className="text-xs text-[#CCCCCC]">x</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-[#999999]">$</span>
+                            <input
+                              type="number"
+                              value={item.unitPrice}
+                              onChange={(e) => updateField("unitPrice", Math.max(0, Number(e.target.value) || 0))}
+                              className="w-20 bg-white border border-black/10 rounded-lg text-sm font-medium text-[#1A1A1A] py-1 px-2 outline-none focus:border-primary/40 transition-colors"
+                              data-testid={`input-item-price-${i}`}
+                            />
+                          </div>
+                          <span className="text-xs text-[#CCCCCC]">=</span>
+                          <span className="font-bold text-[#1A1A1A] text-sm ml-auto" data-testid={`text-item-total-${i}`}>
+                            ${(item.quantity * item.unitPrice).toFixed(2)}
+                          </span>
+                        </div>
                       </div>
-                      <span className="font-bold text-[#1A1A1A] shrink-0 text-sm">
-                        ${(item.quantity * item.unitPrice).toFixed(2)}
-                      </span>
-                      <div className="flex gap-1 shrink-0">
-                        <button onClick={() => setEditingItem({ ...item })}
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-[#999999] hover:text-primary hover:bg-primary/10 transition-colors"
-                          data-testid={`button-edit-item-${i}`}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => deleteItem(item.id)}
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-[#999999] hover:text-red-500 hover:bg-red-50 transition-colors"
-                          data-testid={`button-delete-item-${i}`}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -813,45 +830,7 @@ export default function QuoteCreate() {
         )}
       </div>
 
-      {/* ════════════ EDIT ITEM MODAL ════════════ */}
-      <Dialog open={!!editingItem} onOpenChange={(open) => { if (!open) setEditingItem(null); }}>
-        <DialogContent className="rounded-[2rem] mx-4 max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Edit Item</DialogTitle>
-          </DialogHeader>
-          {editingItem && (
-            <div className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Description</Label>
-                <Input value={editingItem.description}
-                  onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                  className="rounded-xl h-12" data-testid="input-edit-description" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Quantity</Label>
-                  <Input type="number" value={editingItem.quantity}
-                    onChange={(e) => setEditingItem({ ...editingItem, quantity: Math.max(1, Number(e.target.value)) })}
-                    className="rounded-xl h-12" data-testid="input-edit-quantity" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Unit Price ($)</Label>
-                  <Input type="number" value={editingItem.unitPrice}
-                    onChange={(e) => setEditingItem({ ...editingItem, unitPrice: Math.max(0, Number(e.target.value)) })}
-                    className="rounded-xl h-12" data-testid="input-edit-price" />
-                </div>
-              </div>
-              <div className="text-right text-sm text-[#666666]">
-                Subtotal: <span className="font-bold text-[#1A1A1A]">${(editingItem.quantity * editingItem.unitPrice).toFixed(2)}</span>
-              </div>
-              <Button onClick={() => updateItem(editingItem)}
-                className="w-full h-14 rounded-2xl font-bold" data-testid="button-save-edit">
-                <Save className="w-4 h-4 mr-2" /> Save Changes
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      
 
       {/* ════════════ ADD ITEM MODAL ════════════ */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
