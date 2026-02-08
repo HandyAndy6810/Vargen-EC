@@ -1,7 +1,7 @@
 import { useJobs, useCreateJob } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
-import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2 } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2, Calendar } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -80,8 +80,8 @@ export default function Jobs() {
           </div>
 
           <div className="grid grid-cols-7 mb-2">
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => (
-              <div key={day} className="text-center text-[10px] font-bold text-[#999999] py-2">
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
+              <div key={idx} className="text-center text-[10px] font-bold text-[#999999] py-2">
                 {day}
               </div>
             ))}
