@@ -106,7 +106,7 @@ export async function registerRoutes(
   // AI Quote Generation
   app.post("/api/quotes/generate", async (req, res) => {
     try {
-      const { description, imageBase64, customerName } = req.body;
+      const { description, imageBase64, customerName, tradeType, labourRate, markupPercent, callOutFee, includeGST } = req.body;
 
       if (!description || typeof description !== "string") {
         return res.status(400).json({ message: "Job description is required" });
@@ -114,7 +114,30 @@ export async function registerRoutes(
 
       const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
 
-      const systemPrompt = `You are an experienced Australian tradesperson's quoting assistant. Given a job description (and optionally a photo of the work site), generate a detailed, professional trade quote.
+      const labourRateNum = typeof labourRate === "number" && labourRate > 0 ? labourRate : null;
+      const markupNum = typeof markupPercent === "number" ? markupPercent : 0;
+      const callOutNum = typeof callOutFee === "number" && callOutFee > 0 ? callOutFee : 0;
+      const gstEnabled = includeGST === true;
+
+      let pricingInstructions = "";
+      if (labourRateNum) {
+        pricingInstructions += `\n- Use a labour rate of $${labourRateNum}/hour for all labour items`;
+      }
+      if (markupNum > 0) {
+        pricingInstructions += `\n- Apply a ${markupNum}% markup on all material costs (include the markup in the unit prices, do NOT show it as a separate line item)`;
+      }
+      if (callOutNum > 0) {
+        pricingInstructions += `\n- Include a call-out/travel fee of $${callOutNum} as a separate line item`;
+      }
+      if (gstEnabled) {
+        pricingInstructions += `\n- Add 10% GST to the total. Include a "gstAmount" field in your response with the GST dollar amount. The "totalAmount" should be the GST-inclusive total`;
+      } else {
+        pricingInstructions += `\n- All prices are GST-exclusive. Mention "All prices exclude GST" in the notes`;
+      }
+
+      const tradeContext = tradeType && tradeType !== "general" ? `\nThe tradesperson is a ${tradeType}. Use pricing and terminology specific to this trade.` : "";
+
+      const systemPrompt = `You are an experienced Australian tradesperson's quoting assistant. Given a job description (and optionally a photo of the work site), generate a detailed, professional trade quote.${tradeContext}
 
 You MUST respond with valid JSON in this exact format:
 {
@@ -132,16 +155,16 @@ You MUST respond with valid JSON in this exact format:
   "estimatedHours": 4,
   "totalLabour": 340.00,
   "totalMaterials": 250.00,
-  "totalAmount": 590.00
+  "subtotal": 590.00,
+  "gstAmount": 59.00,
+  "totalAmount": 649.00
 }
 
 Guidelines:
 - Use realistic Australian trade pricing (AUD)
 - Separate labour and materials where possible
-- Include call-out/travel if appropriate
-- Add GST note in the notes field
 - Be thorough — tradies lose money from under-quoting
-- Round prices to nearest $5 or $10 for cleanliness`;
+- Round prices to nearest $5 or $10 for cleanliness${pricingInstructions}`;
 
       messages.push({ role: "system", content: systemPrompt });
 
