@@ -103,6 +103,47 @@ export async function registerRoutes(
     }
   });
 
+  app.patch(api.quotes.update.path, async (req, res) => {
+    try {
+      const input = api.quotes.update.input.parse(req.body);
+      const quote = await storage.updateQuote(Number(req.params.id), input);
+      res.json(quote);
+    } catch (err) {
+      res.status(400).json({ message: "Validation error" });
+    }
+  });
+
+  app.get("/api/quotes/:id", async (req, res) => {
+    const quote = await storage.getQuote(Number(req.params.id));
+    if (!quote) return res.status(404).json({ message: "Quote not found" });
+    res.json(quote);
+  });
+
+  // Quote Items
+  app.get("/api/quotes/:quoteId/items", async (req, res) => {
+    const items = await storage.getQuoteItems(Number(req.params.quoteId));
+    res.json(items);
+  });
+
+  app.post("/api/quotes/:quoteId/items", async (req, res) => {
+    try {
+      const item = await storage.createQuoteItem({
+        quoteId: Number(req.params.quoteId),
+        description: req.body.description,
+        quantity: Number(req.body.quantity),
+        price: String(req.body.price),
+      });
+      res.status(201).json(item);
+    } catch (err) {
+      res.status(400).json({ message: "Validation error" });
+    }
+  });
+
+  app.delete("/api/quotes/items/:id", async (req, res) => {
+    await storage.deleteQuoteItem(Number(req.params.id));
+    res.json({ ok: true });
+  });
+
   // AI Quote Generation
   app.post("/api/quotes/generate", async (req, res) => {
     try {
