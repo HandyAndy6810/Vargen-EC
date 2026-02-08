@@ -2,11 +2,13 @@ import { Header } from "@/components/Header";
 import { useJob, useUpdateJob } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useRoute, Link } from "wouter";
-import { Loader2, Calendar, User, MapPin, Phone, Briefcase, CheckCircle2, XCircle } from "lucide-react";
+import { useState } from "react";
+import { Loader2, Calendar, User, MapPin, Phone, Briefcase, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { RunningLateModal } from "@/components/RunningLateModal";
 
 export default function JobDetail() {
   const [, params] = useRoute("/jobs/:id");
@@ -14,6 +16,7 @@ export default function JobDetail() {
   const { data: job, isLoading } = useJob(id);
   const { data: customers } = useCustomers();
   const { mutate: updateJob, isPending: isUpdating } = useUpdateJob();
+  const [showLateModal, setShowLateModal] = useState(false);
 
   const customer = customers?.find(c => c.id === job?.customerId);
 
@@ -108,11 +111,29 @@ export default function JobDetail() {
         </Button>
       </div>
 
-      <div className="mt-8">
+      {job.status === "scheduled" && (
+        <Button
+          onClick={() => setShowLateModal(true)}
+          variant="outline"
+          className="w-full h-14 rounded-xl border-2 border-orange-200 bg-[#FFF1EB] text-primary font-bold text-lg hover:bg-[#FFE5D9] hover:border-orange-300"
+          data-testid="button-running-late"
+        >
+          <AlertTriangle className="w-5 h-5 mr-2" />
+          Running Late
+        </Button>
+      )}
+
+      <div className="mt-2">
          <Button className="w-full h-14 rounded-xl text-lg font-semibold bg-primary" asChild>
            <Link href={`/quotes/new?jobId=${job.id}`}>Create Quote for Job</Link>
          </Button>
       </div>
+
+      <RunningLateModal
+        open={showLateModal}
+        onOpenChange={setShowLateModal}
+        job={job}
+      />
     </div>
   );
 }

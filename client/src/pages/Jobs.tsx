@@ -2,7 +2,9 @@ import { useJobs, useCreateJob, useUpdateJob } from "@/hooks/use-jobs";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
-import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2, Calendar, Briefcase, FileText, Check } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2, Calendar, Briefcase, FileText, Check, AlertTriangle } from "lucide-react";
+import { RunningLateModal } from "@/components/RunningLateModal";
+import type { Job } from "@shared/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,7 @@ export default function Jobs() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [lateJob, setLateJob] = useState<Job | null>(null);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
@@ -135,31 +138,44 @@ export default function Jobs() {
             </div>
           ) : (
             selectedDateJobs.map(job => (
-              <Link key={job.id} href={`/jobs/${job.id}`}>
-                <div className="bg-white p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 transition-all group cursor-pointer active:scale-[0.98]">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-[#FFF1EB] flex items-center justify-center">
-                        <Clock className="w-5 h-5 text-primary" />
+              <div key={job.id} className="bg-white p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 transition-all group">
+                <Link href={`/jobs/${job.id}`}>
+                  <div className="cursor-pointer active:scale-[0.98]">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-[#FFF1EB] flex items-center justify-center">
+                          <Clock className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-[#1A1A1A] group-hover:text-primary transition-colors">{job.title}</h4>
+                          <p className="text-xs text-[#999999] font-medium">
+                            {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "TBD"}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-bold text-[#1A1A1A] group-hover:text-primary transition-colors">{job.title}</h4>
-                        <p className="text-xs text-[#999999] font-medium">
-                          {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "TBD"}
-                        </p>
-                      </div>
+                      <ChevronRight className="w-5 h-5 text-[#CCCCCC] group-hover:text-primary transition-colors" />
                     </div>
-                    <ChevronRight className="w-5 h-5 text-[#CCCCCC] group-hover:text-primary transition-colors" />
+                    
+                    <div className="space-y-2 pl-1">
+                      {job.customerId && <CustomerName id={job.customerId} />}
+                      <p className="text-sm text-[#666666] line-clamp-2 leading-relaxed">
+                        {job.description}
+                      </p>
+                    </div>
                   </div>
-                  
-                  <div className="space-y-2 pl-1">
-                    {job.customerId && <CustomerName id={job.customerId} />}
-                    <p className="text-sm text-[#666666] line-clamp-2 leading-relaxed">
-                      {job.description}
-                    </p>
-                  </div>
-                </div>
-              </Link>
+                </Link>
+
+                {job.status === "scheduled" && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setLateJob(job); }}
+                    className="mt-3 w-full py-3 rounded-2xl bg-[#FFF1EB] text-primary font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-[#FFE5D9]"
+                    data-testid={`button-running-late-${job.id}`}
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                    Running Late
+                  </button>
+                )}
+              </div>
             ))
           )}
         </div>
@@ -170,6 +186,14 @@ export default function Jobs() {
         onOpenChange={setIsDialogOpen} 
         defaultDate={format(selectedDate, "yyyy-MM-dd")} 
       />
+
+      {lateJob && (
+        <RunningLateModal 
+          open={!!lateJob} 
+          onOpenChange={(v) => { if (!v) setLateJob(null); }} 
+          job={lateJob} 
+        />
+      )}
     </div>
   );
 }
