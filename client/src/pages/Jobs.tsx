@@ -1,7 +1,8 @@
-import { useJobs, useCreateJob } from "@/hooks/use-jobs";
+import { useJobs, useCreateJob, useUpdateJob } from "@/hooks/use-jobs";
+import { useQuotes } from "@/hooks/use-quotes";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
-import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2, Calendar } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2, Calendar, Briefcase, FileText, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -186,35 +187,209 @@ function CustomerName({ id }: { id: number }) {
 }
 
 function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, onOpenChange: (open: boolean) => void, defaultDate: string }) {
-  const { mutate, isPending } = useCreateJob();
+  const { mutate: createJob, isPending: isCreating } = useCreateJob();
+  const { mutate: updateJob, isPending: isUpdating } = useUpdateJob();
   const { data: customers } = useCustomers();
+  const { data: allJobs } = useJobs();
+  const { data: allQuotes } = useQuotes();
+
+  const [mode, setMode] = useState<"new" | "existing">("new");
+  const [linkedJobId, setLinkedJobId] = useState("");
+  const [linkedQuoteId, setLinkedQuoteId] = useState("");
   const [formData, setFormData] = useState({ title: "", description: "", customerId: "", scheduledDate: defaultDate, time: "09:00" });
-  
+
+  const unscheduledJobs = allJobs?.filter(j => !j.scheduledDate) || [];
+  const unassignedQuotes = allQuotes?.filter(q => !q.jobId) || [];
+
+  const isPending = isCreating || isUpdating;
+
+  const handlePickJob = (jobId: string) => {
+    setLinkedJobId(jobId);
+    setLinkedQuoteId("");
+    const job = allJobs?.find(j => j.id === parseInt(jobId));
+    if (job) {
+      setFormData({
+        ...formData,
+        title: job.title,
+        description: job.description || "",
+        customerId: job.customerId ? job.customerId.toString() : "",
+      });
+    }
+  };
+
+  const handlePickQuote = (quoteId: string) => {
+    setLinkedQuoteId(quoteId);
+    setLinkedJobId("");
+    const quote = allQuotes?.find(q => q.id === parseInt(quoteId));
+    if (quote) {
+      setFormData({
+        ...formData,
+        title: `Quote #${quote.id}`,
+        description: quote.content || "",
+      });
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const scheduledDate = new Date(`${formData.scheduledDate}T${formData.time}`);
 
-    mutate({
-      title: formData.title,
-      description: formData.description,
-      customerId: formData.customerId ? parseInt(formData.customerId) : undefined,
-      scheduledDate: scheduledDate,
-      status: "scheduled"
-    }, {
-      onSuccess: () => {
-        setFormData({ title: "", description: "", customerId: "", scheduledDate: defaultDate, time: "09:00" });
-        onOpenChange(false);
-      }
-    });
+    if (mode === "existing" && linkedJobId) {
+      updateJob({
+        id: parseInt(linkedJobId),
+        scheduledDate: scheduledDate,
+        status: "scheduled",
+      }, {
+        onSuccess: () => {
+          resetForm();
+          onOpenChange(false);
+        }
+      });
+    } else {
+      createJob({
+        title: formData.title,
+        description: formData.description,
+        customerId: formData.customerId ? parseInt(formData.customerId) : undefined,
+        scheduledDate: scheduledDate,
+        status: "scheduled"
+      }, {
+        onSuccess: () => {
+          resetForm();
+          onOpenChange(false);
+        }
+      });
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({ title: "", description: "", customerId: "", scheduledDate: defaultDate, time: "09:00" });
+    setLinkedJobId("");
+    setLinkedQuoteId("");
+    setMode("new");
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-[2.5rem] p-8">
+    <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v); }}>
+      <DialogContent className="sm:max-w-[460px] rounded-[2.5rem] p-8 max-h-[90vh] overflow-y-auto">
         <DialogHeader className="mb-4">
           <DialogTitle className="text-2xl font-bold">New Schedule Item</DialogTitle>
         </DialogHeader>
+
+        {/* Mode Toggle */}
+        <div className="bg-[#F5F3F0] p-1 rounded-2xl flex gap-1 mb-6">
+          <button 
+            type="button"
+            onClick={() => { setMode("new"); setLinkedJobId(""); setLinkedQuoteId(""); }}
+            className={cn(
+              "flex-1 py-3 rounded-xl font-bold text-sm transition-all",
+              mode === "new" ? "bg-white text-[#1A1A1A] shadow-sm" : "text-[#666666]"
+            )}
+          >
+            Create New
+          </button>
+          <button 
+            type="button"
+            onClick={() => setMode("existing")}
+            className={cn(
+              "flex-1 py-3 rounded-xl font-bold text-sm transition-all",
+              mode === "existing" ? "bg-white text-[#1A1A1A] shadow-sm" : "text-[#666666]"
+            )}
+          >
+            Link Existing
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-6">
+          {mode === "existing" && (
+            <div className="space-y-4">
+              {/* Unscheduled Jobs */}
+              {unscheduledJobs.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="font-bold flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-primary" />
+                    Unscheduled Jobs
+                  </Label>
+                  <div className="space-y-2 max-h-36 overflow-y-auto">
+                    {unscheduledJobs.map(job => (
+                      <button
+                        key={job.id}
+                        type="button"
+                        onClick={() => handlePickJob(job.id.toString())}
+                        className={cn(
+                          "w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3",
+                          linkedJobId === job.id.toString()
+                            ? "bg-[#FFF1EB] border-primary"
+                            : "bg-white border-black/5 hover:border-black/10"
+                        )}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                          <Briefcase className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-sm truncate">{job.title}</div>
+                          <div className="text-xs text-[#999999] truncate">{job.description || "No description"}</div>
+                        </div>
+                        {linkedJobId === job.id.toString() && (
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Unassigned Quotes */}
+              {unassignedQuotes.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="font-bold flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-primary" />
+                    Unassigned Quotes
+                  </Label>
+                  <div className="space-y-2 max-h-36 overflow-y-auto">
+                    {unassignedQuotes.map(quote => (
+                      <button
+                        key={quote.id}
+                        type="button"
+                        onClick={() => handlePickQuote(quote.id.toString())}
+                        className={cn(
+                          "w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3",
+                          linkedQuoteId === quote.id.toString()
+                            ? "bg-[#FFF1EB] border-primary"
+                            : "bg-white border-black/5 hover:border-black/10"
+                        )}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
+                          <FileText className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-sm truncate">Quote #{quote.id}</div>
+                          <div className="text-xs text-[#999999] truncate">{quote.content || "No description"}</div>
+                        </div>
+                        <div className="text-sm font-bold text-primary shrink-0">${Number(quote.totalAmount).toLocaleString()}</div>
+                        {linkedQuoteId === quote.id.toString() && (
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {unscheduledJobs.length === 0 && unassignedQuotes.length === 0 && (
+                <div className="text-center py-8 text-[#999999] bg-[#F5F3F0] rounded-2xl">
+                  <p className="font-medium">Nothing to link</p>
+                  <p className="text-sm mt-1">All jobs and quotes are already scheduled</p>
+                </div>
+              )}
+
+              <div className="border-t border-black/5 pt-4" />
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label className="font-bold">Job Title</Label>
             <Input 
@@ -223,6 +398,7 @@ function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, o
               value={formData.title}
               onChange={e => setFormData({...formData, title: e.target.value})}
               className="rounded-xl h-12 border-black/10"
+              data-testid="input-job-title"
             />
           </div>
           
@@ -232,7 +408,7 @@ function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, o
               value={formData.customerId} 
               onValueChange={v => setFormData({...formData, customerId: v})}
             >
-              <SelectTrigger className="rounded-xl h-12 border-black/10">
+              <SelectTrigger className="rounded-xl h-12 border-black/10" data-testid="select-customer">
                 <SelectValue placeholder="Select a customer" />
               </SelectTrigger>
               <SelectContent>
@@ -251,6 +427,7 @@ function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, o
                 value={formData.scheduledDate}
                 onChange={e => setFormData({...formData, scheduledDate: e.target.value})}
                 className="rounded-xl h-12 border-black/10"
+                data-testid="input-date"
               />
             </div>
             <div className="space-y-2">
@@ -260,6 +437,7 @@ function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, o
                 value={formData.time}
                 onChange={e => setFormData({...formData, time: e.target.value})}
                 className="rounded-xl h-12 border-black/10"
+                data-testid="input-time"
               />
             </div>
           </div>
@@ -271,10 +449,16 @@ function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, o
               value={formData.description}
               onChange={e => setFormData({...formData, description: e.target.value})}
               className="rounded-xl min-h-[100px] border-black/10"
+              data-testid="textarea-notes"
             />
           </div>
 
-          <Button type="submit" disabled={isPending} className="w-full h-14 rounded-2xl bg-primary text-white font-bold shadow-lg shadow-primary/20">
+          <Button 
+            type="submit" 
+            disabled={isPending || (mode === "existing" && !linkedJobId && !linkedQuoteId)} 
+            className="w-full h-14 rounded-2xl bg-primary text-white font-bold shadow-lg shadow-primary/20"
+            data-testid="button-save-schedule"
+          >
             {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save to Schedule"}
           </Button>
         </form>
