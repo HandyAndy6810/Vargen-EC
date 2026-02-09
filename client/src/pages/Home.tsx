@@ -31,9 +31,11 @@ export default function Home() {
           <h1 className="text-4xl font-bold text-foreground mb-2">Welcome back</h1>
           <p className="text-muted-foreground text-lg">Ready to grow your business?</p>
         </div>
-        <button className="absolute right-6 top-12 p-2 hover:bg-black/5 rounded-full transition-colors">
-          <Settings className="w-6 h-6 text-foreground/60" />
-        </button>
+        <Link href="/profile">
+          <button className="absolute right-6 top-12 p-2 hover:bg-black/5 rounded-full transition-colors" data-testid="button-home-settings">
+            <Settings className="w-6 h-6 text-foreground/60" />
+          </button>
+        </Link>
       </div>
 
       <div className="px-6 space-y-8 max-w-2xl mx-auto">
