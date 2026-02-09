@@ -40,15 +40,15 @@ export default function Home() {
 
       <div className="px-6 space-y-8 max-w-2xl mx-auto">
         {/* AI Quoting Hero */}
-        <div className="header-card">
-          <h2 className="text-2xl font-bold mb-3">AI-Powered Quoting</h2>
-          <p className="text-white/80 mb-8 text-lg">
-            Create professional quotes in seconds with our intelligent assistant
+        <div className="header-card py-5 px-5">
+          <h2 className="text-lg font-bold mb-1">AI-Powered Quoting</h2>
+          <p className="text-white/70 mb-4 text-sm">
+            Create professional quotes in seconds with AI
           </p>
           <Link href="/quotes/new">
-            <button className="bg-primary hover:bg-primary/90 text-white font-bold py-4 px-8 rounded-2xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-primary/20">
+            <button className="bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-6 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-primary/20 text-sm">
               Create Quote
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
             </button>
           </Link>
         </div>
