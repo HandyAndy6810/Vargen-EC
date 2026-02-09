@@ -611,7 +611,12 @@ export default function QuoteCreate() {
             </div>
 
             <Button onClick={handleGenerate} disabled={!description.trim()}
-              className="w-full h-16 rounded-2xl text-lg font-bold bg-[#8B7E74] text-white shadow-lg shadow-[#8B7E74]/20 disabled:opacity-40"
+              className={cn(
+                "w-full h-16 rounded-2xl text-lg font-bold text-white shadow-lg transition-all disabled:opacity-40",
+                description.trim() && customerName.trim() 
+                  ? "bg-primary shadow-primary/20" 
+                  : "bg-[#8B7E74] shadow-[#8B7E74]/20"
+              )}
               data-testid="button-generate-quote-advanced">
               <Sparkles className="w-5 h-5 mr-2" /> Generate Advanced Quote
             </Button>
@@ -760,7 +765,7 @@ export default function QuoteCreate() {
                 type="range"
                 min={-30}
                 max={50}
-                step={1}
+                step={0.1}
                 value={editorMargin}
                 onChange={(e) => {
                   const newMargin = Number(e.target.value);
