@@ -16,6 +16,7 @@ import {
   Percent,
   Wrench,
   ChevronDown,
+  ChevronUp,
   Trash2,
   Plus,
   Link2,
@@ -155,6 +156,10 @@ export default function QuoteCreate() {
   const [savedQuoteId, setSavedQuoteId] = useState<number | null>(null);
   const [showExportOptions, setShowExportOptions] = useState(false);
 
+  const [notesExpanded, setNotesExpanded] = useState(false);
+  const [editorMargin, setEditorMargin] = useState(0);
+  const [baseItemPrices, setBaseItemPrices] = useState<Record<string, number>>({});
+
   const [defaults, setDefaults] = useState<QuoteDefaults>(loadDefaults);
   const [showTradeDropdown, setShowTradeDropdown] = useState(false);
 
@@ -214,6 +219,10 @@ export default function QuoteCreate() {
         unitPrice: Number(item.unitPrice) || 0,
       })) : [];
       setLineItems(items);
+      const prices: Record<string, number> = {};
+      items.forEach((item: QuoteLineItem) => { prices[item.id] = item.unitPrice; });
+      setBaseItemPrices(prices);
+      setEditorMargin(0);
       setPhase("editor");
     },
     onError: (err: Error) => {
@@ -336,19 +345,24 @@ export default function QuoteCreate() {
 
   const addCustomItem = () => {
     if (!newItemDesc.trim() || !newItemPrice) return;
+    const id = nextItemId();
+    const price = Number(newItemPrice) || 0;
     setLineItems(prev => [...prev, {
-      id: nextItemId(),
+      id,
       description: newItemDesc,
       quantity: Number(newItemQty) || 1,
       unit: "each",
-      unitPrice: Number(newItemPrice) || 0,
+      unitPrice: price,
     }]);
+    setBaseItemPrices(prev => ({ ...prev, [id]: price }));
     setNewItemDesc(""); setNewItemQty("1"); setNewItemPrice("");
     setShowAddModal(false);
   };
 
   const addSuggestedItem = (suggested: typeof SUGGESTED_ITEMS[0]) => {
-    setLineItems(prev => [...prev, { id: nextItemId(), ...suggested }]);
+    const id = nextItemId();
+    setLineItems(prev => [...prev, { id, ...suggested }]);
+    setBaseItemPrices(prev => ({ ...prev, [id]: suggested.unitPrice }));
     setShowAddModal(false);
   };
 
@@ -707,7 +721,11 @@ export default function QuoteCreate() {
                             <input
                               type="number"
                               value={item.unitPrice}
-                              onChange={(e) => updateField("unitPrice", Math.max(0, Number(e.target.value) || 0))}
+                              onChange={(e) => {
+                                const newPrice = Math.max(0, Number(e.target.value) || 0);
+                                updateField("unitPrice", newPrice);
+                                setBaseItemPrices(prev => ({ ...prev, [item.id]: editorMargin === 0 ? newPrice : newPrice / (1 + editorMargin / 100) }));
+                              }}
                               className="w-20 bg-white border border-black/10 rounded-lg text-sm font-medium text-[#1A1A1A] py-1 px-2 outline-none focus:border-primary/40 transition-colors"
                               data-testid={`input-item-price-${i}`}
                             />
@@ -731,11 +749,68 @@ export default function QuoteCreate() {
               </button>
             </div>
 
+            {/* Margin Slider */}
+            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-black/5">
+              <div className="flex items-center gap-2 mb-3">
+                <Percent className="w-5 h-5 text-primary" />
+                <h3 className="font-bold text-[#1A1A1A] text-lg">Margin</h3>
+                <span className="ml-auto text-lg font-bold text-primary" data-testid="text-editor-margin">{editorMargin}%</span>
+              </div>
+              <input
+                type="range"
+                min={-30}
+                max={50}
+                step={1}
+                value={editorMargin}
+                onChange={(e) => {
+                  const newMargin = Number(e.target.value);
+                  setEditorMargin(newMargin);
+                  setLineItems(prev => prev.map(item => {
+                    const base = baseItemPrices[item.id];
+                    if (base !== undefined) {
+                      return { ...item, unitPrice: Math.round(base * (1 + newMargin / 100) * 100) / 100 };
+                    }
+                    return item;
+                  }));
+                }}
+                onInput={(e) => {
+                  const newMargin = Number((e.target as HTMLInputElement).value);
+                  setEditorMargin(newMargin);
+                  setLineItems(prev => prev.map(item => {
+                    const base = baseItemPrices[item.id];
+                    if (base !== undefined) {
+                      return { ...item, unitPrice: Math.round(base * (1 + newMargin / 100) * 100) / 100 };
+                    }
+                    return item;
+                  }));
+                }}
+                className="w-full h-2 bg-[#E5E0DB] rounded-full appearance-none cursor-pointer accent-primary"
+                data-testid="slider-editor-margin"
+              />
+              <div className="flex justify-between mt-2">
+                <span className="text-xs text-[#999999]">-30%</span>
+                <span className="text-xs text-[#999999]">0%</span>
+                <span className="text-xs text-[#999999]">+50%</span>
+              </div>
+              <p className="text-xs text-[#999999] mt-2">Adjust all prices by a percentage. Manually edited prices will also be affected.</p>
+            </div>
+
             {/* Notes */}
             <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-black/5">
-              <Label className="text-sm font-bold text-[#666666] mb-2 block">Notes & Assumptions</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-bold text-[#666666]">Notes & Assumptions</Label>
+                <button
+                  onClick={() => setNotesExpanded(!notesExpanded)}
+                  className="flex items-center gap-1 text-xs text-primary font-medium"
+                  data-testid="button-expand-notes">
+                  {notesExpanded ? <><ChevronUp className="w-3.5 h-3.5" /> Collapse</> : <><ChevronDown className="w-3.5 h-3.5" /> Expand</>}
+                </button>
+              </div>
               <Textarea value={quoteNotes} onChange={(e) => setQuoteNotes(e.target.value)}
-                className="min-h-[80px] rounded-xl border-black/10 bg-[#FAFAFA] text-sm"
+                className={cn(
+                  "rounded-xl border-black/10 bg-[#FAFAFA] text-sm transition-all",
+                  notesExpanded ? "min-h-[240px]" : "min-h-[80px]"
+                )}
                 placeholder="Any notes, exclusions, or assumptions..."
                 data-testid="input-quote-notes" />
             </div>
