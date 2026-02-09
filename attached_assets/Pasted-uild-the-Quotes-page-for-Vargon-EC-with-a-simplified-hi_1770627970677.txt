@@ -1,0 +1,43 @@
+uild the "Quotes" page for Vargon EC with a simplified, high-density mobile layout.
+
+**Context:**
+This is a mobile-first iOS-style app for tradespeople. The design must be clean, uncluttered, and thumb-friendly.
+
+**Requirements:**
+
+1.  **Page Layout:**
+    - Create a new component `client/src/pages/QuotesPage.tsx`.
+    - Use a sticky header at the top and a fixed bottom navigation bar at the bottom.
+    - The main content area must be scrollable (`overflow-y-auto`) between them.
+
+2.  **Header (Compact):**
+    - Create a flex row header with white text on a dark background (or dark text on light, depending on theme).
+    - Left side: "Quotes" (Bold, Large text).
+    - Right side: "$12,400" (Total Pipeline Value, Green text, Bold).
+    - Keep these on the same line to save vertical space.
+
+3.  **Tabs (Segmented Control):**
+    - Immediately below the header, add a segmented control to toggle between "Active" and "History".
+    - Style it like iOS: A gray pill background with a white active indicator.
+
+4.  **The Quote List:**
+    - Map through the `quotes` data from the database.
+    - Render each quote as a simple, clean card.
+    - **Card Layout:**
+        - **Row 1:** Customer Name (Bold, Text-lg).
+        - **Row 2:** Job Title (Gray, Text-sm).
+        - **Row 3:** Price (Bold) on the left, Status (Text Color) on the right.
+        - *Status Styling:* Use Yellow text for "Draft", Blue for "Sent", Green for "Accepted". Do not use heavy background badges.
+
+5.  **Floating Action Button (FAB):**
+    - Place a large "+" button fixed in the bottom-right corner (bottom-20 right-6).
+    - Make it a large blue circle with a white Plus icon.
+    - Ensure it sits above the bottom navigation bar.
+
+6.  **Bottom Navigation (Placeholder):**
+    - Create a fixed bottom bar with 4 icons: Home, Quotes (Active), Jobs, Profile.
+
+**Technical:**
+- Use Tailwind CSS for all styling.
+- Use Lucide-React for icons (Plus, Home, FileText, Briefcase, User).
+- Ensure tap targets are at least 44px hi
