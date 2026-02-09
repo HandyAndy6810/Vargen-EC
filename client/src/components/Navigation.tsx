@@ -1,13 +1,9 @@
 import { Link, useLocation } from "wouter";
 import { Home, ClipboardList, CalendarDays, MessageCircle, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/use-auth";
 
 export function BottomNav() {
   const [location] = useLocation();
-  const { isAuthenticated } = useAuth();
-
-  if (!isAuthenticated) return null;
 
   const navItems = [
     { href: "/", icon: Home, label: "Home" },
@@ -20,7 +16,7 @@ export function BottomNav() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[100] px-4 pb-6 flex justify-center pointer-events-none">
       <nav
-        className="bg-[#F5F3F0] rounded-full px-7 py-3.5 flex items-center justify-between gap-7 shadow-lg pointer-events-auto border border-black/5"
+        className="bg-white dark:bg-zinc-900 rounded-full px-7 py-3.5 flex items-center justify-between gap-7 shadow-[0_4px_20px_rgba(0,0,0,0.15)] pointer-events-auto border border-black/10 dark:border-white/10"
         style={{ minWidth: "320px", maxWidth: "400px", width: "85vw" }}
         data-testid="nav-bottom-bar"
       >
