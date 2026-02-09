@@ -16,8 +16,13 @@ export function BottomNav() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[100] px-4 pb-6 flex justify-center pointer-events-none">
       <nav
-        className="bg-white dark:bg-zinc-900 rounded-full px-7 py-3.5 flex items-center justify-between gap-7 shadow-[0_4px_20px_rgba(0,0,0,0.15)] pointer-events-auto border border-black/10 dark:border-white/10"
-        style={{ minWidth: "320px", maxWidth: "400px", width: "85vw" }}
+        className="bg-white/70 dark:bg-black/60 backdrop-blur-xl rounded-full px-7 py-3.5 flex items-center justify-between gap-7 shadow-[0_8px_32px_rgba(0,0,0,0.15)] pointer-events-auto border border-white/20 dark:border-white/10"
+        style={{ 
+          minWidth: "320px", 
+          maxWidth: "400px", 
+          width: "85vw",
+          WebkitBackdropFilter: "blur(20px)",
+        }}
         data-testid="nav-bottom-bar"
       >
         {navItems.map((item) => {
