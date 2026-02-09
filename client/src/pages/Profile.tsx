@@ -129,8 +129,10 @@ export default function Profile() {
         {/* Settings Menu */}
         <div className="bg-white dark:bg-white/5 rounded-[2rem] shadow-sm border border-black/5 dark:border-white/10 overflow-hidden">
           {menuItems.map((item, idx) => (
-            <button
+            <div
               key={item.id}
+              role="button"
+              tabIndex={0}
               onClick={() => {
                 if (item.id === "appearance") {
                   setDarkMode(!darkMode);
@@ -138,7 +140,8 @@ export default function Profile() {
                   setActiveSection(activeSection === item.id ? null : item.id);
                 }
               }}
-              className={`w-full flex items-center gap-4 px-6 py-4 text-left transition-colors ${idx < menuItems.length - 1 ? "border-b border-black/5 dark:border-white/10" : ""}`}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
+              className={`w-full flex items-center gap-4 px-6 py-4 text-left transition-colors cursor-pointer ${idx < menuItems.length - 1 ? "border-b border-black/5 dark:border-white/10" : ""}`}
               data-testid={`button-settings-${item.id}`}
             >
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -153,7 +156,7 @@ export default function Profile() {
               ) : (
                 <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${activeSection === item.id ? "rotate-90" : ""}`} />
               )}
-            </button>
+            </div>
           ))}
         </div>
 
