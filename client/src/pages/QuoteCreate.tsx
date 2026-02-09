@@ -759,7 +759,26 @@ export default function QuoteCreate() {
               <div className="flex items-center gap-2 mb-3">
                 <Percent className="w-5 h-5 text-primary" />
                 <h3 className="font-bold text-[#1A1A1A] text-lg">Margin</h3>
-                <span className="ml-auto text-lg font-bold text-primary" data-testid="text-editor-margin">{editorMargin}%</span>
+                <div className="ml-auto flex items-center gap-1">
+                  <input
+                    type="number"
+                    value={editorMargin}
+                    onChange={(e) => {
+                      const newMargin = Number(e.target.value);
+                      setEditorMargin(newMargin);
+                      setLineItems(prev => prev.map(item => {
+                        const base = baseItemPrices[item.id];
+                        if (base !== undefined) {
+                          return { ...item, unitPrice: Math.round(base * (1 + newMargin / 100) * 100) / 100 };
+                        }
+                        return item;
+                      }));
+                    }}
+                    className="w-16 bg-[#F5F3F0] border-0 rounded-lg text-right text-lg font-bold text-primary py-1 px-2 outline-none focus:ring-1 focus:ring-primary/30 transition-all"
+                    data-testid="input-editor-margin"
+                  />
+                  <span className="text-lg font-bold text-primary">%</span>
+                </div>
               </div>
               <input
                 type="range"
