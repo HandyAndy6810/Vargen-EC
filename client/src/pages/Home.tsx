@@ -1,27 +1,45 @@
 import { useJobs } from "@/hooks/use-jobs";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useAuth } from "@/hooks/use-auth";
+import { useState } from "react";
 import { Link } from "wouter";
 import { 
   Plus, 
   ChevronRight, 
   MessageSquare, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Users, 
   Settings,
-  Home as HomeIcon,
-  FileText,
-  User
+  Clock,
+  User as UserIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { 
+  format, 
+  startOfWeek, 
+  endOfWeek, 
+  eachDayOfInterval, 
+  isSameDay, 
+  addDays
+} from "date-fns";
 
 export default function Home() {
   const { user } = useAuth();
   const { data: jobs } = useJobs();
   const { data: quotes } = useQuotes();
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const pendingQuotesCount = quotes?.filter(q => q.status === 'draft').length || 0;
   const upcomingJobsCount = jobs?.filter(j => j.status === 'scheduled').length || 0;
+
+  // Weekly calendar logic
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+  const weekEnd = endOfWeek(new Date(), { weekStartsOn: 0 });
+  const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+
+  const selectedDateJobs = jobs?.filter(job => 
+    job.scheduledDate && isSameDay(new Date(job.scheduledDate), selectedDate)
+  ) || [];
 
   return (
     <div className="min-h-screen bg-background pb-32">
@@ -98,7 +116,7 @@ export default function Home() {
           <Link href="/jobs" className="action-tile group">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-primary" />
+                <CalendarIcon className="w-6 h-6 text-primary" />
               </div>
               <div>
                 <div className="font-bold text-lg">Schedule</div>
@@ -107,22 +125,84 @@ export default function Home() {
             </div>
             <ChevronRight className="w-6 h-6 text-muted-foreground group-hover:translate-x-1 transition-transform" />
           </Link>
+        </div>
 
-          <Link href="/subcontractors" className="action-tile group">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center">
-                <Users className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <div className="font-bold text-lg">Subcontractors</div>
-                <div className="text-muted-foreground text-sm">Manage your team</div>
-              </div>
+        {/* Weekly Calendar Section */}
+        <div className="space-y-4">
+          <div className="flex justify-between items-center px-1">
+            <h3 className="text-xl font-bold">This Week</h3>
+            <Link href="/jobs" className="text-sm font-semibold text-primary">View Calendar</Link>
+          </div>
+          
+          <div className="bg-white rounded-[2rem] p-4 shadow-sm border border-black/5">
+            <div className="grid grid-cols-7 gap-1">
+              {weekDays.map((day, idx) => {
+                const isSelected = isSameDay(day, selectedDate);
+                const isToday = isSameDay(day, new Date());
+                const hasJobs = jobs?.some(job => job.scheduledDate && isSameDay(new Date(job.scheduledDate), day));
+
+                return (
+                  <div 
+                    key={idx}
+                    onClick={() => setSelectedDate(day)}
+                    className={cn(
+                      "flex flex-col items-center justify-center py-3 rounded-2xl cursor-pointer transition-all active:scale-95",
+                      isSelected ? "bg-primary text-white shadow-md shadow-primary/20" : "hover:bg-black/5"
+                    )}
+                  >
+                    <span className={cn(
+                      "text-[10px] font-bold uppercase mb-1",
+                      isSelected ? "text-white/70" : "text-muted-foreground"
+                    )}>
+                      {format(day, "eee")}
+                    </span>
+                    <span className="text-sm font-bold">{format(day, "d")}</span>
+                    {hasJobs && (
+                      <div className={cn(
+                        "w-1 h-1 rounded-full mt-1",
+                        isSelected ? "bg-white" : "bg-primary"
+                      )} />
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <ChevronRight className="w-6 h-6 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-          </Link>
+
+            {/* Selected Day Agenda */}
+            <div className="mt-4 pt-4 border-t border-black/5 space-y-3">
+              <p className="text-xs font-bold text-muted-foreground uppercase px-1">
+                {isSameDay(selectedDate, new Date()) ? "Today" : format(selectedDate, "EEEE")}
+              </p>
+              
+              {selectedDateJobs.length === 0 ? (
+                <p className="text-sm text-muted-foreground px-1 py-2 italic">No jobs scheduled</p>
+              ) : (
+                selectedDateJobs.slice(0, 3).map(job => (
+                  <Link key={job.id} href={`/jobs/${job.id}`}>
+                    <div className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-xl transition-colors cursor-pointer active:scale-[0.98]">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Clock className="w-4 h-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate">{job.title}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "TBD"}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+                    </div>
+                  </Link>
+                ))
+              )}
+              {selectedDateJobs.length > 3 && (
+                <Link href="/jobs" className="block text-center text-xs font-bold text-primary py-1">
+                  + {selectedDateJobs.length - 3} more jobs
+                </Link>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-
     </div>
   );
 }
