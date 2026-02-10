@@ -874,8 +874,8 @@ export default function QuoteCreate() {
               <h3 className="font-bold text-[#1A1A1A] text-lg mb-4">Send to Client</h3>
 
               <button
-                onClick={() => toast({ title: "Coming soon", description: "PDF export will be available in the next update." })}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAFAFA] text-left"
+                onClick={() => setLocation(`/quotes/${savedQuoteId}/preview`)}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAFAFA] text-left hover-elevate active-elevate-2 transition-all"
                 data-testid="button-export-pdf">
                 <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center shrink-0">
                   <Download className="w-6 h-6 text-red-600" />
@@ -887,8 +887,14 @@ export default function QuoteCreate() {
               </button>
 
               <button
-                onClick={() => toast({ title: "Coming soon", description: "Email sending will be available in the next update." })}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAFAFA] text-left"
+                onClick={() => {
+                  const customer = customers?.find(c => c.id === selectedCustomerId);
+                  const email = customer?.email || "";
+                  const subject = encodeURIComponent(`Quote: ${quoteTitle}`);
+                  const body = encodeURIComponent(`Hi ${customer?.name || "there"},\n\nPlease find your quote for ${quoteTitle} attached.\n\nTotal: $${calcTotal().toLocaleString("en-AU", { minimumFractionDigits: 2 })}\n\nView details: ${window.location.origin}/quotes/${savedQuoteId}\n\nKind regards,\n[Your Name]`);
+                  window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+                }}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAFAFA] text-left hover-elevate active-elevate-2 transition-all"
                 data-testid="button-email-client">
                 <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center shrink-0">
                   <Mail className="w-6 h-6 text-blue-600" />
