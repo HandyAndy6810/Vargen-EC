@@ -16,6 +16,7 @@ import {
   X,
   Plus,
   Save,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ interface ParsedContent {
   markupPercent?: number;
   callOutFee?: number;
   includeGST?: boolean;
+  acknowledged?: boolean;
 }
 
 function parseContent(content: string | null): ParsedContent | null {
@@ -71,6 +73,7 @@ export default function QuoteDetail() {
   const [editIncludeGST, setEditIncludeGST] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [ackChecked, setAckChecked] = useState(false);
 
   useEffect(() => {
     if (parsed) {
@@ -160,6 +163,7 @@ export default function QuoteDetail() {
       subtotal: totals.subtotal,
       gstAmount: totals.gstAmount,
       totalAmount: totals.totalAmount,
+      acknowledged: false,
     };
     updateQuote(
       {
@@ -175,6 +179,25 @@ export default function QuoteDetail() {
     deleteQuote(id, {
       onSuccess: () => setLocation("/quotes"),
     });
+  };
+
+  const isAcknowledged = parsed?.acknowledged === true;
+
+  const handleAcknowledge = () => {
+    if (!ackChecked) return;
+    const updatedContent: ParsedContent = {
+      ...parsed,
+      acknowledged: true,
+    };
+    updateQuote(
+      { id: quote.id, content: JSON.stringify(updatedContent) },
+      {
+        onSuccess: () => {
+          setAckChecked(false);
+          toast({ title: "Acknowledged", description: "You've accepted ownership of this quote." });
+        },
+      }
+    );
   };
 
   const buildShareText = () => {
@@ -487,8 +510,57 @@ export default function QuoteDetail() {
           </Button>
         )}
 
+        {/* Acknowledgment Gate */}
+        {!editing && !isAcknowledged && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-5 border border-amber-200 dark:border-amber-700/40" data-testid="card-acknowledgment">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-800/40 flex items-center justify-center shrink-0 mt-0.5">
+                <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-foreground text-sm">Review Required</h3>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Before using this quote, please read all details carefully — including line items, pricing, GST, and notes. By acknowledging, you confirm you take full ownership and responsibility for all parts of this quote.
+                </p>
+              </div>
+            </div>
+            <label className="flex items-start gap-3 cursor-pointer mb-4" data-testid="label-ack-checkbox">
+              <input
+                type="checkbox"
+                checked={ackChecked}
+                onChange={(e) => setAckChecked(e.target.checked)}
+                className="mt-0.5 w-5 h-5 rounded accent-amber-600"
+                data-testid="input-ack-checkbox"
+              />
+              <span className="text-sm text-foreground leading-snug">
+                I have carefully reviewed this quote and accept full ownership of all items, pricing, and details discussed.
+              </span>
+            </label>
+            <Button
+              onClick={handleAcknowledge}
+              disabled={!ackChecked || isUpdating}
+              className="w-full h-12 rounded-2xl text-sm font-bold bg-amber-600 text-white"
+              data-testid="button-acknowledge"
+            >
+              {isUpdating ? (
+                <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Confirming...</>
+              ) : (
+                <><ShieldCheck className="w-5 h-5 mr-2" /> Acknowledge & Continue</>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Acknowledged Badge */}
+        {!editing && isAcknowledged && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-green-50 dark:bg-green-900/20 rounded-2xl border border-green-200 dark:border-green-700/40" data-testid="badge-acknowledged">
+            <ShieldCheck className="w-4 h-4 text-green-600 dark:text-green-400" />
+            <span className="text-xs font-semibold text-green-700 dark:text-green-400">Reviewed & acknowledged — you own this quote</span>
+          </div>
+        )}
+
         {/* Status Actions */}
-        {!editing && (
+        {!editing && isAcknowledged && (
           <div className="space-y-2">
             {quote.status === "draft" && (
               <Button
