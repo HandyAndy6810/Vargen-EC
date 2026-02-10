@@ -16,25 +16,33 @@ import QuoteDetail from "@/pages/QuoteDetail";
 import QuoteCreate from "@/pages/QuoteCreate";
 import Messages from "@/pages/Messages";
 import Profile from "@/pages/Profile";
+import QuotePreview from "@/pages/QuotePreview";
 
 function Router() {
   return (
-    <Layout>
-      <Switch>
-        <Route path="/api/login" component={() => { window.location.href = "/api/login"; return null; }} />
-        <Route path="/login" component={Login} />
-        <Route path="/" component={Home} />
-        <Route path="/customers" component={Customers} />
-        <Route path="/jobs" component={Jobs} />
-        <Route path="/jobs/:id" component={JobDetail} />
-        <Route path="/quotes" component={Quotes} />
-        <Route path="/quotes/new" component={QuoteCreate} />
-        <Route path="/quotes/:id" component={QuoteDetail} />
-        <Route path="/messages" component={Messages} />
-        <Route path="/profile" component={Profile} />
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+    <Switch>
+      <Route path="/quotes/:id/preview" component={QuotePreview} />
+      <Route>
+        {() => (
+          <Layout>
+            <Switch>
+              <Route path="/api/login" component={() => { window.location.href = "/api/login"; return null; }} />
+              <Route path="/login" component={Login} />
+              <Route path="/" component={Home} />
+              <Route path="/customers" component={Customers} />
+              <Route path="/jobs" component={Jobs} />
+              <Route path="/jobs/:id" component={JobDetail} />
+              <Route path="/quotes" component={Quotes} />
+              <Route path="/quotes/new" component={QuoteCreate} />
+              <Route path="/quotes/:id" component={QuoteDetail} />
+              <Route path="/messages" component={Messages} />
+              <Route path="/profile" component={Profile} />
+              <Route component={NotFound} />
+            </Switch>
+          </Layout>
+        )}
+      </Route>
+    </Switch>
   );
 }
 

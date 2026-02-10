@@ -17,6 +17,7 @@ import {
   Plus,
   Save,
   ShieldCheck,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -640,6 +641,19 @@ export default function QuoteDetail() {
               <div>
                 <p className="font-bold text-foreground">Copy Link</p>
                 <p className="text-sm text-muted-foreground">Share a direct link to this quote</p>
+              </div>
+            </button>
+            <button
+              onClick={() => { setShowShareSheet(false); setLocation(`/quotes/${quote.id}/preview`); }}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left"
+              data-testid="button-preview-export"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
+                <FileText className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <p className="font-bold text-foreground">Preview & Export PDF</p>
+                <p className="text-sm text-muted-foreground">View print-ready layout and save as PDF</p>
               </div>
             </button>
           </div>
