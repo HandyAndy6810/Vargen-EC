@@ -144,6 +144,17 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
+  app.delete(api.quotes.delete.path, async (req, res) => {
+    try {
+      const quote = await storage.getQuote(Number(req.params.id));
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+      await storage.deleteQuote(Number(req.params.id));
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete quote" });
+    }
+  });
+
   // AI Quote Generation
   app.post("/api/quotes/generate", async (req, res) => {
     try {

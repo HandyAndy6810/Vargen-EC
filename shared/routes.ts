@@ -102,6 +102,14 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/quotes/:id',
+      responses: {
+        200: z.object({ ok: z.boolean() }),
+        404: errorSchemas.notFound,
+      },
+    },
   },
 };
 

@@ -3,6 +3,30 @@ import { api, buildUrl } from "@shared/routes";
 import { type InsertQuote } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
+export function useDeleteQuote() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.quotes.delete.path, { id });
+      const res = await fetch(url, {
+        method: api.quotes.delete.method,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete quote");
+      return api.quotes.delete.responses[200].parse(await res.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.quotes.list.path] });
+      toast({ title: "Quote Deleted", description: "The quote has been removed." });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
 export function useQuotes() {
   return useQuery({
     queryKey: [api.quotes.list.path],

@@ -28,6 +28,7 @@ export interface IStorage {
   getQuoteItems(quoteId: number): Promise<QuoteItem[]>;
   createQuoteItem(item: InsertQuoteItem): Promise<QuoteItem>;
   deleteQuoteItem(id: number): Promise<void>;
+  deleteQuote(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -94,6 +95,11 @@ export class DatabaseStorage implements IStorage {
 
   async deleteQuoteItem(id: number): Promise<void> {
     await db.delete(quoteItems).where(eq(quoteItems.id, id));
+  }
+
+  async deleteQuote(id: number): Promise<void> {
+    await db.delete(quoteItems).where(eq(quoteItems.quoteId, id));
+    await db.delete(quotes).where(eq(quotes.id, id));
   }
 }
 
