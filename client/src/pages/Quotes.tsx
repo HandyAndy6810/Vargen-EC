@@ -39,6 +39,17 @@ export default function Quotes() {
     ?.filter(q => activeStatuses.includes(q.status))
     .reduce((sum, q) => sum + Number(q.totalAmount || 0), 0) || 0;
 
+  const stats = (() => {
+    if (!quotes) return { winRate: 0, avgValue: 0 };
+    const sent = quotes.filter(q => q.status === "sent").length;
+    const accepted = quotes.filter(q => q.status === "accepted").length;
+    const winRate = sent > 0 ? (accepted / (sent + accepted)) * 100 : 0;
+    const avgValue = quotes.length > 0 
+      ? quotes.reduce((sum, q) => sum + Number(q.totalAmount || 0), 0) / quotes.length 
+      : 0;
+    return { winRate, avgValue };
+  })();
+
   const getCustomerName = (quote: { id: number; content: string | null; jobId: number | null }) => {
     const parsed = parseQuoteContent(quote.content);
     if (parsed?.notes) {
@@ -77,13 +88,29 @@ export default function Quotes() {
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      {/* Header */}
-      <div className="px-6 pt-12 mb-2">
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold text-foreground" data-testid="text-quotes-title">Quotes</h1>
-          <p className="text-lg font-bold text-green-600 dark:text-green-400" data-testid="text-pipeline-value">
-            ${totalPipeline.toLocaleString()}
-          </p>
+      {/* Header & Dashboard Strip */}
+      <div className="px-6 pt-12 mb-6">
+        <h1 className="text-3xl font-bold text-foreground mb-4" data-testid="text-quotes-title">Quotes</h1>
+        
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Pipeline</p>
+            <p className="text-sm font-bold text-primary truncate" data-testid="text-pipeline-value">
+              ${totalPipeline.toLocaleString()}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Win Rate</p>
+            <p className="text-sm font-bold text-foreground truncate" data-testid="text-win-rate">
+              {stats.winRate.toFixed(0)}%
+            </p>
+          </div>
+          <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Avg Value</p>
+            <p className="text-sm font-bold text-foreground truncate" data-testid="text-avg-value">
+              ${stats.avgValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </p>
+          </div>
         </div>
       </div>
 
