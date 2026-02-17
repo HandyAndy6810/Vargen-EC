@@ -2,12 +2,14 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
-import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Calendar } from "lucide-react";
+import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Calendar, RefreshCw, Send } from "lucide-react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { format, differenceInDays, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 function parseQuoteContent(content: string | null) {
   if (!content) return null;
@@ -24,6 +26,45 @@ export default function Quotes() {
   const { data: customers } = useCustomers();
   const [, setLocation] = useLocation();
   const [tab, setTab] = useState<"active" | "history">("active");
+
+  const { toast } = useToast();
+
+  const handleResend = async (quote: any) => {
+    try {
+      await apiRequest("PATCH", `/api/quotes/${quote.id}`, {
+        createdAt: new Date().toISOString(),
+        status: "sent"
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      toast({
+        title: "Quote Resent",
+        description: "The expiry date has been refreshed to 30 days from today.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to resend quote.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleNudge = (quote: any, type: 'sms' | 'email') => {
+    const customer = getCustomer(quote);
+    if (!customer) return;
+
+    const name = getCustomerName(quote);
+    const jobTitle = getJobTitle(quote);
+    
+    if (type === 'sms' && customer.phone) {
+      const body = `Hi ${customer.name}, just checking you received my quote for ${jobTitle}. Happy to answer any questions!`;
+      window.location.href = `sms:${customer.phone}?body=${encodeURIComponent(body)}`;
+    } else if (type === 'email' && customer.email) {
+      const subject = `Follow up: ${jobTitle}`;
+      const body = `Hi ${customer.name},\n\nJust checking in to see if you received the quote I sent over for ${jobTitle}.\n\nHappy to answer any questions or discuss the next steps!\n\nCheers!`;
+      window.location.href = `mailto:${customer.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    }
+  };
 
   const activeStatuses = ["draft", "sent", "viewed"];
   const historyStatuses = ["accepted", "rejected"];
@@ -325,6 +366,35 @@ export default function Quotes() {
                     <span className={cn("text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg border", statusColor(quote.status, isCold))} data-testid={`text-quote-status-${quote.id}`}>
                       {isCold && quote.status === "sent" ? "Sent (Cold)" : quote.status}
                     </span>
+
+                    {isCold && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-[10px] font-bold uppercase tracking-tight gap-1.5 rounded-xl border-amber-200 bg-amber-50/50 hover:bg-amber-100 dark:border-amber-900/30 dark:bg-amber-900/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleResend(quote);
+                          }}
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Resend
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-[10px] font-bold uppercase tracking-tight gap-1.5 rounded-xl border-amber-200 bg-amber-50/50 hover:bg-amber-100 dark:border-amber-900/30 dark:bg-amber-900/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNudge(quote, 'sms');
+                          }}
+                        >
+                          <Send className="w-3 h-3" />
+                          Nudge
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
