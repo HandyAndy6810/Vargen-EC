@@ -75,18 +75,48 @@ export default function Home() {
       <div className="px-6 space-y-8 max-w-2xl mx-auto">
         {bladeOrder.map((bladeId) => {
           if (bladeId === "hero") {
+            const quickStarts = [
+              { label: "Bathroom Reno", icon: "🚿" },
+              { label: "Decking", icon: "🪵" },
+              { label: "Switchboard", icon: "⚡" },
+            ];
+
             return (
-              <div key="hero" className="header-card py-5 px-5">
-                <h2 className="text-lg font-bold mb-1">AI-Powered Quoting</h2>
-                <p className="text-white/70 mb-4 text-sm">
-                  Create professional quotes in seconds with AI
-                </p>
-                <Link href="/quotes/new">
-                  <button className="bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-6 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-primary/20 text-sm">
-                    Create Quote
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </Link>
+              <div key="hero" className="header-card py-6 px-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex-1">
+                    <h2 className="text-xl font-bold mb-1 text-white">AI-Powered Quoting</h2>
+                    <p className="text-white/70 mb-4 text-sm">
+                      Create professional quotes in seconds with AI
+                    </p>
+                    
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">Quick Start</p>
+                      <div className="flex flex-wrap gap-2">
+                        {quickStarts.map((start) => (
+                          <Link 
+                            key={start.label} 
+                            href={`/quotes/new?template=${encodeURIComponent(start.label)}`}
+                          >
+                            <button className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/5 transition-all text-left group active:scale-95">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm">{start.icon}</span>
+                                <span className="text-xs font-bold text-white/90 group-hover:text-white transition-colors">{start.label}</span>
+                              </div>
+                            </button>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Link href="/quotes/new">
+                    <button className="bg-primary hover:bg-primary/90 text-white font-bold py-3 px-8 rounded-2xl flex items-center gap-2 transition-all active:scale-95 shadow-xl shadow-primary/20 text-sm h-fit">
+                      Create Quote
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </Link>
+                </div>
               </div>
             );
           }
