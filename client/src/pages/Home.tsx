@@ -3,6 +3,7 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
+import { PipelineView } from "@/components/PipelineView";
 import { 
   Plus, 
   ChevronRight, 
@@ -31,7 +32,7 @@ export default function Home() {
   
   const [bladeOrder, setBladeOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem("vargenezey_home_blade_order");
-    return saved ? JSON.parse(saved) : ["hero", "stats", "actions", "calendar"];
+    return saved ? JSON.parse(saved) : ["hero", "stats", "pipeline", "actions", "calendar"];
   });
 
   // Listen for storage changes to update home page layout
@@ -102,6 +103,12 @@ export default function Home() {
                   <div className="text-muted-foreground font-medium">Upcoming Jobs</div>
                 </div>
               </div>
+            );
+          }
+
+          if (bladeId === "pipeline") {
+            return (
+              <PipelineView key="pipeline" quotes={quotes || []} />
             );
           }
 
