@@ -6,6 +6,7 @@ import { Plus, Loader2, FileText } from "lucide-react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 function parseQuoteContent(content: string | null) {
   if (!content) return null;
