@@ -1,69 +1,78 @@
 import { Quote } from "@shared/schema";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Link } from "wouter";
+import { cn } from "@/lib/utils";
 
 interface PipelineViewProps {
   quotes: Quote[];
 }
 
 export function PipelineView({ quotes }: PipelineViewProps) {
-  const statuses = ["draft", "sent", "accepted", "rejected"] as const;
+  const statuses = [
+    { id: "draft", label: "Drafts", color: "bg-slate-500" },
+    { id: "sent", label: "Sent", color: "bg-blue-500" },
+    { id: "accepted", label: "Accepted", color: "bg-emerald-500" },
+    { id: "rejected", label: "Rejected", color: "bg-rose-500" },
+  ] as const;
   
   const getQuotesByStatus = (status: string) => 
     quotes.filter(q => q.status === status);
 
+  const totalValue = quotes.reduce((acc, q) => acc + Number(q.totalAmount), 0);
+
   return (
     <div className="space-y-4">
-      <h3 className="text-xl font-bold px-1">Quote Pipeline</h3>
-      <ScrollArea className="w-full whitespace-nowrap rounded-[2rem] border border-black/5 bg-white dark:bg-white/5 shadow-sm">
-        <div className="flex w-max p-4 gap-4">
+      <div className="flex justify-between items-end px-1">
+        <h3 className="text-xl font-bold">Quote Pipeline</h3>
+        <p className="text-sm font-bold text-muted-foreground">
+          Total: ${totalValue.toLocaleString()}
+        </p>
+      </div>
+
+      <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10">
+        {/* Progress Bar Style Analytics */}
+        <div className="flex h-3 w-full rounded-full overflow-hidden bg-black/5 dark:bg-white/5 mb-8">
           {statuses.map((status) => {
-            const statusQuotes = getQuotesByStatus(status);
+            const statusQuotes = getQuotesByStatus(status.id);
+            const percentage = quotes.length > 0 ? (statusQuotes.length / quotes.length) * 100 : 0;
+            if (percentage === 0) return null;
             return (
-              <div key={status} className="w-64 flex flex-col gap-3">
-                <div className="flex items-center justify-between px-2">
-                  <h4 className="font-bold capitalize text-sm">{status}</h4>
-                  <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[10px]">
-                    {statusQuotes.length}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  {statusQuotes.length === 0 ? (
-                    <div className="h-24 border-2 border-dashed border-black/5 dark:border-white/5 rounded-2xl flex items-center justify-center">
-                      <p className="text-[10px] text-muted-foreground italic">No quotes</p>
-                    </div>
-                  ) : (
-                    statusQuotes.map((quote) => (
-                      <Link key={quote.id} href={`/quotes/${quote.id}`}>
-                        <Card className="rounded-xl border-black/5 dark:border-white/10 shadow-none hover-elevate cursor-pointer overflow-hidden whitespace-normal">
-                          <CardHeader className="p-3 pb-1">
-                            <div className="flex justify-between items-start gap-2">
-                              <CardTitle className="text-xs font-bold line-clamp-1">
-                                {JSON.parse(quote.content || "{}").jobTitle || "Untitled Quote"}
-                              </CardTitle>
-                              <span className="text-[10px] font-bold shrink-0">
-                                ${Number(quote.totalAmount).toLocaleString()}
-                              </span>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="p-3 pt-0">
-                            <p className="text-[10px] text-muted-foreground line-clamp-2">
-                              {JSON.parse(quote.content || "{}").summary}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    ))
-                  )}
-                </div>
-              </div>
+              <div 
+                key={status.id}
+                style={{ width: `${percentage}%` }}
+                className={cn("h-full transition-all", status.color)}
+              />
             );
           })}
         </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+
+        {/* Grid Stats */}
+        <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+          {statuses.map((status) => {
+            const statusQuotes = getQuotesByStatus(status.id);
+            const value = statusQuotes.reduce((acc, q) => acc + Number(q.totalAmount), 0);
+            
+            return (
+              <Link key={status.id} href="/quotes">
+                <div className="space-y-1 active:scale-95 transition-transform cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <div className={cn("w-2 h-2 rounded-full", status.color)} />
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      {status.label}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black">{statusQuotes.length}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground">
+                      ${value.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
