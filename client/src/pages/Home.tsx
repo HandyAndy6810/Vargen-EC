@@ -29,6 +29,36 @@ export default function Home() {
   const { data: jobs } = useJobs();
   const { data: quotes } = useQuotes();
   const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const quickStarts = (() => {
+    if (!quotes || quotes.length === 0) {
+      return [
+        { label: "Bathroom Reno", icon: "🚿" },
+        { label: "Decking", icon: "🪵" },
+        { label: "Switchboard", icon: "⚡" },
+      ];
+    }
+
+    // Extract job titles from recent quotes and count occurrences
+    const counts: Record<string, number> = {};
+    quotes.forEach(q => {
+      try {
+        const title = JSON.parse(q.content || "{}").jobTitle;
+        if (title) counts[title] = (counts[title] || 0) + 1;
+      } catch (e) {}
+    });
+
+    // Get top 3 unique titles
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([label]) => ({
+        label,
+        icon: label.toLowerCase().includes("bath") ? "🚿" : 
+              label.toLowerCase().includes("deck") ? "🪵" : 
+              label.toLowerCase().includes("switch") ? "⚡" : "📋"
+      }));
+  })();
   
   const [bladeOrder, setBladeOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem("vargenezey_home_blade_order");
@@ -75,12 +105,6 @@ export default function Home() {
       <div className="px-6 space-y-8 max-w-2xl mx-auto">
         {bladeOrder.map((bladeId) => {
           if (bladeId === "hero") {
-            const quickStarts = [
-              { label: "Bathroom Reno", icon: "🚿" },
-              { label: "Decking", icon: "🪵" },
-              { label: "Switchboard", icon: "⚡" },
-            ];
-
             return (
               <div key="hero" className="header-card py-6 px-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
