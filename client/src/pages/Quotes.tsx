@@ -2,11 +2,12 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
-import { Plus, Loader2, FileText } from "lucide-react";
+import { Plus, Loader2, FileText, Bell, MessageSquare, Mail } from "lucide-react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
+import { Button } from "@/components/ui/button";
 
 function parseQuoteContent(content: string | null) {
   if (!content) return null;
@@ -127,13 +128,20 @@ export default function Quotes() {
     }
   };
 
+  const expiringQuotes = quotes?.filter(q => {
+    if (q.status !== "sent" || !q.createdAt) return false;
+    const daysSinceSent = differenceInDays(new Date(), new Date(q.createdAt));
+    // Quotes expire after 30 days based on T&Cs, surfacing those 23-27 days old (3-7 days left)
+    return daysSinceSent >= 23 && daysSinceSent <= 27;
+  }) || [];
+
   return (
     <div className="min-h-screen bg-background pb-32">
       {/* Header & Dashboard Strip */}
       <div className="px-6 pt-12 mb-6">
         <h1 className="text-3xl font-bold text-foreground mb-4" data-testid="text-quotes-title">Quotes</h1>
         
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
             <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Pipeline</p>
             <p className="text-sm font-bold text-primary truncate" data-testid="text-pipeline-value">
@@ -153,6 +161,58 @@ export default function Quotes() {
             </p>
           </div>
         </div>
+
+        {/* Expiring Soon / Follow up Nudge */}
+        {expiringQuotes.length > 0 && (
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center gap-2 px-1">
+              <Bell className="w-4 h-4 text-orange-500" />
+              <h2 className="text-sm font-bold text-foreground">Follow up required ({expiringQuotes.length})</h2>
+            </div>
+            {expiringQuotes.map(quote => {
+              const customer = getCustomer(quote);
+              const name = getCustomerName(quote);
+              const daysLeft = 30 - differenceInDays(new Date(), new Date(quote.createdAt!));
+              
+              return (
+                <div key={`nudge-${quote.id}`} className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-2xl p-4 flex items-center justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-foreground truncate">{name}</p>
+                    <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">Expires in {daysLeft} days</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="icon" 
+                      variant="outline" 
+                      className="rounded-full w-9 h-9 border-orange-200 bg-white hover:bg-orange-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (customer?.phone) {
+                          window.location.href = `sms:${customer.phone}?body=${encodeURIComponent(`Hi ${customer.name}, just following up on the quote I sent for ${getJobTitle(quote)}. Did you have any questions?`)}`;
+                        }
+                      }}
+                    >
+                      <MessageSquare className="w-4 h-4 text-orange-600" />
+                    </Button>
+                    <Button 
+                      size="icon" 
+                      variant="outline" 
+                      className="rounded-full w-9 h-9 border-orange-200 bg-white hover:bg-orange-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (customer?.email) {
+                          window.location.href = `mailto:${customer.email}?subject=${encodeURIComponent(`Follow up: ${getJobTitle(quote)}`)}&body=${encodeURIComponent(`Hi ${customer.name},\n\nJust checking in to see if you've had a chance to review the quote I sent over.\n\nLet me know if you'd like to proceed or have any questions.\n\nCheers!`)}`;
+                        }
+                      }}
+                    >
+                      <Mail className="w-4 h-4 text-orange-600" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Segmented Control */}
