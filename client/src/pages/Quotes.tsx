@@ -50,20 +50,45 @@ export default function Quotes() {
     return { winRate, avgValue };
   })();
 
+  const getCustomer = (quote: { id: number; jobId: number | null }) => {
+    if (quote.jobId) {
+      const job = jobs?.find(j => j.id === quote.jobId);
+      if (job?.customerId) {
+        return customers?.find(c => c.id === job.customerId);
+      }
+    }
+    return null;
+  };
+
   const getCustomerName = (quote: { id: number; content: string | null; jobId: number | null }) => {
     const parsed = parseQuoteContent(quote.content);
     if (parsed?.notes) {
       const match = (parsed.notes as string).match(/Quote for:\s*(.+?)[\.\n]/);
       if (match) return match[1].trim();
     }
-    if (quote.jobId) {
-      const job = jobs?.find(j => j.id === quote.jobId);
-      if (job?.customerId) {
-        const customer = customers?.find(c => c.id === job.customerId);
-        if (customer) return customer.name;
+    const customer = getCustomer(quote);
+    if (customer) return customer.name;
+    return `Quote #${quote.id}`;
+  };
+
+  const getQuoteWarnings = (quote: { id: number; content: string | null; jobId: number | null; status: string }) => {
+    const warnings: string[] = [];
+    const parsed = parseQuoteContent(quote.content);
+    const customer = getCustomer(quote);
+
+    if (quote.status === "draft") {
+      if (!customer) {
+        warnings.push("No client linked");
+      } else if (!customer.email) {
+        warnings.push("Missing client email");
+      }
+      
+      if (!parsed?.items || parsed.items.length === 0) {
+        warnings.push("No line items");
       }
     }
-    return `Quote #${quote.id}`;
+    
+    return warnings;
   };
 
   const getJobTitle = (quote: { content: string | null; jobId: number | null }) => {
@@ -170,6 +195,21 @@ export default function Quotes() {
               <p className="text-sm text-muted-foreground truncate mt-0.5" data-testid={`text-quote-job-${quote.id}`}>
                 {getJobTitle(quote)}
               </p>
+              
+              {getQuoteWarnings(quote).length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {getQuoteWarnings(quote).map((warning, idx) => (
+                    <span 
+                      key={idx} 
+                      className="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-md"
+                      data-testid={`text-quote-warning-${quote.id}-${idx}`}
+                    >
+                      {warning}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               <div className="flex items-center justify-between mt-3">
                 <span className="font-bold text-foreground" data-testid={`text-quote-amount-${quote.id}`}>
                   ${Number(quote.totalAmount).toLocaleString()}
