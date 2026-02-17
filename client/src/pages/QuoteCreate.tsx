@@ -39,6 +39,8 @@ import { useCustomers } from "@/hooks/use-customers";
 import { queryClient } from "@/lib/queryClient";
 import type { Job } from "@shared/schema";
 
+import { VoiceInput } from "@/components/voice/VoiceInput";
+
 interface QuoteLineItem {
   id: string;
   description: string;
@@ -509,10 +511,15 @@ export default function QuoteCreate() {
 
               <div className="space-y-3">
                 <Label className="text-base font-bold text-[#1A1A1A]">What's the job? <span className="text-primary">*</span></Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Example: Replace kitchen sink tap and fix leaky faucet..."
-                  className="min-h-[120px] rounded-2xl border-black/10 bg-[#FAFAFA] text-base"
-                  data-testid="input-description" />
+                <div className="relative">
+                  <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Example: Replace kitchen sink tap and fix leaky faucet..."
+                    className="min-h-[120px] rounded-2xl border-black/10 bg-[#FAFAFA] text-base pr-12"
+                    data-testid="input-description" />
+                  <div className="absolute right-2 bottom-2">
+                    <VoiceInput onTranscript={(text) => setDescription(prev => prev ? `${prev} ${text}` : text)} />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2 pt-4 border-t border-black/5">
@@ -575,10 +582,15 @@ export default function QuoteCreate() {
 
                 <div className="space-y-3">
                   <Label className="text-base font-bold text-[#1A1A1A]">What's the job? <span className="text-primary">*</span></Label>
-                  <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe the full scope of work..."
-                    className="min-h-[140px] rounded-2xl border-black/10 bg-[#FAFAFA] text-base"
-                    data-testid="input-description-advanced" />
+                  <div className="relative">
+                    <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Describe the full scope of work..."
+                      className="min-h-[140px] rounded-2xl border-black/10 bg-[#FAFAFA] text-base pr-12"
+                      data-testid="input-description-advanced" />
+                    <div className="absolute right-2 bottom-2">
+                      <VoiceInput onTranscript={(text) => setDescription(prev => prev ? `${prev} ${text}` : text)} />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-3">

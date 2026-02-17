@@ -10,6 +10,10 @@ import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { registerChatRoutes } from "./replit_integrations/chat";
 import { registerAudioRoutes } from "./replit_integrations/audio";
 import { registerImageRoutes } from "./replit_integrations/image";
+import multer from "multer";
+import fs from "fs";
+
+const upload = multer({ dest: "uploads/" });
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -152,6 +156,27 @@ export async function registerRoutes(
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ message: "Failed to delete quote" });
+    }
+  });
+
+  app.post("/api/audio/transcribe", upload.single("audio"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No audio file provided" });
+      }
+
+      const transcription = await openai.audio.transcriptions.create({
+        file: fs.createReadStream(req.file.path),
+        model: "gpt-4o-mini-transcribe",
+      });
+
+      // Clean up the uploaded file
+      fs.unlinkSync(req.file.path);
+
+      res.json({ text: transcription.text });
+    } catch (error: any) {
+      console.error("Transcription error:", error);
+      res.status(500).json({ message: error?.message || "Failed to transcribe audio" });
     }
   });
 
