@@ -75,6 +75,7 @@ export default function QuoteDetail() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [ackChecked, setAckChecked] = useState(false);
+  const [ackDialogOpen, setAckDialogOpen] = useState(false);
 
   useEffect(() => {
     if (parsed) {
@@ -195,6 +196,8 @@ export default function QuoteDetail() {
       {
         onSuccess: () => {
           setAckChecked(false);
+          setAckDialogOpen(false);
+          setShowShareSheet(true);
           toast({ title: "Acknowledged", description: "You've accepted ownership of this quote." });
         },
       }
@@ -269,7 +272,14 @@ export default function QuoteDetail() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={() => setShowShareSheet(true)}
+                  onClick={() => {
+                    if (!isAcknowledged) {
+                      setAckChecked(false);
+                      setAckDialogOpen(true);
+                    } else {
+                      setShowShareSheet(true);
+                    }
+                  }}
                   data-testid="button-share"
                 >
                   <Share2 className="w-5 h-5" />
@@ -618,21 +628,34 @@ export default function QuoteDetail() {
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <button
-              onClick={handleCopyQuote}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left"
-              data-testid="button-copy-quote-text"
+              onClick={() => {
+                const customer = customers?.find(c => {
+                  if (quote.jobId) {
+                    const job = jobs?.find(j => j.id === quote.jobId);
+                    return c.id === job?.customerId;
+                  }
+                  return false;
+                });
+                const email = customer?.email || "";
+                const subject = encodeURIComponent(`Quote: ${jobTitle}`);
+                const body = encodeURIComponent(`Hi ${customer?.name || "there"},\n\nPlease find your quote for ${jobTitle} attached.\n\nTotal: $${totalAmount.toFixed(2)}\n\nView details: ${window.location.origin}/quotes/${quote.id}\n\nKind regards,\n[Your Name]`);
+                window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+                setShowShareSheet(false);
+              }}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left hover-elevate active-elevate-2 transition-all"
+              data-testid="button-share-email"
             >
               <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                <Copy className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <Send className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="font-bold text-foreground">Copy Quote Text</p>
-                <p className="text-sm text-muted-foreground">Full quote with line items and totals</p>
+                <p className="font-bold text-foreground">Email to Client</p>
+                <p className="text-sm text-muted-foreground">Send directly to their inbox</p>
               </div>
             </button>
             <button
               onClick={handleCopyLink}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left"
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left hover-elevate active-elevate-2 transition-all"
               data-testid="button-copy-link"
             >
               <div className="w-12 h-12 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
@@ -645,7 +668,7 @@ export default function QuoteDetail() {
             </button>
             <button
               onClick={() => { setShowShareSheet(false); setLocation(`/quotes/${quote.id}/preview`); }}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left"
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left hover-elevate active-elevate-2 transition-all"
               data-testid="button-preview-export"
             >
               <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
@@ -656,6 +679,51 @@ export default function QuoteDetail() {
                 <p className="text-sm text-muted-foreground">View print-ready layout and save as PDF</p>
               </div>
             </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Acknowledgment Modal */}
+      <Dialog open={ackDialogOpen} onOpenChange={setAckDialogOpen}>
+        <DialogContent className="rounded-[2rem] mx-4 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Review Required</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-800/40 flex items-center justify-center shrink-0 mt-0.5">
+                <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Before using this quote, please read all details carefully — including line items, pricing, GST, and notes. By acknowledging, you confirm you take full ownership and responsibility for all parts of this quote.
+                </p>
+              </div>
+            </div>
+            <label className="flex items-start gap-3 cursor-pointer group" data-testid="label-ack-checkbox-modal">
+              <input
+                type="checkbox"
+                checked={ackChecked}
+                onChange={(e) => setAckChecked(e.target.checked)}
+                className="mt-0.5 w-5 h-5 rounded accent-amber-600"
+                data-testid="input-ack-checkbox-modal"
+              />
+              <span className="text-sm text-foreground leading-snug">
+                I have carefully reviewed this quote and accept full ownership of all items, pricing, and details discussed.
+              </span>
+            </label>
+            <Button
+              onClick={handleAcknowledge}
+              disabled={!ackChecked || isUpdating}
+              className="w-full h-12 rounded-2xl text-sm font-bold bg-amber-600 text-white hover:bg-amber-700"
+              data-testid="button-acknowledge-modal"
+            >
+              {isUpdating ? (
+                <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Confirming...</>
+              ) : (
+                <><ShieldCheck className="w-5 h-5 mr-2" /> Acknowledge & Continue</>
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
