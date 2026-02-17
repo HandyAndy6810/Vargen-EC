@@ -135,7 +135,7 @@ export default function Home() {
                         {quickStarts.map((start) => (
                           <Link 
                             key={start.label} 
-                            href={`/quotes/new?template=${encodeURIComponent(start.label)}`}
+                            href={`/quotes/new?template=${encodeURIComponent(start.label)}&autoStart=true`}
                           >
                             <button className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/5 transition-all text-left group active:scale-95">
                               <div className="flex items-center gap-2">
