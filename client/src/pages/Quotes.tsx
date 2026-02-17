@@ -280,21 +280,22 @@ export default function Quotes() {
                         {getCustomerAddress(quote)}
                       </p>
                     )}
-                    {quote.createdAt && quote.status === "sent" && (
-                      <div className="flex items-center gap-1.5 text-[10px] font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 rounded-full mt-1.5 w-fit border border-orange-100 dark:border-orange-900/30">
-                        <Calendar className="w-3 h-3" />
-                        <span>Expires {format(addDays(new Date(quote.createdAt), 30), "d MMM")}</span>
-                      </div>
-                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-bold text-lg text-foreground" data-testid={`text-quote-amount-${quote.id}`}>
                       ${Number(quote.totalAmount).toLocaleString()}
                     </p>
                     {quote.createdAt && (
-                      <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tight">
-                        {format(new Date(quote.createdAt), "dd MMM")}
-                      </p>
+                      <div className="space-y-1 mt-1">
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
+                          Created {format(new Date(quote.createdAt), "dd MMM")}
+                        </p>
+                        {quote.status === "sent" && (
+                          <p className="text-[10px] text-orange-600 dark:text-orange-400 uppercase font-bold tracking-tight">
+                            Expires {format(addDays(new Date(quote.createdAt), 30), "dd MMM")}
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
