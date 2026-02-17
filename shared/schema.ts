@@ -29,7 +29,7 @@ export const quotes = pgTable("quotes", {
   id: serial("id").primaryKey(),
   jobId: integer("job_id").references(() => jobs.id),
   totalAmount: numeric("total_amount").notNull(),
-  status: text("status").default("draft"), // draft, sent, accepted, rejected
+  status: text("status").default("draft"), // draft, sent, viewed, accepted, rejected
   content: text("content"), // AI generated text or structured notes
   createdAt: timestamp("created_at").defaultNow(),
 });

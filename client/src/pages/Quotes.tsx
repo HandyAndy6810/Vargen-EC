@@ -25,7 +25,7 @@ export default function Quotes() {
   const [, setLocation] = useLocation();
   const [tab, setTab] = useState<"active" | "history">("active");
 
-  const activeStatuses = ["draft", "sent"];
+  const activeStatuses = ["draft", "sent", "viewed"];
   const historyStatuses = ["accepted", "rejected"];
 
   const filteredQuotes = quotes
@@ -108,20 +108,24 @@ export default function Quotes() {
     return customer?.address;
   };
 
-  const statusColor = (status: string) => {
+  const statusColor = (status: string, isCold?: boolean) => {
+    if (isCold) return "text-amber-600 dark:text-amber-400 border-amber-500 bg-amber-50 dark:bg-amber-900/20";
     switch (status) {
-      case "draft": return "text-yellow-600 dark:text-yellow-400 border-yellow-500";
-      case "sent": return "text-blue-600 dark:text-blue-400 border-blue-500";
-      case "accepted": return "text-green-600 dark:text-green-400 border-green-500";
-      case "rejected": return "text-red-500 dark:text-red-400 border-red-500";
-      default: return "text-muted-foreground border-muted";
+      case "draft": return "text-yellow-600 dark:text-yellow-400 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20";
+      case "sent": return "text-blue-600 dark:text-blue-400 border-blue-500 bg-blue-50 dark:bg-blue-900/20";
+      case "viewed": return "text-purple-600 dark:text-purple-400 border-purple-500 bg-purple-50 dark:bg-purple-900/20";
+      case "accepted": return "text-green-600 dark:text-green-400 border-green-500 bg-green-50 dark:bg-green-900/20";
+      case "rejected": return "text-red-500 dark:text-red-400 border-red-500 bg-red-50 dark:bg-red-900/20";
+      default: return "text-muted-foreground border-muted bg-muted/20";
     }
   };
 
-  const getStatusBorder = (status: string) => {
+  const getStatusBorder = (status: string, isCold?: boolean) => {
+    if (isCold) return "bg-amber-500";
     switch (status) {
       case "draft": return "bg-yellow-500";
       case "sent": return "bg-blue-500";
+      case "viewed": return "bg-purple-500";
       case "accepted": return "bg-green-500";
       case "rejected": return "bg-red-500";
       default: return "bg-muted";
@@ -258,70 +262,74 @@ export default function Quotes() {
             </p>
           </div>
         ) : (
-          filteredQuotes.map(quote => (
-            <div
-              key={quote.id}
-              onClick={() => setLocation(`/quotes/${quote.id}`)}
-              className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-black/5 dark:border-white/10 cursor-pointer active:scale-[0.98] transition-all overflow-hidden flex"
-              data-testid={`card-quote-${quote.id}`}
-            >
-              <div className={cn("w-1.5 shrink-0", getStatusBorder(quote.status))} />
-              <div className="p-5 flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-lg text-foreground truncate" data-testid={`text-quote-customer-${quote.id}`}>
-                      {getCustomerName(quote)}
-                    </p>
-                    <p className="text-sm font-medium text-foreground/80 truncate mt-0.5" data-testid={`text-quote-job-${quote.id}`}>
-                      {getJobTitle(quote)}
-                    </p>
-                    {getCustomerAddress(quote) && (
-                      <p className="text-xs text-muted-foreground truncate mt-0.5" data-testid={`text-quote-address-${quote.id}`}>
-                        {getCustomerAddress(quote)}
+          filteredQuotes.map(quote => {
+            const isCold = quote.status === "sent" && quote.createdAt && differenceInDays(new Date(), new Date(quote.createdAt)) >= 7;
+            
+            return (
+              <div
+                key={quote.id}
+                onClick={() => setLocation(`/quotes/${quote.id}`)}
+                className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-black/5 dark:border-white/10 cursor-pointer active:scale-[0.98] transition-all overflow-hidden flex"
+                data-testid={`card-quote-${quote.id}`}
+              >
+                <div className={cn("w-1.5 shrink-0", getStatusBorder(quote.status, isCold))} />
+                <div className="p-5 flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-lg text-foreground truncate" data-testid={`text-quote-customer-${quote.id}`}>
+                        {getCustomerName(quote)}
                       </p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-bold text-lg text-foreground" data-testid={`text-quote-amount-${quote.id}`}>
-                      ${Number(quote.totalAmount).toLocaleString()}
-                    </p>
-                    {quote.createdAt && (
-                      <div className="space-y-1 mt-1">
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
-                          Created {format(new Date(quote.createdAt), "dd MMM")}
+                      <p className="text-sm font-medium text-foreground/80 truncate mt-0.5" data-testid={`text-quote-job-${quote.id}`}>
+                        {getJobTitle(quote)}
+                      </p>
+                      {getCustomerAddress(quote) && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5" data-testid={`text-quote-address-${quote.id}`}>
+                          {getCustomerAddress(quote)}
                         </p>
-                        {quote.status === "sent" && (
-                          <p className="text-[10px] text-orange-600 dark:text-orange-400 uppercase font-bold tracking-tight">
-                            Expires {format(addDays(new Date(quote.createdAt), 30), "dd MMM")}
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold text-lg text-foreground" data-testid={`text-quote-amount-${quote.id}`}>
+                        ${Number(quote.totalAmount).toLocaleString()}
+                      </p>
+                      {quote.createdAt && (
+                        <div className="space-y-1 mt-1">
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
+                            Created {format(new Date(quote.createdAt), "dd MMM")}
                           </p>
-                        )}
-                      </div>
-                    )}
+                          {quote.status === "sent" && (
+                            <p className={cn("text-[10px] uppercase font-bold tracking-tight", isCold ? "text-amber-600 dark:text-amber-400" : "text-orange-600 dark:text-orange-400")}>
+                              {isCold ? "Going Cold" : `Expires ${format(addDays(new Date(quote.createdAt), 30), "dd MMM")}`}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-                
-                {getQuoteWarnings(quote).length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {getQuoteWarnings(quote).map((warning, idx) => (
-                      <span 
-                        key={idx} 
-                        className="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-md"
-                        data-testid={`text-quote-warning-${quote.id}-${idx}`}
-                      >
-                        {warning}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                  
+                  {getQuoteWarnings(quote).length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {getQuoteWarnings(quote).map((warning, idx) => (
+                        <span 
+                          key={idx} 
+                          className="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-md"
+                          data-testid={`text-quote-warning-${quote.id}-${idx}`}
+                        >
+                          {warning}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
-                <div className="flex items-center justify-between mt-3">
-                  <span className={cn("text-xs font-bold uppercase tracking-wider", statusColor(quote.status))} data-testid={`text-quote-status-${quote.id}`}>
-                    {quote.status}
-                  </span>
+                  <div className="flex items-center justify-between mt-3">
+                    <span className={cn("text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg border", statusColor(quote.status, isCold))} data-testid={`text-quote-status-${quote.id}`}>
+                      {isCold && quote.status === "sent" ? "Sent (Cold)" : quote.status}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
