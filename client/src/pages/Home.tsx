@@ -48,16 +48,31 @@ export default function Home() {
       } catch (e) {}
     });
 
-    // Get top 3 unique titles
-    return Object.entries(counts)
+    // Get top 3 unique titles, but generalized
+    const suggestions = Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([label]) => ({
-        label,
-        icon: label.toLowerCase().includes("bath") ? "🚿" : 
-              label.toLowerCase().includes("deck") ? "🪵" : 
-              label.toLowerCase().includes("switch") ? "⚡" : "📋"
-      }));
+      .map(([label]) => {
+        // Generalize common labels
+        let cleanLabel = label;
+        if (label.toLowerCase().includes("bathroom")) cleanLabel = "Bathroom Reno";
+        if (label.toLowerCase().includes("deck")) cleanLabel = "Decking Job";
+        if (label.toLowerCase().includes("switchboard")) cleanLabel = "Switchboard Upgrade";
+        if (label.toLowerCase().includes("lighting") || label.toLowerCase().includes("downlight")) cleanLabel = "Lighting Install";
+        if (label.toLowerCase().includes("faucet") || label.toLowerCase().includes("leak")) cleanLabel = "Plumbing Repair";
+        
+        return cleanLabel;
+      });
+
+    const uniqueSuggestions = Array.from(new Set(suggestions)).slice(0, 3);
+
+    return uniqueSuggestions.map(label => ({
+      label,
+      icon: label.toLowerCase().includes("bath") ? "🚿" : 
+            label.toLowerCase().includes("deck") ? "🪵" : 
+            label.toLowerCase().includes("switch") ? "⚡" : 
+            label.toLowerCase().includes("light") ? "💡" :
+            label.toLowerCase().includes("plumb") ? "🚰" : "📋"
+    }));
   })();
   
   const [bladeOrder, setBladeOrder] = useState<string[]>(() => {
