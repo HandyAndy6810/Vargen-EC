@@ -2,7 +2,7 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
-import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Calendar, RefreshCw, Send } from "lucide-react";
+import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Clock, Send } from "lucide-react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { format, differenceInDays, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import FollowUpSheet from "@/components/FollowUpSheet";
 
 function parseQuoteContent(content: string | null) {
   if (!content) return null;
@@ -28,43 +29,7 @@ export default function Quotes() {
   const [tab, setTab] = useState<"active" | "history">("active");
 
   const { toast } = useToast();
-
-  const handleResend = async (quote: any) => {
-    try {
-      await apiRequest("PATCH", `/api/quotes/${quote.id}`, {
-        createdAt: new Date().toISOString(),
-        status: "sent"
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
-      toast({
-        title: "Quote Resent",
-        description: "The expiry date has been refreshed to 30 days from today.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to resend quote.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleNudge = (quote: any, type: 'sms' | 'email') => {
-    const customer = getCustomer(quote);
-    if (!customer) return;
-
-    const name = getCustomerName(quote);
-    const jobTitle = getJobTitle(quote);
-    
-    if (type === 'sms' && customer.phone) {
-      const body = `Hi ${customer.name}, just checking you received my quote for ${jobTitle}. Happy to answer any questions!`;
-      window.location.href = `sms:${customer.phone}?body=${encodeURIComponent(body)}`;
-    } else if (type === 'email' && customer.email) {
-      const subject = `Follow up: ${jobTitle}`;
-      const body = `Hi ${customer.name},\n\nJust checking in to see if you received the quote I sent over for ${jobTitle}.\n\nHappy to answer any questions or discuss the next steps!\n\nCheers!`;
-      window.location.href = `mailto:${customer.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    }
-  };
+  const [followUpQuote, setFollowUpQuote] = useState<any>(null);
 
   const activeStatuses = ["draft", "sent", "viewed"];
   const historyStatuses = ["accepted", "rejected"];
@@ -362,38 +327,33 @@ export default function Quotes() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between mt-3">
-                    <span className={cn("text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg border", statusColor(quote.status, isCold))} data-testid={`text-quote-status-${quote.id}`}>
-                      {isCold && quote.status === "sent" ? "Sent (Cold)" : quote.status}
-                    </span>
+                  <div className="flex items-center justify-between mt-3 gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={cn("text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg border", statusColor(quote.status, isCold))} data-testid={`text-quote-status-${quote.id}`}>
+                        {isCold && quote.status === "sent" ? "Going Cold" : quote.status}
+                      </span>
+                      {isCold && quote.createdAt && (
+                        <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                          <Clock className="w-3 h-3" />
+                          {differenceInDays(new Date(), new Date(quote.createdAt))}d ago
+                        </span>
+                      )}
+                    </div>
 
                     {isCold && (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-[10px] font-bold uppercase tracking-tight gap-1.5 rounded-xl border-amber-200 bg-amber-50/50 hover:bg-amber-100 dark:border-amber-900/30 dark:bg-amber-900/10"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleResend(quote);
-                          }}
-                        >
-                          <RefreshCw className="w-3 h-3" />
-                          Resend
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-[10px] font-bold uppercase tracking-tight gap-1.5 rounded-xl border-amber-200 bg-amber-50/50 hover:bg-amber-100 dark:border-amber-900/30 dark:bg-amber-900/10"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleNudge(quote, 'sms');
-                          }}
-                        >
-                          <Send className="w-3 h-3" />
-                          Nudge
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-[11px] font-bold gap-1.5 rounded-xl border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFollowUpQuote(quote);
+                        }}
+                        data-testid={`button-followup-${quote.id}`}
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        Follow Up
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -412,6 +372,18 @@ export default function Quotes() {
           <Plus className="w-7 h-7" />
         </button>
       </Link>
+
+      {followUpQuote && (
+        <FollowUpSheet
+          open={!!followUpQuote}
+          onClose={() => setFollowUpQuote(null)}
+          clientName={getCustomerName(followUpQuote)}
+          clientPhone={getCustomer(followUpQuote)?.phone || null}
+          jobDescription={getJobTitle(followUpQuote)}
+          amount={Number(followUpQuote.totalAmount).toLocaleString()}
+          daysSinceSent={followUpQuote.createdAt ? differenceInDays(new Date(), new Date(followUpQuote.createdAt)) : 0}
+        />
+      )}
     </div>
   );
 }
