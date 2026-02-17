@@ -170,6 +170,19 @@ export default function QuoteCreate() {
   const { toast } = useToast();
   const { data: customers } = useCustomers();
 
+  // Detect autoStart parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const template = params.get("template");
+    const autoStart = params.get("autoStart");
+    
+    if (autoStart === "true" && template && description === "" && phase === "input") {
+      setDescription(template);
+      setPhase("generating");
+      generateMutation.mutate();
+    }
+  }, []);
+
   const { data: jobs } = useQuery<Job[]>({
     queryKey: ["/api/jobs"],
   });
