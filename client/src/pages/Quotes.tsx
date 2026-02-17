@@ -101,13 +101,28 @@ export default function Quotes() {
     return "No job linked";
   };
 
+  const getCustomerAddress = (quote: { id: number; jobId: number | null }) => {
+    const customer = getCustomer(quote);
+    return customer?.address;
+  };
+
   const statusColor = (status: string) => {
     switch (status) {
-      case "draft": return "text-yellow-600 dark:text-yellow-400";
-      case "sent": return "text-blue-600 dark:text-blue-400";
-      case "accepted": return "text-green-600 dark:text-green-400";
-      case "rejected": return "text-red-500 dark:text-red-400";
-      default: return "text-muted-foreground";
+      case "draft": return "text-yellow-600 dark:text-yellow-400 border-yellow-500";
+      case "sent": return "text-blue-600 dark:text-blue-400 border-blue-500";
+      case "accepted": return "text-green-600 dark:text-green-400 border-green-500";
+      case "rejected": return "text-red-500 dark:text-red-400 border-red-500";
+      default: return "text-muted-foreground border-muted";
+    }
+  };
+
+  const getStatusBorder = (status: string) => {
+    switch (status) {
+      case "draft": return "bg-yellow-500";
+      case "sent": return "bg-blue-500";
+      case "accepted": return "bg-green-500";
+      case "rejected": return "bg-red-500";
+      default: return "bg-muted";
     }
   };
 
@@ -186,37 +201,56 @@ export default function Quotes() {
             <div
               key={quote.id}
               onClick={() => setLocation(`/quotes/${quote.id}`)}
-              className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-black/5 dark:border-white/10 cursor-pointer active:scale-[0.98] transition-all"
+              className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-black/5 dark:border-white/10 cursor-pointer active:scale-[0.98] transition-all overflow-hidden flex"
               data-testid={`card-quote-${quote.id}`}
             >
-              <p className="font-bold text-lg text-foreground truncate" data-testid={`text-quote-customer-${quote.id}`}>
-                {getCustomerName(quote)}
-              </p>
-              <p className="text-sm text-muted-foreground truncate mt-0.5" data-testid={`text-quote-job-${quote.id}`}>
-                {getJobTitle(quote)}
-              </p>
-              
-              {getQuoteWarnings(quote).length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {getQuoteWarnings(quote).map((warning, idx) => (
-                    <span 
-                      key={idx} 
-                      className="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-md"
-                      data-testid={`text-quote-warning-${quote.id}-${idx}`}
-                    >
-                      {warning}
-                    </span>
-                  ))}
+              <div className={cn("w-1.5 shrink-0", getStatusBorder(quote.status))} />
+              <div className="p-5 flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-lg text-foreground truncate" data-testid={`text-quote-customer-${quote.id}`}>
+                      {getCustomerName(quote)}
+                    </p>
+                    <p className="text-sm font-medium text-foreground/80 truncate mt-0.5" data-testid={`text-quote-job-${quote.id}`}>
+                      {getJobTitle(quote)}
+                    </p>
+                    {getCustomerAddress(quote) && (
+                      <p className="text-xs text-muted-foreground truncate mt-0.5" data-testid={`text-quote-address-${quote.id}`}>
+                        {getCustomerAddress(quote)}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-bold text-lg text-foreground" data-testid={`text-quote-amount-${quote.id}`}>
+                      ${Number(quote.totalAmount).toLocaleString()}
+                    </p>
+                    {quote.createdAt && (
+                      <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold tracking-tight">
+                        {format(new Date(quote.createdAt), "dd MMM")}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              )}
+                
+                {getQuoteWarnings(quote).length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {getQuoteWarnings(quote).map((warning, idx) => (
+                      <span 
+                        key={idx} 
+                        className="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-md"
+                        data-testid={`text-quote-warning-${quote.id}-${idx}`}
+                      >
+                        {warning}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
-              <div className="flex items-center justify-between mt-3">
-                <span className="font-bold text-foreground" data-testid={`text-quote-amount-${quote.id}`}>
-                  ${Number(quote.totalAmount).toLocaleString()}
-                </span>
-                <span className={cn("text-sm font-semibold capitalize", statusColor(quote.status))} data-testid={`text-quote-status-${quote.id}`}>
-                  {quote.status}
-                </span>
+                <div className="flex items-center justify-between mt-3">
+                  <span className={cn("text-xs font-bold uppercase tracking-wider", statusColor(quote.status))} data-testid={`text-quote-status-${quote.id}`}>
+                    {quote.status}
+                  </span>
+                </div>
               </div>
             </div>
           ))
