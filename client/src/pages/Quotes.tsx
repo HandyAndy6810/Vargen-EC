@@ -2,11 +2,11 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
-import { Plus, Loader2, FileText, Bell, MessageSquare, Mail } from "lucide-react";
+import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Calendar } from "lucide-react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInDays, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 
 function parseQuoteContent(content: string | null) {
@@ -279,6 +279,12 @@ export default function Quotes() {
                       <p className="text-xs text-muted-foreground truncate mt-0.5" data-testid={`text-quote-address-${quote.id}`}>
                         {getCustomerAddress(quote)}
                       </p>
+                    )}
+                    {quote.createdAt && quote.status === "sent" && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 rounded-full mt-1.5 w-fit border border-orange-100 dark:border-orange-900/30">
+                        <Calendar className="w-3 h-3" />
+                        <span>Expires {format(addDays(new Date(quote.createdAt), 30), "d MMM")}</span>
+                      </div>
                     )}
                   </div>
                   <div className="text-right shrink-0">
