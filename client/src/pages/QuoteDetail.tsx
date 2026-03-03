@@ -18,7 +18,9 @@ import {
   Save,
   ShieldCheck,
   FileText,
+  Eye,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -237,6 +239,137 @@ export default function QuoteDetail() {
     }).catch(() => {
       toast({ title: "Copy failed", variant: "destructive" });
     });
+  };
+
+  const handleViewPDF = () => {
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 25;
+
+    const checkPageBreak = (needed: number) => {
+      if (y + needed > 270) {
+        doc.addPage();
+        y = 25;
+      }
+    };
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text("QUOTE", margin, y);
+    y += 10;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Quote #${quote.id}`, margin, y);
+    if (quote.createdAt) {
+      doc.text(format(new Date(quote.createdAt), "dd MMM yyyy"), pageWidth - margin, y, { align: "right" });
+    }
+    y += 8;
+
+    doc.setDrawColor(220, 220, 220);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(jobTitle, margin, y);
+    y += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(customerName, margin, y);
+    y += 6;
+
+    const statusLabel = quote.status.charAt(0).toUpperCase() + quote.status.slice(1);
+    doc.text(`Status: ${statusLabel}`, margin, y);
+    y += 12;
+
+    if (items.length > 0) {
+      checkPageBreak(20);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("Item", margin, y);
+      doc.text("Qty", margin + contentWidth * 0.55, y, { align: "right" });
+      doc.text("Unit Price", margin + contentWidth * 0.75, y, { align: "right" });
+      doc.text("Total", pageWidth - margin, y, { align: "right" });
+      y += 3;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 5;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      items.forEach((item) => {
+        const descLines = doc.splitTextToSize(item.description, contentWidth * 0.5);
+        const itemHeight = Math.max(descLines.length * 5, 6) + 2;
+        checkPageBreak(itemHeight);
+        doc.setTextColor(0, 0, 0);
+        doc.text(descLines, margin, y);
+        doc.text(String(item.quantity), margin + contentWidth * 0.55, y, { align: "right" });
+        doc.text(`$${item.unitPrice.toFixed(2)}`, margin + contentWidth * 0.75, y, { align: "right" });
+        doc.text(`$${(item.quantity * item.unitPrice).toFixed(2)}`, pageWidth - margin, y, { align: "right" });
+        y += itemHeight;
+      });
+
+      y += 4;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin + contentWidth * 0.5, y, pageWidth - margin, y);
+      y += 7;
+    }
+
+    checkPageBreak(30);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Subtotal", margin + contentWidth * 0.5, y);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`$${subtotal.toFixed(2)}`, pageWidth - margin, y, { align: "right" });
+    y += 6;
+
+    if (includeGST) {
+      doc.setTextColor(100, 100, 100);
+      doc.text("GST (10%)", margin + contentWidth * 0.5, y);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`$${gstAmount.toFixed(2)}`, pageWidth - margin, y, { align: "right" });
+      y += 6;
+    }
+
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin + contentWidth * 0.5, y, pageWidth - margin, y);
+    y += 7;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("Total", margin + contentWidth * 0.5, y);
+    doc.text(`$${totalAmount.toFixed(2)}`, pageWidth - margin, y, { align: "right" });
+    y += 12;
+
+    if (parsed?.notes) {
+      checkPageBreak(20);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Notes", margin, y);
+      y += 6;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(80, 80, 80);
+      const noteLines = doc.splitTextToSize(parsed.notes, contentWidth);
+      noteLines.forEach((line: string) => {
+        checkPageBreak(6);
+        doc.text(line, margin, y);
+        y += 5;
+      });
+    }
+
+    const pdfBlob = doc.output("blob");
+    const url = URL.createObjectURL(pdfBlob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
 
   const addEditItem = () => {
@@ -503,6 +636,18 @@ export default function QuoteDetail() {
               </p>
             )}
           </div>
+        )}
+
+        {/* View PDF Button */}
+        {!editing && (
+          <Button
+            onClick={handleViewPDF}
+            variant="outline"
+            className="w-full h-14 rounded-2xl text-base font-bold border-primary/20 text-primary"
+            data-testid="button-view-pdf"
+          >
+            <Eye className="w-5 h-5 mr-2" /> View PDF
+          </Button>
         )}
 
         {/* Edit Save Button */}
