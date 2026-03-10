@@ -67,6 +67,9 @@ The `shared/` directory contains code used by both client and server:
 - `shared/models/auth.ts` — User and session table definitions
 - `shared/models/chat.ts` — Conversation and message table definitions
 
+### Key Components
+- **WeatherWidget** (`client/src/components/WeatherWidget.tsx`) — 4-day weather strip using Open-Meteo API (free, no key). Uses browser Geolocation API with Sydney fallback (-33.8688, 151.2093). Caches results in localStorage (3-hour TTL). Maps WMO weather codes to emojis. Highlights days with rain/wind AND a scheduled job in orange with ⚠️ warning badge. Placed in Home.tsx `calendar` blade below the weekly calendar card.
+
 ### Build Process
 - **Development**: `npm run dev` runs tsx with Vite dev server middleware
 - **Production**: `npm run build` runs Vite for client bundle + esbuild for server bundle into `dist/`

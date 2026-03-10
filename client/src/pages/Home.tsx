@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { PipelineView } from "@/components/PipelineView";
+import { WeatherWidget } from "@/components/WeatherWidget";
 import { 
   Plus, 
   ChevronRight, 
@@ -302,6 +303,8 @@ export default function Home() {
                     )}
                   </div>
                 </div>
+
+                <WeatherWidget jobs={jobs || []} />
               </div>
             );
           }
