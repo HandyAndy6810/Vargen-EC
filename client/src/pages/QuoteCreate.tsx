@@ -399,15 +399,21 @@ export default function QuoteCreate() {
         </div>
         <div className="flex items-center gap-3">
           <Percent className="w-4 h-4 text-[#999999] shrink-0" />
-          <Slider
-            min={0}
-            max={50}
-            step={1}
-            value={[defaults.markupPercent]}
-            onValueChange={([v]) => updateDefault("markupPercent", v)}
-            className="flex-1"
-            data-testid="slider-markup"
-          />
+          <div className="flex-1 flex items-center justify-between gap-2">
+            <button
+              onClick={() => updateDefault("markupPercent", Math.max(0, defaults.markupPercent - 1))}
+              className="w-11 h-11 rounded-xl bg-[#F0EDEA] dark:bg-white/10 flex items-center justify-center text-xl font-bold text-[#1A1A1A] dark:text-white active:scale-95 transition-transform select-none"
+              data-testid="button-markup-minus"
+            >−</button>
+            <span className="text-base font-bold text-foreground min-w-[3rem] text-center" data-testid="text-markup-display">
+              {defaults.markupPercent}%
+            </span>
+            <button
+              onClick={() => updateDefault("markupPercent", Math.min(50, defaults.markupPercent + 1))}
+              className="w-11 h-11 rounded-xl bg-[#F0EDEA] dark:bg-white/10 flex items-center justify-center text-xl font-bold text-[#1A1A1A] dark:text-white active:scale-95 transition-transform select-none"
+              data-testid="button-markup-plus"
+            >+</button>
+          </div>
         </div>
         <p className="text-xs text-[#999999]">Applied to all material costs</p>
       </div>
