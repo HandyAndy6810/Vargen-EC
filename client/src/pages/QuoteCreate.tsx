@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -398,10 +399,15 @@ export default function QuoteCreate() {
         </div>
         <div className="flex items-center gap-3">
           <Percent className="w-4 h-4 text-[#999999] shrink-0" />
-          <input type="range" min={0} max={50} step={5} value={defaults.markupPercent}
-            onChange={(e) => updateDefault("markupPercent", Number(e.target.value))}
-            className="flex-1 h-2 bg-[#E5E0DB] rounded-full appearance-none cursor-pointer accent-primary"
-            data-testid="slider-markup" />
+          <Slider
+            min={0}
+            max={50}
+            step={1}
+            value={[defaults.markupPercent]}
+            onValueChange={([v]) => updateDefault("markupPercent", v)}
+            className="flex-1"
+            data-testid="slider-markup"
+          />
         </div>
         <p className="text-xs text-[#999999]">Applied to all material costs</p>
       </div>
@@ -805,14 +811,12 @@ export default function QuoteCreate() {
                   <span className="text-lg font-bold text-primary">%</span>
                 </div>
               </div>
-              <input
-                type="range"
+              <Slider
                 min={-30}
                 max={50}
                 step={0.1}
-                value={editorMargin}
-                onChange={(e) => {
-                  const newMargin = Number(e.target.value);
+                value={[editorMargin]}
+                onValueChange={([newMargin]) => {
                   setEditorMargin(newMargin);
                   setLineItems(prev => prev.map(item => {
                     const base = baseItemPrices[item.id];
@@ -822,18 +826,7 @@ export default function QuoteCreate() {
                     return item;
                   }));
                 }}
-                onInput={(e) => {
-                  const newMargin = Number((e.target as HTMLInputElement).value);
-                  setEditorMargin(newMargin);
-                  setLineItems(prev => prev.map(item => {
-                    const base = baseItemPrices[item.id];
-                    if (base !== undefined) {
-                      return { ...item, unitPrice: Math.round(base * (1 + newMargin / 100) * 100) / 100 };
-                    }
-                    return item;
-                  }));
-                }}
-                className="w-full h-2 bg-[#E5E0DB] rounded-full appearance-none cursor-pointer accent-primary"
+                className="w-full"
                 data-testid="slider-editor-margin"
               />
               <div className="flex justify-between mt-2">
