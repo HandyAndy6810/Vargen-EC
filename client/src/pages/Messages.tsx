@@ -14,14 +14,14 @@ export default function Messages() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
             placeholder="Search conversations..."
-            className="pl-12 h-12 rounded-2xl border-black/10 bg-white"
+            className="pl-12 h-12 rounded-2xl border-black/10 bg-white dark:bg-card"
             data-testid="input-search-messages"
           />
         </div>
       </div>
 
       <div className="px-6">
-        <div className="bg-white rounded-[2rem] p-10 shadow-sm border border-black/5 flex flex-col items-center text-center">
+        <div className="bg-white dark:bg-card rounded-[2rem] p-10 shadow-sm border border-black/5 flex flex-col items-center text-center">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <MessageCircle className="w-8 h-8 text-primary" />
           </div>

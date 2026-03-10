@@ -52,13 +52,13 @@ export default function Jobs() {
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
 
   return (
-    <div className="min-h-screen bg-[#F8F5F2] pb-32">
+    <div className="min-h-screen bg-[#F8F5F2] dark:bg-background pb-32">
       {/* Header */}
       <div className="px-6 pt-12 mb-6">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-[#1A1A1A]">Calendar</h1>
-            <p className="text-[#666666]">{format(currentDate, "MMMM yyyy")}</p>
+            <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
+            <p className="text-muted-foreground">{format(currentDate, "MMMM yyyy")}</p>
           </div>
           <Button 
             onClick={() => setIsDialogOpen(true)}
@@ -70,7 +70,7 @@ export default function Jobs() {
         </div>
 
         {/* Calendar Card */}
-        <div className="bg-white rounded-[2.5rem] p-6 shadow-xl border border-black/5 mb-8">
+        <div className="bg-white dark:bg-card rounded-[2.5rem] p-6 shadow-xl border border-black/5 mb-8">
           <div className="flex justify-between items-center mb-6 px-2">
             <h2 className="font-bold text-lg">{format(currentDate, "MMMM yyyy")}</h2>
             <div className="flex gap-2">
@@ -85,7 +85,7 @@ export default function Jobs() {
 
           <div className="grid grid-cols-7 mb-2">
             {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
-              <div key={idx} className="text-center text-[10px] font-bold text-[#999999] py-2">
+              <div key={idx} className="text-center text-[10px] font-bold text-muted-foreground py-2">
                 {day}
               </div>
             ))}
@@ -104,7 +104,7 @@ export default function Jobs() {
                   className={cn(
                     "relative aspect-square flex items-center justify-center cursor-pointer rounded-full transition-all",
                     isSelected ? "bg-primary text-white font-bold" : "hover:bg-black/5",
-                    !isCurrentMonth && !isSelected && "text-[#CCCCCC]"
+                    !isCurrentMonth && !isSelected && "text-muted-foreground/30"
                   )}
                 >
                   <span className="text-sm">{format(day, "d")}</span>
@@ -120,10 +120,10 @@ export default function Jobs() {
         {/* Timeline / Agenda */}
         <div className="space-y-4">
           <div className="flex justify-between items-center px-1 mb-4">
-            <h3 className="text-xl font-bold text-[#1A1A1A]">
+            <h3 className="text-xl font-bold text-foreground">
               {isSameDay(selectedDate, new Date()) ? "Today's Schedule" : format(selectedDate, "EEEE, MMM d")}
             </h3>
-            <span className="text-sm font-medium text-[#666666] bg-white px-3 py-1 rounded-full shadow-sm border border-black/5">
+            <span className="text-sm font-medium text-muted-foreground bg-white dark:bg-card px-3 py-1 rounded-full shadow-sm border border-black/5">
               {selectedDateJobs.length} {selectedDateJobs.length === 1 ? 'Job' : 'Jobs'}
             </span>
           </div>
@@ -131,34 +131,34 @@ export default function Jobs() {
           {isLoading ? (
             <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>
           ) : selectedDateJobs.length === 0 ? (
-            <div className="bg-white/50 border border-dashed border-black/10 rounded-3xl p-12 text-center text-[#999999]">
+            <div className="bg-white/50 dark:bg-card/50 border border-dashed border-black/10 dark:border-white/10 rounded-3xl p-12 text-center text-muted-foreground">
               <Calendar className="w-12 h-12 mx-auto mb-3 opacity-20" />
               <p className="font-medium">No jobs scheduled</p>
               <p className="text-sm">Tap the + to add a job</p>
             </div>
           ) : (
             selectedDateJobs.map(job => (
-              <div key={job.id} className="bg-white p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 transition-all group">
+              <div key={job.id} className="bg-white dark:bg-card p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 transition-all group">
                 <Link href={`/jobs/${job.id}`}>
                   <div className="cursor-pointer active:scale-[0.98]">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-[#FFF1EB] flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-2xl bg-[#FFF1EB] dark:bg-primary/10 flex items-center justify-center">
                           <Clock className="w-5 h-5 text-primary" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-[#1A1A1A] group-hover:text-primary transition-colors">{job.title}</h4>
-                          <p className="text-xs text-[#999999] font-medium">
+                          <h4 className="font-bold text-foreground group-hover:text-primary transition-colors">{job.title}</h4>
+                          <p className="text-xs text-muted-foreground font-medium">
                             {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "TBD"}
                           </p>
                         </div>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-[#CCCCCC] group-hover:text-primary transition-colors" />
+                      <ChevronRight className="w-5 h-5 text-muted-foreground/40 group-hover:text-primary transition-colors" />
                     </div>
                     
                     <div className="space-y-2 pl-1">
                       {job.customerId && <CustomerName id={job.customerId} />}
-                      <p className="text-sm text-[#666666] line-clamp-2 leading-relaxed">
+                      <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
                         {job.description}
                       </p>
                     </div>
@@ -168,7 +168,7 @@ export default function Jobs() {
                 {job.status === "scheduled" && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setLateJob(job); }}
-                    className="mt-3 w-full py-3 rounded-2xl bg-[#FFF1EB] text-primary font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-[#FFE5D9]"
+                    className="mt-3 w-full py-3 rounded-2xl bg-[#FFF1EB] dark:bg-primary/10 text-primary font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-[#FFE5D9]"
                     data-testid={`button-running-late-${job.id}`}
                   >
                     <AlertTriangle className="w-4 h-4" />
@@ -203,7 +203,7 @@ function CustomerName({ id }: { id: number }) {
   const customer = customers?.find(c => c.id === id);
   if (!customer) return null;
   return (
-    <div className="flex items-center text-xs font-bold text-[#8B7E74] bg-[#F0EEEB] w-fit px-2 py-1 rounded-lg border border-[#E5E2DE]">
+    <div className="flex items-center text-xs font-bold text-muted-foreground bg-muted w-fit px-2 py-1 rounded-lg border border-border">
       <User className="w-3 h-3 mr-1.5" />
       {customer.name}
     </div>
@@ -300,13 +300,13 @@ function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, o
         </DialogHeader>
 
         {/* Mode Toggle */}
-        <div className="bg-[#F5F3F0] p-1 rounded-2xl flex gap-1 mb-6">
+        <div className="bg-muted p-1 rounded-2xl flex gap-1 mb-6">
           <button 
             type="button"
             onClick={() => { setMode("new"); setLinkedJobId(""); setLinkedQuoteId(""); }}
             className={cn(
               "flex-1 py-3 rounded-xl font-bold text-sm transition-all",
-              mode === "new" ? "bg-white text-[#1A1A1A] shadow-sm" : "text-[#666666]"
+              mode === "new" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground"
             )}
           >
             Create New
@@ -316,7 +316,7 @@ function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, o
             onClick={() => setMode("existing")}
             className={cn(
               "flex-1 py-3 rounded-xl font-bold text-sm transition-all",
-              mode === "existing" ? "bg-white text-[#1A1A1A] shadow-sm" : "text-[#666666]"
+              mode === "existing" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground"
             )}
           >
             Link Existing
@@ -342,8 +342,8 @@ function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, o
                         className={cn(
                           "w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3",
                           linkedJobId === job.id.toString()
-                            ? "bg-[#FFF1EB] border-primary"
-                            : "bg-white border-black/5 hover:border-black/10"
+                            ? "bg-[#FFF1EB] dark:bg-primary/10 border-primary"
+                            : "bg-white dark:bg-card border-black/5 hover:border-black/10"
                         )}
                       >
                         <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
@@ -351,7 +351,7 @@ function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, o
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-bold text-sm truncate">{job.title}</div>
-                          <div className="text-xs text-[#999999] truncate">{job.description || "No description"}</div>
+                          <div className="text-xs text-muted-foreground truncate">{job.description || "No description"}</div>
                         </div>
                         {linkedJobId === job.id.toString() && (
                           <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0">
@@ -380,8 +380,8 @@ function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, o
                         className={cn(
                           "w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3",
                           linkedQuoteId === quote.id.toString()
-                            ? "bg-[#FFF1EB] border-primary"
-                            : "bg-white border-black/5 hover:border-black/10"
+                            ? "bg-[#FFF1EB] dark:bg-primary/10 border-primary"
+                            : "bg-white dark:bg-card border-black/5 hover:border-black/10"
                         )}
                       >
                         <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
@@ -389,7 +389,7 @@ function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, o
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-bold text-sm truncate">Quote #{quote.id}</div>
-                          <div className="text-xs text-[#999999] truncate">{quote.content || "No description"}</div>
+                          <div className="text-xs text-muted-foreground truncate">{quote.content || "No description"}</div>
                         </div>
                         <div className="text-sm font-bold text-primary shrink-0">${Number(quote.totalAmount).toLocaleString()}</div>
                         {linkedQuoteId === quote.id.toString() && (
@@ -404,7 +404,7 @@ function CreateJobDialog({ open, onOpenChange, defaultDate }: { open: boolean, o
               )}
 
               {unscheduledJobs.length === 0 && unassignedQuotes.length === 0 && (
-                <div className="text-center py-8 text-[#999999] bg-[#F5F3F0] rounded-2xl">
+                <div className="text-center py-8 text-muted-foreground bg-muted rounded-2xl">
                   <p className="font-medium">Nothing to link</p>
                   <p className="text-sm mt-1">All jobs and quotes are already scheduled</p>
                 </div>

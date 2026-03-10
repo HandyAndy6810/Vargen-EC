@@ -163,11 +163,11 @@ export default function Home() {
           if (bladeId === "stats") {
             return (
               <div key="stats" className="grid grid-cols-2 gap-4">
-                <div className="bg-white rounded-[2rem] p-8 text-center shadow-sm border border-black/5">
+                <div className="bg-white dark:bg-card rounded-[2rem] p-8 text-center shadow-sm border border-black/5">
                   <div className="text-4xl font-bold mb-1">{pendingQuotesCount}</div>
                   <div className="text-muted-foreground font-medium">Pending Quotes</div>
                 </div>
-                <div className="bg-white rounded-[2rem] p-8 text-center shadow-sm border border-black/5">
+                <div className="bg-white dark:bg-card rounded-[2rem] p-8 text-center shadow-sm border border-black/5">
                   <div className="text-4xl font-bold mb-1">{upcomingJobsCount}</div>
                   <div className="text-muted-foreground font-medium">Upcoming Jobs</div>
                 </div>
@@ -236,7 +236,7 @@ export default function Home() {
                   <Link href="/jobs" className="text-sm font-semibold text-primary">View Calendar</Link>
                 </div>
                 
-                <div className="bg-white rounded-[2rem] p-4 shadow-sm border border-black/5">
+                <div className="bg-white dark:bg-card rounded-[2rem] p-4 shadow-sm border border-black/5">
                   <div className="grid grid-cols-7 gap-1">
                     {weekDays.map((day, idx) => {
                       const isSelected = isSameDay(day, selectedDate);

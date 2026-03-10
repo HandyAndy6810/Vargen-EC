@@ -388,21 +388,21 @@ export default function QuoteCreate() {
     <div className={cn("space-y-4", compact ? "pt-4 border-t border-black/5" : "")}>
       {!compact && (
         <div className="flex items-center gap-2 mb-1">
-          <Settings className="w-4 h-4 text-[#999999]" />
-          <span className="text-sm font-bold text-[#666666]">Pricing Options</span>
+          <Settings className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-bold text-muted-foreground">Pricing Options</span>
         </div>
       )}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium text-[#1A1A1A]">Material Markup</Label>
+          <Label className="text-sm font-medium text-foreground">Material Markup</Label>
           <span className="text-sm font-bold text-primary" data-testid="text-markup-value">{defaults.markupPercent}%</span>
         </div>
         <div className="flex items-center gap-3">
-          <Percent className="w-4 h-4 text-[#999999] shrink-0" />
+          <Percent className="w-4 h-4 text-muted-foreground shrink-0" />
           <div className="flex-1 flex items-center justify-between gap-2">
             <button
               onClick={() => updateDefault("markupPercent", Math.max(0, defaults.markupPercent - 1))}
-              className="w-11 h-11 rounded-xl bg-[#F0EDEA] dark:bg-white/10 flex items-center justify-center text-xl font-bold text-[#1A1A1A] dark:text-white active:scale-95 transition-transform select-none"
+              className="w-11 h-11 rounded-xl bg-[#F0EDEA] dark:bg-white/10 flex items-center justify-center text-xl font-bold text-foreground dark:text-white active:scale-95 transition-transform select-none"
               data-testid="button-markup-minus"
             >−</button>
             <span className="text-base font-bold text-foreground min-w-[3rem] text-center" data-testid="text-markup-display">
@@ -410,24 +410,24 @@ export default function QuoteCreate() {
             </span>
             <button
               onClick={() => updateDefault("markupPercent", Math.min(50, defaults.markupPercent + 1))}
-              className="w-11 h-11 rounded-xl bg-[#F0EDEA] dark:bg-white/10 flex items-center justify-center text-xl font-bold text-[#1A1A1A] dark:text-white active:scale-95 transition-transform select-none"
+              className="w-11 h-11 rounded-xl bg-[#F0EDEA] dark:bg-white/10 flex items-center justify-center text-xl font-bold text-foreground dark:text-white active:scale-95 transition-transform select-none"
               data-testid="button-markup-plus"
             >+</button>
           </div>
         </div>
-        <p className="text-xs text-[#999999]">Applied to all material costs</p>
+        <p className="text-xs text-muted-foreground">Applied to all material costs</p>
       </div>
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Truck className="w-4 h-4 text-[#999999]" />
-            <Label className="text-sm font-medium text-[#1A1A1A]">Call-out Fee</Label>
+            <Truck className="w-4 h-4 text-muted-foreground" />
+            <Label className="text-sm font-medium text-foreground">Call-out Fee</Label>
           </div>
           <Switch checked={defaults.callOutEnabled} onCheckedChange={(v) => updateDefault("callOutEnabled", v)} data-testid="switch-callout" />
         </div>
         {defaults.callOutEnabled && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-[#666666]">$</span>
+            <span className="text-sm text-muted-foreground">$</span>
             <Input type="number" value={defaults.callOutFee}
               onChange={(e) => updateDefault("callOutFee", Math.max(0, Number(e.target.value)))}
               className="rounded-xl h-10 border-black/10 w-24" data-testid="input-callout-fee" />
@@ -443,7 +443,7 @@ export default function QuoteCreate() {
     : "Step 3 of 3 — Done";
 
   return (
-    <div className="min-h-screen bg-[#F8F5F2] pb-32">
+    <div className="min-h-screen bg-[#F8F5F2] dark:bg-background pb-32">
       <div className="px-6 pt-12 mb-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-2">
@@ -453,10 +453,10 @@ export default function QuoteCreate() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-[#1A1A1A]">
+            <h1 className="text-2xl font-bold text-foreground">
               {phase === "finalized" ? "Quote Ready" : "Create Quote"}
             </h1>
-            <p className="text-sm text-[#666666]">{phaseLabel}</p>
+            <p className="text-sm text-muted-foreground">{phaseLabel}</p>
           </div>
         </div>
 
@@ -474,16 +474,16 @@ export default function QuoteCreate() {
 
         {/* Tab Switcher - Phase 1 only */}
         {phase === "input" && (
-          <div className="bg-white p-1 rounded-2xl flex gap-1 mb-6 shadow-sm border border-black/5">
+          <div className="bg-muted p-1 rounded-2xl flex gap-1 mb-6 shadow-sm border border-black/5">
             <button onClick={() => setMode("simple")}
               className={cn("flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all",
-                mode === "simple" ? "bg-primary text-white" : "text-[#666666]")}
+                mode === "simple" ? "bg-primary text-white" : "text-muted-foreground")}
               data-testid="tab-simple">
               <Sparkles className="w-4 h-4" /> AI Simple
             </button>
             <button onClick={() => setMode("advanced")}
               className={cn("flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all",
-                mode === "advanced" ? "bg-primary text-white" : "text-[#666666]")}
+                mode === "advanced" ? "bg-primary text-white" : "text-muted-foreground")}
               data-testid="tab-advanced">
               <Settings className="w-4 h-4" /> Advanced
             </button>
@@ -494,18 +494,18 @@ export default function QuoteCreate() {
 
         {/* SIMPLE MODE */}
         {mode === "simple" && phase === "input" && (
-          <div className="bg-white rounded-[2rem] p-6 shadow-xl border border-black/5">
+          <div className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-xl border border-black/5">
             <div className="flex flex-col items-center text-center mb-6">
               <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center mb-3">
                 <Sparkles className="w-7 h-7 text-white" />
               </div>
-              <h2 className="text-xl font-bold text-[#1A1A1A] mb-1">AI Quote Generator</h2>
-              <p className="text-sm text-[#666666]">Snap a photo and describe the job</p>
+              <h2 className="text-xl font-bold text-foreground mb-1">AI Quote Generator</h2>
+              <p className="text-sm text-muted-foreground">Snap a photo and describe the job</p>
             </div>
             <div className="space-y-5">
               <div className="space-y-3">
-                <Label className="text-base font-bold text-[#1A1A1A]">
-                  Job Photo <span className="font-normal text-[#999999] text-sm">(optional)</span>
+                <Label className="text-base font-bold text-foreground">
+                  Job Photo <span className="font-normal text-muted-foreground text-sm">(optional)</span>
                 </Label>
                 {photoPreview ? (
                   <div className="relative rounded-2xl overflow-hidden border border-black/10">
@@ -519,12 +519,12 @@ export default function QuoteCreate() {
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
                     <button onClick={() => cameraInputRef.current?.click()}
-                      className="flex flex-col items-center gap-2 py-6 rounded-2xl bg-[#FFF1EB] border-2 border-dashed border-primary/30 text-primary font-bold"
+                      className="flex flex-col items-center gap-2 py-6 rounded-2xl bg-[#FFF1EB] dark:bg-primary/10 border-2 border-dashed border-primary/30 text-primary font-bold"
                       data-testid="button-take-photo">
                       <Camera className="w-8 h-8" /><span className="text-sm">Take Photo</span>
                     </button>
                     <button onClick={() => fileInputRef.current?.click()}
-                      className="flex flex-col items-center gap-2 py-6 rounded-2xl bg-[#F5F3F0] border-2 border-dashed border-black/10 text-[#666666] font-bold"
+                      className="flex flex-col items-center gap-2 py-6 rounded-2xl bg-muted border-2 border-dashed border-black/10 text-muted-foreground font-bold"
                       data-testid="button-upload-photo">
                       <ImagePlus className="w-8 h-8" /><span className="text-sm">Upload</span>
                     </button>
@@ -535,11 +535,11 @@ export default function QuoteCreate() {
               </div>
 
               <div className="space-y-3">
-                <Label className="text-base font-bold text-[#1A1A1A]">What's the job? <span className="text-primary">*</span></Label>
+                <Label className="text-base font-bold text-foreground">What's the job? <span className="text-primary">*</span></Label>
                 <div className="relative">
                   <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
                     placeholder="Example: Replace kitchen sink tap and fix leaky faucet..."
-                    className="min-h-[120px] rounded-2xl border-black/10 bg-[#FAFAFA] text-base pr-12"
+                    className="min-h-[120px] rounded-2xl border-black/10 bg-[#FAFAFA] dark:bg-muted text-base pr-12"
                     data-testid="input-description" />
                   <div className="absolute right-2 bottom-2">
                     <VoiceInput onTranscript={(text) => setDescription(prev => prev ? `${prev} ${text}` : text)} />
@@ -548,7 +548,7 @@ export default function QuoteCreate() {
               </div>
 
               <div className="space-y-2 pt-4 border-t border-black/5">
-                <Label className="text-sm font-bold text-[#666666]">Client Name <span className="font-normal text-[#999999]">(optional)</span></Label>
+                <Label className="text-sm font-bold text-muted-foreground">Client Name <span className="font-normal text-muted-foreground">(optional)</span></Label>
                 <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)}
                   placeholder="e.g. John Smith" className="rounded-xl h-12 border-black/10"
                   data-testid="input-customer-name" />
@@ -568,34 +568,34 @@ export default function QuoteCreate() {
         {/* ADVANCED MODE */}
         {mode === "advanced" && phase === "input" && (
           <div className="space-y-4">
-            <div className="bg-white rounded-[2rem] p-6 shadow-xl border border-black/5">
+            <div className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-xl border border-black/5">
               <div className="flex flex-col items-center text-center mb-6">
-                <div className="w-14 h-14 rounded-full bg-[#8B7E74] flex items-center justify-center mb-3">
+                <div className="w-14 h-14 rounded-full bg-[#8B7E74] dark:bg-white/20 flex items-center justify-center mb-3">
                   <Settings className="w-7 h-7 text-white" />
                 </div>
-                <h2 className="text-xl font-bold text-[#1A1A1A] mb-1">Advanced Quote</h2>
-                <p className="text-sm text-[#666666]">More control over pricing and details</p>
+                <h2 className="text-xl font-bold text-foreground mb-1">Advanced Quote</h2>
+                <p className="text-sm text-muted-foreground">More control over pricing and details</p>
               </div>
               <div className="space-y-5">
                 <div className="space-y-3">
-                  <Label className="text-base font-bold text-[#1A1A1A]">Trade Type</Label>
+                  <Label className="text-base font-bold text-foreground">Trade Type</Label>
                   <div className="relative">
                     <button onClick={() => setShowTradeDropdown(!showTradeDropdown)}
-                      className="w-full flex items-center justify-between h-12 px-4 rounded-xl border border-black/10 bg-[#FAFAFA] text-left"
+                      className="w-full flex items-center justify-between h-12 px-4 rounded-xl border border-black/10 bg-[#FAFAFA] dark:bg-muted text-left"
                       data-testid="button-trade-type">
                       <div className="flex items-center gap-2">
-                        <Wrench className="w-4 h-4 text-[#999999]" />
-                        <span className="text-[#1A1A1A]">{selectedTrade?.label || "General Trade"}</span>
+                        <Wrench className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-foreground">{selectedTrade?.label || "General Trade"}</span>
                       </div>
-                      <ChevronDown className={cn("w-4 h-4 text-[#999999] transition-transform", showTradeDropdown && "rotate-180")} />
+                      <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", showTradeDropdown && "rotate-180")} />
                     </button>
                     {showTradeDropdown && (
-                      <div className="absolute z-20 top-14 left-0 right-0 bg-white rounded-2xl shadow-xl border border-black/10 max-h-60 overflow-y-auto">
+                      <div className="absolute z-20 top-14 left-0 right-0 bg-white dark:bg-card rounded-2xl shadow-xl border border-black/10 max-h-60 overflow-y-auto">
                         {TRADE_TYPES.map(trade => (
                           <button key={trade.value}
                             onClick={() => { updateDefault("tradeType", trade.value); setShowTradeDropdown(false); }}
                             className={cn("w-full text-left px-4 py-3 text-sm",
-                              defaults.tradeType === trade.value ? "bg-primary/10 text-primary font-bold" : "text-[#1A1A1A]")}
+                              defaults.tradeType === trade.value ? "bg-primary/10 text-primary font-bold" : "text-foreground")}
                             data-testid={`trade-option-${trade.value}`}>
                             {trade.label}
                           </button>
@@ -606,11 +606,11 @@ export default function QuoteCreate() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-base font-bold text-[#1A1A1A]">What's the job? <span className="text-primary">*</span></Label>
+                  <Label className="text-base font-bold text-foreground">What's the job? <span className="text-primary">*</span></Label>
                   <div className="relative">
                     <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
                       placeholder="Describe the full scope of work..."
-                      className="min-h-[140px] rounded-2xl border-black/10 bg-[#FAFAFA] text-base pr-12"
+                      className="min-h-[140px] rounded-2xl border-black/10 bg-[#FAFAFA] dark:bg-muted text-base pr-12"
                       data-testid="input-description-advanced" />
                     <div className="absolute right-2 bottom-2">
                       <VoiceInput onTranscript={(text) => setDescription(prev => prev ? `${prev} ${text}` : text)} />
@@ -619,19 +619,19 @@ export default function QuoteCreate() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-base font-bold text-[#1A1A1A]">Labour Rate</Label>
+                  <Label className="text-base font-bold text-foreground">Labour Rate</Label>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-[#666666]">$</span>
+                    <span className="text-lg font-bold text-muted-foreground">$</span>
                     <Input type="number" value={defaults.labourRate}
                       onChange={(e) => updateDefault("labourRate", Math.max(0, Number(e.target.value)))}
                       className="rounded-xl h-12 border-black/10 text-lg font-bold w-28"
                       data-testid="input-labour-rate" />
-                    <span className="text-sm text-[#999999]">per hour</span>
+                    <span className="text-sm text-muted-foreground">per hour</span>
                   </div>
                 </div>
 
                 <div className="space-y-2 pt-4 border-t border-black/5">
-                  <Label className="text-sm font-bold text-[#666666]">Client Name <span className="font-normal text-[#999999]">(optional)</span></Label>
+                  <Label className="text-sm font-bold text-muted-foreground">Client Name <span className="font-normal text-muted-foreground">(optional)</span></Label>
                   <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="e.g. John Smith" className="rounded-xl h-12 border-black/10"
                     data-testid="input-customer-name-advanced" />
@@ -639,10 +639,10 @@ export default function QuoteCreate() {
               </div>
             </div>
 
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-black/5">
+            <div className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-sm border border-black/5">
               <SharedSettings />
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-black/5">
-                <Label className="text-sm font-medium text-[#1A1A1A]">Include GST (10%)</Label>
+                <Label className="text-sm font-medium text-foreground">Include GST (10%)</Label>
                 <Switch checked={defaults.includeGST} onCheckedChange={(v) => updateDefault("includeGST", v)} data-testid="switch-gst" />
               </div>
             </div>
@@ -652,7 +652,7 @@ export default function QuoteCreate() {
                 "w-full h-16 rounded-2xl text-lg font-bold text-white shadow-lg transition-all disabled:opacity-40",
                 description.trim() && customerName.trim() 
                   ? "bg-primary shadow-primary/20" 
-                  : "bg-[#8B7E74] shadow-[#8B7E74]/20"
+                  : "bg-[#8B7E74] dark:bg-white/20 shadow-[#8B7E74]/20"
               )}
               data-testid="button-generate-quote-advanced">
               <Sparkles className="w-5 h-5 mr-2" /> Generate Advanced Quote
@@ -662,13 +662,13 @@ export default function QuoteCreate() {
 
         {/* ════════════ GENERATING STATE ════════════ */}
         {phase === "generating" && (
-          <div className="bg-white rounded-[2rem] p-10 shadow-xl border border-black/5">
+          <div className="bg-white dark:bg-card rounded-[2rem] p-10 shadow-xl border border-black/5">
             <div className="flex flex-col items-center text-center">
               <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 animate-pulse">
                 <Sparkles className="w-10 h-10 text-primary" />
               </div>
-              <h2 className="text-2xl font-bold text-[#1A1A1A] mb-2">Generating Quote</h2>
-              <p className="text-[#666666] mb-8">AI is analysing the job{photoBase64 ? " and photo" : ""} to build your quote...</p>
+              <h2 className="text-2xl font-bold text-foreground mb-2">Generating Quote</h2>
+              <p className="text-muted-foreground mb-8">AI is analysing the job{photoBase64 ? " and photo" : ""} to build your quote...</p>
               <div className="flex items-center gap-3 text-primary">
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span className="font-medium">This usually takes 10-15 seconds</span>
@@ -681,7 +681,7 @@ export default function QuoteCreate() {
         {phase === "editor" && (
           <div className="space-y-4">
             {/* Quote Title */}
-            <div className="bg-white rounded-[2rem] p-6 shadow-xl border border-black/5">
+            <div className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-xl border border-black/5">
               <div className="flex items-start gap-3 mb-4">
                 <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
                   <FileText className="w-5 h-5 text-primary" />
@@ -690,35 +690,35 @@ export default function QuoteCreate() {
                   <Input value={quoteTitle} onChange={(e) => setQuoteTitle(e.target.value)}
                     className="text-xl font-bold border-0 p-0 h-auto bg-transparent focus-visible:ring-0"
                     data-testid="input-quote-title" />
-                  <p className="text-sm text-[#666666] mt-1">{quoteSummary}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{quoteSummary}</p>
                 </div>
               </div>
 
               {/* Running Total */}
-              <div className="bg-[#FFF1EB] rounded-2xl p-4">
+              <div className="bg-[#FFF1EB] dark:bg-primary/10 rounded-2xl p-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-[#666666] font-medium">Running Total</span>
+                  <span className="text-muted-foreground font-medium">Running Total</span>
                   <span className="text-2xl font-bold text-primary" data-testid="text-running-total">
                     ${calcTotal().toLocaleString("en-AU", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
                 {estimatedHours > 0 && (
-                  <p className="text-xs text-[#999999] mt-1">~{estimatedHours} hour{estimatedHours !== 1 ? "s" : ""} estimated</p>
+                  <p className="text-xs text-muted-foreground mt-1">~{estimatedHours} hour{estimatedHours !== 1 ? "s" : ""} estimated</p>
                 )}
               </div>
             </div>
 
             {/* Line Items List */}
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-black/5">
+            <div className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-sm border border-black/5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-[#1A1A1A] text-lg flex items-center gap-2">
+                <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
                   <FileText className="w-5 h-5 text-primary" />
                   Line Items ({lineItems.length})
                 </h3>
               </div>
 
               {lineItems.length === 0 ? (
-                <div className="text-center py-8 text-[#999999]">
+                <div className="text-center py-8 text-muted-foreground">
                   <p className="font-medium">No items yet</p>
                   <p className="text-sm mt-1">Add items to build your quote</p>
                 </div>
@@ -730,36 +730,36 @@ export default function QuoteCreate() {
                     };
                     return (
                       <div key={item.id}
-                        className="p-4 bg-[#FAFAFA] rounded-2xl"
+                        className="p-4 bg-[#FAFAFA] dark:bg-muted rounded-2xl"
                         data-testid={`quote-item-${i}`}>
                         <div className="flex items-start gap-2 mb-2">
                           <input
                             type="text"
                             value={item.description}
                             onChange={(e) => updateField("description", e.target.value)}
-                            className="flex-1 min-w-0 bg-transparent border-0 border-b border-transparent focus:border-primary/30 outline-none text-sm font-medium text-[#1A1A1A] py-0.5 transition-colors"
+                            className="flex-1 min-w-0 bg-transparent border-0 border-b border-transparent focus:border-primary/30 outline-none text-sm font-medium text-foreground py-0.5 transition-colors"
                             data-testid={`input-item-desc-${i}`}
                           />
                           <button onClick={() => deleteItem(item.id)}
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-[#CCCCCC] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 mt-0.5"
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground/50 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 mt-0.5"
                             data-testid={`button-delete-item-${i}`}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1">
-                            <span className="text-xs text-[#999999]">Qty</span>
+                            <span className="text-xs text-muted-foreground">Qty</span>
                             <input
                               type="number"
                               value={item.quantity}
                               onChange={(e) => updateField("quantity", Math.max(1, Number(e.target.value) || 1))}
-                              className="w-12 bg-white border border-black/10 rounded-lg text-center text-sm font-medium text-[#1A1A1A] py-1 outline-none focus:border-primary/40 transition-colors"
+                              className="w-12 bg-white dark:bg-card border border-black/10 rounded-lg text-center text-sm font-medium text-foreground py-1 outline-none focus:border-primary/40 transition-colors"
                               data-testid={`input-item-qty-${i}`}
                             />
                           </div>
-                          <span className="text-xs text-[#CCCCCC]">x</span>
+                          <span className="text-xs text-muted-foreground/50">x</span>
                           <div className="flex items-center gap-1">
-                            <span className="text-xs text-[#999999]">$</span>
+                            <span className="text-xs text-muted-foreground">$</span>
                             <input
                               type="number"
                               value={item.unitPrice}
@@ -768,12 +768,12 @@ export default function QuoteCreate() {
                                 updateField("unitPrice", newPrice);
                                 setBaseItemPrices(prev => ({ ...prev, [item.id]: editorMargin === 0 ? newPrice : newPrice / (1 + editorMargin / 100) }));
                               }}
-                              className="w-20 bg-white border border-black/10 rounded-lg text-sm font-medium text-[#1A1A1A] py-1 px-2 outline-none focus:border-primary/40 transition-colors"
+                              className="w-20 bg-white dark:bg-card border border-black/10 rounded-lg text-sm font-medium text-foreground py-1 px-2 outline-none focus:border-primary/40 transition-colors"
                               data-testid={`input-item-price-${i}`}
                             />
                           </div>
-                          <span className="text-xs text-[#CCCCCC]">=</span>
-                          <span className="font-bold text-[#1A1A1A] text-sm ml-auto" data-testid={`text-item-total-${i}`}>
+                          <span className="text-xs text-muted-foreground/50">=</span>
+                          <span className="font-bold text-foreground text-sm ml-auto" data-testid={`text-item-total-${i}`}>
                             ${(item.quantity * item.unitPrice).toFixed(2)}
                           </span>
                         </div>
@@ -785,17 +785,17 @@ export default function QuoteCreate() {
 
               {/* Add Item Button */}
               <button onClick={() => { setShowAddModal(true); setAddTab("custom"); setNewItemDesc(""); setNewItemQty("1"); setNewItemPrice(""); }}
-                className="w-full mt-4 py-4 rounded-2xl border-2 border-dashed border-primary/30 bg-[#FFF1EB] text-primary font-bold flex items-center justify-center gap-2"
+                className="w-full mt-4 py-4 rounded-2xl border-2 border-dashed border-primary/30 bg-[#FFF1EB] dark:bg-primary/10 text-primary font-bold flex items-center justify-center gap-2"
                 data-testid="button-add-item">
                 <Plus className="w-5 h-5" /> Add Item
               </button>
             </div>
 
             {/* Margin Slider */}
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-black/5">
+            <div className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-sm border border-black/5">
               <div className="flex items-center gap-2 mb-3">
                 <Percent className="w-5 h-5 text-primary" />
-                <h3 className="font-bold text-[#1A1A1A] text-lg">Margin</h3>
+                <h3 className="font-bold text-foreground text-lg">Margin</h3>
                 <div className="ml-auto flex items-center gap-1">
                   <input
                     type="number"
@@ -811,7 +811,7 @@ export default function QuoteCreate() {
                         return item;
                       }));
                     }}
-                    className="w-16 bg-[#F5F3F0] border-0 rounded-lg text-right text-lg font-bold text-primary py-1 px-2 outline-none focus:ring-1 focus:ring-primary/30 transition-all"
+                    className="w-16 bg-muted border-0 rounded-lg text-right text-lg font-bold text-primary py-1 px-2 outline-none focus:ring-1 focus:ring-primary/30 transition-all"
                     data-testid="input-editor-margin"
                   />
                   <span className="text-lg font-bold text-primary">%</span>
@@ -836,17 +836,17 @@ export default function QuoteCreate() {
                 data-testid="slider-editor-margin"
               />
               <div className="flex justify-between mt-2">
-                <span className="text-xs text-[#999999]">-30%</span>
-                <span className="text-xs text-[#999999]">0%</span>
-                <span className="text-xs text-[#999999]">+50%</span>
+                <span className="text-xs text-muted-foreground">-30%</span>
+                <span className="text-xs text-muted-foreground">0%</span>
+                <span className="text-xs text-muted-foreground">+50%</span>
               </div>
-              <p className="text-xs text-[#999999] mt-2">Adjust all prices by a percentage. Manually edited prices will also be affected.</p>
+              <p className="text-xs text-muted-foreground mt-2">Adjust all prices by a percentage. Manually edited prices will also be affected.</p>
             </div>
 
             {/* Notes */}
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-black/5">
+            <div className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-sm border border-black/5">
               <div className="flex items-center justify-between mb-2">
-                <Label className="text-sm font-bold text-[#666666]">Notes & Assumptions</Label>
+                <Label className="text-sm font-bold text-muted-foreground">Notes & Assumptions</Label>
                 <button
                   onClick={() => setNotesExpanded(!notesExpanded)}
                   className="flex items-center gap-1 text-xs text-primary font-medium"
@@ -856,7 +856,7 @@ export default function QuoteCreate() {
               </div>
               <Textarea value={quoteNotes} onChange={(e) => setQuoteNotes(e.target.value)}
                 className={cn(
-                  "rounded-xl border-black/10 bg-[#FAFAFA] text-sm transition-all",
+                  "rounded-xl border-black/10 bg-[#FAFAFA] dark:bg-muted text-sm transition-all",
                   notesExpanded ? "min-h-[240px]" : "min-h-[80px]"
                 )}
                 placeholder="Any notes, exclusions, or assumptions..."
@@ -880,33 +880,33 @@ export default function QuoteCreate() {
         {/* ════════════ PHASE 3: FINALIZED ════════════ */}
         {phase === "finalized" && (
           <div className="space-y-4">
-            <div className="bg-white rounded-[2rem] p-8 shadow-xl border border-black/5">
+            <div className="bg-white dark:bg-card rounded-[2rem] p-8 shadow-xl border border-black/5">
               <div className="flex flex-col items-center text-center">
                 <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
                   <Check className="w-10 h-10 text-green-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-[#1A1A1A] mb-2">Quote Finalized</h2>
-                <p className="text-[#666666] mb-2">{quoteTitle}</p>
+                <h2 className="text-2xl font-bold text-foreground mb-2">Quote Finalized</h2>
+                <p className="text-muted-foreground mb-2">{quoteTitle}</p>
                 <span className="text-3xl font-bold text-primary" data-testid="text-final-total">
                   ${calcTotal().toLocaleString("en-AU", { minimumFractionDigits: 2 })}
                 </span>
-                <p className="text-sm text-[#999999] mt-2">{lineItems.length} line item{lineItems.length !== 1 ? "s" : ""}</p>
+                <p className="text-sm text-muted-foreground mt-2">{lineItems.length} line item{lineItems.length !== 1 ? "s" : ""}</p>
               </div>
             </div>
 
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-black/5 space-y-3">
-              <h3 className="font-bold text-[#1A1A1A] text-lg mb-4">Send to Client</h3>
+            <div className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-sm border border-black/5 space-y-3">
+              <h3 className="font-bold text-foreground text-lg mb-4">Send to Client</h3>
 
               <button
                 onClick={() => setLocation(`/quotes/${savedQuoteId}/preview`)}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAFAFA] text-left hover-elevate active-elevate-2 transition-all"
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAFAFA] dark:bg-muted text-left hover-elevate active-elevate-2 transition-all"
                 data-testid="button-export-pdf">
                 <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center shrink-0">
                   <Download className="w-6 h-6 text-red-600" />
                 </div>
                 <div>
-                  <p className="font-bold text-[#1A1A1A]">Export PDF</p>
-                  <p className="text-sm text-[#666666]">Download a professional PDF quote</p>
+                  <p className="font-bold text-foreground">Export PDF</p>
+                  <p className="text-sm text-muted-foreground">Download a professional PDF quote</p>
                 </div>
               </button>
 
@@ -918,14 +918,14 @@ export default function QuoteCreate() {
                   const body = encodeURIComponent(`Hi ${customer?.name || "there"},\n\nPlease find your quote for ${quoteTitle} attached.\n\nTotal: $${calcTotal().toLocaleString("en-AU", { minimumFractionDigits: 2 })}\n\nView details: ${window.location.origin}/quotes/${savedQuoteId}\n\nKind regards,\n[Your Name]`);
                   window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
                 }}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAFAFA] text-left hover-elevate active-elevate-2 transition-all"
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAFAFA] dark:bg-muted text-left hover-elevate active-elevate-2 transition-all"
                 data-testid="button-email-client">
                 <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center shrink-0">
                   <Mail className="w-6 h-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="font-bold text-[#1A1A1A]">Email to Client</p>
-                  <p className="text-sm text-[#666666]">Send directly to your client's inbox</p>
+                  <p className="font-bold text-foreground">Email to Client</p>
+                  <p className="text-sm text-muted-foreground">Send directly to your client's inbox</p>
                 </div>
               </button>
 
@@ -938,14 +938,14 @@ export default function QuoteCreate() {
                     toast({ title: "Copy failed", description: "Could not copy link.", variant: "destructive" });
                   });
                 }}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAFAFA] text-left"
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAFAFA] dark:bg-muted text-left"
                 data-testid="button-copy-link">
                 <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center shrink-0">
                   <Copy className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
-                  <p className="font-bold text-[#1A1A1A]">Copy Link</p>
-                  <p className="text-sm text-[#666666]">Share a link to view the quote</p>
+                  <p className="font-bold text-foreground">Copy Link</p>
+                  <p className="text-sm text-muted-foreground">Share a link to view the quote</p>
                 </div>
               </button>
             </div>
@@ -969,16 +969,16 @@ export default function QuoteCreate() {
           </DialogHeader>
 
           {/* Tab Switcher */}
-          <div className="bg-[#F5F3F0] p-1 rounded-xl flex gap-1 mb-4">
+          <div className="bg-muted p-1 rounded-xl flex gap-1 mb-4">
             <button onClick={() => setAddTab("custom")}
               className={cn("flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
-                addTab === "custom" ? "bg-white text-[#1A1A1A] shadow-sm" : "text-[#666666]")}
+                addTab === "custom" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground")}
               data-testid="tab-add-custom">
               Custom
             </button>
             <button onClick={() => setAddTab("saved")}
               className={cn("flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
-                addTab === "saved" ? "bg-white text-[#1A1A1A] shadow-sm" : "text-[#666666]")}
+                addTab === "saved" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground")}
               data-testid="tab-add-saved">
               Suggested
             </button>
@@ -1017,16 +1017,16 @@ export default function QuoteCreate() {
               {SUGGESTED_ITEMS.map((item, i) => (
                 <button key={i}
                   onClick={() => addSuggestedItem(item)}
-                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-[#FAFAFA] text-left"
+                  className="w-full flex items-center justify-between p-4 rounded-2xl bg-[#FAFAFA] dark:bg-muted text-left"
                   data-testid={`button-suggested-item-${i}`}>
                   <div className="flex items-center gap-3">
                     <Star className="w-4 h-4 text-primary shrink-0" />
                     <div>
-                      <p className="font-medium text-[#1A1A1A] text-sm">{item.description}</p>
-                      <p className="text-xs text-[#999999]">{item.quantity} {item.unit}</p>
+                      <p className="font-medium text-foreground text-sm">{item.description}</p>
+                      <p className="text-xs text-muted-foreground">{item.quantity} {item.unit}</p>
                     </div>
                   </div>
-                  <span className="font-bold text-[#1A1A1A] text-sm">${item.unitPrice.toFixed(2)}</span>
+                  <span className="font-bold text-foreground text-sm">${item.unitPrice.toFixed(2)}</span>
                 </button>
               ))}
             </div>
@@ -1042,26 +1042,26 @@ export default function QuoteCreate() {
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
-            <div className="bg-[#FFF1EB] rounded-2xl p-4 text-center">
-              <p className="text-sm text-[#666666]">Total Amount</p>
+            <div className="bg-[#FFF1EB] dark:bg-primary/10 rounded-2xl p-4 text-center">
+              <p className="text-sm text-muted-foreground">Total Amount</p>
               <p className="text-2xl font-bold text-primary">${calcTotal().toLocaleString("en-AU", { minimumFractionDigits: 2 })}</p>
             </div>
 
             <div className="space-y-3">
-              <Label className="text-base font-bold text-[#1A1A1A] flex items-center gap-2">
+              <Label className="text-base font-bold text-foreground flex items-center gap-2">
                 <Link2 className="w-4 h-4" /> Link to Job
               </Label>
 
-              <div className="bg-[#F5F3F0] p-1 rounded-xl flex gap-1">
+              <div className="bg-muted p-1 rounded-xl flex gap-1">
                 <button onClick={() => setJobMode("existing")}
                   className={cn("flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
-                    jobMode === "existing" ? "bg-white text-[#1A1A1A] shadow-sm" : "text-[#666666]")}
+                    jobMode === "existing" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground")}
                   data-testid="tab-existing-job">
                   Existing Job
                 </button>
                 <button onClick={() => setJobMode("new")}
                   className={cn("flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
-                    jobMode === "new" ? "bg-white text-[#1A1A1A] shadow-sm" : "text-[#666666]")}
+                    jobMode === "new" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground")}
                   data-testid="tab-new-job">
                   New Job
                 </button>
@@ -1070,19 +1070,19 @@ export default function QuoteCreate() {
               {jobMode === "existing" && (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {!jobs || jobs.length === 0 ? (
-                    <p className="text-center text-sm text-[#999999] py-4">No jobs found. Create a new one instead.</p>
+                    <p className="text-center text-sm text-muted-foreground py-4">No jobs found. Create a new one instead.</p>
                   ) : (
                     <>
                       <button onClick={() => setSelectedJobId(null)}
                         className={cn("w-full text-left p-3 rounded-xl text-sm transition-colors",
-                          selectedJobId === null ? "bg-primary/10 text-primary font-bold border border-primary/20" : "bg-[#FAFAFA] text-[#666666]")}
+                          selectedJobId === null ? "bg-primary/10 text-primary font-bold border border-primary/20" : "bg-[#FAFAFA] dark:bg-muted text-muted-foreground")}
                         data-testid="button-no-job">
                         No linked job (standalone quote)
                       </button>
                       {jobs.map(job => (
                         <button key={job.id} onClick={() => setSelectedJobId(job.id)}
                           className={cn("w-full text-left p-3 rounded-xl text-sm transition-colors",
-                            selectedJobId === job.id ? "bg-primary/10 text-primary font-bold border border-primary/20" : "bg-[#FAFAFA] text-[#1A1A1A]")}
+                            selectedJobId === job.id ? "bg-primary/10 text-primary font-bold border border-primary/20" : "bg-[#FAFAFA] dark:bg-muted text-foreground")}
                           data-testid={`button-job-${job.id}`}>
                           <div className="flex items-center gap-2">
                             <Briefcase className="w-4 h-4 shrink-0" />
