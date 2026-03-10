@@ -69,6 +69,7 @@ The `shared/` directory contains code used by both client and server:
 
 ### Key Components
 - **WeatherWidget** (`client/src/components/WeatherWidget.tsx`) — 4-day weather strip using Open-Meteo API (free, no key). Uses browser Geolocation API with Sydney fallback (-33.8688, 151.2093). Caches results in localStorage (3-hour TTL). Maps WMO weather codes to emojis. Highlights days with rain/wind AND a scheduled job in orange with ⚠️ warning badge. Placed in Home.tsx `calendar` blade below the weekly calendar card.
+- **WeeklyRevenueGoalWidget** (`client/src/components/WeeklyRevenueGoalWidget.tsx`) — SVG circular progress ring showing weekly revenue vs target. Sums `totalAmount` of "accepted" quotes created in the current Mon–Sun week. Goal stored in localStorage (`vargenezey_weekly_revenue_goal`). Returns null when goal=0 (hidden). Set via Settings > Goals. Placed in Home.tsx `revenue` blade (default: after Quick Actions, before Quick Stats).
 
 ### Build Process
 - **Development**: `npm run dev` runs tsx with Vite dev server middleware

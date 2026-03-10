@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { PipelineView } from "@/components/PipelineView";
 import { WeatherWidget } from "@/components/WeatherWidget";
+import { WeeklyRevenueGoalWidget } from "@/components/WeeklyRevenueGoalWidget";
 import { 
   Plus, 
   ChevronRight, 
@@ -77,8 +78,17 @@ export default function Home() {
   })();
   
   const [bladeOrder, setBladeOrder] = useState<string[]>(() => {
+    const defaultOrder = ["hero", "pipeline", "actions", "revenue", "stats", "calendar"];
     const saved = localStorage.getItem("vargenezey_home_blade_order");
-    return saved ? JSON.parse(saved) : ["hero", "stats", "pipeline", "actions", "calendar"];
+    if (!saved) return defaultOrder;
+    const parsed: string[] = JSON.parse(saved);
+    if (!parsed.includes("revenue")) {
+      const actionsIdx = parsed.indexOf("actions");
+      const insertAt = actionsIdx >= 0 ? actionsIdx + 1 : parsed.length;
+      parsed.splice(insertAt, 0, "revenue");
+      localStorage.setItem("vargenezey_home_blade_order", JSON.stringify(parsed));
+    }
+    return parsed;
   });
 
   // Listen for storage changes to update home page layout
@@ -158,6 +168,12 @@ export default function Home() {
                   </Link>
                 </div>
               </div>
+            );
+          }
+
+          if (bladeId === "revenue") {
+            return (
+              <WeeklyRevenueGoalWidget key="revenue" quotes={quotes || []} />
             );
           }
 

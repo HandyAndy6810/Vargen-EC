@@ -22,8 +22,10 @@ import {
   Hash,
   Layout,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Target
 } from "lucide-react";
+import { getWeeklyGoal, setWeeklyGoal } from "@/components/WeeklyRevenueGoalWidget";
 
 const TRADE_TYPES = [
   "General", "Plumber", "Electrician", "Carpenter", "Painter",
@@ -34,7 +36,9 @@ const TRADE_TYPES = [
 const BLADE_METADATA = {
   hero: { label: "AI Quoting", desc: "Hero section for AI quotes" },
   stats: { label: "Quick Stats", desc: "Pending quotes & upcoming jobs" },
+  pipeline: { label: "Quote Pipeline", desc: "Quotes by status overview" },
   actions: { label: "Quick Actions", desc: "Common shortcuts" },
+  revenue: { label: "Weekly Revenue Goal", desc: "Progress toward your weekly target" },
   calendar: { label: "Weekly Calendar", desc: "Next 7 days overview" },
 };
 
@@ -93,6 +97,19 @@ export default function Profile() {
     return localStorage.getItem("vargenezey_dark_mode") === "true";
   });
 
+  const [weeklyGoalInput, setWeeklyGoalInput] = useState<string>(() => {
+    const v = getWeeklyGoal();
+    return v > 0 ? String(v) : "";
+  });
+
+  const saveGoals = () => {
+    const parsed = Number(weeklyGoalInput);
+    setWeeklyGoal(isNaN(parsed) ? 0 : Math.max(0, parsed));
+    toast({ title: "Goals saved" });
+    setActiveSection(null);
+    window.dispatchEvent(new Event("storage"));
+  };
+
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark");
@@ -129,6 +146,7 @@ export default function Profile() {
   const menuItems = [
     { id: "business", icon: Building2, label: "Business Profile", desc: "Name, ABN, contact details" },
     { id: "quoteDefaults", icon: DollarSign, label: "Quote Defaults", desc: "Trade, rates, markup, GST" },
+    { id: "goals", icon: Target, label: "Goals", desc: "Weekly revenue target" },
     { id: "homeLayout", icon: Layout, label: "Home Layout", desc: "Change the stack of dashboard items" },
     { id: "appearance", icon: darkMode ? Moon : Sun, label: "Appearance", desc: darkMode ? "Dark mode" : "Light mode" },
   ];
@@ -311,6 +329,39 @@ export default function Profile() {
 
             <Button onClick={saveQuoteDefaults} className="w-full h-12 rounded-xl font-bold" data-testid="button-save-quote-defaults">
               <Save className="w-4 h-4 mr-2" /> Save Quote Defaults
+            </Button>
+          </div>
+        )}
+
+        {/* Goals Expanded */}
+        {activeSection === "goals" && (
+          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-4 animate-in slide-in-from-top-2 duration-200">
+            <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
+              <Target className="w-5 h-5 text-primary" /> Goals
+            </h3>
+            <p className="text-sm text-muted-foreground -mt-1">
+              Set a weekly revenue target to track your progress on the dashboard.
+            </p>
+
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 mb-1">
+                <DollarSign className="w-3.5 h-3.5" /> Weekly Revenue Goal ($)
+              </Label>
+              <Input
+                type="number"
+                value={weeklyGoalInput}
+                onChange={(e) => setWeeklyGoalInput(e.target.value)}
+                placeholder="e.g. 3500"
+                className="rounded-xl h-12 border-black/10"
+                data-testid="input-weekly-goal"
+              />
+              <p className="text-xs text-muted-foreground mt-1.5 px-1">
+                Set to 0 to hide the widget. Based on accepted quotes this week.
+              </p>
+            </div>
+
+            <Button onClick={saveGoals} className="w-full h-12 rounded-xl font-bold" data-testid="button-save-goals">
+              <Save className="w-4 h-4 mr-2" /> Save Goals
             </Button>
           </div>
         )}
