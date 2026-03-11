@@ -147,7 +147,7 @@ export function WeatherWidget({ jobs = [] }: Props) {
   }, []);
 
   const today = new Date();
-  const next4 = [0, 1, 2, 3].map((offset) => addDays(today, offset));
+  const next7 = [0, 1, 2, 3, 4, 5, 6].map((offset) => addDays(today, offset));
 
   const getFirstJob = (day: Date): Job | undefined => {
     return jobs
@@ -166,10 +166,10 @@ export function WeatherWidget({ jobs = [] }: Props) {
     return (
       <div className="bg-secondary rounded-[2rem] p-5 text-white">
         <div className="flex items-center gap-2 mb-4">
-          <span className="text-sm font-bold text-white/60 uppercase tracking-widest">Week Ahead</span>
+          <span className="text-sm font-bold text-white/60 uppercase tracking-widest">7-Day Forecast</span>
         </div>
-        <div className="grid grid-cols-4 gap-2">
-          {[0, 1, 2, 3].map((i) => (
+        <div className="grid grid-cols-7 gap-2">
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="bg-white/10 rounded-2xl h-24 animate-pulse" />
           ))}
         </div>
@@ -181,7 +181,7 @@ export function WeatherWidget({ jobs = [] }: Props) {
     return (
       <div className="bg-secondary rounded-[2rem] p-5 text-white">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-sm font-bold text-white/60 uppercase tracking-widest">Week Ahead</span>
+          <span className="text-sm font-bold text-white/60 uppercase tracking-widest">7-Day Forecast</span>
         </div>
         <p className="text-white/50 text-sm">Weather unavailable</p>
       </div>
@@ -191,7 +191,7 @@ export function WeatherWidget({ jobs = [] }: Props) {
   return (
     <div className="bg-secondary rounded-[2rem] p-5 text-white" data-testid="widget-weather">
       <div className="flex items-center justify-between mb-4">
-        <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Week Ahead</span>
+        <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">7-Day Forecast</span>
         {locationName && (
           <span className="flex items-center gap-1 text-[10px] text-white/40 font-medium">
             <MapPin className="w-3 h-3" />
@@ -200,8 +200,8 @@ export function WeatherWidget({ jobs = [] }: Props) {
         )}
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
-        {next4.map((day, idx) => {
+      <div className="grid grid-cols-7 gap-2">
+        {next7.map((day, idx) => {
           const forecast = getDayForecast(day);
           const firstJob = getFirstJob(day);
           const isToday = idx === 0;
