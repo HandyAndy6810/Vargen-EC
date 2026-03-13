@@ -5,6 +5,7 @@ import { useRoute, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import {
   ArrowLeft,
+  Calendar,
   Loader2,
   Send,
   CheckCircle2,
@@ -20,6 +21,7 @@ import {
   FileText,
   Eye,
 } from "lucide-react";
+import AcceptAndScheduleDialog from "@/components/AcceptAndScheduleDialog";
 import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,6 +80,8 @@ export default function QuoteDetail() {
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [ackChecked, setAckChecked] = useState(false);
   const [ackDialogOpen, setAckDialogOpen] = useState(false);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [scheduledJobId, setScheduledJobId] = useState<number | null>(null);
 
   useEffect(() => {
     if (parsed) {
@@ -87,6 +91,10 @@ export default function QuoteDetail() {
       setEditIncludeGST(parsed.includeGST ?? false);
     }
   }, [quote?.content]);
+
+  useEffect(() => {
+    if (quote?.jobId) setScheduledJobId(quote.jobId);
+  }, [quote?.jobId]);
 
   if (isLoading) {
     return (
@@ -120,6 +128,14 @@ export default function QuoteDetail() {
       }
     }
     return `Quote #${quote.id}`;
+  })();
+
+  const resolvedCustomerId: number | undefined = (() => {
+    if (quote.jobId) {
+      const job = jobs?.find(j => j.id === quote.jobId);
+      if (job?.customerId) return job.customerId;
+    }
+    return undefined;
   })();
 
   const jobTitle = parsed?.jobTitle || (() => {
@@ -729,25 +745,36 @@ export default function QuoteDetail() {
                 Mark as Sent
               </Button>
             )}
-            {quote.status === "sent" && (
-              <div className="grid grid-cols-2 gap-3">
+            {(quote.status === "sent" || quote.status === "viewed") && (
+              <div className="space-y-3">
                 <Button
-                  onClick={() => handleStatusChange("accepted")}
+                  onClick={() => setShowScheduleDialog(true)}
                   disabled={isUpdating}
-                  className="h-14 rounded-2xl text-base font-bold bg-green-600 text-white"
-                  data-testid="button-mark-accepted"
+                  className="w-full h-14 rounded-2xl text-base font-bold bg-green-600 hover:bg-green-700 text-white"
+                  data-testid="button-accept-and-schedule"
                 >
-                  <CheckCircle2 className="w-5 h-5 mr-2" /> Accepted
+                  <Calendar className="w-5 h-5 mr-2" /> Accept & Schedule
                 </Button>
-                <Button
-                  onClick={() => handleStatusChange("rejected")}
-                  disabled={isUpdating}
-                  variant="outline"
-                  className="h-14 rounded-2xl text-base font-bold text-red-500 border-red-200 dark:border-red-900"
-                  data-testid="button-mark-rejected"
-                >
-                  <XCircle className="w-5 h-5 mr-2" /> Rejected
-                </Button>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    onClick={() => handleStatusChange("accepted")}
+                    disabled={isUpdating}
+                    variant="outline"
+                    className="h-12 rounded-2xl text-sm font-bold text-green-600 border-green-200 dark:border-green-900"
+                    data-testid="button-mark-accepted"
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-1.5" /> Accept Only
+                  </Button>
+                  <Button
+                    onClick={() => handleStatusChange("rejected")}
+                    disabled={isUpdating}
+                    variant="outline"
+                    className="h-12 rounded-2xl text-sm font-bold text-red-500 border-red-200 dark:border-red-900"
+                    data-testid="button-mark-rejected"
+                  >
+                    <XCircle className="w-4 h-4 mr-1.5" /> Rejected
+                  </Button>
+                </div>
               </div>
             )}
             {(quote.status === "accepted" || quote.status === "rejected") && (
@@ -761,9 +788,34 @@ export default function QuoteDetail() {
                 Revert to Draft
               </Button>
             )}
+            {!editing && scheduledJobId && quote.status === "accepted" && (
+              <Button
+                onClick={() => setLocation(`/jobs`)}
+                variant="outline"
+                className="w-full h-12 rounded-2xl text-sm font-bold border-primary/30 text-primary"
+                data-testid="button-view-job"
+              >
+                <Calendar className="w-4 h-4 mr-2" /> View Scheduled Job
+              </Button>
+            )}
           </div>
         )}
       </div>
+
+      {/* Accept & Schedule Dialog */}
+      <AcceptAndScheduleDialog
+        open={showScheduleDialog}
+        onOpenChange={setShowScheduleDialog}
+        quoteId={quote.id}
+        totalAmount={totalAmount}
+        initialTitle={jobTitle}
+        initialCustomerId={resolvedCustomerId}
+        initialSummary={parsed?.summary || ""}
+        onSuccess={(newJobId) => {
+          setScheduledJobId(newJobId);
+          setShowScheduleDialog(false);
+        }}
+      />
 
       {/* Share Sheet Dialog */}
       <Dialog open={showShareSheet} onOpenChange={setShowShareSheet}>
