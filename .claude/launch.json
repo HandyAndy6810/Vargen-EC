@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Vargen EC Dev Server",
+      "runtimeExecutable": "C:/WINDOWS/System32/WindowsPowerShell/v1.0/powershell.exe",
+      "runtimeArgs": ["-Command", "$env:NODE_ENV='development'; node node_modules/.bin/tsx server/index.ts"],
+      "port": 5000
+    }
+  ]
+}
