@@ -1,7 +1,8 @@
 import { db } from "./db";
 import {
-  customers, jobs, quotes, quoteItems,
+  customers, jobs, quotes, quoteItems, userSettings,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
+  type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem
 } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
@@ -29,6 +30,10 @@ export interface IStorage {
   createQuoteItem(item: InsertQuoteItem): Promise<QuoteItem>;
   deleteQuoteItem(id: number): Promise<void>;
   deleteQuote(id: number): Promise<void>;
+
+  // User Settings
+  getUserSettings(userId: string): Promise<UserSettings | undefined>;
+  upsertUserSettings(userId: string, updates: Partial<InsertUserSettings>): Promise<UserSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -100,6 +105,23 @@ export class DatabaseStorage implements IStorage {
   async deleteQuote(id: number): Promise<void> {
     await db.delete(quoteItems).where(eq(quoteItems.quoteId, id));
     await db.delete(quotes).where(eq(quotes.id, id));
+  }
+
+  async getUserSettings(userId: string): Promise<UserSettings | undefined> {
+    const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+    return settings;
+  }
+
+  async upsertUserSettings(userId: string, updates: Partial<InsertUserSettings>): Promise<UserSettings> {
+    const [settings] = await db
+      .insert(userSettings)
+      .values({ userId, ...updates })
+      .onConflictDoUpdate({
+        target: userSettings.userId,
+        set: { ...updates, updatedAt: new Date() },
+      })
+      .returning();
+    return settings;
   }
 }
 

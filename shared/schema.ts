@@ -1,10 +1,11 @@
 export * from "./models/auth";
 export * from "./models/chat";
 
-import { pgTable, text, serial, integer, boolean, timestamp, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, numeric, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
+import { users } from "./models/auth";
 
 export const customers = pgTable("customers", {
   id: serial("id").primaryKey(),
@@ -69,6 +70,29 @@ export const quoteItemsRelations = relations(quoteItems, ({ one }) => ({
     references: [quotes.id],
   }),
 }));
+
+export const userSettings = pgTable("user_settings", {
+  userId: varchar("user_id").primaryKey().references(() => users.id),
+  businessName: text("business_name").default(""),
+  abn: text("abn").default(""),
+  phone: text("phone").default(""),
+  email: text("email").default(""),
+  address: text("address").default(""),
+  tradeType: text("trade_type").default("General"),
+  labourRate: integer("labour_rate").default(85),
+  markupPercent: integer("markup_percent").default(15),
+  callOutFee: integer("call_out_fee").default(80),
+  callOutFeeEnabled: boolean("call_out_fee_enabled").default(false),
+  includeGST: boolean("include_gst").default(true),
+  weeklyGoal: integer("weekly_goal").default(0),
+  darkMode: boolean("dark_mode").default(false),
+  bladeOrder: text("blade_order").default('["hero","stats","actions","calendar"]'),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ updatedAt: true });
+export type UserSettings = typeof userSettings.$inferSelect;
+export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 
 // Schemas
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });

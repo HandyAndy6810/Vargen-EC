@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/use-auth";
+import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,6 +63,8 @@ interface QuoteDefaults {
 export default function Profile() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
+  const { data: dbSettings } = useUserSettings();
+  const { mutate: updateSettings } = useUpdateUserSettings();
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
@@ -104,11 +107,42 @@ export default function Profile() {
 
   const saveGoals = () => {
     const parsed = Number(weeklyGoalInput);
-    setWeeklyGoal(isNaN(parsed) ? 0 : Math.max(0, parsed));
+    const goal = isNaN(parsed) ? 0 : Math.max(0, parsed);
+    setWeeklyGoal(goal);
+    updateSettings({ weeklyGoal: goal });
     toast({ title: "Goals saved" });
     setActiveSection(null);
     window.dispatchEvent(new Event("storage"));
   };
+
+  // Sync DB → state + localStorage when settings arrive
+  useEffect(() => {
+    if (!dbSettings) return;
+    const bp = {
+      businessName: dbSettings.businessName ?? "",
+      abn: dbSettings.abn ?? "",
+      phone: dbSettings.phone ?? "",
+      email: dbSettings.email ?? "",
+      address: dbSettings.address ?? "",
+    };
+    const qd = {
+      tradeType: dbSettings.tradeType ?? "General",
+      labourRate: dbSettings.labourRate ?? 85,
+      markupPercent: dbSettings.markupPercent ?? 15,
+      callOutFee: dbSettings.callOutFee ?? 80,
+      callOutFeeEnabled: dbSettings.callOutFeeEnabled ?? false,
+      includeGST: dbSettings.includeGST ?? true,
+    };
+    setBusiness(bp);
+    setQuoteDefaults(qd);
+    setDarkMode(dbSettings.darkMode ?? false);
+    if (dbSettings.weeklyGoal) setWeeklyGoalInput(String(dbSettings.weeklyGoal));
+    if (dbSettings.bladeOrder) setBladeOrder(JSON.parse(dbSettings.bladeOrder));
+    // Keep localStorage in sync for other consumers
+    localStorage.setItem("vargenezey_business_profile", JSON.stringify(bp));
+    localStorage.setItem("vargenezey_quote_defaults", JSON.stringify(qd));
+    localStorage.setItem("vargenezey_dark_mode", String(dbSettings.darkMode ?? false));
+  }, [dbSettings?.userId]);
 
   useEffect(() => {
     if (darkMode) {
@@ -117,16 +151,32 @@ export default function Profile() {
       document.documentElement.classList.remove("dark");
     }
     localStorage.setItem("vargenezey_dark_mode", String(darkMode));
+    updateSettings({ darkMode });
   }, [darkMode]);
 
   const saveBusiness = () => {
     localStorage.setItem("vargenezey_business_profile", JSON.stringify(business));
+    updateSettings({
+      businessName: business.businessName,
+      abn: business.abn,
+      phone: business.phone,
+      email: business.email,
+      address: business.address,
+    });
     toast({ title: "Business profile saved" });
     setActiveSection(null);
   };
 
   const saveQuoteDefaults = () => {
     localStorage.setItem("vargenezey_quote_defaults", JSON.stringify(quoteDefaults));
+    updateSettings({
+      tradeType: quoteDefaults.tradeType,
+      labourRate: quoteDefaults.labourRate,
+      markupPercent: quoteDefaults.markupPercent,
+      callOutFee: quoteDefaults.callOutFee,
+      callOutFeeEnabled: quoteDefaults.callOutFeeEnabled,
+      includeGST: quoteDefaults.includeGST,
+    });
     toast({ title: "Quote defaults saved" });
     setActiveSection(null);
   };
@@ -138,6 +188,7 @@ export default function Profile() {
       [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
       setBladeOrder(newOrder);
       localStorage.setItem("vargenezey_home_blade_order", JSON.stringify(newOrder));
+      updateSettings({ bladeOrder: JSON.stringify(newOrder) });
       window.dispatchEvent(new Event('storage'));
       toast({ title: "Dashboard layout updated" });
     }

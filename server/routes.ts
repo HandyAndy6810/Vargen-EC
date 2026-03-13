@@ -286,6 +286,30 @@ Guidelines:
     }
   });
 
+  // User Settings
+  app.get(api.settings.get.path, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    const settings = await storage.getUserSettings(userId);
+    res.json(settings ?? null);
+  });
+
+  app.patch(api.settings.update.path, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const input = api.settings.update.input.parse(req.body);
+      const settings = await storage.upsertUserSettings(userId, input);
+      res.json(settings);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ message: err.errors[0].message });
+      } else {
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  });
+
   // Seed data function
   await seedDatabase();
 

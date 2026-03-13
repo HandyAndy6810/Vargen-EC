@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertCustomerSchema, insertJobSchema, insertQuoteSchema, insertQuoteItemSchema, customers, jobs, quotes, quoteItems } from './schema';
+import { insertCustomerSchema, insertJobSchema, insertQuoteSchema, insertQuoteItemSchema, insertUserSettingsSchema, customers, jobs, quotes, quoteItems, userSettings } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -108,6 +108,24 @@ export const api = {
       responses: {
         200: z.object({ ok: z.boolean() }),
         404: errorSchemas.notFound,
+      },
+    },
+  },
+  settings: {
+    get: {
+      method: 'GET' as const,
+      path: '/api/settings',
+      responses: {
+        200: z.custom<typeof userSettings.$inferSelect>().nullable(),
+        401: errorSchemas.notFound,
+      },
+    },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/settings',
+      input: insertUserSettingsSchema.partial().omit({ userId: true }),
+      responses: {
+        200: z.custom<typeof userSettings.$inferSelect>(),
       },
     },
   },
