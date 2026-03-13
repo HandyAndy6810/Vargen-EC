@@ -2,7 +2,7 @@ import { Header } from "@/components/Header";
 import { useJob, useUpdateJob } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useRoute, Link } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, Calendar, User, MapPin, Phone, Briefcase, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ export default function JobDetail() {
   const { data: customers } = useCustomers();
   const { mutate: updateJob, isPending: isUpdating } = useUpdateJob();
   const [showLateModal, setShowLateModal] = useState(false);
+
+  useEffect(() => { window.scrollTo(0, 0); }, []);
 
   const customer = customers?.find(c => c.id === job?.customerId);
 
