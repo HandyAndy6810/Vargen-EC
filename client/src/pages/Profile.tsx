@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ const TRADE_TYPES = [
   "HVAC", "Locksmith", "Handyman"
 ];
 
-const BLADE_METADATA = {
+const BLADE_METADATA: Record<string, { label: string; desc: string }> = {
   hero: { label: "AI Quoting", desc: "Hero section for AI quotes" },
   stats: { label: "Quick Stats", desc: "Pending quotes & upcoming jobs" },
   pipeline: { label: "Quote Pipeline", desc: "Quotes by status overview" },
@@ -42,6 +42,15 @@ const BLADE_METADATA = {
   revenue: { label: "Weekly Revenue Goal", desc: "Progress toward your weekly target" },
   calendar: { label: "Weekly Calendar", desc: "Next 7 days overview" },
 };
+
+const ALL_BLADE_IDS = Object.keys(BLADE_METADATA);
+
+/** Ensure every blade in BLADE_METADATA appears in the order array */
+function normalizeBladeOrder(order: string[]): string[] {
+  const known = order.filter((id) => id in BLADE_METADATA);
+  const missing = ALL_BLADE_IDS.filter((id) => !known.includes(id));
+  return [...known, ...missing];
+}
 
 interface BusinessProfile {
   businessName: string;
@@ -67,10 +76,11 @@ export default function Profile() {
   const { mutate: updateSettings } = useUpdateUserSettings();
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const isInitialized = useRef(false);
 
   const [bladeOrder, setBladeOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem("vargenezey_home_blade_order");
-    return saved ? JSON.parse(saved) : ["hero", "stats", "actions", "calendar"];
+    return normalizeBladeOrder(saved ? JSON.parse(saved) : ["hero", "pipeline", "actions", "revenue", "stats", "calendar"]);
   });
 
   const [business, setBusiness] = useState<BusinessProfile>(() => {
@@ -137,11 +147,15 @@ export default function Profile() {
     setQuoteDefaults(qd);
     setDarkMode(dbSettings.darkMode ?? false);
     if (dbSettings.weeklyGoal) setWeeklyGoalInput(String(dbSettings.weeklyGoal));
-    if (dbSettings.bladeOrder) setBladeOrder(JSON.parse(dbSettings.bladeOrder));
+    if (dbSettings.bladeOrder) {
+      setBladeOrder(normalizeBladeOrder(JSON.parse(dbSettings.bladeOrder)));
+    }
     // Keep localStorage in sync for other consumers
     localStorage.setItem("vargenezey_business_profile", JSON.stringify(bp));
     localStorage.setItem("vargenezey_quote_defaults", JSON.stringify(qd));
     localStorage.setItem("vargenezey_dark_mode", String(dbSettings.darkMode ?? false));
+    // Mark as initialized so dark mode effect can safely save from now on
+    isInitialized.current = true;
   }, [dbSettings?.userId]);
 
   useEffect(() => {
@@ -151,7 +165,10 @@ export default function Profile() {
       document.documentElement.classList.remove("dark");
     }
     localStorage.setItem("vargenezey_dark_mode", String(darkMode));
-    updateSettings({ darkMode });
+    // Only save to DB after initial sync is done, to avoid 401 race on mount
+    if (isInitialized.current) {
+      updateSettings({ darkMode });
+    }
   }, [darkMode]);
 
   const saveBusiness = () => {

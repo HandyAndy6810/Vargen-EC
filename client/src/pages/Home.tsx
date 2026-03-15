@@ -80,18 +80,21 @@ export default function Home() {
     }));
   })();
   
+  const ALL_BLADES = ["hero", "pipeline", "actions", "revenue", "stats", "calendar"];
+
   const [bladeOrder, setBladeOrder] = useState<string[]>(() => {
-    const defaultOrder = ["hero", "pipeline", "actions", "revenue", "stats", "calendar"];
     const saved = localStorage.getItem("vargenezey_home_blade_order");
-    if (!saved) return defaultOrder;
+    if (!saved) return ALL_BLADES;
     const parsed: string[] = JSON.parse(saved);
-    if (!parsed.includes("revenue")) {
-      const actionsIdx = parsed.indexOf("actions");
-      const insertAt = actionsIdx >= 0 ? actionsIdx + 1 : parsed.length;
-      parsed.splice(insertAt, 0, "revenue");
-      localStorage.setItem("vargenezey_home_blade_order", JSON.stringify(parsed));
+    // Ensure any new blades not in the saved order get appended
+    const known = parsed.filter((id) => ALL_BLADES.includes(id));
+    const missing = ALL_BLADES.filter((id) => !known.includes(id));
+    if (missing.length > 0) {
+      const fixed = [...known, ...missing];
+      localStorage.setItem("vargenezey_home_blade_order", JSON.stringify(fixed));
+      return fixed;
     }
-    return parsed;
+    return known;
   });
 
   // Listen for storage changes to update home page layout
