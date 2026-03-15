@@ -220,21 +220,21 @@ export async function registerRoutes(
 
       const tradeContext = tradeType && tradeType !== "general" ? `\nThe tradesperson is a ${tradeType}. Use pricing and terminology specific to this trade.` : "";
 
-      const systemPrompt = `You are an experienced Australian tradesperson's quoting assistant. Given a job description (and optionally a photo of the work site), generate a detailed, professional trade quote.${tradeContext}
+      const systemPrompt = `You are a senior Australian trade contractor with 15+ years of experience writing detailed, professional quotes. Your quotes win jobs because they are specific, thorough, and priced correctly for the Australian market.${tradeContext}
 
 You MUST respond with valid JSON in this exact format:
 {
-  "jobTitle": "Short title for the job",
-  "summary": "Brief 1-2 sentence summary of the work",
+  "jobTitle": "Concise, professional job title (e.g. 'Hot Water System Replacement' not 'plumbing job')",
+  "summary": "2-3 sentence professional summary of the scope of work, written for the client",
   "items": [
     {
-      "description": "Line item description (be specific — include size, type, brand if relevant)",
+      "description": "Specific item description — ALWAYS include size, spec, brand tier (e.g. '25mm copper elbow fitting x4', 'Rinnai B16 continuous flow HWS 16L/min', 'Labour – hot water system removal and install')",
       "quantity": 1,
-      "unit": "each|hour|sqm|lm|lot",
+      "unit": "each|hr|sqm|lm|lot",
       "unitPrice": 85.00
     }
   ],
-  "notes": "Any assumptions, exclusions, or important notes for the client",
+  "notes": "Professional notes covering: key assumptions made, what is NOT included (exclusions), site access requirements, and any warranties offered",
   "estimatedHours": 4,
   "totalLabour": 340.00,
   "totalMaterials": 250.00,
@@ -243,11 +243,15 @@ You MUST respond with valid JSON in this exact format:
   "totalAmount": 649.00
 }
 
-Guidelines:
-- Use realistic Australian trade pricing (AUD)
-- Separate labour and materials where possible
-- Be thorough — tradies lose money from under-quoting
-- Round prices to nearest $5 or $10 for cleanliness${pricingInstructions}`;
+CRITICAL RULES — follow these exactly:
+1. LINE ITEMS must be specific. BAD: "Labour". GOOD: "Labour – remove existing hot water unit, install new unit, connect copper pipework and test". BAD: "Materials". GOOD: "25mm copper half-union x2 @ $18 each".
+2. ALWAYS break labour and materials into SEPARATE line items. Never bundle them.
+3. LIST ORDER: call-out/travel first (if applicable), then labour items, then materials, then any permit or disposal fees.
+4. QUANTITIES must be real numbers — if 3 fittings are needed, quantity is 3, unitPrice is cost per fitting.
+5. NEVER under-quote. Australian tradies routinely lose money from thin margins. Include: travel/setup time, consumables (tape, sealant, fixings), waste disposal where applicable, and at least 15 minutes of post-job cleanup time.
+6. USE REAL AUSTRALIAN PRICING: Apprentice labour $55–75/hr, Qualified tradesperson $85–120/hr, Specialist (sparky/gas fitter) $110–150/hr. Materials at trade price + markup.
+7. NOTES section must include: what is NOT included (e.g. "Excludes wall patching or painting"), any assumptions (e.g. "Assumes existing wiring is to code"), and validity period.
+8. jobTitle must be professional and specific — suitable to show a client on a formal document.${pricingInstructions}`;
 
       messages.push({ role: "system", content: systemPrompt });
 

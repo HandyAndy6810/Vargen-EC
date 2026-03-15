@@ -184,20 +184,26 @@ export default function QuotePreview() {
           </div>
 
           {/* Line Items Table */}
-          <div className="px-4 sm:px-8 py-6 print:px-10">
-            <table className="w-full text-sm" data-testid="table-line-items">
+          <div className="px-4 sm:px-8 py-6 print:px-10 overflow-x-hidden">
+            <table className="w-full text-sm table-fixed" data-testid="table-line-items">
+              <colgroup>
+                <col className="w-auto" />
+                <col style={{ width: "2.5rem" }} />
+                <col style={{ width: "4.5rem" }} />
+                <col style={{ width: "4.5rem" }} />
+              </colgroup>
               <thead>
                 <tr className="border-b-2 border-gray-200">
                   <th className="text-left py-3 font-bold text-gray-700 text-xs uppercase tracking-wider">Description</th>
-                  <th className="text-center py-3 font-bold text-gray-700 text-xs uppercase tracking-wider w-10">Qty</th>
-                  <th className="text-right py-3 font-bold text-gray-700 text-xs uppercase tracking-wider w-20">Unit Price</th>
-                  <th className="text-right py-3 font-bold text-gray-700 text-xs uppercase tracking-wider w-20">Amount</th>
+                  <th className="text-center py-3 font-bold text-gray-700 text-xs uppercase tracking-wider">Qty</th>
+                  <th className="text-right py-3 font-bold text-gray-700 text-xs uppercase tracking-wider">Rate</th>
+                  <th className="text-right py-3 font-bold text-gray-700 text-xs uppercase tracking-wider">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, idx) => (
                   <tr key={idx} className="border-b border-gray-100" data-testid={`row-item-${idx}`}>
-                    <td className="py-3 text-gray-800">
+                    <td className="py-3 text-gray-800 break-words min-w-0">
                       {item.description}
                       {item.unit && <span className="text-gray-400 text-xs ml-1">({item.unit})</span>}
                     </td>
