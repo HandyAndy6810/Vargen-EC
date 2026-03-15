@@ -5,7 +5,7 @@ import { storage } from "./storage";
 const XERO_AUTH_URL = "https://login.xero.com/identity/connect/authorize";
 const XERO_TOKEN_URL = "https://identity.xero.com/connect/token";
 const XERO_CONNECTIONS_URL = "https://api.xero.com/connections";
-const XERO_SCOPES = "openid profile email offline_access accounting.contacts accounting.transactions accounting.settings";
+const XERO_SCOPES = process.env.XERO_SCOPES || "openid profile email offline_access accounting.contacts accounting.transactions";
 
 function getClientId(): string {
   const id = process.env.XERO_CLIENT_ID;
