@@ -1,9 +1,10 @@
 import { db } from "./db";
 import {
-  customers, jobs, quotes, quoteItems, userSettings,
+  customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
-  type Customer, type Job, type Quote, type QuoteItem
+  type Customer, type Job, type Quote, type QuoteItem,
+  type XeroToken, type InsertXeroToken
 } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 
@@ -37,6 +38,11 @@ export interface IStorage {
   // User Settings
   getUserSettings(userId: string): Promise<UserSettings | undefined>;
   upsertUserSettings(userId: string, updates: Partial<InsertUserSettings>): Promise<UserSettings>;
+
+  // Xero Tokens
+  getXeroToken(userId: string): Promise<XeroToken | undefined>;
+  upsertXeroToken(userId: string, token: Omit<InsertXeroToken, "userId">): Promise<XeroToken>;
+  deleteXeroToken(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -134,6 +140,27 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return settings;
+  }
+
+  async getXeroToken(userId: string): Promise<XeroToken | undefined> {
+    const [token] = await db.select().from(xeroTokens).where(eq(xeroTokens.userId, userId));
+    return token;
+  }
+
+  async upsertXeroToken(userId: string, token: Omit<InsertXeroToken, "userId">): Promise<XeroToken> {
+    const [result] = await db
+      .insert(xeroTokens)
+      .values({ userId, ...token })
+      .onConflictDoUpdate({
+        target: xeroTokens.userId,
+        set: { ...token, updatedAt: new Date() },
+      })
+      .returning();
+    return result;
+  }
+
+  async deleteXeroToken(userId: string): Promise<void> {
+    await db.delete(xeroTokens).where(eq(xeroTokens.userId, userId));
   }
 }
 

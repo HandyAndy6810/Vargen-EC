@@ -96,6 +96,20 @@ export const userSettings = pgTable("user_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const xeroTokens = pgTable("xero_tokens", {
+  userId: varchar("user_id").primaryKey().references(() => users.id),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  tenantId: text("tenant_id").notNull(),
+  tenantName: text("tenant_name").default(""),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type XeroToken = typeof xeroTokens.$inferSelect;
+export type InsertXeroToken = typeof xeroTokens.$inferInsert;
+
 export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ updatedAt: true });
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;

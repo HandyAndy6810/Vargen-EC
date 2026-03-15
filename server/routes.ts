@@ -12,6 +12,7 @@ import { registerAudioRoutes } from "./replit_integrations/audio";
 import { registerImageRoutes } from "./replit_integrations/image";
 import multer from "multer";
 import fs from "fs";
+import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken } from "./xero";
 
 const upload = multer({ dest: "uploads/" });
 
@@ -495,6 +496,108 @@ CRITICAL RULES — follow these exactly:
         res.status(500).json({ message: msg });
       }
     }
+  });
+
+  // ─── Xero OAuth2 PKCE Routes ───
+
+  // Start OAuth flow — redirects to Xero login
+  app.get("/api/xero/connect", (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    try {
+      const { url, codeVerifier, state } = buildAuthUrl();
+      // Store PKCE verifier + state in session
+      (req.session as any).xeroCodeVerifier = codeVerifier;
+      (req.session as any).xeroState = state;
+      req.session.save(() => {
+        res.redirect(url);
+      });
+    } catch (err: any) {
+      console.error("Xero connect error:", err);
+      res.status(500).json({ message: err.message || "Failed to start Xero connection" });
+    }
+  });
+
+  // OAuth callback — Xero redirects here with ?code=...&state=...
+  app.get("/api/xero/callback", async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.redirect("/profile?xero=error&reason=unauthorized");
+
+    const { code, state } = req.query;
+    const savedVerifier = (req.session as any).xeroCodeVerifier;
+    const savedState = (req.session as any).xeroState;
+
+    // Clean up session
+    delete (req.session as any).xeroCodeVerifier;
+    delete (req.session as any).xeroState;
+
+    if (!code || !savedVerifier) {
+      return res.redirect("/profile?xero=error&reason=missing_code");
+    }
+    if (state !== savedState) {
+      return res.redirect("/profile?xero=error&reason=invalid_state");
+    }
+
+    try {
+      // Exchange code for tokens
+      const tokens = await exchangeCodeForTokens(code as string, savedVerifier);
+
+      // Fetch connected tenants
+      const tenants = await fetchTenants(tokens.accessToken);
+      if (tenants.length === 0) {
+        return res.redirect("/profile?xero=error&reason=no_tenants");
+      }
+
+      // Store tokens (use first tenant)
+      const tenant = tenants[0];
+      const expiresAt = new Date(Date.now() + tokens.expiresIn * 1000);
+
+      await storage.upsertXeroToken(userId, {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresAt,
+        tenantId: tenant.tenantId,
+        tenantName: tenant.tenantName,
+      });
+
+      res.redirect("/profile?xero=success");
+    } catch (err: any) {
+      console.error("Xero callback error:", err);
+      res.redirect("/profile?xero=error&reason=token_exchange");
+    }
+  });
+
+  // Check connection status
+  app.get("/api/xero/status", async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    const token = await storage.getXeroToken(userId);
+    if (!token) {
+      return res.json({ connected: false });
+    }
+
+    // Check if token can be refreshed
+    const valid = await getValidToken(userId);
+    if (!valid) {
+      return res.json({ connected: false });
+    }
+
+    res.json({
+      connected: true,
+      tenantName: token.tenantName || "Xero Organisation",
+      connectedAt: token.createdAt,
+    });
+  });
+
+  // Disconnect from Xero
+  app.post("/api/xero/disconnect", async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    await storage.deleteXeroToken(userId);
+    res.json({ ok: true });
   });
 
   // Seed data function

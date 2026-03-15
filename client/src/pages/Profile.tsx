@@ -1,6 +1,8 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings";
+import { useXeroStatus, useXeroDisconnect } from "@/hooks/use-xero";
 import { useState, useEffect, useRef } from "react";
+import { useSearch } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,12 @@ import {
   Layout,
   ArrowUp,
   ArrowDown,
-  Target
+  Target,
+  Link2,
+  Unlink,
+  CheckCircle2,
+  Loader2,
+  ExternalLink
 } from "lucide-react";
 import { getWeeklyGoal, setWeeklyGoal } from "@/components/WeeklyRevenueGoalWidget";
 
@@ -77,6 +84,37 @@ export default function Profile() {
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const isInitialized = useRef(false);
+
+  // Xero connection
+  const { data: xeroStatus, isLoading: xeroLoading } = useXeroStatus();
+  const { mutateAsync: disconnectXero, isPending: disconnecting } = useXeroDisconnect();
+  const searchString = useSearch();
+
+  // Handle Xero OAuth callback redirect
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const xeroResult = params.get("xero");
+    if (xeroResult === "success") {
+      toast({ title: "Xero connected!", description: "Your Xero account is now linked." });
+      // Clean the URL
+      window.history.replaceState({}, "", "/profile");
+    } else if (xeroResult === "error") {
+      const reason = params.get("reason") || "unknown";
+      const messages: Record<string, string> = {
+        unauthorized: "You must be logged in to connect Xero.",
+        missing_code: "Authorization was cancelled or failed.",
+        invalid_state: "Security check failed. Please try again.",
+        no_tenants: "No Xero organisations found. Make sure you have a Xero account.",
+        token_exchange: "Failed to complete Xero authorization. Please try again.",
+      };
+      toast({
+        title: "Xero connection failed",
+        description: messages[reason] || "An unknown error occurred.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, "", "/profile");
+    }
+  }, [searchString]);
 
   const [bladeOrder, setBladeOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem("vargenezey_home_blade_order");
@@ -225,6 +263,7 @@ export default function Profile() {
     { id: "goals", icon: Target, label: "Goals", desc: "Weekly revenue target" },
     { id: "homeLayout", icon: Layout, label: "Home Layout", desc: "Change the stack of dashboard items" },
     { id: "appearance", icon: darkMode ? Moon : Sun, label: "Appearance", desc: darkMode ? "Dark mode" : "Light mode" },
+    { id: "xero", icon: Link2, label: "Xero Integration", desc: xeroStatus?.connected ? `Connected to ${xeroStatus.tenantName}` : "Connect your accounting" },
   ];
 
   return (
@@ -488,6 +527,90 @@ export default function Profile() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Xero Integration Expanded */}
+        {activeSection === "xero" && (
+          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-4 animate-in slide-in-from-top-2 duration-200">
+            <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
+              <Link2 className="w-5 h-5 text-primary" /> Xero Integration
+            </h3>
+
+            {xeroLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : xeroStatus?.connected ? (
+              <div className="space-y-4">
+                {/* Connected state */}
+                <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950/30 rounded-2xl border border-green-200 dark:border-green-800">
+                  <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-green-800 dark:text-green-300">Connected</p>
+                    <p className="text-sm text-green-600 dark:text-green-400 truncate">
+                      {xeroStatus.tenantName || "Xero Organisation"}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-sm text-muted-foreground px-1">
+                  Your Xero account is linked. Customer contacts and invoices will sync with your Xero organisation.
+                </p>
+
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    await disconnectXero();
+                  }}
+                  disabled={disconnecting}
+                  className="w-full h-12 rounded-xl font-bold border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30"
+                  data-testid="button-xero-disconnect"
+                >
+                  {disconnecting ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Unlink className="w-4 h-4 mr-2" />
+                  )}
+                  Disconnect Xero
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Disconnected state */}
+                <p className="text-sm text-muted-foreground px-1">
+                  Connect your Xero account to automatically sync customers and create invoices from accepted quotes.
+                </p>
+
+                <div className="bg-[#F5F3F0] dark:bg-white/5 rounded-2xl p-4 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">What you get</p>
+                  <ul className="text-sm text-foreground space-y-1.5">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      Sync customers with Xero contacts
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      Create invoices from accepted quotes
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      Keep your books up to date automatically
+                    </li>
+                  </ul>
+                </div>
+
+                <a href="/api/xero/connect" className="block">
+                  <Button
+                    className="w-full h-12 rounded-xl font-bold bg-[#13B5EA] hover:bg-[#0FA1D1] text-white"
+                    data-testid="button-xero-connect"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Connect to Xero
+                  </Button>
+                </a>
+              </div>
+            )}
           </div>
         )}
 
