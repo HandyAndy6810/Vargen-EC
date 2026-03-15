@@ -73,7 +73,7 @@ export default function Profile() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const { data: dbSettings } = useUserSettings();
-  const { mutate: updateSettings } = useUpdateUserSettings();
+  const { mutate: updateSettings, mutateAsync: updateSettingsAsync } = useUpdateUserSettings();
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const isInitialized = useRef(false);
@@ -115,13 +115,15 @@ export default function Profile() {
     return v > 0 ? String(v) : "";
   });
 
-  const saveGoals = () => {
+  const saveGoals = async () => {
     const parsed = Number(weeklyGoalInput);
     const goal = isNaN(parsed) ? 0 : Math.max(0, parsed);
     setWeeklyGoal(goal);
-    updateSettings({ weeklyGoal: goal });
-    toast({ title: "Goals saved" });
-    setActiveSection(null);
+    try {
+      await updateSettingsAsync({ weeklyGoal: goal });
+      toast({ title: "Goals saved" });
+      setActiveSection(null);
+    } catch { /* error toast handled by mutation */ }
     window.dispatchEvent(new Event("storage"));
   };
 
@@ -171,43 +173,49 @@ export default function Profile() {
     }
   }, [darkMode]);
 
-  const saveBusiness = () => {
+  const saveBusiness = async () => {
     localStorage.setItem("vargenezey_business_profile", JSON.stringify(business));
-    updateSettings({
-      businessName: business.businessName,
-      abn: business.abn,
-      phone: business.phone,
-      email: business.email,
-      address: business.address,
-    });
-    toast({ title: "Business profile saved" });
-    setActiveSection(null);
+    try {
+      await updateSettingsAsync({
+        businessName: business.businessName,
+        abn: business.abn,
+        phone: business.phone,
+        email: business.email,
+        address: business.address,
+      });
+      toast({ title: "Business profile saved" });
+      setActiveSection(null);
+    } catch { /* error toast handled by mutation */ }
   };
 
-  const saveQuoteDefaults = () => {
+  const saveQuoteDefaults = async () => {
     localStorage.setItem("vargenezey_quote_defaults", JSON.stringify(quoteDefaults));
-    updateSettings({
-      tradeType: quoteDefaults.tradeType,
-      labourRate: quoteDefaults.labourRate,
-      markupPercent: quoteDefaults.markupPercent,
-      callOutFee: quoteDefaults.callOutFee,
-      callOutFeeEnabled: quoteDefaults.callOutFeeEnabled,
-      includeGST: quoteDefaults.includeGST,
-    });
-    toast({ title: "Quote defaults saved" });
-    setActiveSection(null);
+    try {
+      await updateSettingsAsync({
+        tradeType: quoteDefaults.tradeType,
+        labourRate: quoteDefaults.labourRate,
+        markupPercent: quoteDefaults.markupPercent,
+        callOutFee: quoteDefaults.callOutFee,
+        callOutFeeEnabled: quoteDefaults.callOutFeeEnabled,
+        includeGST: quoteDefaults.includeGST,
+      });
+      toast({ title: "Quote defaults saved" });
+      setActiveSection(null);
+    } catch { /* error toast handled by mutation */ }
   };
 
-  const moveBlade = (index: number, direction: 'up' | 'down') => {
+  const moveBlade = async (index: number, direction: 'up' | 'down') => {
     const newOrder = [...bladeOrder];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex >= 0 && targetIndex < newOrder.length) {
       [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
       setBladeOrder(newOrder);
       localStorage.setItem("vargenezey_home_blade_order", JSON.stringify(newOrder));
-      updateSettings({ bladeOrder: JSON.stringify(newOrder) });
       window.dispatchEvent(new Event('storage'));
-      toast({ title: "Dashboard layout updated" });
+      try {
+        await updateSettingsAsync({ bladeOrder: JSON.stringify(newOrder) });
+        toast({ title: "Dashboard layout updated" });
+      } catch { /* error toast handled by mutation */ }
     }
   };
 

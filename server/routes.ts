@@ -452,9 +452,12 @@ CRITICAL RULES — follow these exactly:
       res.json(settings);
     } catch (err) {
       if (err instanceof z.ZodError) {
-        res.status(400).json({ message: err.errors[0].message });
+        console.error("Settings validation error:", err.errors);
+        res.status(400).json({ message: err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ") });
       } else {
-        res.status(500).json({ message: "Internal server error" });
+        console.error("Settings save error:", err);
+        const msg = err instanceof Error ? err.message : "Internal server error";
+        res.status(500).json({ message: msg });
       }
     }
   });
