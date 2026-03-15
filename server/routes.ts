@@ -510,14 +510,17 @@ CRITICAL RULES — follow these exactly:
 
   // ─── Xero OAuth2 PKCE Routes ───
 
-  // Start OAuth flow — redirects to Xero login
   app.get("/api/xero/connect", (req: any, res) => {
     const userId = req.user?.claims?.sub;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!userId) {
+      (req.session as any).returnTo = "/api/xero/connect";
+      return req.session.save(() => {
+        res.redirect("/api/login");
+      });
+    }
 
     try {
       const { url, codeVerifier, state } = buildAuthUrl();
-      // Store PKCE verifier + state in session
       (req.session as any).xeroCodeVerifier = codeVerifier;
       (req.session as any).xeroState = state;
       req.session.save(() => {

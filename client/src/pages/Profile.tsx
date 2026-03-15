@@ -606,9 +606,14 @@ export default function Profile() {
                     data-testid="button-xero-connect"
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Connect to Xero
+                    {user ? "Connect to Xero" : "Log in & Connect to Xero"}
                   </Button>
                 </a>
+                {!user && (
+                  <p className="text-xs text-muted-foreground text-center px-1">
+                    You'll be asked to sign in first, then taken straight to Xero.
+                  </p>
+                )}
               </div>
             )}
           </div>
