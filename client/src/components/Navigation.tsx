@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, ClipboardList, CalendarDays, MessageCircle, UserRound } from "lucide-react";
+import { Home, ClipboardList, CalendarDays, Users, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function BottomNav() {
@@ -9,7 +9,7 @@ export function BottomNav() {
     { href: "/", icon: Home, label: "Home" },
     { href: "/quotes", icon: ClipboardList, label: "Quotes" },
     { href: "/jobs", icon: CalendarDays, label: "Calendar" },
-    { href: "/messages", icon: MessageCircle, label: "Messages" },
+    { href: "/contacts", icon: Users, label: "Contacts" },
     { href: "/profile", icon: UserRound, label: "Profile" },
   ];
 

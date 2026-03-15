@@ -116,11 +116,18 @@ export default function QuoteDetail() {
   }
 
   const customerName = (() => {
+    // Direct customer link (new flow)
+    if ((quote as any).customerId) {
+      const customer = customers?.find(c => c.id === (quote as any).customerId);
+      if (customer) return customer.name;
+    }
+    // Legacy: name stored in content JSON
     if (parsed?.customerName) return parsed.customerName as string;
     if (parsed?.notes) {
       const match = (parsed.notes as string).match(/Quote for:\s*(.+?)[\.\n]/);
       if (match) return match[1].trim();
     }
+    // Via linked job
     if (quote.jobId) {
       const job = jobs?.find(j => j.id === quote.jobId);
       if (job?.customerId) {
@@ -132,6 +139,7 @@ export default function QuoteDetail() {
   })();
 
   const resolvedCustomerId: number | undefined = (() => {
+    if ((quote as any).customerId) return (quote as any).customerId;
     if (quote.jobId) {
       const job = jobs?.find(j => j.id === quote.jobId);
       if (job?.customerId) return job.customerId;

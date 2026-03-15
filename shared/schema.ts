@@ -13,6 +13,7 @@ export const customers = pgTable("customers", {
   email: text("email"),
   phone: text("phone"),
   address: text("address"),
+  notes: text("notes").default(""),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -29,6 +30,7 @@ export const jobs = pgTable("jobs", {
 export const quotes = pgTable("quotes", {
   id: serial("id").primaryKey(),
   jobId: integer("job_id").references(() => jobs.id),
+  customerId: integer("customer_id").references(() => customers.id),
   totalAmount: numeric("total_amount").notNull(),
   status: text("status").default("draft"), // draft, sent, viewed, accepted, rejected
   content: text("content"), // AI generated text or structured notes
@@ -60,6 +62,10 @@ export const quotesRelations = relations(quotes, ({ one, many }) => ({
   job: one(jobs, {
     fields: [quotes.jobId],
     references: [jobs.id],
+  }),
+  customer: one(customers, {
+    fields: [quotes.customerId],
+    references: [customers.id],
   }),
   items: many(quoteItems),
 }));

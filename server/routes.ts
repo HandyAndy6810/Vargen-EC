@@ -61,6 +61,41 @@ export async function registerRoutes(
     }
   });
 
+  app.patch(api.customers.update.path, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const existing = await storage.getCustomer(id);
+      if (!existing) return res.status(404).json({ message: "Customer not found" });
+      const input = api.customers.update.input.parse(req.body);
+      const customer = await storage.updateCustomer(id, input);
+      res.json(customer);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ message: err.errors[0].message });
+      } else {
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  });
+
+  app.delete(api.customers.delete.path, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const existing = await storage.getCustomer(id);
+      if (!existing) return res.status(404).json({ message: "Customer not found" });
+      // Check for linked jobs
+      const allJobs = await storage.getJobs();
+      const linkedJobs = allJobs.filter(j => j.customerId === id);
+      if (linkedJobs.length > 0) {
+        return res.status(409).json({ message: `Customer has ${linkedJobs.length} linked job(s). Remove or reassign them first.` });
+      }
+      await storage.deleteCustomer(id);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Jobs
   app.get(api.jobs.list.path, async (req, res) => {
     const jobs = await storage.getJobs();
