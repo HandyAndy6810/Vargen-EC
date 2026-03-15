@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
-import { type InsertCustomer } from "@shared/schema";
+import { type InsertCustomer, type Customer } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 export function useCustomers() {
@@ -57,5 +57,61 @@ export function useCreateCustomer() {
     onError: (error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
+  });
+}
+
+export function useUpdateCustomer() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertCustomer> }) => {
+      const url = buildUrl(api.customers.update.path, { id });
+      const res = await fetch(url, {
+        method: api.customers.update.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || "Failed to update customer");
+      }
+      return res.json() as Promise<Customer>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.customers.list.path] });
+      toast({ title: "Customer Updated" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteCustomer() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.customers.delete.path, { id });
+      const res = await fetch(url, {
+        method: api.customers.delete.method,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || "Failed to delete customer");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.customers.list.path] });
+      toast({ title: "Customer Deleted" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
   });
 }

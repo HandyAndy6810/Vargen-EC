@@ -36,7 +36,7 @@ import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useCustomers } from "@/hooks/use-customers";
+import { useCustomers, useCreateCustomer } from "@/hooks/use-customers";
 import { queryClient } from "@/lib/queryClient";
 import type { Job } from "@shared/schema";
 
@@ -139,6 +139,8 @@ export default function QuoteCreate() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
 
   const [quoteTitle, setQuoteTitle] = useState("");
   const [quoteSummary, setQuoteSummary] = useState("");
@@ -170,6 +172,23 @@ export default function QuoteCreate() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { data: customers } = useCustomers();
+  const createCustomerMutation = useCreateCustomer();
+
+  const filteredCustomers = customers?.filter(c =>
+    customerName.trim() && c.name.toLowerCase().includes(customerName.toLowerCase())
+  ) ?? [];
+
+  const selectCustomer = (c: { id: number; name: string }) => {
+    setSelectedCustomerId(c.id);
+    setCustomerName(c.name);
+    setShowCustomerDropdown(false);
+  };
+
+  const handleCustomerNameChange = (value: string) => {
+    setCustomerName(value);
+    setSelectedCustomerId(null);
+    setShowCustomerDropdown(value.trim().length > 0);
+  };
 
   // Detect autoStart parameter
   useEffect(() => {
@@ -268,6 +287,14 @@ export default function QuoteCreate() {
       }
 
       const total = calcTotal();
+
+      // Auto-create customer if name typed but not linked to existing
+      let custId = selectedCustomerId;
+      if (!custId && customerName.trim()) {
+        const newCust = await createCustomerMutation.mutateAsync({ name: customerName.trim() });
+        custId = newCust.id;
+      }
+
       const contentData = {
         jobTitle: quoteTitle,
         summary: quoteSummary,
@@ -284,6 +311,7 @@ export default function QuoteCreate() {
         credentials: "include",
         body: JSON.stringify({
           jobId: jobId || undefined,
+          customerId: custId || undefined,
           totalAmount: String(total),
           content: JSON.stringify(contentData),
           status: "draft",
@@ -548,11 +576,34 @@ export default function QuoteCreate() {
                 </div>
               </div>
 
-              <div className="space-y-2 pt-4 border-t border-black/5">
+              <div className="space-y-2 pt-4 border-t border-black/5 relative">
                 <Label className="text-sm font-bold text-muted-foreground">Client Name <span className="font-normal text-muted-foreground">(optional)</span></Label>
-                <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="e.g. John Smith" className="rounded-xl h-12 border-black/10"
+                <Input value={customerName} onChange={(e) => handleCustomerNameChange(e.target.value)}
+                  onFocus={() => customerName.trim() && setShowCustomerDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
+                  placeholder="Search or type new name..."
+                  className={cn("rounded-xl h-12 border-black/10", selectedCustomerId && "border-primary/50 bg-primary/5")}
                   data-testid="input-customer-name" />
+                {selectedCustomerId && (
+                  <p className="text-xs text-primary font-medium px-1">Linked to existing customer</p>
+                )}
+                {showCustomerDropdown && (filteredCustomers.length > 0 || customerName.trim()) && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-card rounded-xl border border-black/10 shadow-lg max-h-48 overflow-y-auto">
+                    {filteredCustomers.map(c => (
+                      <button key={c.id} onMouseDown={() => selectCustomer(c)}
+                        className="w-full text-left px-4 py-3 hover:bg-primary/5 transition-colors border-b border-black/5 last:border-0">
+                        <p className="font-medium text-sm">{c.name}</p>
+                        {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                      </button>
+                    ))}
+                    {filteredCustomers.length === 0 && customerName.trim() && (
+                      <div className="px-4 py-3 text-sm text-muted-foreground">
+                        <Plus className="w-3.5 h-3.5 inline mr-1" />
+                        "{customerName}" will be created as a new customer
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <SharedSettings compact />
@@ -631,11 +682,34 @@ export default function QuoteCreate() {
                   </div>
                 </div>
 
-                <div className="space-y-2 pt-4 border-t border-black/5">
+                <div className="space-y-2 pt-4 border-t border-black/5 relative">
                   <Label className="text-sm font-bold text-muted-foreground">Client Name <span className="font-normal text-muted-foreground">(optional)</span></Label>
-                  <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="e.g. John Smith" className="rounded-xl h-12 border-black/10"
+                  <Input value={customerName} onChange={(e) => handleCustomerNameChange(e.target.value)}
+                    onFocus={() => customerName.trim() && setShowCustomerDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
+                    placeholder="Search or type new name..."
+                    className={cn("rounded-xl h-12 border-black/10", selectedCustomerId && "border-primary/50 bg-primary/5")}
                     data-testid="input-customer-name-advanced" />
+                  {selectedCustomerId && (
+                    <p className="text-xs text-primary font-medium px-1">Linked to existing customer</p>
+                  )}
+                  {showCustomerDropdown && (filteredCustomers.length > 0 || customerName.trim()) && (
+                    <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-card rounded-xl border border-black/10 shadow-lg max-h-48 overflow-y-auto">
+                      {filteredCustomers.map(c => (
+                        <button key={c.id} onMouseDown={() => selectCustomer(c)}
+                          className="w-full text-left px-4 py-3 hover:bg-primary/5 transition-colors border-b border-black/5 last:border-0">
+                          <p className="font-medium text-sm">{c.name}</p>
+                          {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                        </button>
+                      ))}
+                      {filteredCustomers.length === 0 && customerName.trim() && (
+                        <div className="px-4 py-3 text-sm text-muted-foreground">
+                          <Plus className="w-3.5 h-3.5 inline mr-1" />
+                          "{customerName}" will be created as a new customer
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

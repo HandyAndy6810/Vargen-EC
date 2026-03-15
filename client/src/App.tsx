@@ -14,7 +14,7 @@ import JobDetail from "@/pages/JobDetail";
 import Quotes from "@/pages/Quotes";
 import QuoteDetail from "@/pages/QuoteDetail";
 import QuoteCreate from "@/pages/QuoteCreate";
-import Messages from "@/pages/Messages";
+import Contacts from "@/pages/Contacts";
 import Profile from "@/pages/Profile";
 import QuotePreview from "@/pages/QuotePreview";
 
@@ -35,7 +35,7 @@ function Router() {
               <Route path="/quotes" component={Quotes} />
               <Route path="/quotes/new" component={QuoteCreate} />
               <Route path="/quotes/:id" component={QuoteDetail} />
-              <Route path="/messages" component={Messages} />
+              <Route path="/contacts" component={Contacts} />
               <Route path="/profile" component={Profile} />
               <Route component={NotFound} />
             </Switch>

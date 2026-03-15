@@ -13,6 +13,9 @@ export interface IStorage {
   getCustomer(id: number): Promise<Customer | undefined>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   
+  updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer>;
+  deleteCustomer(id: number): Promise<void>;
+
   // Jobs
   getJobs(): Promise<Job[]>;
   getJob(id: number): Promise<Job | undefined>;
@@ -49,6 +52,15 @@ export class DatabaseStorage implements IStorage {
   async createCustomer(customer: InsertCustomer): Promise<Customer> {
     const [newCustomer] = await db.insert(customers).values(customer).returning();
     return newCustomer;
+  }
+
+  async updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer> {
+    const [updated] = await db.update(customers).set(customer).where(eq(customers.id, id)).returning();
+    return updated;
+  }
+
+  async deleteCustomer(id: number): Promise<void> {
+    await db.delete(customers).where(eq(customers.id, id));
   }
 
   async getJobs(): Promise<Job[]> {

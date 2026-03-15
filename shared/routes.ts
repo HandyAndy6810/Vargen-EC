@@ -40,6 +40,24 @@ export const api = {
         400: errorSchemas.validation,
       },
     },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/customers/:id',
+      input: insertCustomerSchema.partial(),
+      responses: {
+        200: z.custom<typeof customers.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/customers/:id',
+      responses: {
+        200: z.object({ ok: z.boolean() }),
+        404: errorSchemas.notFound,
+        409: z.object({ message: z.string() }),
+      },
+    },
   },
   jobs: {
     list: {
