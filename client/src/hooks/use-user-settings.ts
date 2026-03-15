@@ -27,7 +27,10 @@ export function useUpdateUserSettings() {
         credentials: "include",
         body: JSON.stringify(updates),
       });
-      if (!res.ok) throw new Error("Failed to save settings");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || `Server error (${res.status})`);
+      }
       return res.json();
     },
     onSuccess: () => {
