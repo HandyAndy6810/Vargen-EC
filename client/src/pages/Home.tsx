@@ -23,6 +23,9 @@ import {
   endOfWeek, 
   eachDayOfInterval, 
   isSameDay, 
+  isToday,
+  isTomorrow,
+  startOfDay,
   addDays
 } from "date-fns";
 
@@ -112,6 +115,33 @@ export default function Home() {
   const selectedDateJobs = jobs?.filter(job => 
     job.scheduledDate && isSameDay(new Date(job.scheduledDate), selectedDate)
   ) || [];
+
+  // Next upcoming job (today or future, sorted by date)
+  const nextJob = jobs
+    ?.filter(job => job.scheduledDate && startOfDay(new Date(job.scheduledDate)) >= startOfDay(new Date()))
+    .sort((a, b) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime())[0] || null;
+
+  const nextJobDayLabel = nextJob?.scheduledDate
+    ? isToday(new Date(nextJob.scheduledDate)) ? "Today"
+      : isTomorrow(new Date(nextJob.scheduledDate)) ? "Tomorrow"
+      : format(new Date(nextJob.scheduledDate), "eee d MMM")
+    : "";
+
+  // Day-level job status colour helper
+  const getDayBadge = (day: Date): { count: number; color: "orange" | "yellow" | "green" } | null => {
+    const dayJobs = jobs?.filter(job => job.scheduledDate && isSameDay(new Date(job.scheduledDate), day)) || [];
+    if (dayJobs.length === 0) return null;
+    const hasScheduled = dayJobs.some(j => j.status === "scheduled");
+    const hasPending = dayJobs.some(j => j.status === "pending");
+    const color = hasScheduled ? "orange" : hasPending ? "yellow" : "green";
+    return { count: dayJobs.length, color };
+  };
+
+  // Selected day estimated earnings (from linked quotes)
+  const selectedDayJobIds = new Set(selectedDateJobs.map(j => j.id));
+  const selectedDayEarnings = quotes
+    ?.filter(q => q.jobId !== null && q.jobId !== undefined && selectedDayJobIds.has(q.jobId))
+    .reduce((sum, q) => sum + parseFloat(q.totalAmount || "0"), 0) || 0;
 
   return (
     <div className="min-h-screen bg-background pb-32">
@@ -252,17 +282,45 @@ export default function Home() {
                   <h3 className="text-xl font-bold">This Week</h3>
                   <Link href="/jobs" className="text-sm font-semibold text-primary">View Calendar</Link>
                 </div>
+
+                {/* Next Job Banner */}
+                {nextJob && (
+                  <Link href={`/jobs/${nextJob.id}`}>
+                    <div className="flex items-center gap-3 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-2xl px-4 py-3 active:scale-[0.98] transition-all cursor-pointer">
+                      <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+                        <CalendarIcon className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-0.5">Next Job · {nextJobDayLabel}</p>
+                        <p className="text-sm font-bold truncate text-foreground">{nextJob.title}</p>
+                      </div>
+                      <span className="text-[11px] font-semibold text-primary/70 shrink-0">
+                        {nextJob.scheduledDate ? format(new Date(nextJob.scheduledDate), "h:mm a") : "TBD"}
+                      </span>
+                    </div>
+                  </Link>
+                )}
                 
                 <div className="bg-white dark:bg-card rounded-[2rem] p-4 shadow-sm border border-black/5">
+                  {/* Week Strip */}
                   <div className="grid grid-cols-7 gap-1">
                     {weekDays.map((day, idx) => {
                       const isSelected = isSameDay(day, selectedDate);
-                      const hasJobs = jobs?.some(job => job.scheduledDate && isSameDay(new Date(job.scheduledDate), day));
+                      const badge = getDayBadge(day);
+
+                      const badgeBg = isSelected
+                        ? "bg-white/30 text-white"
+                        : badge?.color === "green"
+                          ? "bg-green-500 text-white"
+                          : badge?.color === "yellow"
+                            ? "bg-yellow-400 text-white"
+                            : "bg-primary text-white";
 
                       return (
                         <div 
                           key={idx}
                           onClick={() => setSelectedDate(day)}
+                          data-testid={`day-cell-${idx}`}
                           className={cn(
                             "flex flex-col items-center justify-center py-3 rounded-2xl cursor-pointer transition-all active:scale-95",
                             isSelected ? "bg-primary text-white shadow-md shadow-primary/20" : "hover:bg-black/5"
@@ -275,11 +333,20 @@ export default function Home() {
                             {format(day, "eee")}
                           </span>
                           <span className="text-sm font-bold">{format(day, "d")}</span>
-                          {hasJobs && (
-                            <div className={cn(
-                              "w-1 h-1 rounded-full mt-1",
-                              isSelected ? "bg-white" : "bg-primary"
-                            )} />
+                          {badge && (
+                            badge.count > 1 ? (
+                              <span className={cn("text-[9px] font-black mt-1 rounded-full px-1.5 py-0 leading-4 min-w-[16px] text-center", badgeBg)}>
+                                {badge.count}
+                              </span>
+                            ) : (
+                              <div className={cn(
+                                "w-1.5 h-1.5 rounded-full mt-1",
+                                isSelected ? "bg-white"
+                                  : badge.color === "green" ? "bg-green-500"
+                                  : badge.color === "yellow" ? "bg-yellow-400"
+                                  : "bg-primary"
+                              )} />
+                            )
                           )}
                         </div>
                       );
@@ -289,33 +356,57 @@ export default function Home() {
                   {/* Selected Day Agenda */}
                   <div className="mt-4 pt-4 border-t border-black/5 space-y-3">
                     <p className="text-xs font-bold text-muted-foreground uppercase px-1">
-                      {isSameDay(selectedDate, new Date()) ? "Today" : format(selectedDate, "EEEE")}
+                      {isSameDay(selectedDate, new Date()) ? "Today" : format(selectedDate, "EEEE d MMM")}
                     </p>
                     
                     {selectedDateJobs.length === 0 ? (
-                      <p className="text-sm text-muted-foreground px-1 py-2 italic">No jobs scheduled</p>
-                    ) : (
-                      selectedDateJobs.slice(0, 3).map(job => (
-                        <Link key={job.id} href={`/jobs/${job.id}`}>
-                          <div className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-xl transition-colors cursor-pointer active:scale-[0.98]">
-                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                              <Clock className="w-4 h-4 text-primary" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold truncate">{job.title}</p>
-                              <p className="text-[10px] text-muted-foreground">
-                                {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "TBD"}
-                              </p>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+                      <Link href="/jobs">
+                        <div className="flex items-center gap-3 p-3 rounded-xl border-2 border-dashed border-black/10 dark:border-white/10 hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer active:scale-[0.98]" data-testid="button-schedule-job">
+                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <Plus className="w-4 h-4 text-primary" />
                           </div>
-                        </Link>
-                      ))
+                          <span className="text-sm font-semibold text-muted-foreground">Schedule a Job</span>
+                        </div>
+                      </Link>
+                    ) : (
+                      selectedDateJobs.slice(0, 3).map(job => {
+                        const statusDot =
+                          job.status === "completed" ? "bg-green-500"
+                          : job.status === "pending" ? "bg-yellow-400"
+                          : "bg-primary";
+                        return (
+                          <Link key={job.id} href={`/jobs/${job.id}`}>
+                            <div className="flex items-center gap-3 p-2 hover:bg-black/5 rounded-xl transition-colors cursor-pointer active:scale-[0.98]">
+                              <div className="relative w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                <Clock className="w-4 h-4 text-primary" />
+                                <span className={cn("absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-card", statusDot)} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold truncate">{job.title}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "TBD"}
+                                </p>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+                            </div>
+                          </Link>
+                        );
+                      })
                     )}
                     {selectedDateJobs.length > 3 && (
                       <Link href="/jobs" className="block text-center text-xs font-bold text-primary py-1">
                         + {selectedDateJobs.length - 3} more jobs
                       </Link>
+                    )}
+
+                    {/* Day earnings preview */}
+                    {selectedDayEarnings > 0 && (
+                      <div className="flex items-center justify-between pt-3 border-t border-black/5 px-1">
+                        <span className="text-xs text-muted-foreground font-medium">Est. day earnings</span>
+                        <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                          ${selectedDayEarnings.toLocaleString("en-AU", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>

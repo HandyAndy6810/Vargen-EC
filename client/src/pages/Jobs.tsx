@@ -20,6 +20,9 @@ import {
   eachDayOfInterval, 
   isSameMonth, 
   isSameDay, 
+  isToday,
+  isTomorrow,
+  startOfDay,
   addMonths, 
   subMonths,
   addDays
@@ -29,6 +32,7 @@ import { Link } from "wouter";
 
 export default function Jobs() {
   const { data: jobs, isLoading } = useJobs();
+  const { data: quotes } = useQuotes();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -51,6 +55,30 @@ export default function Jobs() {
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
 
+  const nextJob = jobs
+    ?.filter(job => job.scheduledDate && startOfDay(new Date(job.scheduledDate)) >= startOfDay(new Date()))
+    .sort((a, b) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime())[0] || null;
+
+  const nextJobDayLabel = nextJob?.scheduledDate
+    ? isToday(new Date(nextJob.scheduledDate)) ? "Today"
+      : isTomorrow(new Date(nextJob.scheduledDate)) ? "Tomorrow"
+      : format(new Date(nextJob.scheduledDate), "eee d MMM")
+    : "";
+
+  const getDayBadge = (day: Date): { count: number; color: "orange" | "yellow" | "green" } | null => {
+    const dayJobs = jobs?.filter(job => job.scheduledDate && isSameDay(new Date(job.scheduledDate), day)) || [];
+    if (dayJobs.length === 0) return null;
+    const hasScheduled = dayJobs.some(j => j.status === "scheduled");
+    const hasPending = dayJobs.some(j => j.status === "pending");
+    const color = hasScheduled ? "orange" : hasPending ? "yellow" : "green";
+    return { count: dayJobs.length, color };
+  };
+
+  const selectedDayJobIds = new Set(selectedDateJobs.map(j => j.id));
+  const selectedDayEarnings = quotes
+    ?.filter(q => q.jobId !== null && q.jobId !== undefined && selectedDayJobIds.has(q.jobId))
+    .reduce((sum, q) => sum + parseFloat(q.totalAmount || "0"), 0) || 0;
+
   return (
     <div className="min-h-screen bg-[#F8F5F2] dark:bg-background pb-32">
       {/* Header */}
@@ -68,6 +96,24 @@ export default function Jobs() {
             <Plus className="w-6 h-6" />
           </Button>
         </div>
+
+        {/* Next Job Banner */}
+        {nextJob && (
+          <Link href={`/jobs/${nextJob.id}`}>
+            <div className="flex items-center gap-3 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-2xl px-4 py-3 mb-6 active:scale-[0.98] transition-all cursor-pointer" data-testid="banner-next-job">
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+                <Calendar className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-0.5">Next Job · {nextJobDayLabel}</p>
+                <p className="text-sm font-bold truncate text-foreground">{nextJob.title}</p>
+              </div>
+              <span className="text-[11px] font-semibold text-primary/70 shrink-0">
+                {nextJob.scheduledDate ? format(new Date(nextJob.scheduledDate), "h:mm a") : "TBD"}
+              </span>
+            </div>
+          </Link>
+        )}
 
         {/* Calendar Card */}
         <div className="bg-white dark:bg-card rounded-[2.5rem] p-6 shadow-xl border border-black/5 mb-8">
@@ -95,21 +141,44 @@ export default function Jobs() {
             {calendarDays.map((day, idx) => {
               const isSelected = isSameDay(day, selectedDate);
               const isCurrentMonth = isSameMonth(day, monthStart);
-              const hasJobs = jobs?.some(job => job.scheduledDate && isSameDay(new Date(job.scheduledDate), day));
+              const badge = getDayBadge(day);
+
+              const dotColor = badge?.color === "green" ? "bg-green-500"
+                : badge?.color === "yellow" ? "bg-yellow-400"
+                : "bg-primary";
 
               return (
                 <div 
                   key={idx}
                   onClick={() => setSelectedDate(day)}
+                  data-testid={`cal-day-${idx}`}
                   className={cn(
-                    "relative aspect-square flex items-center justify-center cursor-pointer rounded-full transition-all",
+                    "relative aspect-square flex flex-col items-center justify-center cursor-pointer rounded-full transition-all",
                     isSelected ? "bg-primary text-white font-bold" : "hover:bg-black/5",
                     !isCurrentMonth && !isSelected && "text-muted-foreground/30"
                   )}
                 >
                   <span className="text-sm">{format(day, "d")}</span>
-                  {hasJobs && !isSelected && (
-                    <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
+                  {badge && !isSelected && (
+                    badge.count > 1 ? (
+                      <span className={cn(
+                        "absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[8px] font-black rounded-full px-1 leading-3 text-white",
+                        dotColor
+                      )}>
+                        {badge.count}
+                      </span>
+                    ) : (
+                      <div className={cn("absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full", dotColor)} />
+                    )
+                  )}
+                  {badge && isSelected && (
+                    badge.count > 1 ? (
+                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[8px] font-black rounded-full px-1 leading-3 bg-white/30 text-white">
+                        {badge.count}
+                      </span>
+                    ) : (
+                      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-white" />
+                    )
                   )}
                 </div>
               );
@@ -131,52 +200,77 @@ export default function Jobs() {
           {isLoading ? (
             <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>
           ) : selectedDateJobs.length === 0 ? (
-            <div className="bg-white/50 dark:bg-card/50 border border-dashed border-black/10 dark:border-white/10 rounded-3xl p-12 text-center text-muted-foreground">
-              <Calendar className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p className="font-medium">No jobs scheduled</p>
-              <p className="text-sm">Tap the + to add a job</p>
+            <div
+              onClick={() => setIsDialogOpen(true)}
+              className="bg-white/50 dark:bg-card/50 border-2 border-dashed border-black/10 dark:border-white/10 hover:border-primary/40 hover:bg-primary/5 rounded-3xl p-12 text-center cursor-pointer transition-all active:scale-[0.98]"
+              data-testid="button-add-job-empty"
+            >
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Plus className="w-6 h-6 text-primary" />
+              </div>
+              <p className="font-bold text-foreground">Schedule a Job</p>
+              <p className="text-sm text-muted-foreground mt-1">Tap to add a job for this day</p>
             </div>
           ) : (
-            selectedDateJobs.map(job => (
-              <div key={job.id} className="bg-white dark:bg-card p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 transition-all group">
-                <Link href={`/jobs/${job.id}`}>
-                  <div className="cursor-pointer active:scale-[0.98]">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-[#FFF1EB] dark:bg-primary/10 flex items-center justify-center">
-                          <Clock className="w-5 h-5 text-primary" />
+            <>
+              {selectedDateJobs.map(job => {
+                const statusDot =
+                  job.status === "completed" ? "bg-green-500"
+                  : job.status === "pending" ? "bg-yellow-400"
+                  : "bg-primary";
+                return (
+                  <div key={job.id} className="bg-white dark:bg-card p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 transition-all group">
+                    <Link href={`/jobs/${job.id}`}>
+                      <div className="cursor-pointer active:scale-[0.98]">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="relative w-10 h-10 rounded-2xl bg-[#FFF1EB] dark:bg-primary/10 flex items-center justify-center">
+                              <Clock className="w-5 h-5 text-primary" />
+                              <span className={cn("absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-card", statusDot)} />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-foreground group-hover:text-primary transition-colors">{job.title}</h4>
+                              <p className="text-xs text-muted-foreground font-medium">
+                                {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "TBD"}
+                              </p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-muted-foreground/40 group-hover:text-primary transition-colors" />
                         </div>
-                        <div>
-                          <h4 className="font-bold text-foreground group-hover:text-primary transition-colors">{job.title}</h4>
-                          <p className="text-xs text-muted-foreground font-medium">
-                            {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "TBD"}
+                        
+                        <div className="space-y-2 pl-1">
+                          {job.customerId && <CustomerName id={job.customerId} />}
+                          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                            {job.description}
                           </p>
                         </div>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                    </div>
-                    
-                    <div className="space-y-2 pl-1">
-                      {job.customerId && <CustomerName id={job.customerId} />}
-                      <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                        {job.description}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
+                    </Link>
 
-                {job.status === "scheduled" && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setLateJob(job); }}
-                    className="mt-3 w-full py-3 rounded-2xl bg-[#FFF1EB] dark:bg-primary/10 text-primary font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-[#FFE5D9]"
-                    data-testid={`button-running-late-${job.id}`}
-                  >
-                    <AlertTriangle className="w-4 h-4" />
-                    Running Late
-                  </button>
-                )}
-              </div>
-            ))
+                    {job.status === "scheduled" && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setLateJob(job); }}
+                        className="mt-3 w-full py-3 rounded-2xl bg-[#FFF1EB] dark:bg-primary/10 text-primary font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-[#FFE5D9]"
+                        data-testid={`button-running-late-${job.id}`}
+                      >
+                        <AlertTriangle className="w-4 h-4" />
+                        Running Late
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Day earnings preview */}
+              {selectedDayEarnings > 0 && (
+                <div className="bg-white dark:bg-card rounded-2xl p-4 shadow-sm border border-black/5 flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground font-medium">Est. day earnings</span>
+                  <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                    ${selectedDayEarnings.toLocaleString("en-AU", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
