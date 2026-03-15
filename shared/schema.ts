@@ -86,7 +86,7 @@ export const userSettings = pgTable("user_settings", {
   includeGST: boolean("include_gst").default(true),
   weeklyGoal: integer("weekly_goal").default(0),
   darkMode: boolean("dark_mode").default(false),
-  bladeOrder: text("blade_order").default('["hero","stats","actions","calendar"]'),
+  bladeOrder: text("blade_order").default('["hero","pipeline","actions","revenue","stats","calendar"]'),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
