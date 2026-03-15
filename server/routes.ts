@@ -67,6 +67,12 @@ export async function registerRoutes(
     res.json(jobs);
   });
 
+  app.get(api.jobs.get.path, async (req, res) => {
+    const job = await storage.getJob(Number(req.params.id));
+    if (!job) return res.status(404).json({ message: "Job not found" });
+    res.json(job);
+  });
+
   app.post(api.jobs.create.path, async (req, res) => {
     try {
       const input = api.jobs.create.input.parse(req.body);

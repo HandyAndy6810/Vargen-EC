@@ -116,6 +116,7 @@ export default function QuoteDetail() {
   }
 
   const customerName = (() => {
+    if (parsed?.customerName) return parsed.customerName as string;
     if (parsed?.notes) {
       const match = (parsed.notes as string).match(/Quote for:\s*(.+?)[\.\n]/);
       if (match) return match[1].trim();
@@ -834,8 +835,13 @@ export default function QuoteDetail() {
                   return false;
                 });
                 const email = customer?.email || "";
+                if (!email) {
+                  toast({ title: "No email on file", description: "Link this quote to a customer with an email address to use email share." });
+                  setShowShareSheet(false);
+                  return;
+                }
                 const subject = encodeURIComponent(`Quote: ${jobTitle}`);
-                const body = encodeURIComponent(`Hi ${customer?.name || "there"},\n\nPlease find your quote for ${jobTitle} attached.\n\nTotal: $${totalAmount.toFixed(2)}\n\nView details: ${window.location.origin}/quotes/${quote.id}\n\nKind regards,\n[Your Name]`);
+                const body = encodeURIComponent(`Hi ${customer?.name || customerName || "there"},\n\nPlease find your quote for ${jobTitle} attached.\n\nTotal: $${totalAmount.toFixed(2)}\n\nView details: ${window.location.origin}/quotes/${quote.id}\n\nKind regards,\n[Your Name]`);
                 window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
                 setShowShareSheet(false);
               }}

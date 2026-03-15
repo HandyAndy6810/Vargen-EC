@@ -139,7 +139,7 @@ export default function QuotePreview() {
           data-testid="quote-document"
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-8 py-8 print:px-10 print:py-10">
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 sm:px-8 py-8 print:px-10 print:py-10">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">QUOTE</h1>
@@ -154,7 +154,7 @@ export default function QuotePreview() {
           </div>
 
           {/* Quote Info Bar */}
-          <div className="px-8 py-5 print:px-10 bg-gray-50 border-b border-gray-200 grid grid-cols-2 gap-4 text-sm">
+          <div className="px-4 sm:px-8 py-5 print:px-10 bg-gray-50 border-b border-gray-200 grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">Date</p>
               <p className="font-semibold mt-0.5">{quoteDate}</p>
@@ -166,7 +166,7 @@ export default function QuotePreview() {
           </div>
 
           {/* Customer & Job Info */}
-          <div className="px-8 py-6 print:px-10 border-b border-gray-100">
+          <div className="px-4 sm:px-8 py-6 print:px-10 border-b border-gray-100">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
                 <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-2">Quote To</p>
@@ -184,14 +184,14 @@ export default function QuotePreview() {
           </div>
 
           {/* Line Items Table */}
-          <div className="px-8 py-6 print:px-10">
+          <div className="px-4 sm:px-8 py-6 print:px-10">
             <table className="w-full text-sm" data-testid="table-line-items">
               <thead>
                 <tr className="border-b-2 border-gray-200">
                   <th className="text-left py-3 font-bold text-gray-700 text-xs uppercase tracking-wider">Description</th>
-                  <th className="text-center py-3 font-bold text-gray-700 text-xs uppercase tracking-wider w-16">Qty</th>
-                  <th className="text-right py-3 font-bold text-gray-700 text-xs uppercase tracking-wider w-24">Unit Price</th>
-                  <th className="text-right py-3 font-bold text-gray-700 text-xs uppercase tracking-wider w-28">Amount</th>
+                  <th className="text-center py-3 font-bold text-gray-700 text-xs uppercase tracking-wider w-10">Qty</th>
+                  <th className="text-right py-3 font-bold text-gray-700 text-xs uppercase tracking-wider w-20">Unit Price</th>
+                  <th className="text-right py-3 font-bold text-gray-700 text-xs uppercase tracking-wider w-20">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -216,7 +216,7 @@ export default function QuotePreview() {
           </div>
 
           {/* Totals */}
-          <div className="px-8 pb-6 print:px-10">
+          <div className="px-4 sm:px-8 pb-6 print:px-10">
             <div className="ml-auto max-w-xs">
               <div className="flex justify-between py-2 text-sm text-gray-600">
                 <span>Subtotal</span>
@@ -237,14 +237,14 @@ export default function QuotePreview() {
 
           {/* Notes */}
           {parsed?.notes && (
-            <div className="px-8 py-5 print:px-10 bg-gray-50 border-t border-gray-100">
+            <div className="px-4 sm:px-8 py-5 print:px-10 bg-gray-50 border-t border-gray-100">
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Notes</p>
               <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed" data-testid="text-notes">{parsed.notes}</p>
             </div>
           )}
 
           {/* Terms & Footer */}
-          <div className="px-8 py-6 print:px-10 border-t border-gray-100">
+          <div className="px-4 sm:px-8 py-6 print:px-10 border-t border-gray-100">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Terms & Conditions</p>
             <ul className="text-xs text-gray-500 space-y-1 leading-relaxed">
               <li>This quote is valid for 30 days from the date of issue.</li>
@@ -255,7 +255,7 @@ export default function QuotePreview() {
           </div>
 
           {/* Footer Bar */}
-          <div className="bg-gray-800 text-white px-8 py-4 print:px-10 text-center">
+          <div className="bg-gray-800 text-white px-4 sm:px-8 py-4 print:px-10 text-center">
             <p className="text-xs text-gray-400">Thank you for your business</p>
           </div>
         </div>

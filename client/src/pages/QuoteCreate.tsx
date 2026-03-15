@@ -275,6 +275,7 @@ export default function QuoteCreate() {
         notes: quoteNotes,
         estimatedHours,
         totalAmount: total,
+        customerName: customerName || undefined,
       };
 
       const quoteRes = await fetch("/api/quotes", {
@@ -285,7 +286,7 @@ export default function QuoteCreate() {
           jobId: jobId || undefined,
           totalAmount: String(total),
           content: JSON.stringify(contentData),
-          status: "sent",
+          status: "draft",
         }),
       });
       if (!quoteRes.ok) throw new Error("Failed to save quote");
