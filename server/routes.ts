@@ -13,6 +13,7 @@ import { registerImageRoutes } from "./replit_integrations/image";
 import multer from "multer";
 import fs from "fs";
 import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken } from "./xero";
+import { getTradeContext } from "./trade-knowledge";
 
 const upload = multer({ dest: "uploads/" });
 
@@ -232,139 +233,7 @@ export async function registerRoutes(
     }
   });
 
-  // Trade-specific pricing reference tables (2025 Australian market rates)
-  function getTradeReferencePricing(tradeType: string): string {
-    const t = (tradeType || "").toLowerCase();
-
-    if (t.includes("plumb")) return `
-Labour: Licensed plumber $100–130/hr; Apprentice $60–80/hr
-Materials (trade price):
-- 20mm copper pipe $12–18/m; 25mm $18–28/m; copper elbow/tee fitting $10–22 each; compression fitting $18–35
-- Brass ball valve 20mm $35–60; 25mm $50–80
-- Rheem 315L electric HWS $1,100–1,450; Rinnai B16 continuous flow HWS $950–1,200
-- Basin mixer tap (mid-range) $150–350; kitchen sink mixer $180–450; shower mixer valve $200–550
-- Toilet suite $280–650; 600mm flexible hose $18–30 each; tap washers/O-rings (lot) $5–15
-- Push-fit 20mm coupling $8–18; teflon tape/thread sealant (lot) $5–12
-Sanity checks: Tap replacement all-in $200–400; HWS replacement $1,800–3,500; toilet install $350–700; shower install $800–2,500`;
-
-    if (t.includes("electr")) return `
-Labour: Licensed electrician $115–145/hr
-Materials (trade price):
-- 2.5mm twin & earth cable $3.50–5.50/m; 1.5mm T&E $2–3.50/m; 6mm T&E $8–14/m; 4mm T&E $5–9/m
-- Double GPO $45–75; single GPO $30–50; weatherproof GPO $60–100; USB GPO $70–120
-- LED downlight 10W $30–65; oyster ceiling light $40–90; exhaust fan $60–150
-- Safety switch (RCD) 10A $90–150; MCB single pole $28–50; RCBO $80–140
-- Switchboard 6-circuit (trade) $400–700; conduit 25mm per m $4–8
-- Cable clips per 100 $12–25; junction box $12–30; back box $8–20
-Sanity checks: New power point $250–450; LED downlight $180–350 each installed; safety switch $300–500; ceiling fan $350–650 installed; switchboard upgrade $1,500–4,000`;
-
-    if (t.includes("carp") || t.includes("build")) return `
-Labour: Carpenter/builder $80–115/hr
-Materials (trade price):
-- Structural pine 90×45 MGP10 $5–9/m; 190×45 $12–18/m; 240×45 $16–24/m
-- F17 hardwood 90×45 $12–20/m; LVL beam 150×45 $22–35/m
-- Plywood 12mm CD $65–90/sheet (2400×1200); 19mm $90–125/sheet; 7mm $45–65/sheet
-- Decking pine 90×19 $8–14/m; hardwood decking 90×19 $12–22/m
-- Treated pine sleeper 200×75 $20–32/m; 200×50 $14–24/m
-- Joist hanger $8–18 each; framing nails 90mm per kg $8–15; hex head screws 75mm per 500 $25–45
-Sanity checks: Timber deck 20sqm $8,000–18,000; pergola 4×4m $4,000–12,000; garden shed framing $2,500–6,000; fence per m $150–400`;
-
-    if (t.includes("paint")) return `
-Labour: Painter interior $50–70/hr (or $20–45/sqm supply & paint 2 coats); exterior $60–80/hr
-Materials (trade price):
-- Dulux Wash & Wear interior 15L $160–210; Dulux exterior 15L $180–240
-- Taubmans All Weather 10L $120–165; Solver interior 10L $90–140
-- Primer/sealer 10L $80–130; sugar soap 5L $35–60; sandpaper assorted (lot) $20–45
-- 9" roller frame + cover $25–50; paint tray $10–20; 75mm brush $15–30
-- Masking tape 48mm $8–15/roll; drop sheet canvas $30–80; painter's plastic per roll $15–35
-- Coverage: 1L per 10–12sqm per coat; always 2 coats minimum
-Sanity checks: Single bedroom $600–1,200; full interior 3-bed $4,500–10,000; exterior 3-bed $6,000–15,000; single door $150–350`;
-
-    if (t.includes("tile") || t.includes("tiler")) return `
-Labour: Tiler floor $60–95/sqm (supply & lay); wall tiles $70–110/sqm; waterproofing $25–45/sqm
-Materials (trade price):
-- Standard floor tile 600×600 (trade) $35–80/sqm; wall tile 300×600 $30–70/sqm; feature tile $60–150/sqm
-- Ardex X7 adhesive 20kg $55–80; Mapei Keraflex 20kg $50–75; white adhesive 20kg $45–65
-- Grout sanded 2kg $22–40; grout unsanded 2kg $20–35; epoxy grout 2kg $55–90
-- Waterproof membrane 10L $80–130; fibreglass tape 50m $15–30
-- Flexible silicone sealant tube $15–30; tile spacers 3mm per 500 $10–20; tile trim per m $8–18
-Sanity checks: Bathroom floor retile 10sqm $900–1,800; shower regrouting $400–800; kitchen splashback $500–1,200; bathroom waterproofing $600–1,200`;
-
-    if (t.includes("landscape") || t.includes("garden")) return `
-Labour: Landscaper/gardener $60–85/hr
-Materials (trade price):
-- Garden/topsoil per m³ delivered $90–150; premium compost per m³ $100–170
-- Hardwood mulch per m³ delivered $75–120; pine bark per m³ $65–100
-- Ready-mix concrete per m³ delivered 20MPa $200–300; 25MPa $220–330
-- Instant turf per m² supply $15–28; turf laying per m² (labour) $8–18
-- Concrete paver 400×400mm $8–18 each; 600×600mm $15–30 each; brick paver $2–5 each
-- Retaining wall block 200×400×200mm $10–22 each; concrete sleeper 200×75×2000mm $80–180
-- Garden edging steel 1.5mm per m $15–30; irrigation drip line per m $2–5; poly pipe 13mm per m $1–3
-Sanity checks: Lawn laying 100sqm $2,500–5,000; retaining wall per m² $400–900; concrete path per m² $120–250; garden bed prep per m² $40–100`;
-
-    if (t.includes("roof")) return `
-Labour: Roofer $60–90/hr
-Materials (trade price):
-- Colorbond® roofing sheet 0.42 BMT $18–30/lm; 0.48 BMT $24–38/lm
-- Ridge capping Colorbond $15–25/lm; barge capping $12–22/lm; valley flashing $15–28/lm
-- Roofing screws hex head 65mm (500pk) $45–80; foam closure strips per m $3–8
-- Sarking/underlay per m² $4–10; butyl flashing tape 75mm per m $5–12
-- Gutter Colorbond per m $20–35; downpipe 90mm round per m $15–25; fascia per m $18–32
-- Roof tiles (Monier Marseille) per m² $40–80; bedding/pointing per m $15–30
-Sanity checks: Roof sheet replacement per m² $80–180; gutter replacement per m $120–250; valley replacement per m $200–400; full re-roof 200sqm $18,000–35,000`;
-
-    if (t.includes("hvac") || t.includes("air")) return `
-Labour: Licensed refrigerant/HVAC technician $120–155/hr
-Materials (trade price):
-- Split system 2.5kW (Mitsubishi MSZ-AP / Daikin FTXF25 trade) $900–1,400
-- Split system 3.5kW $1,100–1,700; 5.0kW $1,500–2,200; 7.1kW $2,000–3,000
-- Installation kit (5m pipe, cable, brackets, drain) $150–300; extra pipe per m $25–50
-- Refrigerant R32 per kg $25–50; vacuum pump hire $0 (own tool); flare tool consumables $15–30
-- Flexible duct 250mm per m $20–45; rigid duct 250mm per m $30–60
-- Air filter replacement standard $35–90; HEPA filter $80–200
-Sanity checks: Split system supply & install 2.5kW $2,200–3,800; 5kW $3,200–5,500; service/clean $180–350; ducted system per outlet $600–1,200`;
-
-    if (t.includes("concret")) return `
-Labour: Concreter $65–95/hr; form, pour & finish per m² $80–180
-Materials (trade price):
-- Ready-mix concrete 20MPa per m³ delivered $200–300; 25MPa $220–330; 32MPa $250–360
-- Concrete pump hire per day $600–1,400; agitator truck extra distance per km $8–15
-- Steel mesh SL72 per m² $15–28; SL82 per m² $20–35; rebar 12mm per m $8–15
-- Formwork pine per lm $35–65; stakes per 10 $15–30; form release oil 20L $80–130
-- Expansion joint foam per m $12–25; concrete sealer 10L $80–150; liquid hardener 10L $70–130
-Sanity checks: Shed slab 6×6m (100mm) $4,000–9,000; house slab per m² $120–220; driveway per m² $150–300; footpath per m² $100–200`;
-
-    if (t.includes("brick")) return `
-Labour: Bricklayer $80–120/hr (or $120–200 per 1,000 bricks laid)
-Materials (trade price):
-- Standard clay brick (Boral/PGH trade, per 1,000) $900–1,600; recycled brick per 1,000 $400–900
-- Besser block 390×190×190mm $4–9 each; half block $3–6 each
-- Mortar mix 20kg bag $15–25; hydrated lime 20kg $18–30
-- Sand per tonne delivered $60–100; cement per 20kg bag $16–25
-- Wall ties per 100 $25–45; DPC damp proof course per m $3–8; control joint strip per m $8–15
-Sanity checks: Single skin brick wall per m² $150–300; double brick cavity per m² $280–500; brick letterbox $400–900; brick retaining wall per m² $300–600`;
-
-    if (t.includes("lock")) return `
-Labour: Locksmith $90–130/hr; after-hours callout premium 50–100%
-Materials (trade price):
-- Lockwood 001 deadbolt (trade) $60–110; Lockwood 003 double cylinder $80–140
-- Lockwood 570 lever set $90–180; Gainsborough lever set $70–150
-- Lockwood 7444 deadlatch $45–90; door closer heavy duty $80–200; door chain $15–35
-- Master key blank $8–25; key cutting per key $5–15; re-pinning pins per set $10–25
-- Padlock 50mm hardened $35–80; hasp & staple $15–40; security screws per 10 $8–20
-Sanity checks: Deadbolt supply & fit $200–450; lockout callout $180–380; re-key 3 locks $200–400; master key system quote separately`;
-
-    // Default: General / Handyman
-    return `
-Labour: Handyman $65–95/hr; specialist trades $100–145/hr
-Materials (trade price):
-- Fasteners/fixings assorted (lot per job) $20–80; silicone sealant tube $15–30; gap filler tube $12–22
-- Plasterboard 10mm (sheet 2400×1200) $20–40; plaster jointing compound 10kg $25–45; cornice per m $5–12
-- PVC pipe 50mm per m $8–16; 90mm per m $14–25; PVC elbow $5–15 each
-- Timber batten 70×35 per m $4–8; Dynabolts M10 per 10 $18–35; Fischer plugs per 10 $5–15
-- Sandpaper assorted (lot) $15–35; mineral turps 1L $15–25; WD-40 $8–18
-Sanity checks: TV mounting $150–300; flat-pack assembly $80–200 per item; fence paling replacement $30–80 each installed; door hinge replacement $150–300 per door`;
-  }
+  // Trade-specific knowledge is now in server/trade-knowledge.ts
 
   // AI Quote Generation
   app.post("/api/quotes/generate", async (req, res) => {
@@ -398,8 +267,8 @@ Sanity checks: TV mounting $150–300; flat-pack assembly $80–200 per item; fe
         pricingInstructions += `\n- All prices are GST-exclusive. Mention "All prices exclude GST" in the notes`;
       }
 
-      const tradeContext = tradeType && tradeType !== "general" ? `\nThe tradesperson is a ${tradeType}. Use pricing and terminology specific to this trade.` : "";
-      const pricingReference = getTradeReferencePricing(tradeType || "general");
+      const tradeContext = tradeType && tradeType !== "general" ? `\nThe tradesperson is a ${tradeType}. Use pricing, terminology, units of measure, and compliance requirements specific to this trade.` : "";
+      const tradeKnowledge = getTradeContext(tradeType || "general");
 
       const systemPrompt = `You are a senior Australian trade contractor with 15+ years of experience writing detailed, professional quotes. Your quotes win jobs because they are specific, thorough, and priced correctly for the Australian market.${tradeContext}
 
@@ -415,7 +284,7 @@ You MUST respond with valid JSON in this exact format:
       "unitPrice": 85.00
     }
   ],
-  "notes": "Professional notes covering: key assumptions made, what is NOT included (exclusions), site access requirements, and any warranties offered",
+  "notes": "Professional notes covering: key assumptions made, what is NOT included (exclusions), site access requirements, compliance notes, and any warranties offered",
   "estimatedHours": 4,
   "totalLabour": 340.00,
   "totalMaterials": 250.00,
@@ -424,8 +293,7 @@ You MUST respond with valid JSON in this exact format:
   "totalAmount": 649.00
 }
 
-AUSTRALIAN TRADE PRICING REFERENCE — 2025 market rates. Use these as your pricing anchor:
-${pricingReference}
+${tradeKnowledge}
 
 CRITICAL RULES — follow these exactly:
 1. LINE ITEMS must be specific. BAD: "Labour". GOOD: "Labour – remove existing hot water unit, install new unit, connect copper pipework and test". BAD: "Materials". GOOD: "25mm copper half-union x2 @ $18 each".
@@ -433,12 +301,55 @@ CRITICAL RULES — follow these exactly:
 3. LIST ORDER: call-out/travel first (if applicable), then labour items, then materials, then any permit or disposal fees.
 4. QUANTITIES must be real numbers — if 3 fittings are needed, quantity is 3, unitPrice is cost per fitting.
 5. NEVER under-quote. Australian tradies routinely lose money from thin margins. Include: travel/setup time, consumables (tape, sealant, fixings), waste disposal where applicable, and at least 15 minutes of post-job cleanup time.
-6. USE REAL AUSTRALIAN PRICING: Use the reference table above for all labour and material prices. Do not invent prices outside the ranges given without good reason.
-7. NOTES section must include: what is NOT included (e.g. "Excludes wall patching or painting"), any assumptions (e.g. "Assumes existing wiring is to code"), and validity period.
+6. USE THE TRADE KNOWLEDGE BASE: All pricing must align with the reference data above. Use the estimation formulas provided to calculate quantities. Apply the correct units of measure for this trade.
+7. NOTES section must include: what is NOT included (exclusions), assumptions made, relevant compliance requirements from the knowledge base, and quote validity period (14 days).
 8. jobTitle must be professional and specific — suitable to show a client on a formal document.
-9. CROSS-CHECK every price against the AUSTRALIAN TRADE PRICING REFERENCE before finalising. If a material or labour rate differs by more than 20% from the reference ranges, adjust it — unless the job description specifically calls for a premium brand, remote location, or unusual circumstance.${pricingInstructions}`;
+9. CROSS-CHECK every price against the pricing reference before finalising. If a material or labour rate differs by more than 20% from the reference ranges, adjust it — unless the job description specifically calls for a premium brand, remote location, or unusual circumstance.
+10. CHECK THE GOTCHAS: Review the trade-specific gotchas section and ensure your quote accounts for commonly missed items (e.g. disposal fees, compliance certificates, consumables allowance).${pricingInstructions}`;
 
       messages.push({ role: "system", content: systemPrompt });
+
+      // Learn from past quotes — inject recent accepted/sent quotes as few-shot examples
+      try {
+        const allQuotes = await storage.getQuotes();
+        const pastQuotes = allQuotes
+          .filter(q => q.content && (q.status === "accepted" || q.status === "sent"))
+          .slice(0, 5); // up to 5 most recent successful quotes
+
+        if (pastQuotes.length > 0) {
+          const examples = pastQuotes.map(q => {
+            try {
+              const parsed = JSON.parse(q.content || "{}");
+              return {
+                jobTitle: parsed.jobTitle || parsed.title || "Untitled",
+                totalAmount: q.totalAmount,
+                itemCount: parsed.items?.length || 0,
+                items: (parsed.items || []).slice(0, 5).map((item: any) => ({
+                  description: item.description,
+                  quantity: item.quantity,
+                  unit: item.unit,
+                  unitPrice: item.unitPrice,
+                })),
+              };
+            } catch {
+              return null;
+            }
+          }).filter(Boolean);
+
+          if (examples.length > 0) {
+            const pastQuotesContext = `\n\nPAST QUOTES FROM THIS BUSINESS — Learn from these to match the tradesperson's pricing style and level of detail:\n${examples.map((ex, i) =>
+              `Example ${i + 1}: "${ex!.jobTitle}" — $${ex!.totalAmount} total, ${ex!.itemCount} line items\n` +
+              ex!.items.map((item: any) => `  • ${item.description} — qty ${item.quantity} ${item.unit || 'each'} @ $${item.unitPrice}`).join('\n')
+            ).join('\n\n')}
+\nUse these past quotes to calibrate your pricing. If the tradesperson consistently quotes higher or lower than the reference ranges, match their style. Maintain their level of detail and item granularity.`;
+
+            messages.push({ role: "system", content: pastQuotesContext });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load past quotes for AI context:", err);
+        // Non-critical — continue without past quote context
+      }
 
       const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
 
