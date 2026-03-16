@@ -114,7 +114,7 @@ export default function Profile() {
       });
       window.history.replaceState({}, "", "/profile");
     }
-  }, [searchString]);
+  }, [searchString, toast]);
 
   const [bladeOrder, setBladeOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem("vargenezey_home_blade_order");
@@ -196,7 +196,7 @@ export default function Profile() {
     localStorage.setItem("vargenezey_dark_mode", String(dbSettings.darkMode ?? false));
     // Mark as initialized so dark mode effect can safely save from now on
     isInitialized.current = true;
-  }, [dbSettings?.userId]);
+  }, [dbSettings]);
 
   useEffect(() => {
     if (darkMode) {
