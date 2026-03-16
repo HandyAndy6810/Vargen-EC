@@ -291,8 +291,13 @@ export default function QuoteCreate() {
       // Auto-create customer if name typed but not linked to existing
       let custId = selectedCustomerId;
       if (!custId && customerName.trim()) {
-        const newCust = await createCustomerMutation.mutateAsync({ name: customerName.trim() });
-        custId = newCust.id;
+        try {
+          const newCust = await createCustomerMutation.mutateAsync({ name: customerName.trim() });
+          custId = newCust.id;
+        } catch (custErr) {
+          console.error("Auto-create customer failed:", custErr);
+          // Continue saving quote without customer link rather than failing entirely
+        }
       }
 
       const contentData = {
@@ -338,6 +343,7 @@ export default function QuoteCreate() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       setSavedQuoteId(data.id);
       setShowFinalizeModal(false);
       setShowExportOptions(true);
