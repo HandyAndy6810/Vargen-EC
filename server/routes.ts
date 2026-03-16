@@ -90,6 +90,12 @@ export async function registerRoutes(
       if (linkedJobs.length > 0) {
         return res.status(409).json({ message: `Customer has ${linkedJobs.length} linked job(s). Remove or reassign them first.` });
       }
+      // Check for linked quotes
+      const allQuotes = await storage.getQuotes();
+      const linkedQuotes = allQuotes.filter(q => q.customerId === id);
+      if (linkedQuotes.length > 0) {
+        return res.status(409).json({ message: `Customer has ${linkedQuotes.length} linked quote(s). Remove or reassign them first.` });
+      }
       await storage.deleteCustomer(id);
       res.json({ ok: true });
     } catch (err) {
@@ -207,13 +213,17 @@ export async function registerRoutes(
         return res.status(400).json({ message: "No audio file provided" });
       }
 
-      const transcription = await openai.audio.transcriptions.create({
-        file: fs.createReadStream(req.file.path),
-        model: "gpt-4o-mini-transcribe",
-      });
-
-      // Clean up the uploaded file
-      fs.unlinkSync(req.file.path);
+      const filePath = req.file.path;
+      let transcription;
+      try {
+        transcription = await openai.audio.transcriptions.create({
+          file: fs.createReadStream(filePath),
+          model: "gpt-4o-mini-transcribe",
+        });
+      } finally {
+        // Always clean up the uploaded file, even on error
+        try { fs.unlinkSync(filePath); } catch (_) {}
+      }
 
       res.json({ text: transcription.text });
     } catch (error: any) {
@@ -450,7 +460,7 @@ CRITICAL RULES — follow these exactly:
       messages.push({ role: "user", content: userContent });
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5.1",
+        model: "gpt-4o",
         messages,
         max_completion_tokens: 4096,
         response_format: { type: "json_object" },
@@ -627,7 +637,7 @@ async function seedDatabase() {
       title: "Fix Leaky Faucet",
       description: "Kitchen sink faucet is dripping continuously.",
       status: "scheduled",
-      scheduledDate: new Date("2024-10-25T14:00:00Z"),
+      scheduledDate: new Date("2026-04-15T14:00:00Z"),
     });
 
     await storage.createJob({
@@ -635,7 +645,7 @@ async function seedDatabase() {
       title: "Install Ceiling Fan",
       description: "Master bedroom ceiling fan installation.",
       status: "pending",
-      scheduledDate: new Date("2024-10-26T10:00:00Z"),
+      scheduledDate: new Date("2026-04-16T10:00:00Z"),
     });
   }
 }

@@ -72,7 +72,7 @@ interface QuoteDefaults {
   includeGST: boolean;
 }
 
-const STORAGE_KEY = "vargenezey-quote-defaults";
+const STORAGE_KEY = "vargenezey_quote_defaults";
 
 const TRADE_TYPES = [
   { value: "general", label: "General Trade" },
