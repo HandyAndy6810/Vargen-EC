@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useCustomers } from "@/hooks/use-customers";
 import { useJobs } from "@/hooks/use-jobs";
-import { MESSAGE_MESSAGE_TEMPLATES } from "@/lib/message-templates";
+import { MESSAGE_TEMPLATES } from "@/lib/message-templates";
 
 function getInitials(name: string) {
   return name

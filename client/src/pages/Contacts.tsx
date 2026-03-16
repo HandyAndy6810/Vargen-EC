@@ -13,7 +13,7 @@ import { useJobs } from "@/hooks/use-jobs";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { MESSAGE_MESSAGE_TEMPLATES } from "@/lib/message-templates";
+import { MESSAGE_TEMPLATES } from "@/lib/message-templates";
 
 function getInitials(name: string) {
   return name
