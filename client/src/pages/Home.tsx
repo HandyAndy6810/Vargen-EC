@@ -1,17 +1,16 @@
 import { useJobs } from "@/hooks/use-jobs";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useAuth } from "@/hooks/use-auth";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "wouter";
 import { PipelineView } from "@/components/PipelineView";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { WeeklyRevenueGoalWidget } from "@/components/WeeklyRevenueGoalWidget";
 import { 
-  Plus, 
-  ChevronRight, 
-  MessageSquare, 
-  Calendar as CalendarIcon, 
-  Users, 
+  Plus,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Users,
   Settings,
   Clock,
   User as UserIcon
@@ -35,7 +34,7 @@ export default function Home() {
   const { data: quotes } = useQuotes();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  const quickStarts = (() => {
+  const quickStarts = useMemo(() => {
     if (!quotes || quotes.length === 0) {
       return [
         { label: "Bathroom Reno", icon: "🚿" },
@@ -44,7 +43,6 @@ export default function Home() {
       ];
     }
 
-    // Extract job titles from recent quotes and count occurrences
     const counts: Record<string, number> = {};
     quotes.forEach(q => {
       try {
@@ -53,18 +51,15 @@ export default function Home() {
       } catch (e) {}
     });
 
-    // Get top 3 unique titles, but generalized
     const suggestions = Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .map(([label]) => {
-        // Generalize common labels
         let cleanLabel = label;
         if (label.toLowerCase().includes("bathroom")) cleanLabel = "Bathroom Reno";
         if (label.toLowerCase().includes("deck")) cleanLabel = "Decking Job";
         if (label.toLowerCase().includes("switchboard")) cleanLabel = "Switchboard Upgrade";
         if (label.toLowerCase().includes("lighting") || label.toLowerCase().includes("downlight")) cleanLabel = "Lighting Install";
         if (label.toLowerCase().includes("faucet") || label.toLowerCase().includes("leak")) cleanLabel = "Plumbing Repair";
-        
         return cleanLabel;
       });
 
@@ -72,13 +67,13 @@ export default function Home() {
 
     return uniqueSuggestions.map(label => ({
       label,
-      icon: label.toLowerCase().includes("bath") ? "🚿" : 
-            label.toLowerCase().includes("deck") ? "🪵" : 
-            label.toLowerCase().includes("switch") ? "⚡" : 
+      icon: label.toLowerCase().includes("bath") ? "🚿" :
+            label.toLowerCase().includes("deck") ? "🪵" :
+            label.toLowerCase().includes("switch") ? "⚡" :
             label.toLowerCase().includes("light") ? "💡" :
             label.toLowerCase().includes("plumb") ? "🚰" : "📋"
     }));
-  })();
+  }, [quotes]);
   
   const ALL_BLADES = ["hero", "pipeline", "actions", "revenue", "stats", "calendar"];
 
@@ -107,44 +102,55 @@ export default function Home() {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  const pendingQuotesCount = quotes?.filter(q => q.status === 'draft').length || 0;
-  const upcomingJobsCount = jobs?.filter(j => j.status === 'scheduled').length || 0;
+  const pendingQuotesCount = useMemo(() => quotes?.filter(q => q.status === 'draft').length || 0, [quotes]);
+  const upcomingJobsCount = useMemo(() => jobs?.filter(j => j.status === 'scheduled').length || 0, [jobs]);
 
   // Weekly calendar logic
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
-  const weekEnd = endOfWeek(new Date(), { weekStartsOn: 0 });
-  const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+  const weekDays = useMemo(() => {
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 0 });
+    return eachDayOfInterval({ start: weekStart, end: weekEnd });
+  }, []);
 
-  const selectedDateJobs = jobs?.filter(job => 
-    job.scheduledDate && isSameDay(new Date(job.scheduledDate), selectedDate)
-  ) || [];
+  const selectedDateJobs = useMemo(() =>
+    jobs?.filter(job => job.scheduledDate && isSameDay(new Date(job.scheduledDate), selectedDate)) || [],
+    [jobs, selectedDate]
+  );
 
   // Next upcoming job (today or future, sorted by date)
-  const nextJob = jobs
-    ?.filter(job => job.scheduledDate && startOfDay(new Date(job.scheduledDate)) >= startOfDay(new Date()))
-    .sort((a, b) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime())[0] || null;
+  const nextJob = useMemo(() =>
+    jobs
+      ?.filter(job => job.scheduledDate && startOfDay(new Date(job.scheduledDate)) >= startOfDay(new Date()))
+      .sort((a, b) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime())[0] || null,
+    [jobs]
+  );
 
-  const nextJobDayLabel = nextJob?.scheduledDate
-    ? isToday(new Date(nextJob.scheduledDate)) ? "Today"
-      : isTomorrow(new Date(nextJob.scheduledDate)) ? "Tomorrow"
-      : format(new Date(nextJob.scheduledDate), "eee d MMM")
-    : "";
+  const nextJobDayLabel = useMemo(() =>
+    nextJob?.scheduledDate
+      ? isToday(new Date(nextJob.scheduledDate)) ? "Today"
+        : isTomorrow(new Date(nextJob.scheduledDate)) ? "Tomorrow"
+        : format(new Date(nextJob.scheduledDate), "eee d MMM")
+      : "",
+    [nextJob]
+  );
 
   // Day-level job status colour helper
-  const getDayBadge = (day: Date): { count: number; color: "orange" | "yellow" | "green" } | null => {
+  const getDayBadge = useCallback((day: Date): { count: number; color: "orange" | "yellow" | "green" } | null => {
     const dayJobs = jobs?.filter(job => job.scheduledDate && isSameDay(new Date(job.scheduledDate), day)) || [];
     if (dayJobs.length === 0) return null;
     const hasScheduled = dayJobs.some(j => j.status === "scheduled");
     const hasPending = dayJobs.some(j => j.status === "pending");
     const color = hasScheduled ? "orange" : hasPending ? "yellow" : "green";
     return { count: dayJobs.length, color };
-  };
+  }, [jobs]);
 
   // Selected day estimated earnings (from linked quotes)
-  const selectedDayJobIds = new Set(selectedDateJobs.map(j => j.id));
-  const selectedDayEarnings = quotes
-    ?.filter(q => q.jobId !== null && q.jobId !== undefined && selectedDayJobIds.has(q.jobId))
-    .reduce((sum, q) => sum + parseFloat(q.totalAmount || "0"), 0) || 0;
+  const selectedDayEarnings = useMemo(() => {
+    const selectedDayJobIds = new Set(selectedDateJobs.map(j => j.id));
+    return quotes
+      ?.filter(q => q.jobId !== null && q.jobId !== undefined && selectedDayJobIds.has(q.jobId))
+      .reduce((sum, q) => sum + parseFloat(q.totalAmount || "0"), 0) || 0;
+  }, [selectedDateJobs, quotes]);
 
   return (
     <div className="min-h-screen bg-background pb-32">
@@ -249,14 +255,14 @@ export default function Home() {
                   <ChevronRight className="w-6 h-6 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                 </Link>
 
-                <Link href="/messages" className="action-tile group">
+                <Link href="/contacts" className="action-tile group">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center">
-                      <MessageSquare className="w-6 h-6 text-primary" />
+                      <Users className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <div className="font-bold text-lg">Messages</div>
-                      <div className="text-muted-foreground text-sm">Chat with clients</div>
+                      <div className="font-bold text-lg">Contacts</div>
+                      <div className="text-muted-foreground text-sm">Manage & message clients</div>
                     </div>
                   </div>
                   <ChevronRight className="w-6 h-6 text-muted-foreground group-hover:translate-x-1 transition-transform" />

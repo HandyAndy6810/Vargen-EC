@@ -117,8 +117,8 @@ export default function QuoteDetail() {
 
   const customerName = (() => {
     // Direct customer link (new flow)
-    if ((quote as any).customerId) {
-      const customer = customers?.find(c => c.id === (quote as any).customerId);
+    if (quote.customerId) {
+      const customer = customers?.find(c => c.id === quote.customerId);
       if (customer) return customer.name;
     }
     // Legacy: name stored in content JSON
@@ -139,7 +139,7 @@ export default function QuoteDetail() {
   })();
 
   const resolvedCustomerId: number | undefined = (() => {
-    if ((quote as any).customerId) return (quote as any).customerId;
+    if (quote.customerId) return quote.customerId;
     if (quote.jobId) {
       const job = jobs?.find(j => j.id === quote.jobId);
       if (job?.customerId) return job.customerId;
@@ -404,9 +404,15 @@ export default function QuoteDetail() {
     ]);
   };
 
-  const updateEditItem = (index: number, field: string, value: string | number) => {
+  const updateEditItem = (index: number, field: keyof NonNullable<ParsedContent["items"]>[number], value: string | number) => {
     const updated = [...(editItems || [])];
-    (updated[index] as any)[field] = value;
+    const item = { ...updated[index] };
+    if (field === "description" || field === "unit" || field === "id") {
+      item[field] = value as string;
+    } else {
+      item[field] = value as number;
+    }
+    updated[index] = item;
     setEditItems(updated);
   };
 
