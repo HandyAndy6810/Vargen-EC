@@ -1,19 +1,22 @@
 import { db } from "./db";
 import {
   customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
+  invoices, jobTimerEntries, portalFeedback,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem,
-  type XeroToken, type InsertXeroToken
+  type XeroToken, type InsertXeroToken,
+  type Invoice, type InsertInvoice,
+  type JobTimerEntry, type InsertJobTimerEntry,
+  type PortalFeedback, type InsertPortalFeedback
 } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, isNull, and, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Customers
   getCustomers(): Promise<Customer[]>;
   getCustomer(id: number): Promise<Customer | undefined>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
-  
   updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer>;
   deleteCustomer(id: number): Promise<void>;
 
@@ -28,12 +31,32 @@ export interface IStorage {
   getQuote(id: number): Promise<Quote | undefined>;
   createQuote(quote: InsertQuote): Promise<Quote>;
   updateQuote(id: number, quote: Partial<InsertQuote>): Promise<Quote>;
+  getQuoteByShareToken(token: string): Promise<Quote | undefined>;
 
   // Quote Items
   getQuoteItems(quoteId: number): Promise<QuoteItem[]>;
   createQuoteItem(item: InsertQuoteItem): Promise<QuoteItem>;
   deleteQuoteItem(id: number): Promise<void>;
   deleteQuote(id: number): Promise<void>;
+
+  // Invoices
+  getInvoices(): Promise<Invoice[]>;
+  getInvoice(id: number): Promise<Invoice | undefined>;
+  getInvoiceByQuoteId(quoteId: number): Promise<Invoice | undefined>;
+  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
+  updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice>;
+  getNextInvoiceNumber(): Promise<string>;
+
+  // Job Timer Entries
+  getTimerEntries(jobId: number): Promise<JobTimerEntry[]>;
+  getActiveTimer(): Promise<JobTimerEntry | undefined>;
+  createTimerEntry(entry: InsertJobTimerEntry): Promise<JobTimerEntry>;
+  updateTimerEntry(id: number, entry: Partial<InsertJobTimerEntry>): Promise<JobTimerEntry>;
+  deleteTimerEntry(id: number): Promise<void>;
+
+  // Portal Feedback
+  createPortalFeedback(feedback: InsertPortalFeedback): Promise<PortalFeedback>;
+  getPortalFeedback(quoteId: number): Promise<PortalFeedback[]>;
 
   // User Settings
   getUserSettings(userId: string): Promise<UserSettings | undefined>;
@@ -107,6 +130,11 @@ export class DatabaseStorage implements IStorage {
     return updatedQuote;
   }
 
+  async getQuoteByShareToken(token: string): Promise<Quote | undefined> {
+    const [quote] = await db.select().from(quotes).where(eq(quotes.shareToken, token));
+    return quote;
+  }
+
   async getQuoteItems(quoteId: number): Promise<QuoteItem[]> {
     return await db.select().from(quoteItems).where(eq(quoteItems.quoteId, quoteId));
   }
@@ -125,6 +153,78 @@ export class DatabaseStorage implements IStorage {
     await db.delete(quotes).where(eq(quotes.id, id));
   }
 
+  // Invoices
+  async getInvoices(): Promise<Invoice[]> {
+    return await db.select().from(invoices).orderBy(desc(invoices.createdAt));
+  }
+
+  async getInvoice(id: number): Promise<Invoice | undefined> {
+    const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id));
+    return invoice;
+  }
+
+  async getInvoiceByQuoteId(quoteId: number): Promise<Invoice | undefined> {
+    const [invoice] = await db.select().from(invoices).where(eq(invoices.quoteId, quoteId));
+    return invoice;
+  }
+
+  async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
+    const [newInvoice] = await db.insert(invoices).values(invoice).returning();
+    return newInvoice;
+  }
+
+  async updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice> {
+    const [updated] = await db.update(invoices).set(invoice).where(eq(invoices.id, id)).returning();
+    return updated;
+  }
+
+  async getNextInvoiceNumber(): Promise<string> {
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(invoices);
+    const next = (result?.count || 0) + 1;
+    return `INV-${String(next).padStart(4, "0")}`;
+  }
+
+  // Job Timer Entries
+  async getTimerEntries(jobId: number): Promise<JobTimerEntry[]> {
+    return await db.select().from(jobTimerEntries)
+      .where(eq(jobTimerEntries.jobId, jobId))
+      .orderBy(desc(jobTimerEntries.startTime));
+  }
+
+  async getActiveTimer(): Promise<JobTimerEntry | undefined> {
+    const [entry] = await db.select().from(jobTimerEntries)
+      .where(isNull(jobTimerEntries.endTime));
+    return entry;
+  }
+
+  async createTimerEntry(entry: InsertJobTimerEntry): Promise<JobTimerEntry> {
+    const [newEntry] = await db.insert(jobTimerEntries).values(entry).returning();
+    return newEntry;
+  }
+
+  async updateTimerEntry(id: number, entry: Partial<InsertJobTimerEntry>): Promise<JobTimerEntry> {
+    const [updated] = await db.update(jobTimerEntries).set(entry)
+      .where(eq(jobTimerEntries.id, id)).returning();
+    return updated;
+  }
+
+  async deleteTimerEntry(id: number): Promise<void> {
+    await db.delete(jobTimerEntries).where(eq(jobTimerEntries.id, id));
+  }
+
+  // Portal Feedback
+  async createPortalFeedback(feedback: InsertPortalFeedback): Promise<PortalFeedback> {
+    const [newFeedback] = await db.insert(portalFeedback).values(feedback).returning();
+    return newFeedback;
+  }
+
+  async getPortalFeedback(quoteId: number): Promise<PortalFeedback[]> {
+    return await db.select().from(portalFeedback)
+      .where(eq(portalFeedback.quoteId, quoteId))
+      .orderBy(desc(portalFeedback.createdAt));
+  }
+
+  // User Settings
   async getUserSettings(userId: string): Promise<UserSettings | undefined> {
     const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
     return settings;
@@ -142,6 +242,7 @@ export class DatabaseStorage implements IStorage {
     return settings;
   }
 
+  // Xero Tokens
   async getXeroToken(userId: string): Promise<XeroToken | undefined> {
     const [token] = await db.select().from(xeroTokens).where(eq(xeroTokens.userId, userId));
     return token;

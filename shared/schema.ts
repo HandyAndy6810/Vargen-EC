@@ -24,6 +24,7 @@ export const jobs = pgTable("jobs", {
   description: text("description"),
   status: text("status").default("scheduled"), // scheduled, completed, cancelled
   scheduledDate: timestamp("scheduled_date"),
+  completionData: text("completion_data"), // JSON: { actualHours, extraNotes, completedAt, estimatedHours, quotedAmount }
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -34,6 +35,8 @@ export const quotes = pgTable("quotes", {
   totalAmount: numeric("total_amount").notNull(),
   status: text("status").default("draft"), // draft, sent, viewed, accepted, rejected
   content: text("content"), // AI generated text or structured notes
+  shareToken: text("share_token"), // UUID for client portal link
+  followUpSchedule: text("follow_up_schedule"), // JSON: [{ day, status, sentAt? }]
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -43,6 +46,39 @@ export const quoteItems = pgTable("quote_items", {
   description: text("description").notNull(),
   quantity: integer("quantity").notNull(),
   price: numeric("price").notNull(),
+});
+
+export const invoices = pgTable("invoices", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id").references(() => quotes.id),
+  customerId: integer("customer_id").references(() => customers.id),
+  invoiceNumber: text("invoice_number").notNull(),
+  status: text("status").default("draft"), // draft, sent, paid, overdue
+  items: text("items").notNull(), // JSON array of line items
+  subtotal: numeric("subtotal").notNull(),
+  gstAmount: numeric("gst_amount").default("0"),
+  totalAmount: numeric("total_amount").notNull(),
+  dueDate: timestamp("due_date"),
+  paidDate: timestamp("paid_date"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const jobTimerEntries = pgTable("job_timer_entries", {
+  id: serial("id").primaryKey(),
+  jobId: integer("job_id").references(() => jobs.id),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  duration: integer("duration"), // seconds
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const portalFeedback = pgTable("portal_feedback", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id").references(() => quotes.id),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Relations
@@ -56,6 +92,7 @@ export const jobsRelations = relations(jobs, ({ one, many }) => ({
     references: [customers.id],
   }),
   quotes: many(quotes),
+  timerEntries: many(jobTimerEntries),
 }));
 
 export const quotesRelations = relations(quotes, ({ one, many }) => ({
@@ -68,11 +105,38 @@ export const quotesRelations = relations(quotes, ({ one, many }) => ({
     references: [customers.id],
   }),
   items: many(quoteItems),
+  invoice: one(invoices),
+  feedback: many(portalFeedback),
 }));
 
 export const quoteItemsRelations = relations(quoteItems, ({ one }) => ({
   quote: one(quotes, {
     fields: [quoteItems.quoteId],
+    references: [quotes.id],
+  }),
+}));
+
+export const invoicesRelations = relations(invoices, ({ one }) => ({
+  quote: one(quotes, {
+    fields: [invoices.quoteId],
+    references: [quotes.id],
+  }),
+  customer: one(customers, {
+    fields: [invoices.customerId],
+    references: [customers.id],
+  }),
+}));
+
+export const jobTimerEntriesRelations = relations(jobTimerEntries, ({ one }) => ({
+  job: one(jobs, {
+    fields: [jobTimerEntries.jobId],
+    references: [jobs.id],
+  }),
+}));
+
+export const portalFeedbackRelations = relations(portalFeedback, ({ one }) => ({
+  quote: one(quotes, {
+    fields: [portalFeedback.quoteId],
     references: [quotes.id],
   }),
 }));
@@ -93,6 +157,16 @@ export const userSettings = pgTable("user_settings", {
   weeklyGoal: integer("weekly_goal").default(0),
   darkMode: boolean("dark_mode").default(false),
   bladeOrder: text("blade_order").default('["hero","pipeline","actions","revenue","stats","calendar"]'),
+  // Bank details for invoicing
+  bankName: text("bank_name").default(""),
+  bsb: text("bsb").default(""),
+  accountNumber: text("account_number").default(""),
+  accountName: text("account_name").default(""),
+  paymentTermsDays: integer("payment_terms_days").default(14),
+  // Follow-up automation
+  followUpEnabled: boolean("follow_up_enabled").default(false),
+  followUpDays: text("follow_up_days").default("[3,7,14]"),
+  followUpChannel: text("follow_up_channel").default("sms"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -119,6 +193,9 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({ id: tru
 export const insertJobSchema = createInsertSchema(jobs).omit({ id: true, createdAt: true });
 export const insertQuoteSchema = createInsertSchema(quotes).omit({ id: true, createdAt: true });
 export const insertQuoteItemSchema = createInsertSchema(quoteItems).omit({ id: true });
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
+export const insertJobTimerEntrySchema = createInsertSchema(jobTimerEntries).omit({ id: true, createdAt: true });
+export const insertPortalFeedbackSchema = createInsertSchema(portalFeedback).omit({ id: true, createdAt: true });
 
 // Types
 export type Customer = typeof customers.$inferSelect;
@@ -129,3 +206,9 @@ export type Quote = typeof quotes.$inferSelect;
 export type InsertQuote = z.infer<typeof insertQuoteSchema>;
 export type QuoteItem = typeof quoteItems.$inferSelect;
 export type InsertQuoteItem = z.infer<typeof insertQuoteItemSchema>;
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+export type JobTimerEntry = typeof jobTimerEntries.$inferSelect;
+export type InsertJobTimerEntry = z.infer<typeof insertJobTimerEntrySchema>;
+export type PortalFeedback = typeof portalFeedback.$inferSelect;
+export type InsertPortalFeedback = z.infer<typeof insertPortalFeedbackSchema>;

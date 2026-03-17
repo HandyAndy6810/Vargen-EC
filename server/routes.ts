@@ -14,6 +14,7 @@ import multer from "multer";
 import fs from "fs";
 import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken } from "./xero";
 import { getTradeContext } from "./trade-knowledge";
+import crypto from "crypto";
 
 const upload = multer({ dest: "uploads/" });
 
@@ -156,10 +157,34 @@ export async function registerRoutes(
     }
   });
 
-  app.patch(api.quotes.update.path, async (req, res) => {
+  app.patch(api.quotes.update.path, async (req: any, res) => {
     try {
       const input = api.quotes.update.input.parse(req.body);
-      const quote = await storage.updateQuote(Number(req.params.id), input);
+      const quoteId = Number(req.params.id);
+
+      // Auto-generate shareToken and followUpSchedule when status → "sent"
+      if (input.status === "sent") {
+        const existing = await storage.getQuote(quoteId);
+        if (existing && !existing.shareToken) {
+          (input as any).shareToken = crypto.randomUUID();
+        }
+        // Auto-populate follow-up schedule from user settings
+        if (existing && !existing.followUpSchedule) {
+          try {
+            const userId = req.user?.claims?.sub;
+            if (userId) {
+              const settings = await storage.getUserSettings(userId);
+              if (settings?.followUpEnabled) {
+                const days = JSON.parse(settings.followUpDays || "[3,7,14]");
+                const schedule = days.map((day: number) => ({ day, status: "pending" }));
+                (input as any).followUpSchedule = JSON.stringify(schedule);
+              }
+            }
+          } catch { /* non-critical */ }
+        }
+      }
+
+      const quote = await storage.updateQuote(quoteId, input);
       res.json(quote);
     } catch (err) {
       res.status(400).json({ message: "Validation error" });
@@ -418,6 +443,309 @@ CRITICAL RULES — follow these exactly:
       }
     }
   });
+
+  // ─── Job Timer Routes ───
+
+  app.get(api.timers.active.path, async (req: any, res) => {
+    try {
+      const entry = await storage.getActiveTimer();
+      res.json(entry ?? null);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to get active timer" });
+    }
+  });
+
+  app.get(api.timers.listForJob.path, async (req: any, res) => {
+    try {
+      const jobId = Number(req.params.jobId);
+      const entries = await storage.getTimerEntries(jobId);
+      res.json(entries);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to get timer entries" });
+    }
+  });
+
+  app.post(api.timers.start.path, async (req: any, res) => {
+    try {
+      const { jobId } = api.timers.start.input.parse(req.body);
+      // Check no active timer already running
+      const active = await storage.getActiveTimer();
+      if (active) {
+        return res.status(409).json({ message: "A timer is already running. Stop it first." });
+      }
+      const entry = await storage.createTimerEntry({ jobId, startTime: new Date() });
+      res.status(201).json(entry);
+    } catch (err: any) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: err?.message || "Failed to start timer" });
+    }
+  });
+
+  app.post("/api/timers/:id/stop", async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { notes } = req.body || {};
+      const endTime = new Date();
+      // Get the entry to calculate duration
+      const entries = await storage.getTimerEntries(0); // we need to find by id
+      const active = await storage.getActiveTimer();
+      if (!active || active.id !== id) {
+        return res.status(404).json({ message: "Timer not found or already stopped" });
+      }
+      const duration = Math.round((endTime.getTime() - new Date(active.startTime).getTime()) / 1000);
+      const updated = await storage.updateTimerEntry(id, { endTime, duration, notes: notes || null });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to stop timer" });
+    }
+  });
+
+  app.delete("/api/timers/:id", async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      await storage.deleteTimerEntry(id);
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to delete timer entry" });
+    }
+  });
+
+  // ─── Portal Routes (Public — no auth) ───
+
+  app.get("/api/portal/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const quote = await storage.getQuoteByShareToken(token);
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      const items = await storage.getQuoteItems(quote.id);
+      let customer = null;
+      if (quote.customerId) {
+        customer = await storage.getCustomer(quote.customerId) || null;
+      }
+
+      // Get business info — we need to find the settings but portal is unauthenticated
+      // Use a simple approach: get the first user settings (single-tenant app)
+      const allQuotes = await storage.getQuotes();
+      let businessName = "", businessPhone = "", businessEmail = "", businessAddress = "";
+
+      // Try to find settings - for now return what we can from the quote
+      const feedback = await storage.getPortalFeedback(quote.id);
+
+      res.json({
+        quote,
+        customer,
+        items,
+        feedback,
+        businessName,
+        businessPhone,
+        businessEmail,
+        businessAddress,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to load portal" });
+    }
+  });
+
+  app.post("/api/portal/:token/accept", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const quote = await storage.getQuoteByShareToken(token);
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      await storage.updateQuote(quote.id, { status: "accepted" });
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to accept quote" });
+    }
+  });
+
+  app.post("/api/portal/:token/feedback", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const quote = await storage.getQuoteByShareToken(token);
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      const { message } = req.body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const feedback = await storage.createPortalFeedback({ quoteId: quote.id, message });
+      res.status(201).json(feedback);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to save feedback" });
+    }
+  });
+
+  // ─── Invoice Routes ───
+
+  app.get(api.invoices.list.path, async (req: any, res) => {
+    try {
+      const allInvoices = await storage.getInvoices();
+      res.json(allInvoices);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to get invoices" });
+    }
+  });
+
+  app.get("/api/invoices/:id", async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const invoice = await storage.getInvoice(id);
+      if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+      res.json(invoice);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to get invoice" });
+    }
+  });
+
+  app.post("/api/invoices/from-quote/:quoteId", async (req: any, res) => {
+    try {
+      const quoteId = Number(req.params.quoteId);
+      const quote = await storage.getQuote(quoteId);
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      // Check if invoice already exists for this quote
+      const existing = await storage.getInvoiceByQuoteId(quoteId);
+      if (existing) return res.status(409).json({ message: "Invoice already exists for this quote" });
+
+      // Parse quote content for line items
+      let items: any[] = [];
+      let subtotal = 0;
+      let gstAmount = 0;
+      let notes = "";
+      try {
+        const content = JSON.parse(quote.content || "{}");
+        items = (content.items || []).map((item: any) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit || "each",
+          unitPrice: item.unitPrice,
+          total: (item.quantity || 1) * (item.unitPrice || 0),
+        }));
+        subtotal = content.subtotal || Number(quote.totalAmount) || 0;
+        gstAmount = content.gstAmount || 0;
+        notes = content.notes || "";
+      } catch {
+        subtotal = Number(quote.totalAmount) || 0;
+      }
+
+      // Get payment terms from user settings
+      const userId = req.user?.claims?.sub;
+      let paymentTermsDays = 14;
+      if (userId) {
+        const settings = await storage.getUserSettings(userId);
+        if (settings?.paymentTermsDays) paymentTermsDays = settings.paymentTermsDays;
+      }
+
+      const invoiceNumber = await storage.getNextInvoiceNumber();
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + paymentTermsDays);
+
+      const invoice = await storage.createInvoice({
+        quoteId: quote.id,
+        customerId: quote.customerId,
+        invoiceNumber,
+        status: "draft",
+        items: JSON.stringify(items),
+        subtotal: String(subtotal),
+        gstAmount: String(gstAmount),
+        totalAmount: String(Number(subtotal) + Number(gstAmount)),
+        dueDate,
+        notes,
+      });
+
+      res.status(201).json(invoice);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to create invoice" });
+    }
+  });
+
+  app.patch("/api/invoices/:id", async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const existing = await storage.getInvoice(id);
+      if (!existing) return res.status(404).json({ message: "Invoice not found" });
+
+      const updated = await storage.updateInvoice(id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to update invoice" });
+    }
+  });
+
+  // ─── Follow-Up Routes ───
+
+  app.get(api.followUps.due.path, async (req: any, res) => {
+    try {
+      const allQuotes = await storage.getQuotes();
+      const dueFollowUps: any[] = [];
+
+      for (const quote of allQuotes) {
+        if (quote.status !== "sent" || !quote.followUpSchedule) continue;
+        try {
+          const schedule = JSON.parse(quote.followUpSchedule);
+          const daysSinceSent = Math.floor(
+            (Date.now() - new Date(quote.createdAt!).getTime()) / (1000 * 60 * 60 * 24)
+          );
+          for (let i = 0; i < schedule.length; i++) {
+            if (schedule[i].status === "pending" && daysSinceSent >= schedule[i].day) {
+              dueFollowUps.push({ quote, dueIndex: i, dayNumber: schedule[i].day });
+              break; // only show the first due follow-up per quote
+            }
+          }
+        } catch { /* skip malformed schedule */ }
+      }
+
+      res.json(dueFollowUps);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to get follow-ups" });
+    }
+  });
+
+  app.post("/api/follow-ups/:quoteId/mark-sent", async (req: any, res) => {
+    try {
+      const quoteId = Number(req.params.quoteId);
+      const { dayIndex } = req.body;
+      const quote = await storage.getQuote(quoteId);
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      const schedule = JSON.parse(quote.followUpSchedule || "[]");
+      if (schedule[dayIndex]) {
+        schedule[dayIndex].status = "sent";
+        schedule[dayIndex].sentAt = new Date().toISOString();
+      }
+      await storage.updateQuote(quoteId, { followUpSchedule: JSON.stringify(schedule) });
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to mark follow-up sent" });
+    }
+  });
+
+  app.post("/api/follow-ups/:quoteId/skip", async (req: any, res) => {
+    try {
+      const quoteId = Number(req.params.quoteId);
+      const { dayIndex } = req.body;
+      const quote = await storage.getQuote(quoteId);
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      const schedule = JSON.parse(quote.followUpSchedule || "[]");
+      if (schedule[dayIndex]) {
+        schedule[dayIndex].status = "skipped";
+      }
+      await storage.updateQuote(quoteId, { followUpSchedule: JSON.stringify(schedule) });
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to skip follow-up" });
+    }
+  });
+
+  // ─── Auto-generate shareToken + followUpSchedule when quote status → "sent" ───
+  // This is handled by wrapping the existing quote update route — we need to add middleware
+  // We'll add it as a post-update hook in the existing PATCH /api/quotes/:id handler
 
   // ─── Xero OAuth2 PKCE Routes ───
 
