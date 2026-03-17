@@ -1,16 +1,17 @@
 import { db } from "./db";
 import {
   customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
-  invoices, jobTimerEntries, portalFeedback,
+  invoices, jobTimerEntries, portalFeedback, jobTemplates,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem,
   type XeroToken, type InsertXeroToken,
   type Invoice, type InsertInvoice,
   type JobTimerEntry, type InsertJobTimerEntry,
-  type PortalFeedback, type InsertPortalFeedback
+  type PortalFeedback, type InsertPortalFeedback,
+  type JobTemplate, type InsertJobTemplate
 } from "@shared/schema";
-import { eq, desc, isNull, and, sql } from "drizzle-orm";
+import { eq, desc, isNull, and, or, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Customers
@@ -61,6 +62,20 @@ export interface IStorage {
   // User Settings
   getUserSettings(userId: string): Promise<UserSettings | undefined>;
   upsertUserSettings(userId: string, updates: Partial<InsertUserSettings>): Promise<UserSettings>;
+
+  // Job Templates
+  getJobTemplates(userId: string): Promise<JobTemplate[]>;
+  createJobTemplate(template: InsertJobTemplate): Promise<JobTemplate>;
+  deleteJobTemplate(id: number, userId: string): Promise<void>;
+
+  // Recent Activity
+  getRecentActivity(limit?: number): Promise<Array<{
+    type: "quote_created" | "quote_accepted" | "quote_rejected" | "job_scheduled" | "job_completed";
+    description: string;
+    timestamp: Date;
+    entityId: number;
+    entityType: "quote" | "job";
+  }>>;
 
   // Xero Tokens
   getXeroToken(userId: string): Promise<XeroToken | undefined>;
@@ -242,7 +257,95 @@ export class DatabaseStorage implements IStorage {
     return settings;
   }
 
-  // Xero Tokens
+  async getJobTemplates(userId: string): Promise<JobTemplate[]> {
+    return await db.select().from(jobTemplates).where(eq(jobTemplates.userId, userId)).orderBy(desc(jobTemplates.createdAt));
+  }
+
+  async createJobTemplate(template: InsertJobTemplate): Promise<JobTemplate> {
+    const [newTemplate] = await db.insert(jobTemplates).values(template).returning();
+    return newTemplate;
+  }
+
+  async deleteJobTemplate(id: number, userId: string): Promise<void> {
+    await db.delete(jobTemplates).where(sql`${jobTemplates.id} = ${id} AND ${jobTemplates.userId} = ${userId}`);
+  }
+
+  async getRecentActivity(limit: number = 20): Promise<Array<{
+    type: "quote_created" | "quote_accepted" | "quote_rejected" | "job_scheduled" | "job_completed";
+    description: string;
+    timestamp: Date;
+    entityId: number;
+    entityType: "quote" | "job";
+  }>> {
+    const recentQuotes = await db.select().from(quotes).orderBy(desc(quotes.createdAt)).limit(limit);
+    const recentJobs = await db.select().from(jobs).orderBy(desc(jobs.createdAt)).limit(limit);
+
+    const activities: Array<{
+      type: "quote_created" | "quote_accepted" | "quote_rejected" | "job_scheduled" | "job_completed";
+      description: string;
+      timestamp: Date;
+      entityId: number;
+      entityType: "quote" | "job";
+    }> = [];
+
+    for (const q of recentQuotes) {
+      let jobTitle = "Untitled";
+      try {
+        const parsed = JSON.parse(q.content || "{}");
+        jobTitle = parsed.jobTitle || parsed.title || "Untitled";
+      } catch {}
+
+      if (q.status === "accepted") {
+        activities.push({
+          type: "quote_accepted",
+          description: `Quote accepted: ${jobTitle} ($${Number(q.totalAmount).toLocaleString()})`,
+          timestamp: q.createdAt || new Date(),
+          entityId: q.id,
+          entityType: "quote",
+        });
+      } else if (q.status === "rejected") {
+        activities.push({
+          type: "quote_rejected",
+          description: `Quote rejected: ${jobTitle}`,
+          timestamp: q.createdAt || new Date(),
+          entityId: q.id,
+          entityType: "quote",
+        });
+      } else {
+        activities.push({
+          type: "quote_created",
+          description: `Quote created: ${jobTitle} ($${Number(q.totalAmount).toLocaleString()})`,
+          timestamp: q.createdAt || new Date(),
+          entityId: q.id,
+          entityType: "quote",
+        });
+      }
+    }
+
+    for (const j of recentJobs) {
+      if (j.status === "completed") {
+        activities.push({
+          type: "job_completed",
+          description: `Job completed: ${j.title}`,
+          timestamp: j.createdAt || new Date(),
+          entityId: j.id,
+          entityType: "job",
+        });
+      } else {
+        activities.push({
+          type: "job_scheduled",
+          description: `Job scheduled: ${j.title}`,
+          timestamp: j.createdAt || new Date(),
+          entityId: j.id,
+          entityType: "job",
+        });
+      }
+    }
+
+    activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return activities.slice(0, limit);
+  }
+
   async getXeroToken(userId: string): Promise<XeroToken | undefined> {
     const [token] = await db.select().from(xeroTokens).where(eq(xeroTokens.userId, userId));
     return token;

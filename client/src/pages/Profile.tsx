@@ -44,6 +44,7 @@ const TRADE_TYPES = [
 
 const BLADE_METADATA: Record<string, { label: string; desc: string }> = {
   hero: { label: "AI Quoting", desc: "Hero section for AI quotes" },
+  activity: { label: "Recent Activity", desc: "Activity feed & quick templates" },
   stats: { label: "Quick Stats", desc: "Pending quotes & upcoming jobs" },
   pipeline: { label: "Quote Pipeline", desc: "Quotes by status overview" },
   actions: { label: "Quick Actions", desc: "Common shortcuts" },

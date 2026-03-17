@@ -468,7 +468,6 @@ CRITICAL RULES — follow these exactly:
   app.post(api.timers.start.path, async (req: any, res) => {
     try {
       const { jobId } = api.timers.start.input.parse(req.body);
-      // Check no active timer already running
       const active = await storage.getActiveTimer();
       if (active) {
         return res.status(409).json({ message: "A timer is already running. Stop it first." });
@@ -488,8 +487,7 @@ CRITICAL RULES — follow these exactly:
       const id = Number(req.params.id);
       const { notes } = req.body || {};
       const endTime = new Date();
-      // Get the entry to calculate duration
-      const entries = await storage.getTimerEntries(0); // we need to find by id
+      const entries = await storage.getTimerEntries(0);
       const active = await storage.getActiveTimer();
       if (!active || active.id !== id) {
         return res.status(404).json({ message: "Timer not found or already stopped" });
@@ -526,12 +524,9 @@ CRITICAL RULES — follow these exactly:
         customer = await storage.getCustomer(quote.customerId) || null;
       }
 
-      // Get business info — we need to find the settings but portal is unauthenticated
-      // Use a simple approach: get the first user settings (single-tenant app)
       const allQuotes = await storage.getQuotes();
       let businessName = "", businessPhone = "", businessEmail = "", businessAddress = "";
 
-      // Try to find settings - for now return what we can from the quote
       const feedback = await storage.getPortalFeedback(quote.id);
 
       res.json({
@@ -608,11 +603,9 @@ CRITICAL RULES — follow these exactly:
       const quote = await storage.getQuote(quoteId);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
-      // Check if invoice already exists for this quote
       const existing = await storage.getInvoiceByQuoteId(quoteId);
       if (existing) return res.status(409).json({ message: "Invoice already exists for this quote" });
 
-      // Parse quote content for line items
       let items: any[] = [];
       let subtotal = 0;
       let gstAmount = 0;
@@ -633,7 +626,6 @@ CRITICAL RULES — follow these exactly:
         subtotal = Number(quote.totalAmount) || 0;
       }
 
-      // Get payment terms from user settings
       const userId = req.user?.claims?.sub;
       let paymentTermsDays = 14;
       if (userId) {
@@ -694,7 +686,7 @@ CRITICAL RULES — follow these exactly:
           for (let i = 0; i < schedule.length; i++) {
             if (schedule[i].status === "pending" && daysSinceSent >= schedule[i].day) {
               dueFollowUps.push({ quote, dueIndex: i, dayNumber: schedule[i].day });
-              break; // only show the first due follow-up per quote
+              break;
             }
           }
         } catch { /* skip malformed schedule */ }
@@ -743,9 +735,98 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  // ─── Auto-generate shareToken + followUpSchedule when quote status → "sent" ───
-  // This is handled by wrapping the existing quote update route — we need to add middleware
-  // We'll add it as a post-update hook in the existing PATCH /api/quotes/:id handler
+  // ─── Job Templates ───
+
+  app.get("/api/templates", async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    const templates = await storage.getJobTemplates(userId);
+    res.json(templates);
+  });
+
+  app.post("/api/templates", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const { label, icon, description } = req.body;
+      if (!label || typeof label !== "string") {
+        return res.status(400).json({ message: "Label is required" });
+      }
+      const template = await storage.createJobTemplate({
+        userId,
+        label,
+        icon: icon || "📋",
+        description: description || "",
+      });
+      res.status(201).json(template);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to create template" });
+    }
+  });
+
+  app.delete("/api/templates/:id", async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    await storage.deleteJobTemplate(Number(req.params.id), userId);
+    res.json({ ok: true });
+  });
+
+  // ─── Recent Activity ───
+
+  app.get("/api/activity", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const activities = await storage.getRecentActivity(20);
+      res.json(activities);
+    } catch (err) {
+      console.error("Activity fetch error:", err);
+      res.status(500).json({ message: "Failed to fetch activity" });
+    }
+  });
+
+  // ─── Frequent Job Types ───
+
+  app.get("/api/templates/frequent", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const allQuotes = await storage.getQuotes();
+      const counts: Record<string, { count: number; icon: string }> = {};
+      allQuotes.forEach(q => {
+        try {
+          const parsed = JSON.parse(q.content || "{}");
+          const title = parsed.jobTitle || parsed.title;
+          if (title) {
+            if (!counts[title]) counts[title] = { count: 0, icon: "📋" };
+            counts[title].count++;
+          }
+        } catch {}
+      });
+
+      const frequent = Object.entries(counts)
+        .sort((a, b) => b[1].count - a[1].count)
+        .slice(0, 6)
+        .map(([label, data]) => {
+          let icon = "📋";
+          const l = label.toLowerCase();
+          if (l.includes("bath")) icon = "🚿";
+          else if (l.includes("deck")) icon = "🪵";
+          else if (l.includes("switch") || l.includes("electric")) icon = "⚡";
+          else if (l.includes("light") || l.includes("downlight")) icon = "💡";
+          else if (l.includes("plumb") || l.includes("leak") || l.includes("faucet")) icon = "🚰";
+          else if (l.includes("roof")) icon = "🏠";
+          else if (l.includes("paint")) icon = "🎨";
+          else if (l.includes("fence")) icon = "🪵";
+          else if (l.includes("air") || l.includes("hvac")) icon = "❄️";
+          return { label, icon, count: data.count };
+        });
+
+      res.json(frequent);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch frequent templates" });
+    }
+  });
 
   // ─── Xero OAuth2 PKCE Routes ───
 

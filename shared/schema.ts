@@ -156,19 +156,30 @@ export const userSettings = pgTable("user_settings", {
   includeGST: boolean("include_gst").default(true),
   weeklyGoal: integer("weekly_goal").default(0),
   darkMode: boolean("dark_mode").default(false),
-  bladeOrder: text("blade_order").default('["hero","pipeline","actions","revenue","stats","calendar"]'),
-  // Bank details for invoicing
+  bladeOrder: text("blade_order").default('["hero","activity","pipeline","actions","revenue","stats","calendar"]'),
   bankName: text("bank_name").default(""),
   bsb: text("bsb").default(""),
   accountNumber: text("account_number").default(""),
   accountName: text("account_name").default(""),
   paymentTermsDays: integer("payment_terms_days").default(14),
-  // Follow-up automation
   followUpEnabled: boolean("follow_up_enabled").default(false),
   followUpDays: text("follow_up_days").default("[3,7,14]"),
   followUpChannel: text("follow_up_channel").default("sms"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+export const jobTemplates = pgTable("job_templates", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  label: text("label").notNull(),
+  icon: text("icon").default("📋"),
+  description: text("description").default(""),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertJobTemplateSchema = createInsertSchema(jobTemplates).omit({ id: true, createdAt: true });
+export type JobTemplate = typeof jobTemplates.$inferSelect;
+export type InsertJobTemplate = z.infer<typeof insertJobTemplateSchema>;
 
 export const xeroTokens = pgTable("xero_tokens", {
   userId: varchar("user_id").primaryKey().references(() => users.id),

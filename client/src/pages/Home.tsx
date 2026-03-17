@@ -8,6 +8,7 @@ import { Link } from "wouter";
 import { PipelineView } from "@/components/PipelineView";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { WeeklyRevenueGoalWidget } from "@/components/WeeklyRevenueGoalWidget";
+import { RecentActivityBlade } from "@/components/RecentActivityBlade";
 import { 
   Plus,
   ChevronRight,
@@ -78,7 +79,7 @@ export default function Home() {
     }));
   }, [quotes]);
   
-  const ALL_BLADES = ["hero", "pipeline", "actions", "revenue", "stats", "calendar"];
+  const ALL_BLADES = ["hero", "activity", "pipeline", "actions", "revenue", "stats", "calendar"];
 
   const [bladeOrder, setBladeOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem("vargenezey_home_blade_order");
@@ -229,6 +230,10 @@ export default function Home() {
                 </div>
               </div>
             );
+          }
+
+          if (bladeId === "activity") {
+            return <RecentActivityBlade key="activity" />;
           }
 
           if (bladeId === "revenue") {
