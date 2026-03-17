@@ -20,9 +20,12 @@ import {
   ShieldCheck,
   FileText,
   Eye,
+  ExternalLink,
+  Receipt,
 } from "lucide-react";
 import AcceptAndScheduleDialog from "@/components/AcceptAndScheduleDialog";
 import { jsPDF } from "jspdf";
+import { useCreateInvoiceFromQuote } from "@/hooks/use-invoices";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,6 +36,7 @@ import { format } from "date-fns";
 
 interface ParsedContent {
   jobTitle?: string;
+  customerName?: string;
   summary?: string;
   items?: { id?: string; description: string; quantity: number; unit?: string; unitPrice: number }[];
   notes?: string;
@@ -66,6 +70,7 @@ export default function QuoteDetail() {
   const { data: customers } = useCustomers();
   const { mutate: updateQuote, isPending: isUpdating } = useUpdateQuote();
   const { mutate: deleteQuote, isPending: isDeleting } = useDeleteQuote();
+  const createInvoiceMutation = useCreateInvoiceFromQuote();
   const { toast } = useToast();
 
   const quote = quotes?.find(q => q.id === id);
@@ -234,7 +239,7 @@ export default function QuoteDetail() {
   const buildShareText = () => {
     let text = `QUOTE: ${jobTitle}\n`;
     text += `Customer: ${customerName}\n`;
-    text += `Status: ${quote.status.toUpperCase()}\n`;
+    text += `Status: ${(quote.status || "draft").toUpperCase()}\n`;
     text += `Date: ${quote.createdAt ? format(new Date(quote.createdAt), "dd MMM yyyy") : "N/A"}\n\n`;
     text += `--- ITEMS ---\n`;
     items.forEach(item => {
@@ -309,7 +314,7 @@ export default function QuoteDetail() {
     doc.text(customerName, margin, y);
     y += 6;
 
-    const statusLabel = quote.status.charAt(0).toUpperCase() + quote.status.slice(1);
+    const statusLabel = (quote.status || "draft").charAt(0).toUpperCase() + (quote.status || "draft").slice(1);
     doc.text(`Status: ${statusLabel}`, margin, y);
     y += 12;
 
@@ -497,8 +502,8 @@ export default function QuoteDetail() {
           )}
           <p className="text-sm text-muted-foreground mt-1" data-testid="text-detail-customer">{customerName}</p>
           <div className="flex items-center justify-between gap-4 mt-3 flex-wrap">
-            <span className={cn("text-xs font-bold px-3 py-1.5 rounded-full capitalize", statusColor(quote.status))} data-testid="text-detail-status">
-              {quote.status}
+            <span className={cn("text-xs font-bold px-3 py-1.5 rounded-full capitalize", statusColor(quote.status || "draft"))} data-testid="text-detail-status">
+              {quote.status || "draft"}
             </span>
             {quote.createdAt && (
               <span className="text-xs text-muted-foreground" data-testid="text-detail-date">
@@ -792,6 +797,22 @@ export default function QuoteDetail() {
                 </div>
               </div>
             )}
+            {quote.status === "accepted" && (
+              <Button
+                onClick={() => {
+                  createInvoiceMutation.mutate(quote.id, {
+                    onSuccess: (invoice: any) => {
+                      setLocation(`/invoices/${invoice.id}`);
+                    },
+                  });
+                }}
+                disabled={createInvoiceMutation.isPending}
+                className="w-full h-14 rounded-2xl text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {createInvoiceMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Receipt className="w-5 h-5 mr-2" />}
+                Create Invoice
+              </Button>
+            )}
             {(quote.status === "accepted" || quote.status === "rejected") && (
               <Button
                 onClick={() => handleStatusChange("draft")}
@@ -883,6 +904,26 @@ export default function QuoteDetail() {
                 <p className="text-sm text-muted-foreground">Share a direct link to this quote</p>
               </div>
             </button>
+            {quote.shareToken && (
+              <button
+                onClick={() => {
+                  const portalUrl = `${window.location.origin}/portal/${quote.shareToken}`;
+                  navigator.clipboard.writeText(portalUrl).then(() => {
+                    toast({ title: "Portal link copied!", description: "Clients can accept or request changes from this link." });
+                    setShowShareSheet(false);
+                  });
+                }}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left hover-elevate active-elevate-2 transition-all"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                  <ExternalLink className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-foreground">Client Portal Link</p>
+                  <p className="text-sm text-muted-foreground">Client can accept or request changes</p>
+                </div>
+              </button>
+            )}
             <button
               onClick={() => { setShowShareSheet(false); setLocation(`/quotes/${quote.id}/preview`); }}
               className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left hover-elevate active-elevate-2 transition-all"

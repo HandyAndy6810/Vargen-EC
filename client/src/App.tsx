@@ -17,11 +17,18 @@ import QuoteCreate from "@/pages/QuoteCreate";
 import Contacts from "@/pages/Contacts";
 import Profile from "@/pages/Profile";
 import QuotePreview from "@/pages/QuotePreview";
+import Portal from "@/pages/Portal";
+import Invoices from "@/pages/Invoices";
+import InvoiceDetail from "@/pages/InvoiceDetail";
+import InvoicePreview from "@/pages/InvoicePreview";
 
 function Router() {
   return (
     <Switch>
+      {/* Public routes — no auth/layout wrapper */}
       <Route path="/quotes/:id/preview" component={QuotePreview} />
+      <Route path="/portal/:token" component={Portal} />
+      <Route path="/invoices/:id/preview" component={InvoicePreview} />
       <Route>
         {() => (
           <Layout>
@@ -36,6 +43,8 @@ function Router() {
               <Route path="/quotes/new" component={QuoteCreate} />
               <Route path="/quotes/:id" component={QuoteDetail} />
               <Route path="/contacts" component={Contacts} />
+              <Route path="/invoices" component={Invoices} />
+              <Route path="/invoices/:id" component={InvoiceDetail} />
               <Route path="/profile" component={Profile} />
               <Route component={NotFound} />
             </Switch>

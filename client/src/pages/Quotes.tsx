@@ -35,7 +35,7 @@ export default function Quotes() {
   const historyStatuses = ["accepted", "rejected"];
 
   const filteredQuotes = quotes
-    ?.filter(q => tab === "active" ? activeStatuses.includes(q.status) : historyStatuses.includes(q.status))
+    ?.filter(q => tab === "active" ? activeStatuses.includes(q.status || "") : historyStatuses.includes(q.status || ""))
     .sort((a, b) => {
       const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -44,13 +44,13 @@ export default function Quotes() {
     || [];
 
   const totalPipeline = quotes
-    ?.filter(q => activeStatuses.includes(q.status))
+    ?.filter(q => activeStatuses.includes(q.status || ""))
     .reduce((sum, q) => sum + Number(q.totalAmount || 0), 0) || 0;
 
   const stats = (() => {
     if (!quotes) return { winRate: 0, avgValue: 0 };
-    const sent = quotes.filter(q => q.status === "sent").length;
-    const accepted = quotes.filter(q => q.status === "accepted").length;
+    const sent = quotes.filter(q => (q.status || "") === "sent").length;
+    const accepted = quotes.filter(q => (q.status || "") === "accepted").length;
     const winRate = sent > 0 ? (accepted / (sent + accepted)) * 100 : 0;
     const avgValue = quotes.length > 0 
       ? quotes.reduce((sum, q) => sum + Number(q.totalAmount || 0), 0) / quotes.length 
@@ -79,7 +79,7 @@ export default function Quotes() {
     return `Quote #${quote.id}`;
   };
 
-  const getQuoteWarnings = (quote: { id: number; content: string | null; jobId: number | null; status: string }) => {
+  const getQuoteWarnings = (quote: { id: number; content: string | null; jobId: number | null; status: string | null }) => {
     const warnings: string[] = [];
     const parsed = parseQuoteContent(quote.content);
     const customer = getCustomer(quote);
@@ -269,8 +269,9 @@ export default function Quotes() {
           </div>
         ) : (
           filteredQuotes.map(quote => {
-            const isCold = quote.status === "sent" && quote.createdAt && differenceInDays(new Date(), new Date(quote.createdAt)) >= 7;
-            
+            const status = quote.status || "draft";
+            const isCold = !!(status === "sent" && quote.createdAt && differenceInDays(new Date(), new Date(quote.createdAt)) >= 7);
+
             return (
               <div
                 key={quote.id}
@@ -278,7 +279,7 @@ export default function Quotes() {
                 className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-black/5 dark:border-white/10 cursor-pointer active:scale-[0.98] transition-all overflow-hidden flex"
                 data-testid={`card-quote-${quote.id}`}
               >
-                <div className={cn("w-1.5 shrink-0", getStatusBorder(quote.status, isCold))} />
+                <div className={cn("w-1.5 shrink-0", getStatusBorder(status, isCold))} />
                 <div className="p-5 flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -303,7 +304,7 @@ export default function Quotes() {
                           <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
                             Created {format(new Date(quote.createdAt), "dd MMM")}
                           </p>
-                          {quote.status === "sent" && (
+                          {status === "sent" && (
                             <p className={cn("text-[10px] uppercase font-bold tracking-tight", isCold ? "text-amber-600 dark:text-amber-400" : "text-orange-600 dark:text-orange-400")}>
                               {isCold ? "Going Cold" : `Expires ${format(addDays(new Date(quote.createdAt), 30), "dd MMM")}`}
                             </p>
@@ -329,8 +330,8 @@ export default function Quotes() {
 
                   <div className="flex items-center justify-between mt-3 gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={cn("text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg border", statusColor(quote.status, isCold))} data-testid={`text-quote-status-${quote.id}`}>
-                        {isCold && quote.status === "sent" ? "Going Cold" : quote.status}
+                      <span className={cn("text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg border", statusColor(status, isCold))} data-testid={`text-quote-status-${quote.id}`}>
+                        {isCold && status === "sent" ? "Going Cold" : status}
                       </span>
                       {isCold && quote.createdAt && (
                         <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">

@@ -1,6 +1,8 @@
 import { useJobs } from "@/hooks/use-jobs";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useAuth } from "@/hooks/use-auth";
+import { ActiveTimerBanner } from "@/components/ActiveTimerBanner";
+import { useFollowUpsDue } from "@/hooks/use-follow-ups";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "wouter";
 import { PipelineView } from "@/components/PipelineView";
@@ -32,6 +34,7 @@ export default function Home() {
   const { user } = useAuth();
   const { data: jobs } = useJobs();
   const { data: quotes } = useQuotes();
+  const { data: followUpsDue } = useFollowUpsDue();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const quickStarts = useMemo(() => {
@@ -154,6 +157,24 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background pb-32">
+      {/* Active Timer Banner */}
+      <ActiveTimerBanner />
+
+      {/* Follow-Ups Due Banner */}
+      {followUpsDue && followUpsDue.length > 0 && (
+        <Link href="/quotes">
+          <div className="mx-4 mb-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-600" />
+              <span className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                {followUpsDue.length} follow-up{followUpsDue.length !== 1 ? "s" : ""} due
+              </span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-amber-600" />
+          </div>
+        </Link>
+      )}
+
       {/* Top Header */}
       <div className="flex justify-between items-center px-6 pt-12 mb-8">
         <div className="flex-1 text-center">
