@@ -31,7 +31,8 @@ import {
   Unlink,
   CheckCircle2,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  Clock
 } from "lucide-react";
 import { getWeeklyGoal, setWeeklyGoal } from "@/components/WeeklyRevenueGoalWidget";
 
@@ -43,6 +44,7 @@ const TRADE_TYPES = [
 
 const BLADE_METADATA: Record<string, { label: string; desc: string }> = {
   hero: { label: "AI Quoting", desc: "Hero section for AI quotes" },
+  activity: { label: "Recent Activity", desc: "Activity feed & quick templates" },
   stats: { label: "Quick Stats", desc: "Pending quotes & upcoming jobs" },
   pipeline: { label: "Quote Pipeline", desc: "Quotes by status overview" },
   actions: { label: "Quick Actions", desc: "Common shortcuts" },
@@ -154,6 +156,53 @@ export default function Profile() {
     return v > 0 ? String(v) : "";
   });
 
+  const [bankDetails, setBankDetails] = useState({
+    bankName: "",
+    accountName: "",
+    bsb: "",
+    accountNumber: "",
+    paymentTermsDays: 14,
+  });
+
+  const [followUpSettings, setFollowUpSettings] = useState({
+    followUpEnabled: false,
+    followUpDays: "[3,7,14]",
+    followUpChannel: "sms",
+  });
+
+  const [isSavingBank, setIsSavingBank] = useState(false);
+  const [isSavingFollowUp, setIsSavingFollowUp] = useState(false);
+
+  const saveBankDetails = async () => {
+    setIsSavingBank(true);
+    try {
+      await updateSettingsAsync({
+        bankName: bankDetails.bankName,
+        accountName: bankDetails.accountName,
+        bsb: bankDetails.bsb,
+        accountNumber: bankDetails.accountNumber,
+        paymentTermsDays: bankDetails.paymentTermsDays,
+      });
+      toast({ title: "Bank details saved" });
+      setActiveSection(null);
+    } catch { /* error toast handled by mutation */ }
+    setIsSavingBank(false);
+  };
+
+  const saveFollowUpSettings = async () => {
+    setIsSavingFollowUp(true);
+    try {
+      await updateSettingsAsync({
+        followUpEnabled: followUpSettings.followUpEnabled,
+        followUpDays: followUpSettings.followUpDays,
+        followUpChannel: followUpSettings.followUpChannel,
+      });
+      toast({ title: "Follow-up settings saved" });
+      setActiveSection(null);
+    } catch { /* error toast handled by mutation */ }
+    setIsSavingFollowUp(false);
+  };
+
   const saveGoals = async () => {
     const parsed = Number(weeklyGoalInput);
     const goal = isNaN(parsed) ? 0 : Math.max(0, parsed);
@@ -191,6 +240,18 @@ export default function Profile() {
     if (dbSettings.bladeOrder) {
       setBladeOrder(normalizeBladeOrder(JSON.parse(dbSettings.bladeOrder)));
     }
+    setBankDetails({
+      bankName: dbSettings.bankName ?? "",
+      accountName: dbSettings.accountName ?? "",
+      bsb: dbSettings.bsb ?? "",
+      accountNumber: dbSettings.accountNumber ?? "",
+      paymentTermsDays: dbSettings.paymentTermsDays ?? 14,
+    });
+    setFollowUpSettings({
+      followUpEnabled: dbSettings.followUpEnabled ?? false,
+      followUpDays: dbSettings.followUpDays ?? "[3,7,14]",
+      followUpChannel: dbSettings.followUpChannel ?? "sms",
+    });
     // Keep localStorage in sync for other consumers
     localStorage.setItem("vargenezey_business_profile", JSON.stringify(bp));
     localStorage.setItem("vargenezey_quote_defaults", JSON.stringify(qd));
@@ -264,6 +325,8 @@ export default function Profile() {
     { id: "goals", icon: Target, label: "Goals", desc: "Weekly revenue target" },
     { id: "homeLayout", icon: Layout, label: "Home Layout", desc: "Change the stack of dashboard items" },
     { id: "appearance", icon: darkMode ? Moon : Sun, label: "Appearance", desc: darkMode ? "Dark mode" : "Light mode" },
+    { id: "bank", icon: Building2, label: "Bank Details", desc: "For invoicing — BSB, account number" },
+    { id: "followups", icon: Clock, label: "Follow-Up Automation", desc: dbSettings?.followUpEnabled ? "Enabled" : "Disabled" },
     { id: "xero", icon: Link2, label: "Xero Integration", desc: xeroStatus?.connected ? `Connected to ${xeroStatus.tenantName}` : "Connect your accounting" },
   ];
 
@@ -531,6 +594,128 @@ export default function Profile() {
           </div>
         )}
 
+        {/* Bank Details Expanded */}
+        {activeSection === "bank" && (
+          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-4 animate-in slide-in-from-top-2 duration-200">
+            <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-primary" /> Bank Details
+            </h3>
+            <p className="text-sm text-muted-foreground">These details appear on your invoices for client payment.</p>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Bank Name</Label>
+                <Input
+                  value={bankDetails.bankName}
+                  onChange={e => setBankDetails({ ...bankDetails, bankName: e.target.value })}
+                  placeholder="Commonwealth Bank"
+                  className="mt-1 rounded-xl"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Account Name</Label>
+                <Input
+                  value={bankDetails.accountName}
+                  onChange={e => setBankDetails({ ...bankDetails, accountName: e.target.value })}
+                  placeholder="John Smith Trading"
+                  className="mt-1 rounded-xl"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-sm font-medium">BSB</Label>
+                  <Input
+                    value={bankDetails.bsb}
+                    onChange={e => setBankDetails({ ...bankDetails, bsb: e.target.value })}
+                    placeholder="062-000"
+                    className="mt-1 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Account Number</Label>
+                  <Input
+                    value={bankDetails.accountNumber}
+                    onChange={e => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
+                    placeholder="12345678"
+                    className="mt-1 rounded-xl"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Payment Terms (days)</Label>
+                <Input
+                  type="number"
+                  value={bankDetails.paymentTermsDays}
+                  onChange={e => setBankDetails({ ...bankDetails, paymentTermsDays: parseInt(e.target.value) || 14 })}
+                  className="mt-1 rounded-xl w-32"
+                />
+              </div>
+              <Button onClick={saveBankDetails} disabled={isSavingBank} className="w-full h-12 rounded-xl font-bold">
+                {isSavingBank ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                Save Bank Details
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Follow-Up Settings Expanded */}
+        {activeSection === "followups" && (
+          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-4 animate-in slide-in-from-top-2 duration-200">
+            <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
+              <Clock className="w-5 h-5 text-primary" /> Follow-Up Automation
+            </h3>
+            <p className="text-sm text-muted-foreground">Automatically schedule follow-up reminders when you send a quote.</p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Enable Follow-Ups</p>
+                  <p className="text-sm text-muted-foreground">Get reminded to follow up on sent quotes</p>
+                </div>
+                <Switch
+                  checked={followUpSettings.followUpEnabled}
+                  onCheckedChange={(checked) => setFollowUpSettings({ ...followUpSettings, followUpEnabled: checked })}
+                />
+              </div>
+              {followUpSettings.followUpEnabled && (
+                <>
+                  <div>
+                    <Label className="text-sm font-medium">Follow-Up Days</Label>
+                    <p className="text-xs text-muted-foreground mb-2">Days after sending a quote to trigger follow-ups</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {(() => {
+                        const days = (() => { try { return JSON.parse(followUpSettings.followUpDays); } catch { return [3, 7, 14]; } })();
+                        return days.map((day: number, i: number) => (
+                          <div key={i} className="flex items-center gap-1 bg-primary/10 rounded-full px-3 py-1">
+                            <span className="text-sm font-medium">Day {day}</span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Default Channel</Label>
+                    <Select
+                      value={followUpSettings.followUpChannel}
+                      onValueChange={(val) => setFollowUpSettings({ ...followUpSettings, followUpChannel: val })}
+                    >
+                      <SelectTrigger className="mt-1 rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sms">SMS</SelectItem>
+                        <SelectItem value="email">Email</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              <Button onClick={saveFollowUpSettings} disabled={isSavingFollowUp} className="w-full h-12 rounded-xl font-bold">
+                {isSavingFollowUp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                Save Follow-Up Settings
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Xero Integration Expanded */}
         {activeSection === "xero" && (
           <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-4 animate-in slide-in-from-top-2 duration-200">
@@ -620,9 +805,14 @@ export default function Profile() {
                     data-testid="button-xero-connect"
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Connect to Xero
+                    {user ? "Connect to Xero" : "Log in & Connect to Xero"}
                   </Button>
                 </a>
+                {!user && (
+                  <p className="text-xs text-muted-foreground text-center px-1">
+                    You'll be asked to sign in first, then taken straight to Xero.
+                  </p>
+                )}
               </div>
             )}
           </div>

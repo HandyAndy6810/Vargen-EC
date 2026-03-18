@@ -39,6 +39,7 @@ Preferred communication style: Simple, everyday language.
 - **jobs**: id, customerId (FK→customers), title, description, status (scheduled/completed/cancelled), scheduledDate, createdAt
 - **quotes**: id, jobId (FK→jobs), totalAmount (numeric), status (draft/sent/accepted/rejected), content, createdAt
 - **quote_items**: id, quoteId (FK→quotes), description, quantity, price (numeric)
+- **job_templates**: id, userId (FK→users), label, icon, description, createdAt — user-saved quick templates for job types
 - **sessions**: sid, sess (jsonb), expire — required for Replit Auth, do not drop
 - **users**: id, email, firstName, lastName, profileImageUrl, createdAt, updatedAt — required for Replit Auth, do not drop
 - **conversations**: id, title, createdAt — for AI chat
@@ -67,7 +68,14 @@ The `shared/` directory contains code used by both client and server:
 - `shared/models/auth.ts` — User and session table definitions
 - `shared/models/chat.ts` — Conversation and message table definitions
 
+### Home Page Blade System
+The home page uses a reorderable blade system. Blades can be toggled and repositioned in Profile settings.
+- **Available blades**: `hero`, `activity`, `pipeline`, `actions`, `revenue`, `stats`, `calendar`
+- **Default order**: `["hero","activity","pipeline","actions","revenue","stats","calendar"]`
+- **Blade metadata** is defined in `client/src/pages/Profile.tsx` (BLADE_METADATA) and must be kept in sync with `client/src/pages/Home.tsx` (ALL_BLADES)
+
 ### Key Components
+- **RecentActivityBlade** (`client/src/components/RecentActivityBlade.tsx`) — Shows a live feed of recent actions (quotes created, accepted/rejected, jobs scheduled/completed) and a "Quick Templates" section with frequently quoted job types as tappable cards. Users can save frequent templates as permanent custom templates. Templates navigate to quote creation with pre-filled description. APIs: GET /api/activity, GET/POST/DELETE /api/templates, GET /api/templates/frequent.
 - **WeatherWidget** (`client/src/components/WeatherWidget.tsx`) — 4-day weather strip using Open-Meteo API (free, no key). Uses browser Geolocation API with Sydney fallback (-33.8688, 151.2093). Caches results in localStorage (3-hour TTL). Maps WMO weather codes to emojis. Highlights days with rain/wind AND a scheduled job in orange with ⚠️ warning badge. Placed in Home.tsx `calendar` blade below the weekly calendar card.
 - **WeeklyRevenueGoalWidget** (`client/src/components/WeeklyRevenueGoalWidget.tsx`) — SVG circular progress ring showing weekly revenue vs target. Sums `totalAmount` of "accepted" quotes created in the current Mon–Sun week. Goal stored in localStorage (`vargenezey_weekly_revenue_goal`). Returns null when goal=0 (hidden). Set via Settings > Goals. Placed in Home.tsx `revenue` blade (default: after Quick Actions, before Quick Stats).
 

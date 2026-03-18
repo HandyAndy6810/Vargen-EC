@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, ClipboardList, CalendarDays, Users, UserRound } from "lucide-react";
+import { Home, ClipboardList, CalendarDays, Users, UserRound, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function BottomNav() {
@@ -8,8 +8,8 @@ export function BottomNav() {
   const navItems = [
     { href: "/", icon: Home, label: "Home" },
     { href: "/quotes", icon: ClipboardList, label: "Quotes" },
+    { href: "/invoices", icon: FileText, label: "Invoices" },
     { href: "/jobs", icon: CalendarDays, label: "Calendar" },
-    { href: "/contacts", icon: Users, label: "Contacts" },
     { href: "/profile", icon: UserRound, label: "Profile" },
   ];
 

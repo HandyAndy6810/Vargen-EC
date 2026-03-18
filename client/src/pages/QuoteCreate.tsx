@@ -128,12 +128,42 @@ function saveDefaults(defaults: QuoteDefaults) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults)); } catch {}
 }
 
+const LOADING_LINES = [
+  "Counting bolts and checking margins...",
+  "Making sure you don't undersell yourself...",
+  "Cross-referencing 1,000 real Australian jobs...",
+  "Negotiating with imaginary suppliers...",
+  "Calculating travel time, parking, and a sneaky coffee...",
+  "Running the numbers past the foreman...",
+  "Asking the AI not to lowball you...",
+  "Checking your labour rate isn't from 2018...",
+  "Pricing like a tradie, not a charity...",
+  "Factoring in the 'it's harder than it looks' tax...",
+  "Consulting 15 years of job experience in 10 seconds...",
+  "Remembering to charge for consumables this time...",
+  "Checking if you've actually quoted this job before...",
+  "Making sure GST is on there — the ATO is watching...",
+  "Making sure cleanup time is in there...",
+  "Crunching numbers so you don't have to...",
+  "Waking up the apprentice...",
+  "Checking steel caps...",
+  "Factoring in smoko...",
+  "Waiting for the supplier to pick up...",
+  "Finding the tape measure...",
+  "Fuelling up the ute...",
+  "Arguing with the estimating software...",
+  "Waiting on parts...",
+  "Checking if the site has power...",
+];
+
 type Phase = "input" | "generating" | "editor" | "finalized";
 
 export default function QuoteCreate() {
   const [, setLocation] = useLocation();
   const [mode, setMode] = useState<"simple" | "advanced">("simple");
   const [phase, setPhase] = useState<Phase>("input");
+  const [lineIndex, setLineIndex] = useState(() => Math.floor(Math.random() * LOADING_LINES.length));
+  const [lineVisible, setLineVisible] = useState(true);
 
   const [description, setDescription] = useState("");
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -208,6 +238,18 @@ export default function QuoteCreate() {
   });
 
   useEffect(() => { saveDefaults(defaults); }, [defaults]);
+
+  useEffect(() => {
+    if (phase !== "generating") return;
+    const interval = setInterval(() => {
+      setLineVisible(false);
+      setTimeout(() => {
+        setLineIndex(i => (i + 1) % LOADING_LINES.length);
+        setLineVisible(true);
+      }, 350);
+    }, 2800);
+    return () => clearInterval(interval);
+  }, [phase]);
 
   const updateDefault = <K extends keyof QuoteDefaults>(key: K, value: QuoteDefaults[K]) => {
     setDefaults(prev => ({ ...prev, [key]: value }));
@@ -291,8 +333,13 @@ export default function QuoteCreate() {
       // Auto-create customer if name typed but not linked to existing
       let custId = selectedCustomerId;
       if (!custId && customerName.trim()) {
-        const newCust = await createCustomerMutation.mutateAsync({ name: customerName.trim() });
-        custId = newCust.id;
+        try {
+          const newCust = await createCustomerMutation.mutateAsync({ name: customerName.trim() });
+          custId = newCust.id;
+        } catch (custErr) {
+          console.error("Auto-create customer failed:", custErr);
+          // Continue saving quote without customer link rather than failing entirely
+        }
       }
 
       const contentData = {
@@ -338,6 +385,7 @@ export default function QuoteCreate() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       setSavedQuoteId(data.id);
       setShowFinalizeModal(false);
       setShowExportOptions(true);
@@ -743,10 +791,20 @@ export default function QuoteCreate() {
                 <Sparkles className="w-10 h-10 text-primary" />
               </div>
               <h2 className="text-2xl font-bold text-foreground mb-2">Generating Quote</h2>
-              <p className="text-muted-foreground mb-8">AI is analysing the job{photoBase64 ? " and photo" : ""} to build your quote...</p>
-              <div className="flex items-center gap-3 text-primary">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="font-medium">This usually takes 10-15 seconds</span>
+              <p
+                className="text-muted-foreground mb-8 h-6 transition-opacity duration-300"
+                style={{ opacity: lineVisible ? 1 : 0 }}
+              >
+                {LOADING_LINES[lineIndex]}
+              </p>
+              <div className="flex items-center gap-2">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="w-2.5 h-2.5 rounded-full bg-primary animate-bounce"
+                    style={{ animationDelay: `${i * 150}ms` }}
+                  />
+                ))}
               </div>
             </div>
           </div>

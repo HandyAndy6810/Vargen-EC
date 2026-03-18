@@ -15,33 +15,7 @@ import { useJobs } from "@/hooks/use-jobs";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-
-const TEMPLATES = [
-  {
-    id: "quote_ready",
-    label: "Quote Ready",
-    subject: (name: string) => `Your Quote is Ready`,
-    body: (name: string) => `Hi ${name},\n\nYour quote is ready for review. Please let me know if you have any questions or would like to discuss anything.\n\nThanks,`,
-  },
-  {
-    id: "running_late",
-    label: "Running Late",
-    subject: (name: string) => `Running a bit late`,
-    body: (name: string) => `Hi ${name},\n\nJust letting you know I'm running a bit late today. I'll be there as soon as I can. Apologies for the inconvenience!\n\nThanks,`,
-  },
-  {
-    id: "follow_up",
-    label: "Follow Up",
-    subject: (name: string) => `Following up`,
-    body: (name: string) => `Hi ${name},\n\nI just wanted to follow up and see if you had any questions about the work we discussed. Happy to chat anytime.\n\nThanks,`,
-  },
-  {
-    id: "job_complete",
-    label: "Job Complete",
-    subject: (name: string) => `Job Completed`,
-    body: (name: string) => `Hi ${name},\n\nThe job has been completed. Please don't hesitate to get in touch if you need anything else. It was great working with you!\n\nThanks,`,
-  },
-];
+import { MESSAGE_TEMPLATES } from "@/lib/message-templates";
 
 function getInitials(name: string) {
   return name
@@ -86,7 +60,7 @@ export default function Contacts() {
 
     return customers.map((c) => {
       const customerJobs = jobs?.filter((j) => j.customerId === c.id) ?? [];
-      const customerQuotes = quotes?.filter((q) => (q as any).customerId === c.id) ?? [];
+      const customerQuotes = quotes?.filter((q) => q.customerId === c.id) ?? [];
       const lastJob = customerJobs.sort((a, b) => {
         const aDate = a.scheduledDate ? new Date(a.scheduledDate).getTime() : 0;
         const bDate = b.scheduledDate ? new Date(b.scheduledDate).getTime() : 0;
@@ -119,7 +93,7 @@ export default function Contacts() {
       phone: c.phone || "",
       email: c.email || "",
       address: c.address || "",
-      notes: (c as any).notes || "",
+      notes: c.notes || "",
     });
   };
 
@@ -250,7 +224,7 @@ export default function Contacts() {
         {filtered.map(({ customer, lastJob, jobCount, quoteCount }) => {
           const isExpanded = expandedId === customer.id;
           const isEditing = editingId === customer.id;
-          const template = TEMPLATES.find((t) => t.id === selectedTemplate) ?? TEMPLATES[0];
+          const template = MESSAGE_TEMPLATES.find((t) => t.id === selectedTemplate) ?? MESSAGE_TEMPLATES[0];
           const firstName = customer.name.split(" ")[0];
           const smsBody = template.body(firstName);
           const emailSubject = template.subject(firstName);
@@ -380,10 +354,10 @@ export default function Contacts() {
                             <span>{customer.address}</span>
                           </div>
                         )}
-                        {(customer as any).notes && (
+                        {customer.notes && (
                           <div className="flex items-start gap-2 text-sm">
                             <FileText className="w-3.5 h-3.5 text-muted-foreground mt-0.5" />
-                            <span className="text-muted-foreground">{(customer as any).notes}</span>
+                            <span className="text-muted-foreground">{customer.notes}</span>
                           </div>
                         )}
                       </div>
@@ -418,7 +392,7 @@ export default function Contacts() {
                               Message Template
                             </p>
                             <div className="flex flex-wrap gap-2">
-                              {TEMPLATES.map((t) => (
+                              {MESSAGE_TEMPLATES.map((t) => (
                                 <button
                                   key={t.id}
                                   onClick={() => setSelectedTemplate(t.id)}

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertCustomerSchema, insertJobSchema, insertQuoteSchema, insertQuoteItemSchema, insertUserSettingsSchema, customers, jobs, quotes, quoteItems, userSettings } from './schema';
+import { insertCustomerSchema, insertJobSchema, insertQuoteSchema, insertQuoteItemSchema, insertUserSettingsSchema, insertInvoiceSchema, customers, jobs, quotes, quoteItems, userSettings, invoices, jobTimerEntries, portalFeedback } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -123,6 +123,148 @@ export const api = {
     delete: {
       method: 'DELETE' as const,
       path: '/api/quotes/:id',
+      responses: {
+        200: z.object({ ok: z.boolean() }),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  invoices: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/invoices',
+      responses: {
+        200: z.array(z.custom<typeof invoices.$inferSelect>()),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/invoices/:id',
+      responses: {
+        200: z.custom<typeof invoices.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    createFromQuote: {
+      method: 'POST' as const,
+      path: '/api/invoices/from-quote/:quoteId',
+      responses: {
+        201: z.custom<typeof invoices.$inferSelect>(),
+        404: errorSchemas.notFound,
+        409: z.object({ message: z.string() }),
+      },
+    },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/invoices/:id',
+      input: insertInvoiceSchema.partial(),
+      responses: {
+        200: z.custom<typeof invoices.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  timers: {
+    active: {
+      method: 'GET' as const,
+      path: '/api/timers/active',
+      responses: {
+        200: z.custom<typeof jobTimerEntries.$inferSelect>().nullable(),
+      },
+    },
+    listForJob: {
+      method: 'GET' as const,
+      path: '/api/jobs/:jobId/timers',
+      responses: {
+        200: z.array(z.custom<typeof jobTimerEntries.$inferSelect>()),
+      },
+    },
+    start: {
+      method: 'POST' as const,
+      path: '/api/timers/start',
+      input: z.object({ jobId: z.number() }),
+      responses: {
+        201: z.custom<typeof jobTimerEntries.$inferSelect>(),
+        409: z.object({ message: z.string() }),
+      },
+    },
+    stop: {
+      method: 'POST' as const,
+      path: '/api/timers/:id/stop',
+      input: z.object({ notes: z.string().optional() }),
+      responses: {
+        200: z.custom<typeof jobTimerEntries.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/timers/:id',
+      responses: {
+        200: z.object({ ok: z.boolean() }),
+      },
+    },
+  },
+  portal: {
+    get: {
+      method: 'GET' as const,
+      path: '/api/portal/:token',
+      responses: {
+        200: z.object({
+          quote: z.custom<typeof quotes.$inferSelect>(),
+          customer: z.custom<typeof customers.$inferSelect>().nullable(),
+          items: z.array(z.custom<typeof quoteItems.$inferSelect>()),
+          businessName: z.string(),
+          businessPhone: z.string(),
+          businessEmail: z.string(),
+          businessAddress: z.string(),
+        }),
+        404: errorSchemas.notFound,
+      },
+    },
+    accept: {
+      method: 'POST' as const,
+      path: '/api/portal/:token/accept',
+      responses: {
+        200: z.object({ ok: z.boolean() }),
+        404: errorSchemas.notFound,
+      },
+    },
+    feedback: {
+      method: 'POST' as const,
+      path: '/api/portal/:token/feedback',
+      input: z.object({ message: z.string() }),
+      responses: {
+        201: z.custom<typeof portalFeedback.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  followUps: {
+    due: {
+      method: 'GET' as const,
+      path: '/api/follow-ups/due',
+      responses: {
+        200: z.array(z.object({
+          quote: z.custom<typeof quotes.$inferSelect>(),
+          dueIndex: z.number(),
+          dayNumber: z.number(),
+        })),
+      },
+    },
+    markSent: {
+      method: 'POST' as const,
+      path: '/api/follow-ups/:quoteId/mark-sent',
+      input: z.object({ dayIndex: z.number() }),
+      responses: {
+        200: z.object({ ok: z.boolean() }),
+        404: errorSchemas.notFound,
+      },
+    },
+    skip: {
+      method: 'POST' as const,
+      path: '/api/follow-ups/:quoteId/skip',
+      input: z.object({ dayIndex: z.number() }),
       responses: {
         200: z.object({ ok: z.boolean() }),
         404: errorSchemas.notFound,
