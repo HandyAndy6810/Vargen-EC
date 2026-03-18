@@ -1,3 +1,4 @@
+import { useXeroStatus, useXeroCreateInvoice } from "@/hooks/use-xero";
 import { useQuotes, useUpdateQuote, useDeleteQuote } from "@/hooks/use-quotes";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
@@ -70,7 +71,10 @@ export default function QuoteDetail() {
   const { data: customers } = useCustomers();
   const { mutate: updateQuote, isPending: isUpdating } = useUpdateQuote();
   const { mutate: deleteQuote, isPending: isDeleting } = useDeleteQuote();
+  const { data: xeroStatus } = useXeroStatus();
+  const { mutate: createXeroInvoice, isPending: isCreatingInvoice } = useXeroCreateInvoice();
   const createInvoiceMutation = useCreateInvoiceFromQuote();
+>>>>>>> 39db9f8c57a88f74e5a8d9b876c4059abd954508
   const { toast } = useToast();
 
   const quote = quotes?.find(q => q.id === id);
@@ -837,6 +841,34 @@ export default function QuoteDetail() {
           </div>
         )}
       </div>
+      {/* Xero Invoice - shown when quote is accepted and Xero is connected */}
+      {!editing && quote.status === "accepted" && xeroStatus?.connected && (
+        <div className="px-4 pb-4">
+          {(quote as any).xeroInvoiceId ? (
+            <div className="flex items-center gap-3 px-4 py-3 bg-green-50 dark:bg-green-950/30 rounded-2xl border border-green-200 dark:border-green-800">
+              <ExternalLink className="w-4 h-4 text-green-600 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-green-800 dark:text-green-300">Xero Invoice Created</p>
+                <p className="text-xs text-green-600 dark:text-green-400">{(quote as any).xeroInvoiceNumber}</p>
+              </div>
+            </div>
+          ) : (
+            <Button
+              onClick={() => createXeroInvoice(quote.id)}
+              disabled={isCreatingInvoice}
+              className="w-full h-12 rounded-2xl text-sm font-bold bg-[#13B5EA] hover:bg-[#0FA1D1] text-white"
+              data-testid="button-create-xero-invoice"
+            >
+              {isCreatingInvoice ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <ExternalLink className="w-4 h-4 mr-2" />
+              )}
+              Send to Xero as Invoice
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Accept & Schedule Dialog */}
       <AcceptAndScheduleDialog

@@ -166,3 +166,138 @@ export async function getValidToken(userId: string): Promise<{ accessToken: stri
     return null;
   }
 }
+
+// ─── Xero Accounting API helpers ─────────────────────────────────────────────
+
+const XERO_API_BASE = "https://api.xero.com/api.xro/2.0";
+
+function xeroHeaders(accessToken: string, tenantId: string) {
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    "Xero-tenant-id": tenantId,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+}
+
+export interface XeroContactResult {
+  contactId: string;
+  name: string;
+}
+
+/**
+ * Create or update a Xero Contact from a local customer.
+ * Pass existing xeroContactId to update; omit to create.
+ */
+export async function upsertXeroContact(
+  accessToken: string,
+  tenantId: string,
+  customer: { name: string; email?: string | null; phone?: string | null; address?: string | null; xeroContactId?: string | null }
+): Promise<XeroContactResult> {
+  const contact: Record<string, any> = {
+    Name: customer.name,
+  };
+
+  if (customer.xeroContactId) {
+    contact.ContactID = customer.xeroContactId;
+  }
+  if (customer.email) {
+    contact.EmailAddress = customer.email;
+  }
+  if (customer.phone) {
+    contact.Phones = [{ PhoneType: "MOBILE", PhoneNumber: customer.phone }];
+  }
+  if (customer.address) {
+    contact.Addresses = [{ AddressType: "STREET", AddressLine1: customer.address }];
+  }
+
+  const res = await fetch(`${XERO_API_BASE}/Contacts`, {
+    method: "POST",
+    headers: xeroHeaders(accessToken, tenantId),
+    body: JSON.stringify({ Contacts: [contact] }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error("Xero upsertContact failed:", res.status, errText);
+    throw new Error(`Failed to sync contact to Xero: ${res.status}`);
+  }
+
+  const data = await res.json();
+  const created = data?.Contacts?.[0];
+  if (!created?.ContactID) {
+    throw new Error("Xero returned no ContactID after upsert");
+  }
+
+  return { contactId: created.ContactID, name: created.Name };
+}
+
+export interface XeroInvoiceResult {
+  invoiceId: string;
+  invoiceNumber: string;
+}
+
+/**
+ * Create a Xero Invoice (ACCREC) from an accepted quote.
+ * Requires the customer to already have a xeroContactId.
+ */
+export async function createXeroInvoice(
+  accessToken: string,
+  tenantId: string,
+  opts: {
+    xeroContactId: string;
+    quoteId: number;
+    jobTitle: string;
+    lineItems: { description: string; quantity: number; unitPrice: number }[];
+    includeGST: boolean;
+    dueDate?: Date;
+  }
+): Promise<XeroInvoiceResult> {
+  const today = new Date().toISOString().split("T")[0];
+  const due = opts.dueDate
+    ? opts.dueDate.toISOString().split("T")[0]
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]; // 30-day default
+
+  const lineItems = opts.lineItems.map((item) => ({
+    Description: item.description,
+    Quantity: item.quantity,
+    UnitAmount: parseFloat(item.unitPrice.toFixed(2)),
+    AccountCode: "200", // Standard "Sales" account in Xero AU
+    ...(opts.includeGST ? { TaxType: "OUTPUT2" } : { TaxType: "EXEMPTOUTPUT" }),
+  }));
+
+  const invoice: Record<string, any> = {
+    Type: "ACCREC",
+    Contact: { ContactID: opts.xeroContactId },
+    LineItems: lineItems,
+    LineAmountTypes: opts.includeGST ? "EXCLUSIVE" : "NOTAX",
+    Date: today,
+    DueDate: due,
+    Status: "AUTHORISED",
+    Reference: `VG-Q${opts.quoteId}`,
+    Description: opts.jobTitle,
+  };
+
+  const res = await fetch(`${XERO_API_BASE}/Invoices`, {
+    method: "POST",
+    headers: xeroHeaders(accessToken, tenantId),
+    body: JSON.stringify({ Invoices: [invoice] }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error("Xero createInvoice failed:", res.status, errText);
+    throw new Error(`Failed to create Xero invoice: ${res.status}`);
+  }
+
+  const data = await res.json();
+  const created = data?.Invoices?.[0];
+  if (!created?.InvoiceID) {
+    throw new Error("Xero returned no InvoiceID after creation");
+  }
+
+  return {
+    invoiceId: created.InvoiceID,
+    invoiceNumber: created.InvoiceNumber || `INV-${opts.quoteId}`,
+  };
+}

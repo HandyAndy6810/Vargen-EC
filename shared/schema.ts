@@ -14,6 +14,7 @@ export const customers = pgTable("customers", {
   phone: text("phone"),
   address: text("address"),
   notes: text("notes").default(""),
+  xeroContactId: text("xero_contact_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -35,6 +36,8 @@ export const quotes = pgTable("quotes", {
   totalAmount: numeric("total_amount").notNull(),
   status: text("status").default("draft"), // draft, sent, viewed, accepted, rejected
   content: text("content"), // AI generated text or structured notes
+  xeroInvoiceId: text("xero_invoice_id"),
+  xeroInvoiceNumber: text("xero_invoice_number"),
   shareToken: text("share_token"), // UUID for client portal link
   followUpSchedule: text("follow_up_schedule"), // JSON: [{ day, status, sentAt? }]
   createdAt: timestamp("created_at").defaultNow(),
@@ -223,3 +226,4 @@ export type JobTimerEntry = typeof jobTimerEntries.$inferSelect;
 export type InsertJobTimerEntry = z.infer<typeof insertJobTimerEntrySchema>;
 export type PortalFeedback = typeof portalFeedback.$inferSelect;
 export type InsertPortalFeedback = z.infer<typeof insertPortalFeedbackSchema>;
+>>>>>>> 39db9f8c57a88f74e5a8d9b876c4059abd954508

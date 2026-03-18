@@ -1,6 +1,8 @@
+import { useXeroStatus, useXeroSyncCustomer } from "@/hooks/use-xero";
 import { useState, useMemo } from "react";
 import {
   Search, Phone, Mail, ChevronDown, ChevronUp, Plus,
+  Link2, CheckCircle2,
   UserPlus, Pencil, Trash2, MapPin, FileText, Briefcase,
   Save, X, Users
 } from "lucide-react";
@@ -42,6 +44,8 @@ export default function Contacts() {
   const updateCustomer = useUpdateCustomer();
   const deleteCustomer = useDeleteCustomer();
 
+  const { data: xeroStatus } = useXeroStatus();
+  const syncCustomer = useXeroSyncCustomer();
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("quote_ready");
@@ -266,6 +270,19 @@ export default function Contacts() {
                       className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 hover:bg-blue-100 transition-colors">
                       <Mail className="w-4 h-4" />
                     </a>
+                  )}
+                  {xeroStatus?.connected && (
+                    (customer as any).xeroContactId ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" title="Synced to Xero" />
+                    ) : (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); syncCustomer.mutate(customer.id); }}
+                        className="p-1.5 rounded-lg bg-[#13B5EA]/10 text-[#13B5EA] hover:bg-[#13B5EA]/20 transition-colors shrink-0"
+                        title="Sync to Xero"
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
+                      </button>
+                    )
                   )}
                   {isExpanded ? (
                     <ChevronUp className="w-4 h-4 text-muted-foreground ml-1" />

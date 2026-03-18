@@ -12,11 +12,90 @@ import { registerAudioRoutes } from "./replit_integrations/audio";
 import { registerImageRoutes } from "./replit_integrations/image";
 import multer from "multer";
 import fs from "fs";
-import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken } from "./xero";
+import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken, upsertXeroContact, createXeroInvoice } from "./xero";
 import { getTradeContext } from "./trade-knowledge";
 import crypto from "crypto";
 
 const upload = multer({ dest: "uploads/" });
+
+/** Fire-and-forget: sync a customer to Xero if the user has a connection. */
+async function autoSyncCustomerToXero(userId: string, customerId: number) {
+  try {
+    const token = await getValidToken(userId);
+    if (!token) return;
+    const customer = await storage.getCustomer(customerId);
+    if (!customer) return;
+    const result = await upsertXeroContact(token.accessToken, token.tenantId, customer);
+    if (result.contactId !== customer.xeroContactId) {
+      await storage.updateCustomer(customerId, { xeroContactId: result.contactId });
+    }
+  } catch (err) {
+    console.error("Auto Xero contact sync failed for customer", customerId, err);
+  }
+}
+
+/** Fire-and-forget: create a Xero invoice from an accepted quote. */
+async function autoCreateXeroInvoice(userId: string, quoteId: number) {
+  const token = await getValidToken(userId);
+  if (!token) return;
+
+  const quote = await storage.getQuote(quoteId);
+  if (!quote || quote.xeroInvoiceId) return;
+
+  // Ensure customer is synced first
+  let xeroContactId = quote.customerId
+    ? (await storage.getCustomer(quote.customerId))?.xeroContactId
+    : null;
+
+  if (!xeroContactId && quote.customerId) {
+    const syncResult = await syncCustomerToXero(token, quote.customerId);
+    xeroContactId = syncResult?.contactId ?? null;
+  }
+
+  if (!xeroContactId) throw new Error("Cannot create invoice: customer has no Xero contact");
+
+  const items = await storage.getQuoteItems(quoteId);
+  const parsed = quote.content ? (() => { try { return JSON.parse(quote.content!); } catch { return null; } })() : null;
+  const jobTitle = parsed?.jobTitle || `Quote #`;
+  const includeGST = parsed?.includeGST ?? true;
+
+  const lineItems = items.map((i) => ({
+    description: i.description,
+    quantity: i.quantity,
+    unitPrice: parseFloat(String(i.price)),
+  }));
+
+  if (lineItems.length === 0) {
+    lineItems.push({ description: jobTitle, quantity: 1, unitPrice: parseFloat(String(quote.totalAmount)) });
+  }
+
+  const result = await createXeroInvoice(token.accessToken, token.tenantId, {
+    xeroContactId,
+    quoteId,
+    jobTitle,
+    lineItems,
+    includeGST,
+  });
+
+  await storage.updateQuote(quoteId, {
+    xeroInvoiceId: result.invoiceId,
+    xeroInvoiceNumber: result.invoiceNumber,
+  });
+
+  console.log(`Xero invoice  created for quote `);
+}
+
+/** Helper to sync a customer to Xero and persist the contactId. */
+async function syncCustomerToXero(
+  token: { accessToken: string; tenantId: string },
+  customerId: number
+): Promise<{ contactId: string } | null> {
+  const customer = await storage.getCustomer(customerId);
+  if (!customer) return null;
+  const result = await upsertXeroContact(token.accessToken, token.tenantId, customer);
+  await storage.updateCustomer(customerId, { xeroContactId: result.contactId });
+  return { contactId: result.contactId };
+}
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -54,6 +133,8 @@ export async function registerRoutes(
     try {
       const input = api.customers.create.input.parse(req.body);
       const customer = await storage.createCustomer(input);
+      const userId = (req as any).user?.claims?.sub;
+      if (userId) autoSyncCustomerToXero(userId, customer.id);
       res.status(201).json(customer);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -71,6 +152,8 @@ export async function registerRoutes(
       if (!existing) return res.status(404).json({ message: "Customer not found" });
       const input = api.customers.update.input.parse(req.body);
       const customer = await storage.updateCustomer(id, input);
+      const userId = (req as any).user?.claims?.sub;
+      if (userId) autoSyncCustomerToXero(userId, id);
       res.json(customer);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -159,8 +242,9 @@ export async function registerRoutes(
 
   app.patch(api.quotes.update.path, async (req: any, res) => {
     try {
-      const input = api.quotes.update.input.parse(req.body);
       const quoteId = Number(req.params.id);
+      const input = api.quotes.update.input.parse(req.body);
+      const prevQuote = await storage.getQuote(quoteId);
 
       // Auto-generate shareToken and followUpSchedule when status → "sent"
       if (input.status === "sent") {
@@ -186,6 +270,15 @@ export async function registerRoutes(
 
       const quote = await storage.updateQuote(quoteId, input);
       res.json(quote);
+
+      // Auto-create Xero invoice when a quote is first accepted
+      const userId = req.user?.claims?.sub;
+      const justAccepted = input.status === "accepted" && prevQuote?.status !== "accepted";
+      if (userId && justAccepted && !quote.xeroInvoiceId) {
+        autoCreateXeroInvoice(userId, quoteId).catch((err) =>
+          console.error("Auto Xero invoice creation failed for quote", quoteId, err)
+        );
+      }
     } catch (err) {
       res.status(400).json({ message: "Validation error" });
     }
@@ -931,6 +1024,108 @@ CRITICAL RULES — follow these exactly:
 
     await storage.deleteXeroToken(userId);
     res.json({ ok: true });
+  });
+
+  // ─── Xero Sync Routes ────────────────────────────────────────────────────
+
+  // Manually sync a single customer to Xero contacts
+  app.post("/api/xero/sync-customer/:id", async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    const token = await getValidToken(userId);
+    if (!token) return res.status(400).json({ message: "Xero not connected" });
+
+    const customerId = Number(req.params.id);
+    const customer = await storage.getCustomer(customerId);
+    if (!customer) return res.status(404).json({ message: "Customer not found" });
+
+    try {
+      const result = await upsertXeroContact(token.accessToken, token.tenantId, customer);
+      await storage.updateCustomer(customerId, { xeroContactId: result.contactId });
+      res.json({ ok: true, contactId: result.contactId, name: result.name });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to sync contact" });
+    }
+  });
+
+  // Sync ALL customers to Xero contacts
+  app.post("/api/xero/sync-all-customers", async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    const token = await getValidToken(userId);
+    if (!token) return res.status(400).json({ message: "Xero not connected" });
+
+    const customers = await storage.getCustomers();
+    let synced = 0;
+    let failed = 0;
+    for (const customer of customers) {
+      try {
+        const result = await upsertXeroContact(token.accessToken, token.tenantId, customer);
+        await storage.updateCustomer(customer.id, { xeroContactId: result.contactId });
+        synced++;
+      } catch (err) {
+        console.error("Sync failed for customer", customer.id, err);
+        failed++;
+      }
+    }
+    res.json({ ok: true, synced, failed, total: customers.length });
+  });
+
+  // Manually create a Xero invoice from an accepted quote
+  app.post("/api/xero/invoice/:quoteId", async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    const token = await getValidToken(userId);
+    if (!token) return res.status(400).json({ message: "Xero not connected" });
+
+    const quoteId = Number(req.params.quoteId);
+    const quote = await storage.getQuote(quoteId);
+    if (!quote) return res.status(404).json({ message: "Quote not found" });
+    if (quote.status !== "accepted") return res.status(400).json({ message: "Only accepted quotes can be invoiced" });
+    if (quote.xeroInvoiceId) return res.json({ ok: true, invoiceId: quote.xeroInvoiceId, invoiceNumber: quote.xeroInvoiceNumber, alreadyExists: true });
+
+    try {
+      // Ensure customer has a Xero contact
+      let xeroContactId = quote.customerId
+        ? (await storage.getCustomer(quote.customerId))?.xeroContactId
+        : null;
+      if (!xeroContactId && quote.customerId) {
+        const syncResult = await syncCustomerToXero(token, quote.customerId);
+        xeroContactId = syncResult?.contactId ?? null;
+      }
+      if (!xeroContactId) return res.status(400).json({ message: "Customer must be synced to Xero first" });
+
+      const items = await storage.getQuoteItems(quoteId);
+      const parsed = quote.content ? (() => { try { return JSON.parse(quote.content!); } catch { return null; } })() : null;
+      const jobTitle = parsed?.jobTitle || `Quote #`;
+      const includeGST = parsed?.includeGST ?? true;
+
+      const lineItems = items.map((i) => ({
+        description: i.description,
+        quantity: i.quantity,
+        unitPrice: parseFloat(String(i.price)),
+      }));
+      if (lineItems.length === 0) {
+        lineItems.push({ description: jobTitle, quantity: 1, unitPrice: parseFloat(String(quote.totalAmount)) });
+      }
+
+      const result = await createXeroInvoice(token.accessToken, token.tenantId, {
+        xeroContactId,
+        quoteId,
+        jobTitle,
+        lineItems,
+        includeGST,
+      });
+
+      await storage.updateQuote(quoteId, {
+        xeroInvoiceId: result.invoiceId,
+        xeroInvoiceNumber: result.invoiceNumber,
+      });
+
+      res.json({ ok: true, invoiceId: result.invoiceId, invoiceNumber: result.invoiceNumber });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to create invoice" });
+    }
   });
 
   // Seed data function
