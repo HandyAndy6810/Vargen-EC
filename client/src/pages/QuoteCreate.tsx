@@ -25,7 +25,8 @@ import {
   Download,
   Briefcase,
   Star,
-  CheckCircle2
+  CheckCircle2,
+  ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -190,6 +191,7 @@ export default function QuoteCreate() {
   const [jobMode, setJobMode] = useState<"existing" | "new">("existing");
   const [savedQuoteId, setSavedQuoteId] = useState<number | null>(null);
   const [showExportOptions, setShowExportOptions] = useState(false);
+  const [ackChecked, setAckChecked] = useState(false);
 
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [editorMargin, setEditorMargin] = useState(0);
@@ -350,6 +352,7 @@ export default function QuoteCreate() {
         estimatedHours,
         totalAmount: total,
         customerName: customerName || undefined,
+        acknowledged: true,
       };
 
       const quoteRes = await fetch("/api/quotes", {
@@ -1168,7 +1171,7 @@ export default function QuoteCreate() {
       </Dialog>
 
       {/* ════════════ FINALIZE MODAL ════════════ */}
-      <Dialog open={showFinalizeModal} onOpenChange={setShowFinalizeModal}>
+      <Dialog open={showFinalizeModal} onOpenChange={(open) => { setShowFinalizeModal(open); if (!open) setAckChecked(false); }}>
         <DialogContent className="rounded-[2rem] mx-4 max-w-sm max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Finalize Quote</DialogTitle>
@@ -1178,6 +1181,33 @@ export default function QuoteCreate() {
             <div className="bg-[#FFF1EB] dark:bg-primary/10 rounded-2xl p-4 text-center">
               <p className="text-sm text-muted-foreground">Total Amount</p>
               <p className="text-2xl font-bold text-primary">${calcTotal().toLocaleString("en-AU", { minimumFractionDigits: 2 })}</p>
+            </div>
+
+            {/* Acknowledgment / Liability Acceptance */}
+            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-4 border border-amber-200 dark:border-amber-700/40">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-800/40 flex items-center justify-center shrink-0 mt-0.5">
+                  <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground text-sm">Review & Accept Responsibility</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Before finalizing, please confirm you have carefully reviewed all line items, pricing, GST, and notes. By proceeding, you accept full ownership and responsibility for this quote. Vargen EC provides AI-assisted estimates only — all final pricing decisions are yours.
+                  </p>
+                </div>
+              </div>
+              <label className="flex items-start gap-3 cursor-pointer" data-testid="label-ack-checkbox">
+                <input
+                  type="checkbox"
+                  checked={ackChecked}
+                  onChange={(e) => setAckChecked(e.target.checked)}
+                  className="mt-0.5 w-5 h-5 rounded accent-amber-600"
+                  data-testid="input-ack-checkbox"
+                />
+                <span className="text-sm text-foreground leading-snug">
+                  I have carefully reviewed this quote and accept full ownership of all items, pricing, and details.
+                </span>
+              </label>
             </div>
 
             <div className="space-y-3">
@@ -1239,7 +1269,7 @@ export default function QuoteCreate() {
             </div>
 
             <Button onClick={() => finalizeMutation.mutate()}
-              disabled={finalizeMutation.isPending || (jobMode === "new" && !newJobTitle.trim())}
+              disabled={finalizeMutation.isPending || !ackChecked || (jobMode === "new" && !newJobTitle.trim())}
               className="w-full h-14 rounded-2xl font-bold bg-green-600 text-white disabled:opacity-40"
               data-testid="button-confirm-finalize">
               {finalizeMutation.isPending ? (
