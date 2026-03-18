@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings";
-import { useXeroStatus, useXeroDisconnect } from "@/hooks/use-xero";
+import { useXeroStatus, useXeroDisconnect, useXeroSyncAllCustomers } from "@/hooks/use-xero";
 import { useState, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
 import { Input } from "@/components/ui/input";
@@ -88,6 +88,7 @@ export default function Profile() {
   // Xero connection
   const { data: xeroStatus, isLoading: xeroLoading } = useXeroStatus();
   const { mutateAsync: disconnectXero, isPending: disconnecting } = useXeroDisconnect();
+  const { mutate: syncAllCustomers, isPending: syncingAll } = useXeroSyncAllCustomers();
   const searchString = useSearch();
 
   // Handle Xero OAuth callback redirect
@@ -558,6 +559,19 @@ export default function Profile() {
                   Your Xero account is linked. Customer contacts and invoices will sync with your Xero organisation.
                 </p>
 
+                <Button
+                  onClick={() => syncAllCustomers()}
+                  disabled={syncingAll}
+                  className="w-full h-12 rounded-xl font-bold"
+                  data-testid="button-xero-sync-all"
+                >
+                  {syncingAll ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Link2 className="w-4 h-4 mr-2" />
+                  )}
+                  Sync All Customers to Xero
+                </Button>
                 <Button
                   variant="outline"
                   onClick={async () => {

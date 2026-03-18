@@ -44,3 +44,87 @@ export function useXeroDisconnect() {
     },
   });
 }
+
+export function useXeroSyncCustomer() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (customerId: number) => {
+      const res = await fetch(`/api/xero/sync-customer/${customerId}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || "Failed to sync contact");
+      }
+      return res.json() as Promise<{ ok: boolean; contactId: string; name: string }>;
+    },
+    onSuccess: (_, customerId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      toast({ title: "Synced to Xero", description: "Contact updated in Xero." });
+    },
+    onError: (error) => {
+      toast({ title: "Sync failed", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useXeroSyncAllCustomers() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/xero/sync-all-customers", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || "Failed to sync customers");
+      }
+      return res.json() as Promise<{ ok: boolean; synced: number; failed: number; total: number }>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      toast({
+        title: `Synced ${data.synced} of ${data.total} customers`,
+        description: data.failed > 0 ? `${data.failed} failed — check console for details.` : "All contacts up to date in Xero.",
+      });
+    },
+    onError: (error) => {
+      toast({ title: "Sync failed", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useXeroCreateInvoice() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (quoteId: number) => {
+      const res = await fetch(`/api/xero/invoice/${quoteId}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || "Failed to create invoice");
+      }
+      return res.json() as Promise<{ ok: boolean; invoiceId: string; invoiceNumber: string; alreadyExists?: boolean }>;
+    },
+    onSuccess: (data, quoteId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      toast({
+        title: data.alreadyExists ? "Invoice already exists" : "Xero invoice created",
+        description: `Invoice ${data.invoiceNumber} is now in Xero.`,
+      });
+    },
+    onError: (error) => {
+      toast({ title: "Invoice creation failed", description: error.message, variant: "destructive" });
+    },
+  });
+}

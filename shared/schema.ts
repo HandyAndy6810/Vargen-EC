@@ -14,6 +14,7 @@ export const customers = pgTable("customers", {
   phone: text("phone"),
   address: text("address"),
   notes: text("notes").default(""),
+  xeroContactId: text("xero_contact_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -34,6 +35,8 @@ export const quotes = pgTable("quotes", {
   totalAmount: numeric("total_amount").notNull(),
   status: text("status").default("draft"), // draft, sent, viewed, accepted, rejected
   content: text("content"), // AI generated text or structured notes
+  xeroInvoiceId: text("xero_invoice_id"),
+  xeroInvoiceNumber: text("xero_invoice_number"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -129,3 +132,4 @@ export type Quote = typeof quotes.$inferSelect;
 export type InsertQuote = z.infer<typeof insertQuoteSchema>;
 export type QuoteItem = typeof quoteItems.$inferSelect;
 export type InsertQuoteItem = z.infer<typeof insertQuoteItemSchema>;
+
