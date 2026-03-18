@@ -2,7 +2,7 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
-import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Clock, Send } from "lucide-react";
+import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Clock, Send, CheckCircle2, XCircle, Eye, PenLine, Flame, TrendingUp, DollarSign, Percent } from "lucide-react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
@@ -153,19 +153,28 @@ export default function Quotes() {
         
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
-            <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Pipeline</p>
+            <div className="flex items-center gap-1.5 mb-1">
+              <TrendingUp className="w-3 h-3 text-primary" />
+              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Pipeline</p>
+            </div>
             <p className="text-sm font-bold text-primary truncate" data-testid="text-pipeline-value">
               ${totalPipeline.toLocaleString()}
             </p>
           </div>
           <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
-            <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Win Rate</p>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Percent className="w-3 h-3 text-emerald-500" />
+              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Win Rate</p>
+            </div>
             <p className="text-sm font-bold text-foreground truncate" data-testid="text-win-rate">
               {stats.winRate.toFixed(0)}%
             </p>
           </div>
           <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
-            <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Avg Value</p>
+            <div className="flex items-center gap-1.5 mb-1">
+              <DollarSign className="w-3 h-3 text-blue-500" />
+              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Avg Value</p>
+            </div>
             <p className="text-sm font-bold text-foreground truncate" data-testid="text-avg-value">
               ${stats.avgValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </p>
@@ -258,14 +267,23 @@ export default function Quotes() {
             <Loader2 className="animate-spin text-primary w-8 h-8" />
           </div>
         ) : filteredQuotes.length === 0 ? (
-          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-12 text-center shadow-sm border border-black/5 dark:border-white/10">
-            <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />
-            <p className="font-medium text-muted-foreground">
+          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-10 text-center shadow-sm border border-black/5 dark:border-white/10">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 dark:from-primary/20 dark:to-amber-900/20 flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-primary" />
+            </div>
+            <h3 className="font-bold text-lg text-foreground mb-1">
               {tab === "active" ? "No active quotes" : "No quote history"}
+            </h3>
+            <p className="text-sm text-muted-foreground mb-5">
+              {tab === "active" ? "Create your first quote and start winning jobs" : "Accepted and rejected quotes will appear here"}
             </p>
-            <p className="text-sm text-muted-foreground/60 mt-1">
-              {tab === "active" ? "Create your first quote to get started" : "Accepted and rejected quotes will appear here"}
-            </p>
+            {tab === "active" && (
+              <Link href="/quotes/new">
+                <Button className="rounded-xl font-semibold">
+                  <Plus className="w-4 h-4 mr-2" /> Create Quote
+                </Button>
+              </Link>
+            )}
           </div>
         ) : (
           filteredQuotes.map(quote => {
@@ -276,7 +294,7 @@ export default function Quotes() {
               <div
                 key={quote.id}
                 onClick={() => setLocation(`/quotes/${quote.id}`)}
-                className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-black/5 dark:border-white/10 cursor-pointer active:scale-[0.98] transition-all overflow-hidden flex"
+                className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-black/5 dark:border-white/10 cursor-pointer active:scale-[0.98] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex"
                 data-testid={`card-quote-${quote.id}`}
               >
                 <div className={cn("w-1.5 shrink-0", getStatusBorder(status, isCold))} />
@@ -330,7 +348,8 @@ export default function Quotes() {
 
                   <div className="flex items-center justify-between mt-3 gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={cn("text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg border", statusColor(status, isCold))} data-testid={`text-quote-status-${quote.id}`}>
+                      <span className={cn("inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border", statusColor(status, isCold))} data-testid={`text-quote-status-${quote.id}`}>
+                        {isCold ? <Flame className="w-2.5 h-2.5" /> : status === "accepted" ? <CheckCircle2 className="w-2.5 h-2.5" /> : status === "rejected" ? <XCircle className="w-2.5 h-2.5" /> : status === "viewed" ? <Eye className="w-2.5 h-2.5" /> : status === "sent" ? <Send className="w-2.5 h-2.5" /> : <PenLine className="w-2.5 h-2.5" />}
                         {isCold && status === "sent" ? "Going Cold" : status}
                       </span>
                       {isCold && quote.createdAt && (

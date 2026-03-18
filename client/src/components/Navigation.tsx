@@ -30,16 +30,20 @@ export function BottomNav() {
           return (
             <Link key={item.href} href={item.href}>
               <div
-                className="cursor-pointer transition-all duration-200 active:scale-90 flex flex-col items-center"
+                className="cursor-pointer transition-all duration-200 active:scale-90 flex flex-col items-center gap-1"
                 data-testid={`nav-${item.label.toLowerCase()}`}
               >
                 <item.icon
                   className={cn(
-                    "h-6 w-6 transition-colors duration-200",
-                    isActive ? "text-primary" : "text-[#8B8680]"
+                    "h-6 w-6 transition-all duration-200",
+                    isActive ? "text-primary drop-shadow-[0_0_6px_hsl(18,90%,55%,0.7)]" : "text-[#8B8680]"
                   )}
                   strokeWidth={isActive ? 2.5 : 1.8}
                 />
+                <div className={cn(
+                  "h-1 w-1 rounded-full transition-all duration-200",
+                  isActive ? "bg-primary opacity-100 scale-100" : "opacity-0 scale-0"
+                )} />
               </div>
             </Link>
           );
