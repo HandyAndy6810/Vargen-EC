@@ -4,3 +4,13 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Capacitor native platform folders (generated — commit these if you want to customise native code)
+ios/
+android/
+
+# Expo / mobile
+mobile/node_modules
+mobile/.expo
+mobile/dist
+mobile/.env
