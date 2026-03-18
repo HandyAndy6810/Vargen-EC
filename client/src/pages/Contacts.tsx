@@ -273,7 +273,7 @@ export default function Contacts() {
                   )}
                   {xeroStatus?.connected && (
                     (customer as any).xeroContactId ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" title="Synced to Xero" />
+                      <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" aria-label="Synced to Xero" />
                     ) : (
                       <button
                         onClick={(e) => { e.stopPropagation(); syncCustomer.mutate(customer.id); }}

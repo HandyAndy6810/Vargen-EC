@@ -226,4 +226,3 @@ export type JobTimerEntry = typeof jobTimerEntries.$inferSelect;
 export type InsertJobTimerEntry = z.infer<typeof insertJobTimerEntrySchema>;
 export type PortalFeedback = typeof portalFeedback.$inferSelect;
 export type InsertPortalFeedback = z.infer<typeof insertPortalFeedbackSchema>;
->>>>>>> 39db9f8c57a88f74e5a8d9b876c4059abd954508

@@ -74,7 +74,6 @@ export default function QuoteDetail() {
   const { data: xeroStatus } = useXeroStatus();
   const { mutate: createXeroInvoice, isPending: isCreatingInvoice } = useXeroCreateInvoice();
   const createInvoiceMutation = useCreateInvoiceFromQuote();
->>>>>>> 39db9f8c57a88f74e5a8d9b876c4059abd954508
   const { toast } = useToast();
 
   const quote = quotes?.find(q => q.id === id);
