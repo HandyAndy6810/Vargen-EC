@@ -6,6 +6,7 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
+import bcrypt from "bcryptjs";
 import { authStorage } from "./storage";
 
 const getOidcConfig = memoize(
@@ -110,6 +111,40 @@ export async function setupAuth(app: Express) {
     })(req, res, next);
   });
 
+  // Local auth for mobile app — POST /api/login with { username (email), password }
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { username, password } = req.body || {};
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      const user = await authStorage.getUserByEmail(username);
+      if (!user || !user.password) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      const valid = await bcrypt.compare(password, user.password);
+      if (!valid) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      (req.session as any).localUserId = user.id;
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ message: "Session error" });
+        const { password: _pw, ...safeUser } = user as any;
+        res.json(safeUser);
+      });
+    } catch (error) {
+      console.error("Local login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // Mobile-friendly logout — POST /api/logout destroys the local session
+  app.post("/api/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ ok: true });
+    });
+  });
+
   app.get("/api/callback", (req, res, next) => {
     ensureStrategy(req.hostname);
     const returnTo = (req.session as any)?.returnTo || "/";
@@ -133,9 +168,15 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // Local auth (mobile app) — session set by POST /api/login
+  if ((req.session as any).localUserId) {
+    return next();
+  }
+
+  // Replit OIDC auth
   const user = req.user as any;
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  if (!req.isAuthenticated() || !user?.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
