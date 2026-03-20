@@ -4,11 +4,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Wrench, Sparkles, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { Wrench, Sparkles, CheckCircle2, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+const forgotSchema = z.object({
+  email: z.string().email("Enter a valid email"),
+});
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -28,13 +32,16 @@ const registerSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 type RegisterForm = z.infer<typeof registerSchema>;
+type ForgotForm = z.infer<typeof forgotSchema>;
 
 export default function Login() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [tab, setTab] = useState<"login" | "register">("login");
+  const [view, setView] = useState<"auth" | "forgot">("auth");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forgotSent, setForgotSent] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -43,6 +50,7 @@ export default function Login() {
 
   const loginForm = useForm<LoginForm>({ resolver: zodResolver(loginSchema) });
   const registerForm = useForm<RegisterForm>({ resolver: zodResolver(registerSchema) });
+  const forgotForm = useForm<ForgotForm>({ resolver: zodResolver(forgotSchema) });
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
@@ -91,11 +99,40 @@ export default function Login() {
     onError: (err: Error) => setError(err.message),
   });
 
+  const forgotMutation = useMutation({
+    mutationFn: async (data: ForgotForm) => {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || "Failed to send reset email");
+      }
+    },
+    onSuccess: () => setForgotSent(true),
+    onError: (err: Error) => setError(err.message),
+  });
+
   const switchTab = (t: "login" | "register") => {
     setTab(t);
     setError(null);
     loginForm.reset();
     registerForm.reset();
+  };
+
+  const goToForgot = () => {
+    setView("forgot");
+    setError(null);
+    setForgotSent(false);
+    forgotForm.reset();
+  };
+
+  const goToAuth = () => {
+    setView("auth");
+    setError(null);
+    setForgotSent(false);
   };
 
   return (
@@ -133,6 +170,65 @@ export default function Login() {
       {/* Form panel */}
       <div className="w-full md:w-[480px] bg-card border-l border-border p-8 md:p-12 flex flex-col justify-center shadow-2xl">
         <div className="w-full max-w-sm mx-auto space-y-6">
+          {view === "forgot" ? (
+            <>
+              <button
+                onClick={goToAuth}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back to sign in
+              </button>
+
+              {forgotSent ? (
+                <div className="space-y-4 text-center">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="w-6 h-6 text-primary" />
+                  </div>
+                  <h2 className="text-xl font-bold">Check your email</h2>
+                  <p className="text-sm text-muted-foreground">
+                    If that address is registered, we've sent a password reset link. It expires in 1 hour.
+                  </p>
+                  <Button variant="outline" className="w-full" onClick={goToAuth}>
+                    Back to sign in
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight mb-1">Forgot password?</h2>
+                    <p className="text-sm text-muted-foreground">Enter your email and we'll send you a reset link.</p>
+                  </div>
+                  {error && (
+                    <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3 rounded-xl">
+                      {error}
+                    </div>
+                  )}
+                  <form
+                    onSubmit={forgotForm.handleSubmit((d) => { setError(null); forgotMutation.mutate(d); })}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1.5">
+                      <Label htmlFor="forgot-email">Email</Label>
+                      <Input
+                        id="forgot-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        autoComplete="email"
+                        {...forgotForm.register("email")}
+                      />
+                      {forgotForm.formState.errors.email && (
+                        <p className="text-xs text-destructive">{forgotForm.formState.errors.email.message}</p>
+                      )}
+                    </div>
+                    <Button type="submit" className="w-full" disabled={forgotMutation.isPending}>
+                      {forgotMutation.isPending ? "Sending…" : "Send reset link"}
+                    </Button>
+                  </form>
+                </>
+              )}
+            </>
+          ) : (
+            <>
           {/* Tabs */}
           <div className="flex rounded-xl bg-muted p-1">
             <button
@@ -202,6 +298,13 @@ export default function Login() {
               <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
                 {loginMutation.isPending ? "Signing in…" : "Sign In"}
               </Button>
+              <button
+                type="button"
+                onClick={goToForgot}
+                className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Forgot your password?
+              </button>
             </form>
           ) : (
             <form
@@ -278,6 +381,8 @@ export default function Login() {
           <p className="text-xs text-muted-foreground text-center">
             By continuing, you agree to our Terms of Service and Privacy Policy.
           </p>
+            </>
+          )}
         </div>
       </div>
     </div>

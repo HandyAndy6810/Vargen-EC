@@ -2,7 +2,9 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { authStorage } from "./storage";
+import { sendPasswordResetEmail } from "../../lib/email";
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
@@ -95,6 +97,53 @@ export async function setupAuth(app: Express) {
     req.session.destroy(() => {
       res.json({ ok: true });
     });
+  });
+
+  // Forgot password — generate reset token and (stub) send email
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body || {};
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      // Always return 200 to avoid leaking whether an email exists
+      const user = await authStorage.getUserByEmail(email);
+      if (user) {
+        const token = crypto.randomBytes(32).toString("hex");
+        const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+        await authStorage.saveResetToken(user.id, token, expiry);
+        const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
+        await sendPasswordResetEmail(email, `${baseUrl}/reset-password?token=${token}`);
+      }
+      res.json({ message: "If that email is registered, a reset link has been sent." });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ message: "Failed to process request" });
+    }
+  });
+
+  // Reset password — validate token and set new password
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body || {};
+      if (!token || !password) {
+        return res.status(400).json({ message: "Token and password are required" });
+      }
+      if (password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+      const user = await authStorage.getUserByResetToken(token);
+      if (!user) {
+        return res.status(400).json({ message: "Invalid or expired reset link" });
+      }
+      const hashed = await bcrypt.hash(password, 12);
+      await authStorage.setPassword(user.id, hashed);
+      await authStorage.clearResetToken(user.id);
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
   });
 }
 
