@@ -33,7 +33,6 @@ function Router() {
         {() => (
           <Layout>
             <Switch>
-              <Route path="/api/login" component={() => { window.location.href = "/api/login"; return null; }} />
               <Route path="/login" component={Login} />
               <Route path="/" component={Home} />
               <Route path="/customers" component={Customers} />

@@ -107,15 +107,16 @@ export default function LoginScreen() {
 
           <View className="space-y-4 mb-6">
             <View>
-              <Text className="text-sm font-medium text-gray-700 mb-1.5">Username</Text>
+              <Text className="text-sm font-medium text-gray-700 mb-1.5">Email</Text>
               <TextInput
                 className="border border-gray-200 rounded-xl px-4 py-3.5 text-gray-900 bg-gray-50 text-base"
-                placeholder="Enter your username"
+                placeholder="you@example.com"
                 placeholderTextColor="#9ca3af"
                 value={username}
                 onChangeText={(v) => { setUsername(v); setError(null); }}
                 autoCapitalize="none"
                 autoCorrect={false}
+                keyboardType="email-address"
               />
             </View>
 
