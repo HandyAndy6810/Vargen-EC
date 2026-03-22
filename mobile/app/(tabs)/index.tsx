@@ -4,9 +4,11 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
+  RefreshControl,
 } from "react-native";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   format,
   startOfWeek,
@@ -19,11 +21,30 @@ import {
 } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import { useJobs } from "@/hooks/use-jobs";
+import { queryClient } from "@/lib/queryClient";
 
 export default function HomeScreen() {
-  const { user } = useAuth();
-  const { data: jobs, isLoading } = useJobs();
+  const { user, logout } = useAuth();
+  const { data: jobs, isLoading, refetch } = useJobs();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries();
+    setRefreshing(false);
+  }, []);
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Sign Out", style: "destructive", onPress: () => logout() },
+      ]
+    );
+  };
 
   const weekDays = useMemo(() => {
     const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
@@ -81,6 +102,8 @@ export default function HomeScreen() {
     return { count: dayJobs.length, color };
   };
 
+  const firstName = user?.firstName || user?.email?.split("@")[0] || "there";
+
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
@@ -90,13 +113,30 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" showsVerticalScrollIndicator={false}>
+    <ScrollView
+      className="flex-1 bg-gray-50"
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />
+      }
+    >
       {/* Header */}
-      <View className="px-6 pt-16 pb-6 bg-white">
-        <Text className="text-3xl font-bold text-gray-900">
-          Welcome back{user?.username ? `, ${user.username}` : ""}
-        </Text>
-        <Text className="text-gray-500 mt-1">Ready to grow your business?</Text>
+      <View className="px-6 pt-16 pb-6 bg-white flex-row items-start justify-between">
+        <View className="flex-1 mr-4">
+          <Text className="text-3xl font-bold text-gray-900">
+            Hey, {firstName} 👋
+          </Text>
+          <Text className="text-gray-500 mt-1">Ready to grow your business?</Text>
+        </View>
+        <TouchableOpacity
+          onPress={handleLogout}
+          activeOpacity={0.7}
+          className="w-10 h-10 rounded-full bg-blue-100 items-center justify-center mt-1"
+        >
+          <Text className="text-blue-700 font-bold text-base">
+            {(user?.firstName?.[0] || user?.email?.[0] || "?").toUpperCase()}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View className="px-4 py-4 space-y-4">
@@ -120,14 +160,14 @@ export default function HomeScreen() {
           <View className="space-y-2">
             <ActionRow
               emoji="💬"
-              title="New Quote"
-              subtitle="Create with AI assistance"
+              title="View Quotes"
+              subtitle="See all your quotes"
               onPress={() => router.push("/(tabs)/quotes")}
             />
             <ActionRow
               emoji="📋"
-              title="Schedule Job"
-              subtitle="Add to your calendar"
+              title="View Jobs"
+              subtitle="See your schedule"
               onPress={() => router.push("/(tabs)/jobs")}
             />
             <ActionRow
@@ -226,15 +266,11 @@ export default function HomeScreen() {
               {isToday(selectedDate) ? "Today" : format(selectedDate, "EEEE d MMM")}
             </Text>
             {selectedDateJobs.length === 0 ? (
-              <TouchableOpacity
-                className="flex-row items-center gap-3 p-3 rounded-xl border-2 border-dashed border-gray-200"
-                onPress={() => router.push("/(tabs)/jobs")}
-                activeOpacity={0.7}
-              >
-                <Text className="text-sm font-semibold text-gray-400">
-                  + Schedule a Job
+              <View className="p-3 rounded-xl border-2 border-dashed border-gray-200">
+                <Text className="text-sm font-semibold text-gray-400 text-center">
+                  No jobs scheduled
                 </Text>
-              </TouchableOpacity>
+              </View>
             ) : (
               selectedDateJobs.slice(0, 3).map((job) => (
                 <TouchableOpacity

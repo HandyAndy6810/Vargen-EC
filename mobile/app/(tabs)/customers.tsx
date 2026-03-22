@@ -1,10 +1,18 @@
-import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
-import { useState } from "react";
+import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
+import { useState, useCallback } from "react";
 import { useCustomers } from "@/hooks/use-customers";
+import { queryClient } from "@/lib/queryClient";
 
 export default function CustomersScreen() {
   const { data: customers, isLoading, isError } = useCustomers();
   const [search, setSearch] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries();
+    setRefreshing(false);
+  }, []);
 
   const filtered = (customers || []).filter((c: any) =>
     `${c.name} ${c.email} ${c.phone}`.toLowerCase().includes(search.toLowerCase())
@@ -45,7 +53,13 @@ export default function CustomersScreen() {
         />
       </View>
 
-      <ScrollView className="flex-1 px-4 pt-3" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1 px-4 pt-3"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />
+        }
+      >
         {filtered.length === 0 ? (
           <View className="items-center py-20">
             <Text className="text-4xl mb-4">👥</Text>

@@ -1,6 +1,8 @@
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
 import { format } from "date-fns";
 import { useJobs } from "@/hooks/use-jobs";
+import { useState, useCallback } from "react";
+import { queryClient } from "@/lib/queryClient";
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: "bg-blue-100 text-blue-700",
@@ -11,6 +13,13 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function JobsScreen() {
   const { data: jobs, isLoading, isError } = useJobs();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries();
+    setRefreshing(false);
+  }, []);
 
   if (isLoading) {
     return (
@@ -43,13 +52,19 @@ export default function JobsScreen() {
         <Text className="text-gray-500 text-sm mt-0.5">{sorted.length} total jobs</Text>
       </View>
 
-      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1 px-4 pt-4"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />
+        }
+      >
         {sorted.length === 0 ? (
           <View className="items-center py-20">
             <Text className="text-4xl mb-4">📋</Text>
             <Text className="text-gray-900 font-bold text-lg">No jobs yet</Text>
-            <Text className="text-gray-400 text-sm mt-1">
-              Head to the web app to schedule your first job.
+            <Text className="text-gray-400 text-sm mt-1 text-center">
+              Your scheduled jobs will appear here.
             </Text>
           </View>
         ) : (
