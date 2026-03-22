@@ -32,7 +32,7 @@ export default function LoginScreen() {
       const res = await apiRequest("POST", "/api/login", { username, password });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.message || "Invalid username or password");
+        throw new Error(body?.message || "Invalid email or password");
       }
       return res.json();
     },
@@ -146,8 +146,30 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
+          <TouchableOpacity
+            onPress={() => router.push("/(auth)/forgot-password")}
+            className="mt-4 items-center py-2"
+            activeOpacity={0.7}
+          >
+            <Text className="text-blue-600 text-sm font-medium">Forgot your password?</Text>
+          </TouchableOpacity>
+
+          <View className="flex-row items-center my-4">
+            <View className="flex-1 h-px bg-gray-200" />
+            <Text className="text-gray-400 text-xs mx-3">or</Text>
+            <View className="flex-1 h-px bg-gray-200" />
+          </View>
+
+          <TouchableOpacity
+            onPress={() => router.push("/(auth)/register")}
+            className="border border-blue-600 rounded-xl py-4 items-center"
+            activeOpacity={0.8}
+          >
+            <Text className="text-blue-600 font-bold text-base">Create Account</Text>
+          </TouchableOpacity>
+
           <Text className="text-xs text-gray-400 text-center mt-6">
-            By signing in, you agree to our Terms of Service and Privacy Policy.
+            By continuing, you agree to our Terms of Service and Privacy Policy.
           </Text>
         </View>
       </ScrollView>

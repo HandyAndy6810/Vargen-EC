@@ -1,6 +1,7 @@
 import { useQuotes } from "@/hooks/use-quotes";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
+import { useUserSettings } from "@/hooks/use-user-settings";
 import { useRoute, useLocation } from "wouter";
 import { ArrowLeft, Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export default function QuotePreview() {
   const { data: quotes, isLoading } = useQuotes();
   const { data: jobs } = useJobs();
   const { data: customers } = useCustomers();
+  const { data: settings } = useUserSettings();
 
   const quote = quotes?.find(q => q.id === id);
   const parsed = quote ? parseContent(quote.content) : null;
@@ -146,9 +148,9 @@ export default function QuotePreview() {
                 <p className="text-orange-100 text-sm mt-1 font-medium">{quoteRef}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-bold">Vargenezey</p>
-                <p className="text-xs text-orange-100 mt-0.5">Professional Trade Services</p>
-                <p className="text-xs text-orange-100">ABN: XX XXX XXX XXX</p>
+                <p className="text-sm font-bold">{settings?.businessName || "Your Business"}</p>
+                {settings?.tradeType && <p className="text-xs text-orange-100 mt-0.5">{settings.tradeType}</p>}
+                {settings?.abn && <p className="text-xs text-orange-100">ABN: {settings.abn}</p>}
               </div>
             </div>
           </div>

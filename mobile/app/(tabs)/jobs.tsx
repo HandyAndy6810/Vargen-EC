@@ -10,12 +10,22 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function JobsScreen() {
-  const { data: jobs, isLoading } = useJobs();
+  const { data: jobs, isLoading, isError } = useJobs();
 
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
         <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View className="flex-1 items-center justify-center bg-gray-50 px-8">
+        <Text className="text-4xl mb-4">⚠️</Text>
+        <Text className="text-gray-900 font-bold text-lg text-center">Couldn't load jobs</Text>
+        <Text className="text-gray-400 text-sm mt-1 text-center">Check your connection and try again.</Text>
       </View>
     );
   }

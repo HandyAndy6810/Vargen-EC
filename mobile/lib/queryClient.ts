@@ -1,4 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
+import { router } from "expo-router";
 import { apiRequest } from "./api";
 
 export const queryClient = new QueryClient({
@@ -18,7 +19,10 @@ export function getQueryFn<T>(options: { on401?: "returnNull" | "throw" } = {}) 
 
     if (res.status === 401) {
       if (options.on401 === "returnNull") return null;
-      throw new Error("Unauthorized");
+      // Session expired — clear cache and send user to login
+      queryClient.setQueryData(["/api/auth/user"], null);
+      router.replace("/(auth)/login");
+      return null;
     }
 
     if (!res.ok) {

@@ -110,7 +110,8 @@ export default function InvoicePreview() {
               </div>
               <div className="text-right">
                 <p className="text-sm font-bold">{businessName}</p>
-                <p className="text-xs text-blue-100 mt-0.5">Professional Trade Services</p>
+                {settings?.tradeType && <p className="text-xs text-blue-100 mt-0.5">{settings.tradeType}</p>}
+                {settings?.abn && <p className="text-xs text-blue-100">ABN: {settings.abn}</p>}
               </div>
             </div>
           </div>

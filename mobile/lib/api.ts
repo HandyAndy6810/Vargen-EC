@@ -12,7 +12,6 @@ function getBaseUrl(): string {
   const localhost = debuggerHost?.split(":")[0] ?? "localhost";
 
   if (Platform.OS === "android") {
-    // Android emulator needs host machine IP
     return `http://${localhost}:5000`;
   }
 
@@ -27,13 +26,18 @@ export async function apiRequest(
   data?: unknown
 ): Promise<Response> {
   const url = `${API_BASE_URL}${path}`;
-  const res = await fetch(url, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-    body: data ? JSON.stringify(data) : undefined,
-  });
-  return res;
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    return res;
+  } catch (err) {
+    // Network failure (offline, DNS, timeout, etc.)
+    throw new Error("Network error — check your connection and try again.");
+  }
 }
