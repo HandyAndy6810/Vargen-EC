@@ -72,9 +72,11 @@
 }
 
 @layer base {
-  body {
+  html, body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Manrope', sans-serif;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 }
 
