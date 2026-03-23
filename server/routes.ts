@@ -216,11 +216,18 @@ export async function registerRoutes(
 
   app.patch(api.jobs.update.path, async (req, res) => {
     try {
+      const id = Number(req.params.id);
+      const existing = await storage.getJob(id);
+      if (!existing) return res.status(404).json({ message: "Job not found" });
       const input = api.jobs.update.input.parse(req.body);
-      const job = await storage.updateJob(Number(req.params.id), input);
+      const job = await storage.updateJob(id, input);
       res.json(job);
     } catch (err) {
-       res.status(400).json({ message: "Validation error" });
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ message: err.errors[0].message });
+      } else {
+        res.status(500).json({ message: "Internal server error" });
+      }
     }
   });
 
@@ -240,11 +247,31 @@ export async function registerRoutes(
     }
   });
 
+  // Valid quote status transitions
+  const QUOTE_TRANSITIONS: Record<string, string[]> = {
+    draft:    ["sent"],
+    sent:     ["accepted", "declined", "draft"],
+    viewed:   ["accepted", "declined", "sent"],
+    accepted: ["invoiced"],
+    declined: ["sent"],
+    invoiced: [],
+  };
+
   app.patch(api.quotes.update.path, async (req: any, res) => {
     try {
       const quoteId = Number(req.params.id);
       const input = api.quotes.update.input.parse(req.body);
       const prevQuote = await storage.getQuote(quoteId);
+
+      // Validate status transition
+      if (input.status && prevQuote && input.status !== prevQuote.status) {
+        const allowed = QUOTE_TRANSITIONS[prevQuote.status ?? "draft"] ?? [];
+        if (!allowed.includes(input.status)) {
+          return res.status(400).json({
+            message: `Cannot change quote status from "${prevQuote.status}" to "${input.status}"`,
+          });
+        }
+      }
 
       // Auto-generate shareToken and followUpSchedule when status → "sent"
       if (input.status === "sent") {

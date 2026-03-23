@@ -26,7 +26,9 @@ export function useAuth() {
 
   const logoutMutation = useMutation({
     mutationFn: logoutRequest,
-    onSuccess: () => {
+    onSettled: () => {
+      // Always clear local auth state regardless of network errors,
+      // so the UI never shows a logged-out state while still having cached data.
       queryClient.setQueryData(["/api/auth/user"], null);
       queryClient.clear();
       router.replace("/(auth)/login");

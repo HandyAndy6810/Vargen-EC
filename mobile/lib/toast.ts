@@ -12,11 +12,9 @@ export function toast({
   variant?: "default" | "destructive";
 }) {
   if (variant === "destructive") {
-    Alert.alert(title, description);
+    Alert.alert(`\u26A0\uFE0F ${title}`, description);
   } else {
-    // For success toasts, a brief alert is enough for now.
-    // Replace with a snackbar/toast library for a better UX.
-    Alert.alert(title, description);
+    Alert.alert(`\u2705 ${title}`, description);
   }
 }
 

@@ -20,12 +20,16 @@ function getBaseUrl(): string {
 
 export const API_BASE_URL = getBaseUrl();
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 export async function apiRequest(
   method: string,
   path: string,
   data?: unknown
 ): Promise<Response> {
   const url = `${API_BASE_URL}${path}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const res = await fetch(url, {
       method,
@@ -34,10 +38,16 @@ export async function apiRequest(
       },
       credentials: "include",
       body: data ? JSON.stringify(data) : undefined,
+      signal: controller.signal,
     });
     return res;
-  } catch (err) {
-    // Network failure (offline, DNS, timeout, etc.)
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      throw new Error("Request timed out — check your connection and try again.");
+    }
+    // Network failure (offline, DNS, etc.)
     throw new Error("Network error — check your connection and try again.");
+  } finally {
+    clearTimeout(timer);
   }
 }

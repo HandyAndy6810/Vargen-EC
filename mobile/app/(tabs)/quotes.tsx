@@ -1,27 +1,48 @@
-import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@shared/routes";
-import { apiRequest } from "@/lib/api";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
+} from "react-native";
 import { useState, useCallback } from "react";
 import { queryClient } from "@/lib/queryClient";
+import { useQuotes, useUpdateQuote, useDeleteQuote } from "@/hooks/use-quotes";
+import type { Quote } from "@shared/schema";
+
+type QuoteWithJoins = Quote & { customerName?: string; title?: string };
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-600",
-  sent: "bg-blue-100 text-blue-700",
+  draft:    "bg-gray-100 text-gray-600",
+  sent:     "bg-blue-100 text-blue-700",
   accepted: "bg-green-100 text-green-700",
   declined: "bg-red-100 text-red-600",
   invoiced: "bg-purple-100 text-purple-700",
 };
 
+// Valid next statuses for each current status (mirrors server validation)
+const NEXT_STATUSES: Record<string, { label: string; value: string }[]> = {
+  draft:    [{ label: "Mark as Sent", value: "sent" }],
+  sent:     [
+    { label: "Mark as Accepted", value: "accepted" },
+    { label: "Mark as Declined", value: "declined" },
+    { label: "Revert to Draft",  value: "draft" },
+  ],
+  viewed:   [
+    { label: "Mark as Accepted", value: "accepted" },
+    { label: "Mark as Declined", value: "declined" },
+  ],
+  accepted: [],
+  declined: [{ label: "Re-send Quote", value: "sent" }],
+  invoiced: [],
+};
+
 export default function QuotesScreen() {
-  const { data: quotes, isLoading, isError } = useQuery({
-    queryKey: [api.quotes.list.path],
-    queryFn: async () => {
-      const res = await apiRequest("GET", api.quotes.list.path);
-      if (!res.ok) throw new Error("Failed to fetch quotes");
-      return res.json();
-    },
-  });
+  const { data: quotes, isLoading, isError } = useQuotes();
+  const { mutate: updateQuote } = useUpdateQuote();
+  const { mutate: deleteQuote } = useDeleteQuote();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -29,6 +50,34 @@ export default function QuotesScreen() {
     await queryClient.invalidateQueries();
     setRefreshing(false);
   }, []);
+
+  const handleStatusPress = (quote: QuoteWithJoins) => {
+    const options = NEXT_STATUSES[quote.status ?? "draft"] ?? [];
+    if (options.length === 0) return;
+
+    const buttons = options.map((opt) => ({
+      text: opt.label,
+      onPress: () => updateQuote({ id: quote.id, status: opt.value }),
+    }));
+    buttons.push({ text: "Cancel", onPress: () => {} });
+
+    Alert.alert("Change Status", `Current: ${quote.status}`, buttons as any);
+  };
+
+  const handleDeletePress = (quote: QuoteWithJoins) => {
+    Alert.alert(
+      "Delete Quote",
+      "Are you sure you want to delete this quote? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteQuote(quote.id),
+        },
+      ]
+    );
+  };
 
   if (isLoading) {
     return (
@@ -48,8 +97,8 @@ export default function QuotesScreen() {
     );
   }
 
-  const sorted = [...(quotes || [])].sort(
-    (a: any, b: any) =>
+  const sorted = [...((quotes || []) as QuoteWithJoins[])].sort(
+    (a, b) =>
       new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
   );
 
@@ -76,12 +125,15 @@ export default function QuotesScreen() {
             </Text>
           </View>
         ) : (
-          sorted.map((quote: any) => {
+          sorted.map((quote) => {
             let jobTitle = quote.title;
             try {
               const parsed = JSON.parse(quote.content || "{}");
               if (parsed.jobTitle) jobTitle = parsed.jobTitle;
             } catch {}
+
+            const canChangeStatus = (NEXT_STATUSES[quote.status ?? "draft"] ?? []).length > 0;
+            const canDelete = quote.status === "draft" || quote.status === "declined";
 
             return (
               <View
@@ -95,29 +147,44 @@ export default function QuotesScreen() {
                   >
                     {jobTitle || `Quote #${quote.id}`}
                   </Text>
-                  <View
-                    className={`px-2 py-0.5 rounded-full ${
-                      STATUS_COLORS[quote.status] ?? "bg-gray-100 text-gray-600"
-                    }`}
+                  <TouchableOpacity
+                    onPress={() => handleStatusPress(quote)}
+                    disabled={!canChangeStatus}
                   >
-                    <Text className="text-xs font-semibold capitalize">
-                      {quote.status}
-                    </Text>
-                  </View>
+                    <View
+                      className={`px-2 py-0.5 rounded-full ${
+                        STATUS_COLORS[quote.status ?? "draft"] ?? "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      <Text className="text-xs font-semibold capitalize">
+                        {quote.status}
+                        {canChangeStatus ? " ›" : ""}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
                 </View>
 
                 {quote.customerName && (
                   <Text className="text-sm text-gray-500">👤 {quote.customerName}</Text>
                 )}
 
-                {quote.totalAmount && parseFloat(quote.totalAmount) > 0 && (
+                {quote.totalAmount && parseFloat(String(quote.totalAmount)) > 0 && (
                   <Text className="text-sm font-semibold text-gray-900 mt-1">
                     $
-                    {parseFloat(quote.totalAmount).toLocaleString("en-AU", {
+                    {parseFloat(String(quote.totalAmount)).toLocaleString("en-AU", {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
                   </Text>
+                )}
+
+                {canDelete && (
+                  <TouchableOpacity
+                    onPress={() => handleDeletePress(quote)}
+                    className="mt-2 self-start"
+                  >
+                    <Text className="text-xs text-red-400 font-medium">Delete</Text>
+                  </TouchableOpacity>
                 )}
               </View>
             );
