@@ -2,10 +2,17 @@ import fs from "node:fs";
 import OpenAI, { toFile } from "openai";
 import { Buffer } from "node:buffer";
 
-export const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+let _openai: OpenAI;
+try {
+  _openai = new OpenAI({
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  });
+} catch (e) {
+  console.warn("Image OpenAI client not initialized:", (e as Error).message);
+  _openai = null as any;
+}
+export const openai = _openai!
 
 /**
  * Generate an image and return as Buffer.
