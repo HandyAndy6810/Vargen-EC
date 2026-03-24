@@ -104,10 +104,16 @@ async function syncCustomerToXero(
   return { contactId: result.contactId };
 }
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+let openai: OpenAI;
+try {
+  openai = new OpenAI({
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  });
+} catch (e) {
+  console.warn("OpenAI client not initialized (AI features disabled):", (e as Error).message);
+  openai = null as any;
+}
 
 export async function registerRoutes(
   httpServer: Server,
