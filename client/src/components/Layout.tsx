@@ -25,6 +25,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const isLoginPage = location === "/login";
 
   return (
+    <div className="min-h-screen bg-background relative flex flex-col overflow-x-hidden">
+      <main className="flex-1 max-w-2xl mx-auto w-full px-4 pt-4 pb-32 overflow-x-hidden">
     <div className="min-h-screen bg-background relative flex flex-col">
       <main className={`flex-1 max-w-2xl mx-auto w-full px-4 pt-4 ${isLoginPage ? "" : "pb-32"}`}>
         {children}
