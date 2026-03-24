@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Clock, Send, CheckCircle2, XCircle, Eye, PenLine, Flame, TrendingUp, DollarSign, Percent } from "lucide-react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
+import { useNavAction } from "@/hooks/use-nav-action";
 import { cn } from "@/lib/utils";
 import { format, differenceInDays, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,8 @@ export default function Quotes() {
 
   const { toast } = useToast();
   const [followUpQuote, setFollowUpQuote] = useState<any>(null);
+
+  useNavAction({ label: "New", icon: Plus, onClick: () => setLocation("/quotes/new") }, []);
 
   const activeStatuses = ["draft", "sent", "viewed"];
   const historyStatuses = ["accepted", "rejected"];
@@ -382,16 +385,6 @@ export default function Quotes() {
           })
         )}
       </div>
-
-      {/* FAB */}
-      <Link href="/quotes/new">
-        <button
-          className="fixed bottom-24 right-6 w-14 h-14 bg-primary text-white rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-90 transition-transform z-50"
-          data-testid="button-create-quote-fab"
-        >
-          <Plus className="w-7 h-7" />
-        </button>
-      </Link>
 
       {followUpQuote && (
         <FollowUpSheet

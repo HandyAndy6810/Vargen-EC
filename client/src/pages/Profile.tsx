@@ -109,6 +109,8 @@ export default function Profile() {
         invalid_state: "Security check failed. Please try again.",
         no_tenants: "No Xero organisations found. Make sure you have a Xero account.",
         token_exchange: "Failed to complete Xero authorization. Please try again.",
+        not_configured: "Xero is not configured on this server. Set XERO_CLIENT_ID and XERO_REDIRECT_URI environment variables.",
+        server_error: "A server error occurred while starting the Xero connection. Check server logs.",
       };
       toast({
         title: "Xero connection failed",

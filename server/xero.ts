@@ -220,7 +220,9 @@ export async function upsertXeroContact(
   if (!res.ok) {
     const errText = await res.text();
     console.error("Xero upsertContact failed:", res.status, errText);
-    throw new Error(`Failed to sync contact to Xero: ${res.status}`);
+    let detail = errText;
+    try { detail = JSON.parse(errText)?.Detail || JSON.parse(errText)?.Message || errText; } catch {}
+    throw new Error(`Xero contact sync failed (${res.status}): ${detail}`);
   }
 
   const data = await res.json();
@@ -258,11 +260,16 @@ export async function createXeroInvoice(
     ? opts.dueDate.toISOString().split("T")[0]
     : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]; // 30-day default
 
+  // Account code can be overridden via env var; "200" is the default Sales account in Xero AU.
+  // If your Xero org uses a different code, set XERO_SALES_ACCOUNT_CODE.
+  const accountCode = process.env.XERO_SALES_ACCOUNT_CODE || "200";
+
   const lineItems = opts.lineItems.map((item) => ({
     Description: item.description,
     Quantity: item.quantity,
     UnitAmount: parseFloat(item.unitPrice.toFixed(2)),
-    AccountCode: "200", // Standard "Sales" account in Xero AU
+    AccountCode: accountCode,
+    // OUTPUT2 = GST on Income (AU), EXEMPTOUTPUT = GST Free Income (AU)
     ...(opts.includeGST ? { TaxType: "OUTPUT2" } : { TaxType: "EXEMPTOUTPUT" }),
   }));
 
@@ -287,12 +294,19 @@ export async function createXeroInvoice(
   if (!res.ok) {
     const errText = await res.text();
     console.error("Xero createInvoice failed:", res.status, errText);
-    throw new Error(`Failed to create Xero invoice: ${res.status}`);
+    let detail = errText;
+    try { detail = JSON.parse(errText)?.Detail || JSON.parse(errText)?.Message || errText; } catch {}
+    throw new Error(`Xero invoice creation failed (${res.status}): ${detail}`);
   }
 
   const data = await res.json();
   const created = data?.Invoices?.[0];
   if (!created?.InvoiceID) {
+    // Xero sometimes returns 200 but with validation errors in the response body
+    const validationErrors = data?.Invoices?.[0]?.ValidationErrors;
+    if (validationErrors?.length) {
+      throw new Error(`Xero validation error: ${validationErrors.map((e: any) => e.Message).join(", ")}`);
+    }
     throw new Error("Xero returned no InvoiceID after creation");
   }
 

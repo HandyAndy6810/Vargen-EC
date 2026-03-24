@@ -4,6 +4,7 @@ import { useCustomers } from "@/hooks/use-customers";
 import { ActiveTimerBanner } from "@/components/ActiveTimerBanner";
 import { useState } from "react";
 import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2, Calendar, Briefcase, FileText, Check, AlertTriangle } from "lucide-react";
+import { useNavAction } from "@/hooks/use-nav-action";
 import { RunningLateModal } from "@/components/RunningLateModal";
 import type { Job } from "@shared/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -38,6 +39,8 @@ export default function Jobs() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [lateJob, setLateJob] = useState<Job | null>(null);
+
+  useNavAction({ label: "New", icon: Plus, onClick: () => setIsDialogOpen(true) }, []);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
@@ -86,18 +89,9 @@ export default function Jobs() {
       <ActiveTimerBanner />
       {/* Header */}
       <div className="px-6 pt-12 mb-6">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
-            <p className="text-muted-foreground">{format(currentDate, "MMMM yyyy")}</p>
-          </div>
-          <Button 
-            onClick={() => setIsDialogOpen(true)}
-            size="icon" 
-            className="bg-primary hover:bg-primary/90 text-white rounded-full h-12 w-12 shadow-lg shadow-primary/20"
-          >
-            <Plus className="w-6 h-6" />
-          </Button>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
+          <p className="text-muted-foreground">{format(currentDate, "MMMM yyyy")}</p>
         </div>
 
         {/* Next Job Banner */}
