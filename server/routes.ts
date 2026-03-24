@@ -295,7 +295,7 @@ export async function registerRoutes(
         // Auto-populate follow-up schedule from user settings
         if (existing && !existing.followUpSchedule) {
           try {
-            const userId = req.user?.claims?.sub;
+            const userId = (req.session as any)?.localUserId;
             if (userId) {
               const settings = await storage.getUserSettings(userId);
               if (settings?.followUpEnabled) {
@@ -312,7 +312,7 @@ export async function registerRoutes(
       res.json(quote);
 
       // Auto-create Xero invoice when a quote is first accepted
-      const userId = req.user?.claims?.sub;
+      const userId = (req.session as any)?.localUserId;
       const justAccepted = input.status === "accepted" && prevQuote?.status !== "accepted";
       if (userId && justAccepted && !quote.xeroInvoiceId) {
         autoCreateXeroInvoice(userId, quoteId).catch((err) =>
@@ -552,7 +552,7 @@ CRITICAL RULES — follow these exactly:
 
   // User Settings
   app.get(api.settings.get.path, async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.session as any)?.localUserId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
     const settings = await storage.getUserSettings(userId);
     res.json(settings ?? null);
@@ -560,7 +560,7 @@ CRITICAL RULES — follow these exactly:
 
   app.patch(api.settings.update.path, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = (req.session as any)?.localUserId;
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const input = api.settings.update.input.parse(req.body);
       const settings = await storage.upsertUserSettings(userId, input);
@@ -759,7 +759,7 @@ CRITICAL RULES — follow these exactly:
         subtotal = Number(quote.totalAmount) || 0;
       }
 
-      const userId = req.user?.claims?.sub;
+      const userId = (req.session as any)?.localUserId;
       let paymentTermsDays = 14;
       if (userId) {
         const settings = await storage.getUserSettings(userId);
@@ -871,7 +871,7 @@ CRITICAL RULES — follow these exactly:
   // ─── Job Templates ───
 
   app.get("/api/templates", async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.session as any)?.localUserId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
     const templates = await storage.getJobTemplates(userId);
     res.json(templates);
@@ -879,7 +879,7 @@ CRITICAL RULES — follow these exactly:
 
   app.post("/api/templates", async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = (req.session as any)?.localUserId;
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { label, icon, description } = req.body;
       if (!label || typeof label !== "string") {
@@ -898,7 +898,7 @@ CRITICAL RULES — follow these exactly:
   });
 
   app.delete("/api/templates/:id", async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.session as any)?.localUserId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
     await storage.deleteJobTemplate(Number(req.params.id), userId);
     res.json({ ok: true });
@@ -908,7 +908,7 @@ CRITICAL RULES — follow these exactly:
 
   app.get("/api/activity", async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = (req.session as any)?.localUserId;
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const activities = await storage.getRecentActivity(20);
       res.json(activities);
@@ -922,7 +922,7 @@ CRITICAL RULES — follow these exactly:
 
   app.get("/api/templates/frequent", async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = (req.session as any)?.localUserId;
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const allQuotes = await storage.getQuotes();
       const counts: Record<string, { count: number; icon: string }> = {};
@@ -964,12 +964,9 @@ CRITICAL RULES — follow these exactly:
   // ─── Xero OAuth2 PKCE Routes ───
 
   app.get("/api/xero/connect", (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.session as any)?.localUserId;
     if (!userId) {
-      (req.session as any).returnTo = "/api/xero/connect";
-      return req.session.save(() => {
-        res.redirect("/api/login");
-      });
+      return res.redirect("/login?returnTo=/api/xero/connect");
     }
 
     // Pre-flight: check env vars are configured before starting OAuth
@@ -993,7 +990,7 @@ CRITICAL RULES — follow these exactly:
 
   // OAuth callback — Xero redirects here with ?code=...&state=...
   app.get("/api/xero/callback", async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.session as any)?.localUserId;
     if (!userId) return res.redirect("/profile?xero=error&reason=unauthorized");
 
     const { code, state } = req.query;
@@ -1042,7 +1039,7 @@ CRITICAL RULES — follow these exactly:
 
   // Check connection status
   app.get("/api/xero/status", async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.session as any)?.localUserId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const token = await storage.getXeroToken(userId);
@@ -1065,7 +1062,7 @@ CRITICAL RULES — follow these exactly:
 
   // Disconnect from Xero
   app.post("/api/xero/disconnect", async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.session as any)?.localUserId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     await storage.deleteXeroToken(userId);
@@ -1076,7 +1073,7 @@ CRITICAL RULES — follow these exactly:
 
   // Manually sync a single customer to Xero contacts
   app.post("/api/xero/sync-customer/:id", async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.session as any)?.localUserId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
     const token = await getValidToken(userId);
     if (!token) return res.status(400).json({ message: "Xero not connected" });
@@ -1096,7 +1093,7 @@ CRITICAL RULES — follow these exactly:
 
   // Sync ALL customers to Xero contacts
   app.post("/api/xero/sync-all-customers", async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.session as any)?.localUserId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
     const token = await getValidToken(userId);
     if (!token) return res.status(400).json({ message: "Xero not connected" });
@@ -1119,7 +1116,7 @@ CRITICAL RULES — follow these exactly:
 
   // Manually create a Xero invoice from an accepted quote
   app.post("/api/xero/invoice/:quoteId", async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
+    const userId = (req.session as any)?.localUserId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
     const token = await getValidToken(userId);
     if (!token) return res.status(400).json({ message: "Xero not connected" });

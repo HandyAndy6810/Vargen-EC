@@ -68,7 +68,13 @@ export default function Login() {
     },
     onSuccess: (user) => {
       queryClient.setQueryData(["/api/auth/user"], user);
-      setLocation("/");
+      const params = new URLSearchParams(window.location.search);
+      const returnTo = params.get("returnTo");
+      if (returnTo) {
+        window.location.href = returnTo;
+      } else {
+        setLocation("/");
+      }
     },
     onError: (err: Error) => setError(err.message),
   });
@@ -94,7 +100,13 @@ export default function Login() {
     },
     onSuccess: (user) => {
       queryClient.setQueryData(["/api/auth/user"], user);
-      setLocation("/");
+      const params = new URLSearchParams(window.location.search);
+      const returnTo = params.get("returnTo");
+      if (returnTo) {
+        window.location.href = returnTo;
+      } else {
+        setLocation("/");
+      }
     },
     onError: (err: Error) => setError(err.message),
   });

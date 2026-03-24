@@ -95,8 +95,13 @@ The home page uses a reorderable blade system. Blades can be toggled and reposit
 - **Models Used**: GPT for text, `gpt-audio-mini` for voice, `gpt-image-1` for images
 
 ### Authentication
-- **Replit OIDC** — OpenID Connect provider for user authentication
-- **Environment Variables**: `ISSUER_URL`, `REPL_ID`, `SESSION_SECRET`
+- **Custom Email/Password Auth** — Session-based authentication with bcrypt password hashing
+- **Session Store**: PostgreSQL-backed sessions using `connect-pg-simple`
+- **Implementation**: `server/replit_integrations/auth/replitAuth.ts` handles login (POST /api/login), register (POST /api/register), logout (POST /api/logout), forgot/reset password
+- **Client Pages**: `Login.tsx` (sign in / create account tabs), `ResetPassword.tsx`
+- **Client Hook**: `useAuth()` hook checks `/api/auth/user` endpoint, returns user/isAuthenticated/logout
+- **User ID Pattern**: Routes access user via `(req.session as any)?.localUserId`
+- **Environment Variables**: `SESSION_SECRET`
 
 ### Key NPM Packages
 - `drizzle-orm` + `drizzle-kit` — Database ORM and migration tooling
