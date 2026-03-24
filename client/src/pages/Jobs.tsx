@@ -4,6 +4,7 @@ import { useCustomers } from "@/hooks/use-customers";
 import { ActiveTimerBanner } from "@/components/ActiveTimerBanner";
 import { useState } from "react";
 import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2, Calendar, Briefcase, FileText, Check, AlertTriangle } from "lucide-react";
+import { useNavAction } from "@/hooks/use-nav-action";
 import { RunningLateModal } from "@/components/RunningLateModal";
 import type { Job } from "@shared/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -38,6 +39,8 @@ export default function Jobs() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [lateJob, setLateJob] = useState<Job | null>(null);
+
+  useNavAction({ label: "New", icon: Plus, onClick: () => setIsDialogOpen(true) }, []);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
@@ -86,18 +89,9 @@ export default function Jobs() {
       <ActiveTimerBanner />
       {/* Header */}
       <div className="px-6 pt-12 mb-6">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
-            <p className="text-muted-foreground">{format(currentDate, "MMMM yyyy")}</p>
-          </div>
-          <Button 
-            onClick={() => setIsDialogOpen(true)}
-            size="icon" 
-            className="bg-primary hover:bg-primary/90 text-white rounded-full h-12 w-12 shadow-lg shadow-primary/20"
-          >
-            <Plus className="w-6 h-6" />
-          </Button>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
+          <p className="text-muted-foreground">{format(currentDate, "MMMM yyyy")}</p>
         </div>
 
         {/* Next Job Banner */}
@@ -221,8 +215,13 @@ export default function Jobs() {
                   job.status === "completed" ? "bg-green-500"
                   : job.status === "pending" ? "bg-yellow-400"
                   : "bg-primary";
+                const statusBadge = job.status === "completed"
+                  ? { label: "Completed", cls: "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800" }
+                  : job.status === "pending"
+                  ? { label: "Pending", cls: "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800" }
+                  : { label: "Scheduled", cls: "bg-orange-50 dark:bg-orange-900/20 text-primary border-orange-200 dark:border-orange-800" };
                 return (
-                  <div key={job.id} className="bg-white dark:bg-card p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 transition-all group">
+                  <div key={job.id} className="bg-white dark:bg-card p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
                     <Link href={`/jobs/${job.id}`}>
                       <div className="cursor-pointer active:scale-[0.98]">
                         <div className="flex justify-between items-start mb-3">
@@ -233,9 +232,14 @@ export default function Jobs() {
                             </div>
                             <div>
                               <h4 className="font-bold text-foreground group-hover:text-primary transition-colors">{job.title}</h4>
-                              <p className="text-xs text-muted-foreground font-medium">
-                                {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "TBD"}
-                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-xs text-muted-foreground font-medium">
+                                  {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "TBD"}
+                                </p>
+                                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", statusBadge.cls)}>
+                                  {statusBadge.label}
+                                </span>
+                              </div>
                             </div>
                           </div>
                           <ChevronRight className="w-5 h-5 text-muted-foreground/40 group-hover:text-primary transition-colors" />

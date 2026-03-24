@@ -26,6 +26,22 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
+const AVATAR_GRADIENTS = [
+  "from-orange-400 to-rose-500",
+  "from-amber-400 to-orange-500",
+  "from-emerald-400 to-teal-500",
+  "from-sky-400 to-blue-500",
+  "from-violet-400 to-purple-500",
+  "from-pink-400 to-rose-500",
+  "from-teal-400 to-cyan-500",
+  "from-indigo-400 to-violet-500",
+];
+
+function getAvatarGradient(name: string) {
+  const hash = name.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length];
+}
+
 interface EditForm {
   name: string;
   phone: string;
@@ -245,8 +261,8 @@ export default function Contacts() {
                 }}
                 data-testid={`customer-row-${customer.id}`}
               >
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-primary font-bold text-sm">{getInitials(customer.name)}</span>
+                <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${getAvatarGradient(customer.name)} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                  <span className="text-white font-bold text-sm">{getInitials(customer.name)}</span>
                 </div>
 
                 <div className="flex-1 min-w-0">

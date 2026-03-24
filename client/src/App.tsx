@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/Layout";
+import { NavActionProvider } from "@/hooks/use-nav-action";
 import NotFound from "@/pages/not-found";
 
 import Login from "@/pages/Login";
@@ -21,6 +22,7 @@ import Portal from "@/pages/Portal";
 import Invoices from "@/pages/Invoices";
 import InvoiceDetail from "@/pages/InvoiceDetail";
 import InvoicePreview from "@/pages/InvoicePreview";
+import ResetPassword from "@/pages/ResetPassword";
 
 function Router() {
   return (
@@ -29,11 +31,11 @@ function Router() {
       <Route path="/quotes/:id/preview" component={QuotePreview} />
       <Route path="/portal/:token" component={Portal} />
       <Route path="/invoices/:id/preview" component={InvoicePreview} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route>
         {() => (
           <Layout>
             <Switch>
-              <Route path="/api/login" component={() => { window.location.href = "/api/login"; return null; }} />
               <Route path="/login" component={Login} />
               <Route path="/" component={Home} />
               <Route path="/customers" component={Customers} />
@@ -59,8 +61,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
+        <NavActionProvider>
+          <Toaster />
+          <Router />
+        </NavActionProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

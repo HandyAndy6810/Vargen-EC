@@ -82,9 +82,9 @@ export default function InvoiceDetail() {
   };
 
   const bankName = settings?.bankName || "";
-  const bankBsb = settings?.bankBsb || "";
-  const bankAccountNumber = settings?.bankAccountNumber || "";
-  const bankAccountName = settings?.bankAccountName || "";
+  const bankBsb = settings?.bsb || "";
+  const bankAccountNumber = settings?.accountNumber || "";
+  const bankAccountName = settings?.accountName || "";
   const hasBankDetails = bankName || bankBsb || bankAccountNumber;
 
   const handleDownloadPDF = () => {

@@ -2,12 +2,25 @@ import { Quote } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
+import { useEffect, useRef, useState } from "react";
 
 interface PipelineViewProps {
   quotes: Quote[];
 }
 
 export function PipelineView({ quotes }: PipelineViewProps) {
+  const [animated, setAnimated] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setAnimated(true); observer.disconnect(); } },
+      { threshold: 0.3 }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
   const statuses = [
     { id: "draft", label: "Drafts", color: "bg-slate-500" },
     { id: "sent", label: "Sent", color: "bg-blue-500" },
@@ -21,7 +34,7 @@ export function PipelineView({ quotes }: PipelineViewProps) {
   const totalValue = quotes.reduce((acc, q) => acc + Number(q.totalAmount), 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={ref}>
       <div className="flex justify-between items-end px-1">
         <h3 className="text-xl font-bold">Quote Pipeline</h3>
         <p className="text-sm font-bold text-muted-foreground">
@@ -37,10 +50,10 @@ export function PipelineView({ quotes }: PipelineViewProps) {
             const percentage = quotes.length > 0 ? (statusQuotes.length / quotes.length) * 100 : 0;
             if (percentage === 0) return null;
             return (
-              <div 
+              <div
                 key={status.id}
-                style={{ width: `${percentage}%` }}
-                className={cn("h-full transition-all", status.color)}
+                style={{ width: animated ? `${percentage}%` : "0%" }}
+                className={cn("h-full transition-all duration-700 ease-out", status.color)}
               />
             );
           })}
@@ -51,18 +64,23 @@ export function PipelineView({ quotes }: PipelineViewProps) {
           {statuses.map((status) => {
             const statusQuotes = getQuotesByStatus(status.id);
             const value = statusQuotes.reduce((acc, q) => acc + Number(q.totalAmount), 0);
-            
+
             return (
               <Link key={status.id} href="/quotes">
-                <div className="space-y-1 active:scale-95 transition-transform cursor-pointer">
+                <div className="space-y-1 active:scale-95 transition-transform cursor-pointer hover:opacity-80">
                   <div className="flex items-center gap-2">
-                    <div className={cn("w-2 h-2 rounded-full", status.color)} />
+                    <div className={cn("w-2.5 h-2.5 rounded-full shadow-sm", status.color)} />
                     <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                       {status.label}
                     </span>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black">{statusQuotes.length}</span>
+                    <span className={cn(
+                      "text-2xl font-black transition-all duration-500",
+                      animated ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+                    )}>
+                      {statusQuotes.length}
+                    </span>
                     <span className="text-[10px] font-bold text-muted-foreground">
                       ${value.toLocaleString()}
                     </span>

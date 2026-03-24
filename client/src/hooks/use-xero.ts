@@ -91,7 +91,7 @@ export function useXeroSyncAllCustomers() {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       toast({
         title: `Synced ${data.synced} of ${data.total} customers`,
-        description: data.failed > 0 ? `${data.failed} failed — check console for details.` : "All contacts up to date in Xero.",
+        description: data.failed > 0 ? `${data.failed} contact(s) could not be synced. Check that their details are complete.` : "All contacts up to date in Xero.",
       });
     },
     onError: (error) => {
