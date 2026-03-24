@@ -212,7 +212,10 @@ export default function Login() {
                       <Label htmlFor="forgot-email">Email</Label>
                       <Input
                         id="forgot-email"
-                        type="email"
+                        type="text"
+                        inputMode="email"
+                        autoCapitalize="none"
+                        autoCorrect="off"
                         placeholder="you@example.com"
                         autoComplete="email"
                         {...forgotForm.register("email")}
@@ -266,7 +269,10 @@ export default function Login() {
                 <Label htmlFor="login-email">Email</Label>
                 <Input
                   id="login-email"
-                  type="email"
+                  type="text"
+                        inputMode="email"
+                        autoCapitalize="none"
+                        autoCorrect="off"
                   placeholder="you@example.com"
                   autoComplete="email"
                   {...loginForm.register("email")}
@@ -331,7 +337,10 @@ export default function Login() {
                 <Label htmlFor="reg-email">Email</Label>
                 <Input
                   id="reg-email"
-                  type="email"
+                  type="text"
+                        inputMode="email"
+                        autoCapitalize="none"
+                        autoCorrect="off"
                   placeholder="you@example.com"
                   autoComplete="email"
                   {...registerForm.register("email")}
