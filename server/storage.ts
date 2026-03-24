@@ -10,7 +10,7 @@ import {
   type JobTimerEntry, type InsertJobTimerEntry,
   type PortalFeedback, type InsertPortalFeedback,
   type JobTemplate, type InsertJobTemplate
-} from "@shared/schema";
+} from "../shared/schema";
 import { eq, desc, isNull, and, or, sql } from "drizzle-orm";
 
 export interface IStorage {
