@@ -4,6 +4,7 @@ import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useRoute, useLocation } from "wouter";
 import { useState, useEffect } from "react";
+import { useNavAction } from "@/hooks/use-nav-action";
 import {
   ArrowLeft,
   Calendar,
@@ -80,6 +81,11 @@ export default function QuoteDetail() {
   const parsed = quote ? parseContent(quote.content) : null;
 
   const [editing, setEditing] = useState(false);
+  useNavAction(
+    editing ? null : { label: "Edit", icon: Pencil, onClick: () => setEditing(true) },
+    [editing]
+  );
+
   const [editItems, setEditItems] = useState<ParsedContent["items"]>([]);
   const [editNotes, setEditNotes] = useState("");
   const [editTitle, setEditTitle] = useState("");
