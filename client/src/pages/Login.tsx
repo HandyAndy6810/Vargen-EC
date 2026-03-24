@@ -204,6 +204,7 @@ export default function Login() {
                     </div>
                   )}
                   <form
+                    noValidate
                     onSubmit={forgotForm.handleSubmit((d) => { setError(null); forgotMutation.mutate(d); })}
                     className="space-y-4"
                   >
@@ -257,6 +258,7 @@ export default function Login() {
 
           {tab === "login" ? (
             <form
+              noValidate
               onSubmit={loginForm.handleSubmit((d) => { setError(null); loginMutation.mutate(d); })}
               className="space-y-4"
             >
@@ -308,6 +310,7 @@ export default function Login() {
             </form>
           ) : (
             <form
+              noValidate
               onSubmit={registerForm.handleSubmit((d) => { setError(null); registerMutation.mutate(d); })}
               className="space-y-4"
             >
