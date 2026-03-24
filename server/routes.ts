@@ -36,53 +36,60 @@ async function autoSyncCustomerToXero(userId: string, customerId: number) {
 
 /** Fire-and-forget: create a Xero invoice from an accepted quote. */
 async function autoCreateXeroInvoice(userId: string, quoteId: number) {
-  const token = await getValidToken(userId);
-  if (!token) return;
+  try {
+    const token = await getValidToken(userId);
+    if (!token) return;
 
-  const quote = await storage.getQuote(quoteId);
-  if (!quote || quote.xeroInvoiceId) return;
+    const quote = await storage.getQuote(quoteId);
+    if (!quote || quote.xeroInvoiceId) return;
 
-  // Ensure customer is synced first
-  let xeroContactId = quote.customerId
-    ? (await storage.getCustomer(quote.customerId))?.xeroContactId
-    : null;
+    // Ensure customer is synced first
+    let xeroContactId = quote.customerId
+      ? (await storage.getCustomer(quote.customerId))?.xeroContactId
+      : null;
 
-  if (!xeroContactId && quote.customerId) {
-    const syncResult = await syncCustomerToXero(token, quote.customerId);
-    xeroContactId = syncResult?.contactId ?? null;
+    if (!xeroContactId && quote.customerId) {
+      const syncResult = await syncCustomerToXero(token, quote.customerId);
+      xeroContactId = syncResult?.contactId ?? null;
+    }
+
+    if (!xeroContactId) {
+      console.error(`Auto Xero invoice skipped for quote ${quoteId}: customer has no Xero contact`);
+      return;
+    }
+
+    const items = await storage.getQuoteItems(quoteId);
+    const parsed = quote.content ? (() => { try { return JSON.parse(quote.content!); } catch { return null; } })() : null;
+    const jobTitle = parsed?.jobTitle || `Quote #${quoteId}`;
+    const includeGST = parsed?.includeGST ?? true;
+
+    const lineItems = items.map((i) => ({
+      description: i.description,
+      quantity: i.quantity,
+      unitPrice: parseFloat(String(i.price)),
+    }));
+
+    if (lineItems.length === 0) {
+      lineItems.push({ description: jobTitle, quantity: 1, unitPrice: parseFloat(String(quote.totalAmount)) });
+    }
+
+    const result = await createXeroInvoice(token.accessToken, token.tenantId, {
+      xeroContactId,
+      quoteId,
+      jobTitle,
+      lineItems,
+      includeGST,
+    });
+
+    await storage.updateQuote(quoteId, {
+      xeroInvoiceId: result.invoiceId,
+      xeroInvoiceNumber: result.invoiceNumber,
+    });
+
+    console.log(`Xero invoice ${result.invoiceNumber} created for quote ${quoteId}`);
+  } catch (err) {
+    console.error(`Auto Xero invoice creation failed for quote ${quoteId}:`, err);
   }
-
-  if (!xeroContactId) throw new Error("Cannot create invoice: customer has no Xero contact");
-
-  const items = await storage.getQuoteItems(quoteId);
-  const parsed = quote.content ? (() => { try { return JSON.parse(quote.content!); } catch { return null; } })() : null;
-  const jobTitle = parsed?.jobTitle || `Quote #`;
-  const includeGST = parsed?.includeGST ?? true;
-
-  const lineItems = items.map((i) => ({
-    description: i.description,
-    quantity: i.quantity,
-    unitPrice: parseFloat(String(i.price)),
-  }));
-
-  if (lineItems.length === 0) {
-    lineItems.push({ description: jobTitle, quantity: 1, unitPrice: parseFloat(String(quote.totalAmount)) });
-  }
-
-  const result = await createXeroInvoice(token.accessToken, token.tenantId, {
-    xeroContactId,
-    quoteId,
-    jobTitle,
-    lineItems,
-    includeGST,
-  });
-
-  await storage.updateQuote(quoteId, {
-    xeroInvoiceId: result.invoiceId,
-    xeroInvoiceNumber: result.invoiceNumber,
-  });
-
-  console.log(`Xero invoice  created for quote `);
 }
 
 /** Helper to sync a customer to Xero and persist the contactId. */
@@ -959,6 +966,12 @@ CRITICAL RULES — follow these exactly:
       });
     }
 
+    // Pre-flight: check env vars are configured before starting OAuth
+    if (!process.env.XERO_CLIENT_ID || !process.env.XERO_REDIRECT_URI) {
+      console.error("Xero connect attempted but XERO_CLIENT_ID or XERO_REDIRECT_URI is not set");
+      return res.redirect("/profile?xero=error&reason=not_configured");
+    }
+
     try {
       const { url, codeVerifier, state } = buildAuthUrl();
       (req.session as any).xeroCodeVerifier = codeVerifier;
@@ -968,7 +981,7 @@ CRITICAL RULES — follow these exactly:
       });
     } catch (err: any) {
       console.error("Xero connect error:", err);
-      res.status(500).json({ message: err.message || "Failed to start Xero connection" });
+      res.redirect("/profile?xero=error&reason=server_error");
     }
   });
 
