@@ -81,7 +81,7 @@ export function BottomNav() {
 
         {/* Action pill — slides in from the right when a page registers an action */}
         <div
-          className="shrink-0 overflow-hidden"
+          className="shrink-0 overflow-hidden rounded-[28px]"
           style={{
             width: hasAction ? "72px" : "0px",
             opacity: hasAction ? 1 : 0,
