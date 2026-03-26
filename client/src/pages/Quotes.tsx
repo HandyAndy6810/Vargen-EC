@@ -152,7 +152,15 @@ export default function Quotes() {
     <div className="min-h-screen bg-background pb-32">
       {/* Header & Dashboard Strip */}
       <div className="px-6 pt-12 mb-6">
-        <h1 className="text-3xl font-bold text-foreground mb-4" data-testid="text-quotes-title">Quotes</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-3xl font-bold text-foreground" data-testid="text-quotes-title">Quotes</h1>
+          <button
+            onClick={() => setLocation("/quotes/new")}
+            className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md active:scale-90 transition-transform duration-150"
+          >
+            <Plus className="w-5 h-5 text-primary-foreground" strokeWidth={2.5} />
+          </button>
+        </div>
         
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
