@@ -15,6 +15,7 @@ import fs from "fs";
 import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken, upsertXeroContact, createXeroInvoice } from "./xero";
 import { getTradeContext } from "./trade-knowledge";
 import crypto from "crypto";
+import { sendCustomerEmail } from "./lib/email";
 
 const upload = multer({ dest: "uploads/" });
 
@@ -865,6 +866,22 @@ CRITICAL RULES — follow these exactly:
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to skip follow-up" });
+    }
+  });
+
+  // ─── Customer Email ───
+
+  app.post("/api/messages/email", async (req: any, res) => {
+    try {
+      const { to, subject, body } = req.body || {};
+      if (!to || !subject || !body) {
+        return res.status(400).json({ message: "to, subject and body are required" });
+      }
+      await sendCustomerEmail(to, subject, body);
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("Send email error:", error);
+      res.status(500).json({ message: error?.message || "Failed to send email" });
     }
   });
 

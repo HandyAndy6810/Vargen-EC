@@ -34,6 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
 
 interface ParsedContent {
@@ -76,6 +77,19 @@ export default function QuoteDetail() {
   const { mutate: createXeroInvoice, isPending: isCreatingInvoice } = useXeroCreateInvoice();
   const createInvoiceMutation = useCreateInvoiceFromQuote();
   const { toast } = useToast();
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async ({ to, subject, body }: { to: string; subject: string; body: string }) => {
+      const res = await fetch("/api/messages/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, subject, body }),
+      });
+      if (!res.ok) throw new Error("Failed to send email");
+    },
+    onSuccess: () => { toast({ title: "Email sent to client!" }); setShowShareSheet(false); },
+    onError: () => toast({ title: "Failed to send email", variant: "destructive" }),
+  });
 
   const quote = quotes?.find(q => q.id === id);
   const parsed = quote ? parseContent(quote.content) : null;
@@ -830,6 +844,7 @@ export default function QuoteDetail() {
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <button
+              disabled={sendEmailMutation.isPending}
               onClick={() => {
                 const customer = customers?.find(c => {
                   if (quote.jobId) {
@@ -844,12 +859,13 @@ export default function QuoteDetail() {
                   setShowShareSheet(false);
                   return;
                 }
-                const subject = encodeURIComponent(`Quote: ${jobTitle}`);
-                const body = encodeURIComponent(`Hi ${customer?.name || customerName || "there"},\n\nPlease find your quote for ${jobTitle} attached.\n\nTotal: $${totalAmount.toFixed(2)}\n\nView details: ${window.location.origin}/quotes/${quote.id}\n\nKind regards,\n[Your Name]`);
-                window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
-                setShowShareSheet(false);
+                sendEmailMutation.mutate({
+                  to: email,
+                  subject: `Quote: ${jobTitle}`,
+                  body: `Hi ${customer?.name || customerName || "there"},\n\nPlease find your quote for ${jobTitle} attached.\n\nTotal: $${totalAmount.toFixed(2)}\n\nView details: ${window.location.origin}/quotes/${quote.id}\n\nKind regards,\n[Your Name]`,
+                });
               }}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left hover-elevate active-elevate-2 transition-all"
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left hover-elevate active-elevate-2 transition-all disabled:opacity-60"
               data-testid="button-share-email"
             >
               <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
