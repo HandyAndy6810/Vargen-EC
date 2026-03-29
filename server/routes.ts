@@ -658,10 +658,14 @@ CRITICAL RULES — follow these exactly:
         customer = await storage.getCustomer(quote.customerId) || null;
       }
 
-      const allQuotes = await storage.getQuotes();
-      let businessName = "", businessPhone = "", businessEmail = "", businessAddress = "";
-
       const feedback = await storage.getPortalFeedback(quote.id);
+
+      // Fetch business details from user settings
+      const s = await storage.getAnyUserSettings();
+      const businessName = s?.businessName || "";
+      const businessPhone = s?.businessPhone || "";
+      const businessEmail = s?.businessEmail || "";
+      const businessAddress = s?.businessAddress || "";
 
       res.json({
         quote,
@@ -1190,9 +1194,6 @@ CRITICAL RULES — follow these exactly:
       res.status(500).json({ message: err.message || "Failed to create invoice" });
     }
   });
-
-  // Seed data function
-  await seedDatabase();
 
   return httpServer;
 }

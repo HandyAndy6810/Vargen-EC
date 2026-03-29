@@ -62,11 +62,11 @@ export default function InvoicePreview() {
 
   const bankName = settings?.bankName || "";
   const bankBsb = settings?.bankBsb || "";
-  const bankAccountNumber = settings?.bankAccountNumber || "";
+  const bankAccountNumber = settings?.accountNumber || "";
   const bankAccountName = settings?.bankAccountName || "";
   const hasBankDetails = bankName || bankBsb || bankAccountNumber;
 
-  const businessName = settings?.businessName || "Vargenezey";
+  const businessName = settings?.businessName || "Your Business";
 
   const handlePrint = () => {
     window.print();

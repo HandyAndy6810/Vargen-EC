@@ -35,6 +35,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
+import { useUserSettings } from "@/hooks/use-user-settings";
 import { format } from "date-fns";
 
 interface ParsedContent {
@@ -77,6 +78,7 @@ export default function QuoteDetail() {
   const { mutate: createXeroInvoice, isPending: isCreatingInvoice } = useXeroCreateInvoice();
   const createInvoiceMutation = useCreateInvoiceFromQuote();
   const { toast } = useToast();
+  const { data: settings } = useUserSettings();
 
   const sendEmailMutation = useMutation({
     mutationFn: async ({ to, subject, body }: { to: string; subject: string; body: string }) => {
@@ -862,7 +864,7 @@ export default function QuoteDetail() {
                 sendEmailMutation.mutate({
                   to: email,
                   subject: `Quote: ${jobTitle}`,
-                  body: `Hi ${customer?.name || customerName || "there"},\n\nPlease find your quote for ${jobTitle} attached.\n\nTotal: $${totalAmount.toFixed(2)}\n\nView details: ${window.location.origin}/quotes/${quote.id}\n\nKind regards,\n[Your Name]`,
+                  body: `Hi ${customer?.name || customerName || "there"},\n\nPlease find your quote for ${jobTitle} attached.\n\nTotal: $${totalAmount.toFixed(2)}\n\nView details: ${window.location.origin}/quotes/${quote.id}\n\nKind regards,\n${settings?.businessName || "Your Tradie"}`,
                 });
               }}
               className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left hover-elevate active-elevate-2 transition-all disabled:opacity-60"

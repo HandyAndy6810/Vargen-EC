@@ -135,14 +135,14 @@ export function WeatherWidget({ jobs = [] }: Props) {
           proceed(pos.coords.latitude, pos.coords.longitude);
         },
         () => {
-          proceed(-33.8688, 151.2093);
-          setLocationName("Sydney");
+          setError(true);
+          setLoading(false);
         },
         { timeout: 5000 }
       );
     } else {
-      proceed(-33.8688, 151.2093);
-      setLocationName("Sydney");
+      setError(true);
+      setLoading(false);
     }
   }, []);
 
