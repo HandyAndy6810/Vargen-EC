@@ -168,6 +168,11 @@ export const userSettings = pgTable("user_settings", {
   followUpEnabled: boolean("follow_up_enabled").default(false),
   followUpDays: text("follow_up_days").default("[3,7,14]"),
   followUpChannel: text("follow_up_channel").default("sms"),
+  // Quote branding
+  quoteAccentColor: text("quote_accent_color").default("#ea580c"),
+  quoteFontFamily: text("quote_font_family").default("inter"),
+  logoUrl: text("logo_url").default(""),
+  quoteHeaderStyle: text("quote_header_style").default("gradient"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 

@@ -32,7 +32,10 @@ import {
   CheckCircle2,
   Loader2,
   ExternalLink,
-  Clock
+  Clock,
+  Palette,
+  Upload,
+  Image,
 } from "lucide-react";
 import { getWeeklyGoal, setWeeklyGoal } from "@/components/WeeklyRevenueGoalWidget";
 
@@ -77,6 +80,38 @@ interface QuoteDefaults {
   callOutFeeEnabled: boolean;
   includeGST: boolean;
 }
+
+interface QuoteBranding {
+  accentColor: string;
+  fontFamily: string;
+  logoUrl: string;
+  headerStyle: string;
+}
+
+const PRESET_COLORS = [
+  { label: "Orange", value: "#ea580c" },
+  { label: "Blue", value: "#2563eb" },
+  { label: "Green", value: "#16a34a" },
+  { label: "Purple", value: "#7c3aed" },
+  { label: "Red", value: "#dc2626" },
+  { label: "Teal", value: "#0891b2" },
+  { label: "Slate", value: "#475569" },
+  { label: "Black", value: "#111827" },
+];
+
+const FONT_OPTIONS = [
+  { value: "inter", label: "Inter", preview: "Modern & Clean" },
+  { value: "poppins", label: "Poppins", preview: "Rounded & Friendly" },
+  { value: "roboto", label: "Roboto", preview: "Professional" },
+  { value: "lato", label: "Lato", preview: "Elegant & Light" },
+  { value: "playfair", label: "Playfair Display", preview: "Classic Serif" },
+];
+
+const HEADER_STYLES = [
+  { value: "gradient", label: "Gradient" },
+  { value: "solid", label: "Solid" },
+  { value: "minimal", label: "Minimal" },
+];
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -174,6 +209,14 @@ export default function Profile() {
 
   const [isSavingBank, setIsSavingBank] = useState(false);
   const [isSavingFollowUp, setIsSavingFollowUp] = useState(false);
+  const [isSavingBranding, setIsSavingBranding] = useState(false);
+
+  const [branding, setBranding] = useState<QuoteBranding>({
+    accentColor: "#ea580c",
+    fontFamily: "inter",
+    logoUrl: "",
+    headerStyle: "gradient",
+  });
 
   const saveBankDetails = async () => {
     setIsSavingBank(true);
@@ -203,6 +246,21 @@ export default function Profile() {
       setActiveSection(null);
     } catch { /* error toast handled by mutation */ }
     setIsSavingFollowUp(false);
+  };
+
+  const saveBranding = async () => {
+    setIsSavingBranding(true);
+    try {
+      await updateSettingsAsync({
+        quoteAccentColor: branding.accentColor,
+        quoteFontFamily: branding.fontFamily,
+        logoUrl: branding.logoUrl,
+        quoteHeaderStyle: branding.headerStyle,
+      });
+      toast({ title: "Quote branding saved" });
+      setActiveSection(null);
+    } catch { /* error toast handled by mutation */ }
+    setIsSavingBranding(false);
   };
 
   const saveGoals = async () => {
@@ -248,6 +306,12 @@ export default function Profile() {
       bsb: dbSettings.bsb ?? "",
       accountNumber: dbSettings.accountNumber ?? "",
       paymentTermsDays: dbSettings.paymentTermsDays ?? 14,
+    });
+    setBranding({
+      accentColor: dbSettings.quoteAccentColor ?? "#ea580c",
+      fontFamily: dbSettings.quoteFontFamily ?? "inter",
+      logoUrl: dbSettings.logoUrl ?? "",
+      headerStyle: dbSettings.quoteHeaderStyle ?? "gradient",
     });
     setFollowUpSettings({
       followUpEnabled: dbSettings.followUpEnabled ?? false,
@@ -327,6 +391,7 @@ export default function Profile() {
     { id: "goals", icon: Target, label: "Goals", desc: "Weekly revenue target" },
     { id: "homeLayout", icon: Layout, label: "Home Layout", desc: "Change the stack of dashboard items" },
     { id: "appearance", icon: darkMode ? Moon : Sun, label: "Appearance", desc: darkMode ? "Dark mode" : "Light mode" },
+    { id: "branding", icon: Palette, label: "Quote Branding", desc: "Logo, colours, fonts & header style" },
     { id: "bank", icon: Building2, label: "Bank Details", desc: "For invoicing — BSB, account number" },
     { id: "followups", icon: Clock, label: "Follow-Up Automation", desc: dbSettings?.followUpEnabled ? "Enabled" : "Disabled" },
     { id: "xero", icon: Link2, label: "Xero Integration", desc: xeroStatus?.connected ? `Connected to ${xeroStatus.tenantName}` : "Connect your accounting" },
@@ -593,6 +658,181 @@ export default function Profile() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Quote Branding Expanded */}
+        {activeSection === "branding" && (
+          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-6 animate-in slide-in-from-top-2 duration-200">
+            <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
+              <Palette className="w-5 h-5 text-primary" /> Quote Branding
+            </h3>
+
+            {/* Mini preview */}
+            <div className="rounded-xl overflow-hidden border border-black/10 shadow-sm">
+              <div
+                className="px-5 py-4 flex items-center justify-between"
+                style={{
+                  background: branding.headerStyle === "gradient"
+                    ? `linear-gradient(135deg, ${branding.accentColor}, ${branding.accentColor}aa)`
+                    : branding.headerStyle === "minimal"
+                    ? "#f8f8f8"
+                    : branding.accentColor,
+                }}
+              >
+                <div>
+                  <p className="text-sm font-bold" style={{ color: branding.headerStyle === "minimal" ? branding.accentColor : "#fff" }}>QUOTE</p>
+                  <p className="text-xs" style={{ color: branding.headerStyle === "minimal" ? `${branding.accentColor}99` : "rgba(255,255,255,0.7)" }}>Q-0001</p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  {branding.logoUrl ? (
+                    <img src={branding.logoUrl} alt="logo" className="h-8 max-w-[80px] object-contain"
+                      style={{ filter: branding.headerStyle === "minimal" ? "none" : "brightness(0) invert(1)" }} />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
+                      style={{ background: branding.headerStyle === "minimal" ? branding.accentColor : "rgba(255,255,255,0.2)", color: branding.headerStyle === "minimal" ? "#fff" : "#fff" }}>
+                      {(dbSettings?.businessName || "YB").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}
+                    </div>
+                  )}
+                  <p className="text-xs font-semibold" style={{ color: branding.headerStyle === "minimal" ? branding.accentColor : "#fff" }}>
+                    {dbSettings?.businessName || "Your Business"}
+                  </p>
+                </div>
+              </div>
+              <div className="bg-white px-5 py-3 text-xs text-gray-500">Line items, totals &amp; terms appear below…</div>
+            </div>
+
+            {/* Logo Upload */}
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 mb-3">
+                <Image className="w-3.5 h-3.5" /> Logo
+              </Label>
+              <div className="flex items-center gap-3">
+                {branding.logoUrl ? (
+                  <div className="relative w-16 h-16 rounded-xl border border-black/10 overflow-hidden bg-gray-50 flex items-center justify-center">
+                    <img src={branding.logoUrl} alt="logo" className="max-w-full max-h-full object-contain" />
+                    <button
+                      onClick={() => setBranding(p => ({ ...p, logoUrl: "" }))}
+                      className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center"
+                    >×</button>
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-xl border-2 border-dashed border-black/20 flex items-center justify-center bg-gray-50 text-muted-foreground">
+                    <Image className="w-6 h-6 opacity-40" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <label className="cursor-pointer">
+                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-black/10 bg-white hover:bg-gray-50 transition-colors text-sm font-medium text-foreground">
+                      <Upload className="w-4 h-4" />
+                      {branding.logoUrl ? "Replace Logo" : "Upload Logo"}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => setBranding(p => ({ ...p, logoUrl: reader.result as string }));
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-1.5">PNG, JPG or SVG. Will appear in the quote header.</p>
+                  {!branding.logoUrl && (
+                    <p className="text-xs text-muted-foreground mt-0.5">No logo? Your initials will be used automatically.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Brand Colour */}
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 mb-3">
+                <Palette className="w-3.5 h-3.5" /> Brand Colour
+              </Label>
+              <div className="flex items-center gap-3 flex-wrap">
+                {PRESET_COLORS.map(c => (
+                  <button
+                    key={c.value}
+                    onClick={() => setBranding(p => ({ ...p, accentColor: c.value }))}
+                    className="w-8 h-8 rounded-full border-2 transition-all"
+                    style={{
+                      background: c.value,
+                      borderColor: branding.accentColor === c.value ? "#000" : "transparent",
+                      transform: branding.accentColor === c.value ? "scale(1.2)" : "scale(1)",
+                    }}
+                    title={c.label}
+                  />
+                ))}
+                <label className="w-8 h-8 rounded-full border-2 border-dashed border-black/30 flex items-center justify-center cursor-pointer hover:border-black/60 transition-colors overflow-hidden" title="Custom colour">
+                  <input
+                    type="color"
+                    value={branding.accentColor}
+                    onChange={(e) => setBranding(p => ({ ...p, accentColor: e.target.value }))}
+                    className="w-10 h-10 opacity-0 absolute cursor-pointer"
+                  />
+                  <span className="text-xs font-bold text-muted-foreground pointer-events-none">+</span>
+                </label>
+                <span className="text-xs text-muted-foreground font-mono">{branding.accentColor}</span>
+              </div>
+            </div>
+
+            {/* Font */}
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground mb-3 block">Font</Label>
+              <div className="space-y-2">
+                {FONT_OPTIONS.map(f => (
+                  <button
+                    key={f.value}
+                    onClick={() => setBranding(p => ({ ...p, fontFamily: f.value }))}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-left ${
+                      branding.fontFamily === f.value
+                        ? "border-primary bg-primary/5"
+                        : "border-black/10 bg-white dark:bg-white/5"
+                    }`}
+                  >
+                    <span className="font-semibold text-sm text-foreground">{f.label}</span>
+                    <span className="text-xs text-muted-foreground">{f.preview}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Header Style */}
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground mb-3 block">Header Style</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {HEADER_STYLES.map(s => (
+                  <button
+                    key={s.value}
+                    onClick={() => setBranding(p => ({ ...p, headerStyle: s.value }))}
+                    className={`rounded-xl border-2 overflow-hidden transition-all ${
+                      branding.headerStyle === s.value ? "border-primary" : "border-black/10"
+                    }`}
+                  >
+                    <div
+                      className="h-8"
+                      style={{
+                        background: s.value === "gradient"
+                          ? `linear-gradient(135deg, ${branding.accentColor}, ${branding.accentColor}88)`
+                          : s.value === "solid"
+                          ? branding.accentColor
+                          : "#f8f8f8",
+                      }}
+                    />
+                    <p className="text-xs font-medium text-foreground py-1.5 bg-white dark:bg-white/5">{s.label}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button onClick={saveBranding} disabled={isSavingBranding} className="w-full h-12 rounded-xl font-bold">
+              {isSavingBranding ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Save Branding
+            </Button>
           </div>
         )}
 

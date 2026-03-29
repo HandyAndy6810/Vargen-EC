@@ -3,6 +3,7 @@ import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { useRoute, useLocation } from "wouter";
+import { useEffect } from "react";
 import { ArrowLeft, Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -22,12 +23,27 @@ interface ParsedContent {
 
 function parseContent(content: string | null): ParsedContent | null {
   if (!content) return null;
-  try {
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(content); } catch { return null; }
 }
+
+function darkenColor(hex: string, amount = 35): string {
+  const clean = hex.replace("#", "");
+  const r = Math.max(0, parseInt(clean.slice(0, 2), 16) - amount);
+  const g = Math.max(0, parseInt(clean.slice(2, 4), 16) - amount);
+  const b = Math.max(0, parseInt(clean.slice(4, 6), 16) - amount);
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
+const FONT_MAP: Record<string, string> = {
+  inter: "'Inter', sans-serif",
+  poppins: "'Poppins', sans-serif",
+  playfair: "'Playfair Display', serif",
+  roboto: "'Roboto', sans-serif",
+  lato: "'Lato', sans-serif",
+};
+
+const GOOGLE_FONTS_URL =
+  "https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Playfair+Display:wght@400;700&family=Roboto:wght@400;500;700&family=Lato:wght@400;700&display=swap";
 
 export default function QuotePreview() {
   const [, params] = useRoute("/quotes/:id/preview");
@@ -37,6 +53,18 @@ export default function QuotePreview() {
   const { data: jobs } = useJobs();
   const { data: customers } = useCustomers();
   const { data: settings } = useUserSettings();
+
+  // Load Google Fonts
+  useEffect(() => {
+    const existing = document.getElementById("quote-preview-fonts");
+    if (!existing) {
+      const link = document.createElement("link");
+      link.id = "quote-preview-fonts";
+      link.rel = "stylesheet";
+      link.href = GOOGLE_FONTS_URL;
+      document.head.appendChild(link);
+    }
+  }, []);
 
   const quote = quotes?.find(q => q.id === id);
   const parsed = quote ? parseContent(quote.content) : null;
@@ -102,55 +130,81 @@ export default function QuotePreview() {
   const quoteDate = quote.createdAt ? format(new Date(quote.createdAt), "dd MMMM yyyy") : "N/A";
   const quoteRef = `Q-${String(quote.id).padStart(4, "0")}`;
 
-  const handlePrint = () => {
-    window.print();
-  };
+  // Branding
+  const accentColor = settings?.quoteAccentColor || "#ea580c";
+  const fontFamily = FONT_MAP[settings?.quoteFontFamily || "inter"] || FONT_MAP.inter;
+  const logoUrl = settings?.logoUrl || "";
+  const headerStyle = settings?.quoteHeaderStyle || "gradient";
+  const businessName = settings?.businessName || "Your Business";
+
+  const initials = businessName
+    .split(" ")
+    .map(w => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const headerBg =
+    headerStyle === "gradient"
+      ? `linear-gradient(135deg, ${accentColor}, ${darkenColor(accentColor)})`
+      : headerStyle === "minimal"
+      ? "#f8f8f8"
+      : accentColor;
+
+  const isMinimal = headerStyle === "minimal";
+  const headerText = isMinimal ? accentColor : "#ffffff";
+  const headerSub = isMinimal ? `${accentColor}99` : "rgba(255,255,255,0.8)";
+
+  const handlePrint = () => window.print();
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Toolbar - hidden when printing */}
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900" style={{ fontFamily }}>
+      {/* Toolbar */}
       <div className="print:hidden sticky top-0 z-50 bg-white/80 dark:bg-black/60 backdrop-blur-xl border-b border-black/5 dark:border-white/10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation(`/quotes/${id}`)}
-            data-testid="button-back-detail"
-          >
+          <Button variant="ghost" size="icon" onClick={() => setLocation(`/quotes/${id}`)} data-testid="button-back-detail">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <span className="font-bold text-sm text-foreground">Quote Preview</span>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={handlePrint}
-              className="rounded-xl"
-              data-testid="button-print"
-            >
-              <Printer className="w-4 h-4 mr-2" />
-              Print / PDF
-            </Button>
-          </div>
+          <Button variant="outline" onClick={handlePrint} className="rounded-xl" data-testid="button-print">
+            <Printer className="w-4 h-4 mr-2" />
+            Print / PDF
+          </Button>
         </div>
       </div>
 
       {/* Document */}
       <div className="max-w-3xl mx-auto p-4 print:p-0 print:max-w-none">
-        <div
-          className="bg-white dark:bg-white text-black rounded-2xl print:rounded-none shadow-lg print:shadow-none overflow-hidden"
-          data-testid="quote-document"
-        >
+        <div className="bg-white text-black rounded-2xl print:rounded-none shadow-lg print:shadow-none overflow-hidden" data-testid="quote-document" style={{ fontFamily }}>
+
           {/* Header */}
-          <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 sm:px-8 py-8 print:px-10 print:py-10">
+          <div style={{ background: headerBg }} className="px-4 sm:px-8 py-8 print:px-10 print:py-10">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">QUOTE</h1>
-                <p className="text-orange-100 text-sm mt-1 font-medium">{quoteRef}</p>
+                <h1 className="text-2xl font-bold tracking-tight" style={{ color: headerText }}>QUOTE</h1>
+                <p className="text-sm mt-1 font-medium" style={{ color: headerSub }}>{quoteRef}</p>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-bold">{settings?.businessName || "Your Business"}</p>
-                {settings?.tradeType && <p className="text-xs text-orange-100 mt-0.5">{settings.tradeType}</p>}
-                {settings?.abn && <p className="text-xs text-orange-100">ABN: {settings.abn}</p>}
+
+              {/* Logo or business identity */}
+              <div className="flex flex-col items-end gap-1.5">
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt={businessName}
+                    className="h-12 max-w-[140px] object-contain"
+                    style={{ filter: isMinimal ? "none" : "brightness(0) invert(1)" }}
+                  />
+                ) : (
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold"
+                    style={{ background: isMinimal ? accentColor : "rgba(255,255,255,0.2)", color: isMinimal ? "#fff" : headerText }}
+                  >
+                    {initials}
+                  </div>
+                )}
+                <p className="text-sm font-bold" style={{ color: headerText }}>{businessName}</p>
+                {settings?.tradeType && <p className="text-xs" style={{ color: headerSub }}>{settings.tradeType}</p>}
+                {settings?.abn && <p className="text-xs" style={{ color: headerSub }}>ABN: {settings.abn}</p>}
               </div>
             </div>
           </div>
@@ -185,7 +239,7 @@ export default function QuotePreview() {
             </div>
           </div>
 
-          {/* Line Items Table */}
+          {/* Line Items */}
           <div className="px-4 sm:px-8 py-6 print:px-10 overflow-x-hidden">
             <table className="w-full text-sm table-fixed" data-testid="table-line-items">
               <colgroup>
@@ -215,9 +269,7 @@ export default function QuotePreview() {
                   </tr>
                 ))}
                 {items.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-6 text-center text-gray-400 italic">No line items</td>
-                  </tr>
+                  <tr><td colSpan={4} className="py-6 text-center text-gray-400 italic">No line items</td></tr>
                 )}
               </tbody>
             </table>
@@ -236,9 +288,9 @@ export default function QuotePreview() {
                   <span className="font-medium">${gstAmount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between py-3 border-t-2 border-gray-800 mt-1">
+              <div className="flex justify-between py-3 border-t-2 mt-1" style={{ borderColor: accentColor }}>
                 <span className="text-base font-bold">Total {includeGST ? "(inc. GST)" : "(ex. GST)"}</span>
-                <span className="text-xl font-bold" data-testid="text-total">${totalAmount.toFixed(2)}</span>
+                <span className="text-xl font-bold" style={{ color: accentColor }} data-testid="text-total">${totalAmount.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -251,7 +303,7 @@ export default function QuotePreview() {
             </div>
           )}
 
-          {/* Terms & Footer */}
+          {/* Terms */}
           <div className="px-4 sm:px-8 py-6 print:px-10 border-t border-gray-100">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Terms & Conditions</p>
             <ul className="text-xs text-gray-500 space-y-1 leading-relaxed">
@@ -262,9 +314,9 @@ export default function QuotePreview() {
             </ul>
           </div>
 
-          {/* Footer Bar */}
-          <div className="bg-gray-800 text-white px-4 sm:px-8 py-4 print:px-10 text-center">
-            <p className="text-xs text-gray-400">Thank you for your business</p>
+          {/* Footer */}
+          <div className="text-white px-4 sm:px-8 py-4 print:px-10 text-center" style={{ background: darkenColor(accentColor, 50) }}>
+            <p className="text-xs opacity-70">Thank you for your business</p>
           </div>
         </div>
       </div>
