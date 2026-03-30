@@ -1,5 +1,6 @@
 import { useXeroStatus, useXeroCreateInvoice } from "@/hooks/use-xero";
 import { useQuotes, useUpdateQuote, useDeleteQuote } from "@/hooks/use-quotes";
+import { SuccessFlash } from "@/components/SuccessFlash";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useRoute, useLocation } from "wouter";
@@ -109,6 +110,7 @@ export default function QuoteDetail() {
   const [editIncludeGST, setEditIncludeGST] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showSentFlash, setShowSentFlash] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [scheduledJobId, setScheduledJobId] = useState<number | null>(null);
@@ -202,7 +204,11 @@ export default function QuoteDetail() {
   };
 
   const handleStatusChange = (newStatus: string) => {
-    updateQuote({ id: quote.id, status: newStatus });
+    updateQuote({ id: quote.id, status: newStatus }, {
+      onSuccess: () => {
+        if (newStatus === "sent") setShowSentFlash(true);
+      }
+    });
   };
 
   const calcEditTotals = () => {
@@ -985,6 +991,8 @@ export default function QuoteDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <SuccessFlash show={showSentFlash} message="Quote Sent!" onDone={() => setShowSentFlash(false)} />
 
       {/* Reject Confirmation */}
       <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>

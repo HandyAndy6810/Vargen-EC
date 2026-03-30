@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { SuccessFlash } from "@/components/SuccessFlash";
 import { useTimerEntries, formatDuration } from "@/hooks/use-timers";
 import { useUpdateJob } from "@/hooks/use-jobs";
 import { useQuotes } from "@/hooks/use-quotes";
@@ -47,6 +48,7 @@ export function JobCompletionModal({
 
   const [actualHours, setActualHours] = useState<string>("");
   const [extraNotes, setExtraNotes] = useState("");
+  const [showFlash, setShowFlash] = useState(false);
 
   // Find linked quote: either by explicit linkedQuoteId or by matching jobId
   const linkedQuote = quotes?.find(
@@ -115,7 +117,7 @@ export function JobCompletionModal({
       },
       {
         onSuccess: () => {
-          onOpenChange(false);
+          setShowFlash(true);
         },
       }
     );
@@ -128,6 +130,12 @@ export function JobCompletionModal({
   };
 
   return (
+    <>
+    <SuccessFlash
+      show={showFlash}
+      message="Job Complete!"
+      onDone={() => { setShowFlash(false); onOpenChange(false); }}
+    />
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[420px] rounded-[2rem] mx-4">
         <DialogHeader>
@@ -297,5 +305,6 @@ export function JobCompletionModal({
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
