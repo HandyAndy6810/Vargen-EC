@@ -1,5 +1,6 @@
 import { useJobs } from "@/hooks/use-jobs";
 import { useQuotes } from "@/hooks/use-quotes";
+import { useInvoices } from "@/hooks/use-invoices";
 import { useAuth } from "@/hooks/use-auth";
 import { ActiveTimerBanner } from "@/components/ActiveTimerBanner";
 import { useFollowUpsDue } from "@/hooks/use-follow-ups";
@@ -35,6 +36,7 @@ export default function Home() {
   const { user } = useAuth();
   const { data: jobs } = useJobs();
   const { data: quotes } = useQuotes();
+  const { data: invoices } = useInvoices();
   const { data: followUpsDue } = useFollowUpsDue();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -108,6 +110,28 @@ export default function Home() {
 
   const pendingQuotesCount = useMemo(() => quotes?.filter(q => q.status === 'draft').length || 0, [quotes]);
   const upcomingJobsCount = useMemo(() => jobs?.filter(j => j.status === 'scheduled').length || 0, [jobs]);
+
+  const outstandingQuotesValue = useMemo(() =>
+    quotes?.filter(q => q.status === 'sent' || q.status === 'viewed')
+      .reduce((sum, q) => sum + parseFloat(q.totalAmount || "0"), 0) || 0,
+    [quotes]
+  );
+
+  const jobsThisWeek = useMemo(() => {
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+    return jobs?.filter(j => {
+      if (!j.scheduledDate) return false;
+      const d = new Date(j.scheduledDate);
+      return d >= weekStart && d <= weekEnd;
+    }).length || 0;
+  }, [jobs]);
+
+  const unpaidInvoicesValue = useMemo(() =>
+    invoices?.filter(i => i.status === 'sent' || i.status === 'overdue')
+      .reduce((sum, i) => sum + parseFloat(i.totalAmount || "0"), 0) || 0,
+    [invoices]
+  );
 
   // Weekly calendar logic
   const weekDays = useMemo(() => {
@@ -244,14 +268,34 @@ export default function Home() {
 
           if (bladeId === "stats") {
             return (
-              <div key="stats" className="grid grid-cols-2 gap-4">
-                <div className="bg-white dark:bg-card rounded-[2rem] p-8 text-center shadow-sm border border-black/5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-                  <div className="text-4xl font-bold mb-1 text-primary">{pendingQuotesCount}</div>
-                  <div className="text-muted-foreground font-medium">Pending Quotes</div>
+              <div key="stats" className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white dark:bg-card rounded-[2rem] p-5 shadow-sm border border-black/5">
+                    <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Outstanding Quotes</div>
+                    <div className="text-2xl font-bold text-primary">
+                      ${outstandingQuotesValue.toLocaleString("en-AU", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">{quotes?.filter(q => q.status === 'sent' || q.status === 'viewed').length || 0} awaiting response</div>
+                  </div>
+                  <div className="bg-white dark:bg-card rounded-[2rem] p-5 shadow-sm border border-black/5">
+                    <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Jobs This Week</div>
+                    <div className="text-2xl font-bold text-blue-500">{jobsThisWeek}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{upcomingJobsCount} scheduled total</div>
+                  </div>
                 </div>
-                <div className="bg-white dark:bg-card rounded-[2rem] p-8 text-center shadow-sm border border-black/5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-                  <div className="text-4xl font-bold mb-1 text-emerald-500">{upcomingJobsCount}</div>
-                  <div className="text-muted-foreground font-medium">Upcoming Jobs</div>
+                <div className="bg-white dark:bg-card rounded-[2rem] p-5 shadow-sm border border-black/5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Unpaid Invoices</div>
+                      <div className="text-2xl font-bold text-amber-500">
+                        ${unpaidInvoicesValue.toLocaleString("en-AU", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-muted-foreground">{invoices?.filter(i => i.status === 'sent' || i.status === 'overdue').length || 0} invoice{(invoices?.filter(i => i.status === 'sent' || i.status === 'overdue').length || 0) !== 1 ? "s" : ""} outstanding</div>
+                      <div className="text-xs font-semibold text-amber-500 mt-1">{invoices?.filter(i => i.status === 'overdue').length ? `${invoices.filter(i => i.status === 'overdue').length} overdue` : "All current"}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
