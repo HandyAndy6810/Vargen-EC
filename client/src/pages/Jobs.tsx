@@ -3,7 +3,9 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useCustomers } from "@/hooks/use-customers";
 import { ActiveTimerBanner } from "@/components/ActiveTimerBanner";
 import { useState } from "react";
-import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2, Calendar, Briefcase, FileText, Check, AlertTriangle } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2, Calendar, Briefcase, FileText, Check, AlertTriangle, XCircle } from "lucide-react";
+import { SwipeableRow } from "@/components/SwipeableRow";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useNavAction } from "@/hooks/use-nav-action";
 import { RunningLateModal } from "@/components/RunningLateModal";
 import type { Job } from "@shared/schema";
@@ -39,6 +41,8 @@ export default function Jobs() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [lateJob, setLateJob] = useState<Job | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
+  const { mutate: updateJob } = useUpdateJob();
 
   useNavAction({ label: "New", icon: Plus, onClick: () => setIsDialogOpen(true) }, []);
 
@@ -217,11 +221,24 @@ export default function Jobs() {
                   : "bg-primary";
                 const statusBadge = job.status === "completed"
                   ? { label: "Completed", cls: "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800" }
+                  : job.status === "in_progress"
+                  ? { label: "In Progress", cls: "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800" }
                   : job.status === "pending"
                   ? { label: "Pending", cls: "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800" }
                   : { label: "Scheduled", cls: "bg-orange-50 dark:bg-orange-900/20 text-primary border-orange-200 dark:border-orange-800" };
+                const canCancel = job.status !== "completed" && job.status !== "cancelled";
                 return (
-                  <div key={job.id} className="bg-white dark:bg-card p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
+                  <SwipeableRow
+                    key={job.id}
+                    className="rounded-3xl"
+                    actions={canCancel ? [{
+                      label: "Cancel",
+                      icon: <XCircle className="w-5 h-5" />,
+                      bgClass: "bg-red-500 rounded-r-3xl",
+                      onClick: () => setConfirmCancelId(job.id),
+                    }] : []}
+                  >
+                  <div className="bg-white dark:bg-card p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
                     <Link href={`/jobs/${job.id}`}>
                       <div className="cursor-pointer active:scale-[0.98]">
                         <div className="flex justify-between items-start mb-3">
@@ -265,6 +282,7 @@ export default function Jobs() {
                       </button>
                     )}
                   </div>
+                  </SwipeableRow>
                 );
               })}
 
@@ -282,11 +300,34 @@ export default function Jobs() {
         </div>
       </div>
 
-      <CreateJobDialog 
-        open={isDialogOpen} 
-        onOpenChange={setIsDialogOpen} 
-        defaultDate={format(selectedDate, "yyyy-MM-dd")} 
+      <CreateJobDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        defaultDate={format(selectedDate, "yyyy-MM-dd")}
       />
+
+      <AlertDialog open={confirmCancelId !== null} onOpenChange={(o) => { if (!o) setConfirmCancelId(null); }}>
+        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-lg font-bold">Cancel Job?</AlertDialogTitle>
+            <AlertDialogDescription>This will mark the job as cancelled.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Keep Job</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-red-500 hover:bg-red-600"
+              onClick={() => {
+                if (confirmCancelId !== null) {
+                  updateJob({ id: confirmCancelId, status: "cancelled" });
+                  setConfirmCancelId(null);
+                }
+              }}
+            >
+              Cancel Job
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {lateJob && (
         <RunningLateModal 

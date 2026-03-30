@@ -1,9 +1,11 @@
-import { useQuotes } from "@/hooks/use-quotes";
+import { useQuotes, useDeleteQuote } from "@/hooks/use-quotes";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Clock, Send, CheckCircle2, XCircle, Eye, PenLine, Flame, TrendingUp, DollarSign, Percent } from "lucide-react";
+import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Clock, Send, CheckCircle2, XCircle, Eye, PenLine, Flame, TrendingUp, DollarSign, Percent, Trash2 } from "lucide-react";
+import { SwipeableRow } from "@/components/SwipeableRow";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { useNavAction } from "@/hooks/use-nav-action";
@@ -32,6 +34,8 @@ export default function Quotes() {
 
   const { toast } = useToast();
   const [followUpQuote, setFollowUpQuote] = useState<any>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const { mutate: deleteQuote } = useDeleteQuote();
 
   useNavAction({ label: "New", icon: Plus, onClick: () => setLocation("/quotes/new") }, []);
 
@@ -321,8 +325,17 @@ export default function Quotes() {
             const isCold = !!(status === "sent" && quote.createdAt && differenceInDays(new Date(), new Date(quote.createdAt)) >= 7);
 
             return (
-              <div
+              <SwipeableRow
                 key={quote.id}
+                className="rounded-2xl"
+                actions={[{
+                  label: "Delete",
+                  icon: <Trash2 className="w-5 h-5" />,
+                  bgClass: "bg-red-500 rounded-r-2xl",
+                  onClick: () => setConfirmDeleteId(quote.id),
+                }]}
+              >
+              <div
                 onClick={() => setLocation(`/quotes/${quote.id}`)}
                 className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-black/5 dark:border-white/10 cursor-pointer active:scale-[0.98] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex"
                 data-testid={`card-quote-${quote.id}`}
@@ -408,10 +421,34 @@ export default function Quotes() {
                   </div>
                 </div>
               </div>
+              </SwipeableRow>
             );
           })
         )}
       </div>
+
+      <AlertDialog open={confirmDeleteId !== null} onOpenChange={(o) => { if (!o) setConfirmDeleteId(null); }}>
+        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-lg font-bold">Delete Quote?</AlertDialogTitle>
+            <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-red-500 hover:bg-red-600"
+              onClick={() => {
+                if (confirmDeleteId !== null) {
+                  deleteQuote(confirmDeleteId);
+                  setConfirmDeleteId(null);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {followUpQuote && (
         <FollowUpSheet

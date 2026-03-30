@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComp } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
@@ -107,6 +108,7 @@ export default function QuoteDetail() {
   const [editTitle, setEditTitle] = useState("");
   const [editIncludeGST, setEditIncludeGST] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [scheduledJobId, setScheduledJobId] = useState<number | null>(null);
@@ -209,7 +211,21 @@ export default function QuoteDetail() {
     return { subtotal: sub, gstAmount: gst, totalAmount: sub + gst };
   };
 
+  const validateItems = (items: NonNullable<ParsedContent["items"]>) => {
+    for (const item of items) {
+      if (!item.description?.trim()) return "All items must have a description.";
+      if (item.quantity <= 0) return "Quantity must be greater than 0.";
+      if (item.unitPrice < 0) return "Unit price cannot be negative.";
+    }
+    return null;
+  };
+
   const handleSaveEdit = () => {
+    const validationError = validateItems(editItems || []);
+    if (validationError) {
+      toast({ title: "Fix items before saving", description: validationError, variant: "destructive" });
+      return;
+    }
     const totals = calcEditTotals();
     const updatedContent: ParsedContent = {
       ...parsed,
@@ -713,7 +729,18 @@ export default function QuoteDetail() {
           <div className="space-y-2">
             {quote.status === "draft" && (
               <Button
-                onClick={() => handleStatusChange("sent")}
+                onClick={() => {
+                  if (items.length === 0) {
+                    toast({ title: "Add line items before sending", variant: "destructive" });
+                    return;
+                  }
+                  const err = validateItems(items);
+                  if (err) {
+                    toast({ title: "Fix items before sending", description: err, variant: "destructive" });
+                    return;
+                  }
+                  handleStatusChange("sent");
+                }}
                 disabled={isUpdating}
                 className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 text-white"
                 data-testid="button-mark-sent"
@@ -743,7 +770,7 @@ export default function QuoteDetail() {
                     <CheckCircle2 className="w-4 h-4 mr-1.5" /> Accept Only
                   </Button>
                   <Button
-                    onClick={() => handleStatusChange("rejected")}
+                    onClick={() => setShowRejectDialog(true)}
                     disabled={isUpdating}
                     variant="outline"
                     className="h-12 rounded-2xl text-sm font-bold text-red-500 border-red-200 dark:border-red-900"
@@ -958,6 +985,25 @@ export default function QuoteDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Reject Confirmation */}
+      <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitleComp className="text-lg font-bold">Mark as Rejected?</AlertDialogTitleComp>
+            <AlertDialogDescription>This will mark the quote as rejected by the client.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-red-500 hover:bg-red-600"
+              onClick={() => { handleStatusChange("rejected"); setShowRejectDialog(false); }}
+            >
+              Mark Rejected
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
