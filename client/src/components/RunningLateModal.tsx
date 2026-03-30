@@ -88,7 +88,7 @@ export function RunningLateModal({ open, onOpenChange, job }: RunningLateModalPr
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[420px] rounded-[2.5rem] p-0 overflow-hidden">
         {/* Header */}
-        <div className="bg-[#3D3025] p-8 pb-6">
+        <div className="bg-[#3D3025] dark:bg-zinc-900 p-8 pb-6">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
@@ -105,7 +105,7 @@ export function RunningLateModal({ open, onOpenChange, job }: RunningLateModalPr
         <div className="p-6 space-y-6">
           {/* Delay Selector */}
           <div className="space-y-3">
-            <label className="font-bold text-[#1A1A1A] text-base">How late?</label>
+            <label className="font-bold text-foreground text-base">How late?</label>
             <div className="grid grid-cols-3 gap-2">
               {DELAY_OPTIONS.map(opt => (
                 <button
@@ -116,7 +116,7 @@ export function RunningLateModal({ open, onOpenChange, job }: RunningLateModalPr
                     "py-4 rounded-2xl font-bold text-base transition-all active:scale-95",
                     selectedDelay === opt.minutes
                       ? "bg-primary text-white shadow-lg shadow-primary/20"
-                      : "bg-[#F5F3F0] text-[#1A1A1A] hover:bg-[#EEEBE7]"
+                      : "bg-muted text-foreground hover:bg-muted/80"
                   )}
                   data-testid={`delay-${opt.minutes}`}
                 >
@@ -128,7 +128,7 @@ export function RunningLateModal({ open, onOpenChange, job }: RunningLateModalPr
 
           {/* Reason Picker */}
           <div className="space-y-3">
-            <label className="font-bold text-[#1A1A1A] text-base">Quick reason <span className="font-normal text-[#999999] text-sm">(optional)</span></label>
+            <label className="font-bold text-foreground text-base">Quick reason <span className="font-normal text-muted-foreground text-sm">(optional)</span></label>
             <div className="flex flex-wrap gap-2">
               {REASON_OPTIONS.map(reason => (
                 <button
@@ -138,8 +138,8 @@ export function RunningLateModal({ open, onOpenChange, job }: RunningLateModalPr
                   className={cn(
                     "px-4 py-2.5 rounded-full text-sm font-medium transition-all active:scale-95",
                     selectedReason === reason
-                      ? "bg-[#FFF1EB] text-primary border-2 border-primary"
-                      : "bg-[#F5F3F0] text-[#666666] border-2 border-transparent"
+                      ? "bg-primary/10 text-primary border-2 border-primary"
+                      : "bg-muted text-muted-foreground border-2 border-transparent"
                   )}
                   data-testid={`reason-${reason.toLowerCase().replace(/\s+/g, '-')}`}
                 >
@@ -153,15 +153,15 @@ export function RunningLateModal({ open, onOpenChange, job }: RunningLateModalPr
           {selectedDelay && (
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <label className="font-bold text-[#1A1A1A] text-base">Message to client</label>
+                <label className="font-bold text-foreground text-base">Message to client</label>
                 {customer && (
-                  <span className="text-xs font-medium text-[#8B7E74] bg-[#F0EEEB] px-2 py-1 rounded-lg">
+                  <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-lg">
                     {customer.name}
                   </span>
                 )}
               </div>
-              <div className="bg-[#FAFAFA] border border-black/5 rounded-2xl p-4">
-                <p className="text-sm text-[#333333] leading-relaxed">
+              <div className="bg-muted/50 border border-border rounded-2xl p-4">
+                <p className="text-sm text-foreground leading-relaxed">
                   {customMessage || generatedMessage}
                 </p>
               </div>
@@ -177,10 +177,10 @@ export function RunningLateModal({ open, onOpenChange, job }: RunningLateModalPr
 
           {/* New ETA */}
           {newEta && (
-            <div className="bg-[#FFF1EB] rounded-2xl p-4 flex items-center gap-3">
+            <div className="bg-primary/10 rounded-2xl p-4 flex items-center gap-3">
               <Clock className="w-5 h-5 text-primary shrink-0" />
               <div>
-                <p className="text-sm font-bold text-[#1A1A1A]">New arrival time</p>
+                <p className="text-sm font-bold text-foreground">New arrival time</p>
                 <p className="text-lg font-bold text-primary">{format(newEta, "h:mm a")}</p>
               </div>
             </div>

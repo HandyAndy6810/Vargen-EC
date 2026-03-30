@@ -333,8 +333,9 @@ export default function Profile() {
       document.documentElement.classList.remove("dark");
     }
     localStorage.setItem("vargenezey_dark_mode", String(darkMode));
-    // Only save to DB after initial sync is done, to avoid 401 race on mount
-    if (isInitialized.current) {
+    // Only save to DB when user changes it, and only if it differs from what's
+    // already in the DB — prevents the save → re-fetch → re-set → save loop
+    if (isInitialized.current && darkMode !== (dbSettings?.darkMode ?? false)) {
       updateSettings({ darkMode });
     }
   }, [darkMode]);
