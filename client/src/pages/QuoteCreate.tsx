@@ -38,6 +38,7 @@ import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useUserSettings } from "@/hooks/use-user-settings";
 import { useCustomers, useCreateCustomer } from "@/hooks/use-customers";
 import { queryClient } from "@/lib/queryClient";
 import type { Job } from "@shared/schema";
@@ -205,7 +206,21 @@ export default function QuoteCreate() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { data: settings } = useUserSettings();
   const { data: customers } = useCustomers();
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async ({ to, subject, body }: { to: string; subject: string; body: string }) => {
+      const res = await fetch("/api/messages/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, subject, body }),
+      });
+      if (!res.ok) throw new Error("Failed to send email");
+    },
+    onSuccess: () => toast({ title: "Email sent to client!" }),
+    onError: () => toast({ title: "Failed to send email", variant: "destructive" }),
+  });
   const createCustomerMutation = useCreateCustomer();
 
   const filteredCustomers = customers?.filter(c =>
@@ -1049,14 +1064,20 @@ export default function QuoteCreate() {
               </button>
 
               <button
+                disabled={sendEmailMutation.isPending}
                 onClick={() => {
                   const customer = customers?.find(c => c.id === selectedCustomerId);
-                  const email = customer?.email || "";
-                  const subject = encodeURIComponent(`Quote: ${quoteTitle}`);
-                  const body = encodeURIComponent(`Hi ${customer?.name || "there"},\n\nPlease find your quote for ${quoteTitle} attached.\n\nTotal: $${calcTotal().toLocaleString("en-AU", { minimumFractionDigits: 2 })}\n\nView details: ${window.location.origin}/quotes/${savedQuoteId}\n\nKind regards,\n[Your Name]`);
-                  window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+                  if (!customer?.email) {
+                    toast({ title: "No email on file", description: "Add an email address to this customer first.", variant: "destructive" });
+                    return;
+                  }
+                  sendEmailMutation.mutate({
+                    to: customer.email,
+                    subject: `Quote: ${quoteTitle}`,
+                    body: `Hi ${customer.name || "there"},\n\nPlease find your quote for ${quoteTitle} attached.\n\nTotal: $${calcTotal().toLocaleString("en-AU", { minimumFractionDigits: 2 })}\n\nView details: ${window.location.origin}/quotes/${savedQuoteId}\n\nKind regards,\n${settings?.businessName || "Your Tradie"}`,
+                  });
                 }}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAFAFA] dark:bg-muted text-left hover-elevate active-elevate-2 transition-all"
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAFAFA] dark:bg-muted text-left hover-elevate active-elevate-2 transition-all disabled:opacity-60"
                 data-testid="button-email-client">
                 <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center shrink-0">
                   <Mail className="w-6 h-6 text-blue-600" />

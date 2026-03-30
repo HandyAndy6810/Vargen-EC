@@ -28,6 +28,21 @@ async function sendViaResend(to: string, subject: string, html: string): Promise
   }
 }
 
+export async function sendCustomerEmail(to: string, subject: string, body: string): Promise<void> {
+  const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px">${body.replace(/\n/g, "<br>")}</div>`;
+  if (RESEND_API_KEY) {
+    await sendViaResend(to, subject, html);
+    console.log(`Email sent to ${to}: ${subject}`);
+  } else {
+    console.log(`\n--- CUSTOMER EMAIL (no email provider configured) ---`);
+    console.log(`To: ${to}`);
+    console.log(`Subject: ${subject}`);
+    console.log(`Body: ${body}`);
+    console.log(`Set RESEND_API_KEY to send real emails.`);
+    console.log(`----------------------------------------------------\n`);
+  }
+}
+
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
   const subject = "Reset your Vargen password";
   const html = `

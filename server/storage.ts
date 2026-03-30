@@ -61,6 +61,7 @@ export interface IStorage {
 
   // User Settings
   getUserSettings(userId: string): Promise<UserSettings | undefined>;
+  getAnyUserSettings(): Promise<UserSettings | undefined>;
   upsertUserSettings(userId: string, updates: Partial<InsertUserSettings>): Promise<UserSettings>;
 
   // Job Templates
@@ -242,6 +243,11 @@ export class DatabaseStorage implements IStorage {
   // User Settings
   async getUserSettings(userId: string): Promise<UserSettings | undefined> {
     const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+    return settings;
+  }
+
+  async getAnyUserSettings(): Promise<UserSettings | undefined> {
+    const [settings] = await db.select().from(userSettings).limit(1);
     return settings;
   }
 

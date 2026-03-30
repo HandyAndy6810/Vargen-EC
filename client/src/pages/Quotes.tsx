@@ -2,6 +2,7 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Clock, Send, CheckCircle2, XCircle, Eye, PenLine, Flame, TrendingUp, DollarSign, Percent } from "lucide-react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
@@ -33,6 +34,19 @@ export default function Quotes() {
   const [followUpQuote, setFollowUpQuote] = useState<any>(null);
 
   useNavAction({ label: "New", icon: Plus, onClick: () => setLocation("/quotes/new") }, []);
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async ({ to, subject, body }: { to: string; subject: string; body: string }) => {
+      const res = await fetch("/api/messages/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, subject, body }),
+      });
+      if (!res.ok) throw new Error("Failed to send email");
+    },
+    onSuccess: () => toast({ title: "Email sent!" }),
+    onError: () => toast({ title: "Failed to send email", variant: "destructive" }),
+  });
 
   const activeStatuses = ["draft", "sent", "viewed"];
   const historyStatuses = ["accepted", "rejected"];
@@ -224,14 +238,19 @@ export default function Quotes() {
                     >
                       <MessageSquare className="w-4 h-4 text-orange-600" />
                     </Button>
-                    <Button 
-                      size="icon" 
-                      variant="outline" 
+                    <Button
+                      size="icon"
+                      variant="outline"
                       className="rounded-full w-9 h-9 border-orange-200 bg-white hover:bg-orange-50"
+                      disabled={!customer?.email || sendEmailMutation.isPending}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (customer?.email) {
-                          window.location.href = `mailto:${customer.email}?subject=${encodeURIComponent(`Follow up: ${getJobTitle(quote)}`)}&body=${encodeURIComponent(`Hi ${customer.name},\n\nJust checking in to see if you've had a chance to review the quote I sent over.\n\nLet me know if you'd like to proceed or have any questions.\n\nCheers!`)}`;
+                          sendEmailMutation.mutate({
+                            to: customer.email,
+                            subject: `Follow up: ${getJobTitle(quote)}`,
+                            body: `Hi ${customer.name},\n\nJust checking in to see if you've had a chance to review the quote I sent over.\n\nLet me know if you'd like to proceed or have any questions.\n\nCheers!`,
+                          });
                         }
                       }}
                     >

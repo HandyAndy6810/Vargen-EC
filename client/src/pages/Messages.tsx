@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useCustomers } from "@/hooks/use-customers";
 import { useJobs } from "@/hooks/use-jobs";
 import { MESSAGE_TEMPLATES } from "@/lib/message-templates";
+import { useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 function getInitials(name: string) {
   return name
@@ -18,9 +20,23 @@ function getInitials(name: string) {
 export default function Messages() {
   const { data: customers } = useCustomers();
   const { data: jobs } = useJobs();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("quote_ready");
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async ({ to, subject, body }: { to: string; subject: string; body: string }) => {
+      const res = await fetch("/api/messages/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, subject, body }),
+      });
+      if (!res.ok) throw new Error("Failed to send email");
+    },
+    onSuccess: () => toast({ title: "Email sent!" }),
+    onError: () => toast({ title: "Failed to send email", variant: "destructive" }),
+  });
 
   const sortedCustomers = useMemo(() => {
     if (!customers) return [];
@@ -133,14 +149,21 @@ export default function Messages() {
                     </a>
                   )}
                   {customer.email && (
-                    <a
-                      href={`mailto:${customer.email}`}
-                      onClick={(e) => e.stopPropagation()}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const t = MESSAGE_TEMPLATES.find((t) => t.id === selectedTemplate) ?? MESSAGE_TEMPLATES[0];
+                        sendEmailMutation.mutate({
+                          to: customer.email!,
+                          subject: t.subject(customer.name.split(" ")[0]),
+                          body: t.body(customer.name.split(" ")[0]),
+                        });
+                      }}
                       className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 hover:bg-blue-100 transition-colors"
                       data-testid={`btn-email-quick-${customer.id}`}
                     >
                       <Mail className="w-4 h-4" />
-                    </a>
+                    </button>
                   )}
                   {isExpanded ? (
                     <ChevronUp className="w-4 h-4 text-muted-foreground ml-1" />
@@ -198,16 +221,16 @@ export default function Messages() {
                       </a>
                     )}
                     {customer.email && (
-                      <a
-                        href={`mailto:${customer.email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`}
-                        className="flex-1"
+                      <Button
+                        variant="outline"
+                        className="flex-1 rounded-xl h-11 font-semibold border-2"
+                        disabled={sendEmailMutation.isPending}
+                        onClick={() => sendEmailMutation.mutate({ to: customer.email!, subject: emailSubject, body: emailBody })}
                         data-testid={`btn-send-email-${customer.id}`}
                       >
-                        <Button variant="outline" className="w-full rounded-xl h-11 font-semibold border-2">
-                          <Mail className="w-4 h-4 mr-2" />
-                          Send Email
-                        </Button>
-                      </a>
+                        <Mail className="w-4 h-4 mr-2" />
+                        {sendEmailMutation.isPending ? "Sending…" : "Send Email"}
+                      </Button>
                     )}
                   </div>
                 </div>

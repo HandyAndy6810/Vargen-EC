@@ -15,6 +15,7 @@ import fs from "fs";
 import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken, upsertXeroContact, createXeroInvoice } from "./xero";
 import { getTradeContext } from "./trade-knowledge";
 import crypto from "crypto";
+import { sendCustomerEmail } from "./lib/email";
 
 const upload = multer({ dest: "uploads/" });
 
@@ -657,10 +658,14 @@ CRITICAL RULES — follow these exactly:
         customer = await storage.getCustomer(quote.customerId) || null;
       }
 
-      const allQuotes = await storage.getQuotes();
-      let businessName = "", businessPhone = "", businessEmail = "", businessAddress = "";
-
       const feedback = await storage.getPortalFeedback(quote.id);
+
+      // Fetch business details from user settings
+      const s = await storage.getAnyUserSettings();
+      const businessName = s?.businessName || "";
+      const businessPhone = s?.businessPhone || "";
+      const businessEmail = s?.businessEmail || "";
+      const businessAddress = s?.businessAddress || "";
 
       res.json({
         quote,
@@ -865,6 +870,22 @@ CRITICAL RULES — follow these exactly:
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to skip follow-up" });
+    }
+  });
+
+  // ─── Customer Email ───
+
+  app.post("/api/messages/email", async (req: any, res) => {
+    try {
+      const { to, subject, body } = req.body || {};
+      if (!to || !subject || !body) {
+        return res.status(400).json({ message: "to, subject and body are required" });
+      }
+      await sendCustomerEmail(to, subject, body);
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("Send email error:", error);
+      res.status(500).json({ message: error?.message || "Failed to send email" });
     }
   });
 
@@ -1170,9 +1191,6 @@ CRITICAL RULES — follow these exactly:
       res.status(500).json({ message: err.message || "Failed to create invoice" });
     }
   });
-
-  // Seed data function
-  await seedDatabase();
 
   return httpServer;
 }
