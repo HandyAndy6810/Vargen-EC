@@ -1,9 +1,12 @@
-import { useQuotes } from "@/hooks/use-quotes";
+import { useQuotes, useDeleteQuote } from "@/hooks/use-quotes";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Clock, Send, CheckCircle2, XCircle, Eye, PenLine, Flame, TrendingUp, DollarSign, Percent } from "lucide-react";
+import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Clock, Send, CheckCircle2, XCircle, Eye, PenLine, Flame, TrendingUp, DollarSign, Percent, Trash2, Search } from "lucide-react";
+import { SwipeableRow } from "@/components/SwipeableRow";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { useNavAction } from "@/hooks/use-nav-action";
@@ -32,6 +35,9 @@ export default function Quotes() {
 
   const { toast } = useToast();
   const [followUpQuote, setFollowUpQuote] = useState<any>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const { mutate: deleteQuote } = useDeleteQuote();
 
   useNavAction({ label: "New", icon: Plus, onClick: () => setLocation("/quotes/new") }, []);
 
@@ -53,6 +59,14 @@ export default function Quotes() {
 
   const filteredQuotes = quotes
     ?.filter(q => tab === "active" ? activeStatuses.includes(q.status || "") : historyStatuses.includes(q.status || ""))
+    .filter(q => {
+      if (!search.trim()) return true;
+      const s = search.toLowerCase();
+      return (
+        getCustomerName(q).toLowerCase().includes(s) ||
+        getJobTitle(q).toLowerCase().includes(s)
+      );
+    })
     .sort((a, b) => {
       const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -264,6 +278,20 @@ export default function Quotes() {
         )}
       </div>
 
+      {/* Search */}
+      <div className="px-6 mb-4">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search quotes..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full h-11 pl-11 pr-4 rounded-2xl bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </div>
+      </div>
+
       {/* Segmented Control */}
       <div className="px-6 mb-6">
         <div className="bg-[#F0EEEB] dark:bg-white/10 p-1 rounded-2xl flex gap-1">
@@ -293,9 +321,20 @@ export default function Quotes() {
       {/* Quote List */}
       <div className="px-6 space-y-3">
         {isLoading ? (
-          <div className="flex justify-center p-12">
-            <Loader2 className="animate-spin text-primary w-8 h-8" />
-          </div>
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white dark:bg-white/5 rounded-2xl overflow-hidden flex border border-black/5 dark:border-white/10">
+              <Skeleton className="w-1.5 shrink-0 rounded-none h-24" />
+              <div className="p-5 flex-1 space-y-2.5">
+                <Skeleton className="h-5 w-2/3 rounded-lg" />
+                <Skeleton className="h-3.5 w-1/2 rounded-lg" />
+                <Skeleton className="h-3 w-1/4 rounded-lg" />
+              </div>
+              <div className="p-5 flex flex-col items-end gap-2">
+                <Skeleton className="h-5 w-14 rounded-lg" />
+                <Skeleton className="h-3 w-10 rounded-lg" />
+              </div>
+            </div>
+          ))
         ) : filteredQuotes.length === 0 ? (
           <div className="bg-white dark:bg-white/5 rounded-[2rem] p-10 text-center shadow-sm border border-black/5 dark:border-white/10">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 dark:from-primary/20 dark:to-amber-900/20 flex items-center justify-center mx-auto mb-4">
@@ -321,8 +360,17 @@ export default function Quotes() {
             const isCold = !!(status === "sent" && quote.createdAt && differenceInDays(new Date(), new Date(quote.createdAt)) >= 7);
 
             return (
-              <div
+              <SwipeableRow
                 key={quote.id}
+                className="rounded-2xl"
+                actions={[{
+                  label: "Delete",
+                  icon: <Trash2 className="w-5 h-5" />,
+                  bgClass: "bg-red-500 rounded-r-2xl",
+                  onClick: () => setConfirmDeleteId(quote.id),
+                }]}
+              >
+              <div
                 onClick={() => setLocation(`/quotes/${quote.id}`)}
                 className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-black/5 dark:border-white/10 cursor-pointer active:scale-[0.98] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex"
                 data-testid={`card-quote-${quote.id}`}
@@ -408,10 +456,34 @@ export default function Quotes() {
                   </div>
                 </div>
               </div>
+              </SwipeableRow>
             );
           })
         )}
       </div>
+
+      <AlertDialog open={confirmDeleteId !== null} onOpenChange={(o) => { if (!o) setConfirmDeleteId(null); }}>
+        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-lg font-bold">Delete Quote?</AlertDialogTitle>
+            <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-red-500 hover:bg-red-600"
+              onClick={() => {
+                if (confirmDeleteId !== null) {
+                  deleteQuote(confirmDeleteId);
+                  setConfirmDeleteId(null);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {followUpQuote && (
         <FollowUpSheet

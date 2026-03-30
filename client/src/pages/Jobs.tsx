@@ -3,7 +3,10 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useCustomers } from "@/hooks/use-customers";
 import { ActiveTimerBanner } from "@/components/ActiveTimerBanner";
 import { useState } from "react";
-import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2, Calendar, Briefcase, FileText, Check, AlertTriangle } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2, Calendar, Briefcase, FileText, Check, AlertTriangle, XCircle, Search } from "lucide-react";
+import { SwipeableRow } from "@/components/SwipeableRow";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useNavAction } from "@/hooks/use-nav-action";
 import { RunningLateModal } from "@/components/RunningLateModal";
 import type { Job } from "@shared/schema";
@@ -39,6 +42,9 @@ export default function Jobs() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [lateJob, setLateJob] = useState<Job | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const { mutate: updateJob } = useUpdateJob();
 
   useNavAction({ label: "New", icon: Plus, onClick: () => setIsDialogOpen(true) }, []);
 
@@ -89,9 +95,21 @@ export default function Jobs() {
       <ActiveTimerBanner />
       {/* Header */}
       <div className="px-6 pt-12 mb-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
-          <p className="text-muted-foreground">{format(currentDate, "MMMM yyyy")}</p>
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
+            <p className="text-muted-foreground">{format(currentDate, "MMMM yyyy")}</p>
+          </div>
+        </div>
+        <div className="relative mb-6">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search all jobs..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full h-11 pl-11 pr-4 rounded-2xl bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
         </div>
 
         {/* Next Job Banner */}
@@ -185,6 +203,41 @@ export default function Jobs() {
 
         {/* Timeline / Agenda */}
         <div className="space-y-4">
+          {search.trim() ? (() => {
+            const s = search.toLowerCase();
+            const matches = (jobs || []).filter(j =>
+              j.title.toLowerCase().includes(s) ||
+              (j.description || "").toLowerCase().includes(s)
+            ).sort((a, b) =>
+              new Date(b.scheduledDate || 0).getTime() - new Date(a.scheduledDate || 0).getTime()
+            );
+            return (
+              <>
+                <p className="text-sm font-bold text-muted-foreground px-1">{matches.length} result{matches.length !== 1 ? "s" : ""} for "{search}"</p>
+                {matches.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground text-sm">No jobs matched</div>
+                ) : matches.map(job => (
+                  <Link key={job.id} href={`/jobs/${job.id}`}>
+                    <div className="bg-white dark:bg-card p-4 rounded-2xl shadow-sm border border-black/5 flex items-center gap-3 active:scale-[0.98] transition-all">
+                      <div className={cn("w-2.5 h-2.5 rounded-full shrink-0",
+                        job.status === "completed" ? "bg-green-500" :
+                        job.status === "cancelled" ? "bg-red-400" :
+                        job.status === "in_progress" ? "bg-blue-500" : "bg-primary"
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm truncate">{job.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {job.scheduledDate ? format(new Date(job.scheduledDate), "eee d MMM · h:mm a") : "Unscheduled"} · <span className="capitalize">{job.status}</span>
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+                    </div>
+                  </Link>
+                ))}
+              </>
+            );
+          })() : (
+          <>
           <div className="flex justify-between items-center px-1 mb-4">
             <h3 className="text-xl font-bold text-foreground">
               {isSameDay(selectedDate, new Date()) ? "Today's Schedule" : format(selectedDate, "EEEE, MMM d")}
@@ -195,7 +248,17 @@ export default function Jobs() {
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>
+            Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-card p-5 rounded-3xl border border-black/5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-10 h-10 rounded-2xl shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-5 w-3/4 rounded-lg" />
+                    <Skeleton className="h-3 w-1/2 rounded-lg" />
+                  </div>
+                </div>
+              </div>
+            ))
           ) : selectedDateJobs.length === 0 ? (
             <div
               onClick={() => setIsDialogOpen(true)}
@@ -217,11 +280,24 @@ export default function Jobs() {
                   : "bg-primary";
                 const statusBadge = job.status === "completed"
                   ? { label: "Completed", cls: "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800" }
+                  : job.status === "in_progress"
+                  ? { label: "In Progress", cls: "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800" }
                   : job.status === "pending"
                   ? { label: "Pending", cls: "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800" }
                   : { label: "Scheduled", cls: "bg-orange-50 dark:bg-orange-900/20 text-primary border-orange-200 dark:border-orange-800" };
+                const canCancel = job.status !== "completed" && job.status !== "cancelled";
                 return (
-                  <div key={job.id} className="bg-white dark:bg-card p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
+                  <SwipeableRow
+                    key={job.id}
+                    className="rounded-3xl"
+                    actions={canCancel ? [{
+                      label: "Cancel",
+                      icon: <XCircle className="w-5 h-5" />,
+                      bgClass: "bg-red-500 rounded-r-3xl",
+                      onClick: () => setConfirmCancelId(job.id),
+                    }] : []}
+                  >
+                  <div className="bg-white dark:bg-card p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
                     <Link href={`/jobs/${job.id}`}>
                       <div className="cursor-pointer active:scale-[0.98]">
                         <div className="flex justify-between items-start mb-3">
@@ -265,6 +341,7 @@ export default function Jobs() {
                       </button>
                     )}
                   </div>
+                  </SwipeableRow>
                 );
               })}
 
@@ -279,14 +356,38 @@ export default function Jobs() {
               )}
             </>
           )}
+          </>)}
         </div>
       </div>
 
-      <CreateJobDialog 
-        open={isDialogOpen} 
-        onOpenChange={setIsDialogOpen} 
-        defaultDate={format(selectedDate, "yyyy-MM-dd")} 
+      <CreateJobDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        defaultDate={format(selectedDate, "yyyy-MM-dd")}
       />
+
+      <AlertDialog open={confirmCancelId !== null} onOpenChange={(o) => { if (!o) setConfirmCancelId(null); }}>
+        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-lg font-bold">Cancel Job?</AlertDialogTitle>
+            <AlertDialogDescription>This will mark the job as cancelled.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Keep Job</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-red-500 hover:bg-red-600"
+              onClick={() => {
+                if (confirmCancelId !== null) {
+                  updateJob({ id: confirmCancelId, status: "cancelled" });
+                  setConfirmCancelId(null);
+                }
+              }}
+            >
+              Cancel Job
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {lateJob && (
         <RunningLateModal 

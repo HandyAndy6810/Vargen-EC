@@ -4,6 +4,7 @@ import { useCustomers } from "@/hooks/use-customers";
 import { useRoute, Link } from "wouter";
 import { useState, useEffect } from "react";
 import { Loader2, Calendar, User, MapPin, Phone, CheckCircle2, XCircle, AlertTriangle, Clock, TrendingUp, TrendingDown, Play } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ export default function JobDetail() {
   const { mutate: updateJob, isPending: isUpdating } = useUpdateJob();
   const [showLateModal, setShowLateModal] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -180,7 +182,7 @@ export default function JobDetail() {
         <Button
           variant="outline"
           className="h-14 rounded-xl border-2 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
-          onClick={() => handleStatusChange("cancelled")}
+          onClick={() => setShowCancelConfirm(true)}
           disabled={isUpdating || job.status === "cancelled"}
         >
           <XCircle className="w-5 h-5 mr-2" />
@@ -220,6 +222,24 @@ export default function JobDetail() {
         customerId={job.customerId}
         linkedQuoteId={linkedQuote?.id}
       />
+
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-lg font-bold">Cancel Job?</AlertDialogTitle>
+            <AlertDialogDescription>This will mark the job as cancelled. You can reopen it from the job list.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Keep Job</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-red-500 hover:bg-red-600"
+              onClick={() => handleStatusChange("cancelled")}
+            >
+              Cancel Job
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
