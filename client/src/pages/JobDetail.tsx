@@ -3,7 +3,7 @@ import { useJob, useUpdateJob } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useRoute, Link } from "wouter";
 import { useState, useEffect } from "react";
-import { Loader2, Calendar, User, MapPin, Phone, CheckCircle2, XCircle, AlertTriangle, Clock, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, Calendar, User, MapPin, Phone, CheckCircle2, XCircle, AlertTriangle, Clock, TrendingUp, TrendingDown, Play } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -52,9 +52,10 @@ export default function JobDetail() {
           <span className={cn("px-3 py-1 rounded-full text-sm font-semibold capitalize",
             job.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
             job.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-            'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+            job.status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+            'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
           )}>
-            {job.status}
+            {job.status === 'in_progress' ? 'In Progress' : job.status}
           </span>
         </div>
 
@@ -151,6 +152,18 @@ export default function JobDetail() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Start Job Button */}
+      {(job.status === "scheduled" || job.status === "pending") && (
+        <Button
+          className="w-full h-14 rounded-xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white"
+          onClick={() => handleStatusChange("in_progress")}
+          disabled={isUpdating}
+        >
+          <Play className="w-5 h-5 mr-2 fill-white" />
+          Start Job
+        </Button>
       )}
 
       {/* Action Buttons */}
