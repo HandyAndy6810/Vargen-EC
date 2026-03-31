@@ -558,6 +558,26 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
+  // Clear All Data
+  app.delete("/api/data/clear-all", async (req: any, res) => {
+    try {
+      const { db } = await import("./db");
+      const { customers, jobs, quotes, quoteItems, invoices, jobTimerEntries } = await import("../shared/schema");
+
+      await db.delete(jobTimerEntries);
+      await db.delete(quoteItems);
+      await db.delete(invoices);
+      await db.delete(quotes);
+      await db.delete(jobs);
+      await db.delete(customers);
+
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error("Clear all data error:", err);
+      res.status(500).json({ message: err.message || "Failed to clear data" });
+    }
+  });
+
   // User Settings
   app.get(api.settings.get.path, async (req: any, res) => {
     const userId = req.user?.claims?.sub;

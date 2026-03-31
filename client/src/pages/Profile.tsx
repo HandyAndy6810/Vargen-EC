@@ -9,10 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
   UserRound,
   Building2,
   Briefcase,
+  Trash2,
+  AlertTriangle,
   DollarSign,
   Sun,
   Moon,
@@ -118,9 +122,29 @@ export default function Profile() {
   const { toast } = useToast();
   const { data: dbSettings } = useUserSettings();
   const { mutate: updateSettings, mutateAsync: updateSettingsAsync } = useUpdateUserSettings();
+  const queryClient = useQueryClient();
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const isInitialized = useRef(false);
+  const [showClearDialog, setShowClearDialog] = useState(false);
+  const [clearConfirmText, setClearConfirmText] = useState("");
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearAllData = async () => {
+    setIsClearing(true);
+    try {
+      const res = await fetch("/api/data/clear-all", { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error("Failed to clear data");
+      await queryClient.invalidateQueries();
+      setShowClearDialog(false);
+      setClearConfirmText("");
+      toast({ title: "All data cleared", description: "Your account has been reset." });
+    } catch (err: any) {
+      toast({ title: "Failed to clear data", description: err.message, variant: "destructive" });
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   // Xero connection
   const { data: xeroStatus, isLoading: xeroLoading } = useXeroStatus();
@@ -1061,6 +1085,30 @@ export default function Profile() {
           </div>
         )}
 
+        {/* Danger Zone */}
+        <div className="bg-white dark:bg-white/5 rounded-[2rem] p-5 shadow-sm border border-red-200/60 dark:border-red-900/40">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-4 h-4 text-red-500" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-foreground">Danger Zone</p>
+              <p className="text-xs text-muted-foreground">Irreversible actions</p>
+            </div>
+          </div>
+          <button
+            onClick={() => { setClearConfirmText(""); setShowClearDialog(true); }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 font-bold text-sm active:scale-[0.98] transition-all"
+            data-testid="button-clear-data"
+          >
+            <Trash2 className="w-4 h-4 shrink-0" />
+            <div className="text-left flex-1">
+              <p className="font-bold">Clear All Data</p>
+              <p className="text-xs font-normal text-red-500/80 dark:text-red-400/70 mt-0.5">Delete all customers, quotes, jobs & invoices</p>
+            </div>
+          </button>
+        </div>
+
         {/* Sign Out */}
         <button
           onClick={() => logout()}
@@ -1070,6 +1118,56 @@ export default function Profile() {
           <LogOut className="w-5 h-5" /> Sign Out
         </button>
       </div>
+
+      {/* Clear All Data confirmation dialog */}
+      <AlertDialog open={showClearDialog} onOpenChange={(v) => { if (!v) { setShowClearDialog(false); setClearConfirmText(""); } }}>
+        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-2xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <AlertDialogTitle className="text-lg font-bold text-red-600">Clear All Data?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-sm text-foreground space-y-2 pt-1">
+              <span className="block">This will permanently delete:</span>
+              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                <li>All customers</li>
+                <li>All quotes</li>
+                <li>All jobs</li>
+                <li>All invoices</li>
+              </ul>
+              <span className="block font-bold text-red-600 dark:text-red-400 pt-1">This cannot be undone. There is no recovery.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="px-0 py-2">
+            <p className="text-xs font-bold text-muted-foreground mb-2">Type <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-foreground">DELETE</span> to confirm</p>
+            <Input
+              value={clearConfirmText}
+              onChange={e => setClearConfirmText(e.target.value)}
+              placeholder="Type DELETE"
+              className="rounded-xl border-red-200 dark:border-red-800 font-mono"
+              data-testid="input-clear-confirm"
+              autoCapitalize="none"
+              autoCorrect="off"
+            />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl" onClick={() => setClearConfirmText("")}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-red-600 hover:bg-red-700 text-white disabled:opacity-40"
+              disabled={clearConfirmText !== "DELETE" || isClearing}
+              onClick={handleClearAllData}
+              data-testid="button-confirm-clear"
+            >
+              {isClearing ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
+              Delete Everything
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
