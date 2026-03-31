@@ -3,7 +3,7 @@ import { useJobs } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Clock, Send, CheckCircle2, XCircle, Eye, PenLine, Flame, TrendingUp, DollarSign, Percent, Trash2, Search } from "lucide-react";
+import { Plus, Loader2, FileText, Bell, MessageSquare, Mail, Clock, Send, CheckCircle2, XCircle, Eye, PenLine, Flame, TrendingUp, DollarSign, Percent, Trash2, Search, ChevronRight } from "lucide-react";
 import { SwipeableRow } from "@/components/SwipeableRow";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -169,6 +169,18 @@ export default function Quotes() {
     }
   };
 
+  const getStatusDot = (status: string, isCold?: boolean) => {
+    if (isCold) return "bg-amber-500";
+    switch (status) {
+      case "draft":    return "bg-yellow-400";
+      case "sent":     return "bg-blue-500";
+      case "viewed":   return "bg-purple-500";
+      case "accepted": return "bg-green-500";
+      case "rejected": return "bg-red-400";
+      default:         return "bg-muted-foreground/40";
+    }
+  };
+
   const expiringQuotes = quotes?.filter(q => {
     if (q.status !== "sent" || !q.createdAt) return false;
     const daysSinceSent = differenceInDays(new Date(), new Date(q.createdAt));
@@ -319,20 +331,16 @@ export default function Quotes() {
       </div>
 
       {/* Quote List */}
-      <div className="px-6 space-y-3">
+      <div className="px-6 space-y-2">
         {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white dark:bg-white/5 rounded-2xl overflow-hidden flex border border-black/5 dark:border-white/10">
-              <Skeleton className="w-1.5 shrink-0 rounded-none h-24" />
-              <div className="p-5 flex-1 space-y-2.5">
-                <Skeleton className="h-5 w-2/3 rounded-lg" />
-                <Skeleton className="h-3.5 w-1/2 rounded-lg" />
-                <Skeleton className="h-3 w-1/4 rounded-lg" />
+          Array.from({ length: 7 }).map((_, i) => (
+            <div key={i} className="bg-white dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/10 px-4 py-3.5 flex items-center gap-3">
+              <Skeleton className="w-2.5 h-2.5 rounded-full shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-3.5 w-2/5 rounded" />
+                <Skeleton className="h-2.5 w-1/3 rounded" />
               </div>
-              <div className="p-5 flex flex-col items-end gap-2">
-                <Skeleton className="h-5 w-14 rounded-lg" />
-                <Skeleton className="h-3 w-10 rounded-lg" />
-              </div>
+              <Skeleton className="h-3.5 w-12 rounded shrink-0" />
             </div>
           ))
         ) : filteredQuotes.length === 0 ? (
@@ -358,11 +366,13 @@ export default function Quotes() {
           filteredQuotes.map(quote => {
             const status = quote.status || "draft";
             const isCold = !!(status === "sent" && quote.createdAt && differenceInDays(new Date(), new Date(quote.createdAt)) >= 7);
+            const warnings = getQuoteWarnings(quote);
+            const hasWarning = warnings.length > 0;
 
             return (
               <SwipeableRow
                 key={quote.id}
-                className="rounded-2xl"
+                className="rounded-xl"
                 actions={[{
                   label: "Delete",
                   icon: <Trash2 className="w-4 h-4 text-white" />,
@@ -370,92 +380,52 @@ export default function Quotes() {
                   onClick: () => setConfirmDeleteId(quote.id),
                 }]}
               >
-              <div
-                onClick={() => setLocation(`/quotes/${quote.id}`)}
-                className="bg-white dark:bg-white/5 rounded-2xl shadow-sm border border-black/5 dark:border-white/10 cursor-pointer active:scale-[0.98] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex"
-                data-testid={`card-quote-${quote.id}`}
-              >
-                <div className={cn("w-1.5 shrink-0", getStatusBorder(status, isCold))} />
-                <div className="p-5 flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-lg text-foreground truncate" data-testid={`text-quote-customer-${quote.id}`}>
-                        {getCustomerName(quote)}
-                      </p>
-                      <p className="text-sm font-medium text-foreground/80 truncate mt-0.5" data-testid={`text-quote-job-${quote.id}`}>
-                        {getJobTitle(quote)}
-                      </p>
-                      {getCustomerAddress(quote) && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5" data-testid={`text-quote-address-${quote.id}`}>
-                          {getCustomerAddress(quote)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-lg text-foreground" data-testid={`text-quote-amount-${quote.id}`}>
-                        ${Number(quote.totalAmount).toLocaleString()}
-                      </p>
-                      {quote.createdAt && (
-                        <div className="space-y-1 mt-1">
-                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
-                            Created {format(new Date(quote.createdAt), "dd MMM")}
-                          </p>
-                          {status === "sent" && (
-                            <p className={cn("text-[10px] uppercase font-bold tracking-tight", isCold ? "text-amber-600 dark:text-amber-400" : "text-orange-600 dark:text-orange-400")}>
-                              {isCold ? "Going Cold" : `Expires ${format(addDays(new Date(quote.createdAt), 30), "dd MMM")}`}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {getQuoteWarnings(quote).length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {getQuoteWarnings(quote).map((warning, idx) => (
-                        <span 
-                          key={idx} 
-                          className="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-md"
-                          data-testid={`text-quote-warning-${quote.id}-${idx}`}
-                        >
-                          {warning}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between mt-3 gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={cn("inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border", statusColor(status, isCold))} data-testid={`text-quote-status-${quote.id}`}>
-                        {isCold ? <Flame className="w-2.5 h-2.5" /> : status === "accepted" ? <CheckCircle2 className="w-2.5 h-2.5" /> : status === "rejected" ? <XCircle className="w-2.5 h-2.5" /> : status === "viewed" ? <Eye className="w-2.5 h-2.5" /> : status === "sent" ? <Send className="w-2.5 h-2.5" /> : <PenLine className="w-2.5 h-2.5" />}
-                        {isCold && status === "sent" ? "Going Cold" : status}
-                      </span>
-                      {isCold && quote.createdAt && (
-                        <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                          <Clock className="w-3 h-3" />
-                          {differenceInDays(new Date(), new Date(quote.createdAt))}d ago
-                        </span>
-                      )}
-                    </div>
-
-                    {isCold && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 text-[11px] font-bold gap-1.5 rounded-xl border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFollowUpQuote(quote);
-                        }}
-                        data-testid={`button-followup-${quote.id}`}
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        Follow Up
-                      </Button>
+                <div
+                  onClick={() => setLocation(`/quotes/${quote.id}`)}
+                  className="bg-white dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/10 cursor-pointer active:scale-[0.98] transition-transform flex items-center gap-3 px-4 py-3.5"
+                  data-testid={`card-quote-${quote.id}`}
+                >
+                  {/* Status dot — warning overlay if needed */}
+                  <div className="relative shrink-0">
+                    <div className={cn("w-2.5 h-2.5 rounded-full", getStatusDot(status, isCold))} />
+                    {hasWarning && (
+                      <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 border border-white dark:border-card" />
                     )}
                   </div>
+
+                  {/* Text */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-foreground truncate leading-snug" data-testid={`text-quote-customer-${quote.id}`}>
+                      {getCustomerName(quote)}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <p className="text-xs text-muted-foreground truncate flex-1" data-testid={`text-quote-job-${quote.id}`}>
+                        {getJobTitle(quote)}
+                      </p>
+                      {isCold && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setFollowUpQuote(quote); }}
+                          className="shrink-0 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800 flex items-center gap-0.5"
+                          data-testid={`button-followup-${quote.id}`}
+                        >
+                          <Flame className="w-2.5 h-2.5" /> Follow up
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Amount + date */}
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-bold text-foreground" data-testid={`text-quote-amount-${quote.id}`}>
+                      ${Number(quote.totalAmount).toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {quote.createdAt ? format(new Date(quote.createdAt), "d MMM") : ""}
+                    </p>
+                  </div>
+
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0 ml-0.5" />
                 </div>
-              </div>
               </SwipeableRow>
             );
           })

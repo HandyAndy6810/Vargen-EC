@@ -705,21 +705,7 @@ export default function QuoteDetail() {
           </Button>
         )}
 
-        {/* Edit Save Button */}
-        {editing && (
-          <Button
-            onClick={handleSaveEdit}
-            disabled={isUpdating}
-            className="w-full h-14 rounded-2xl text-base font-bold"
-            data-testid="button-save-edit"
-          >
-            {isUpdating ? (
-              <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Saving...</>
-            ) : (
-              <><Save className="w-5 h-5 mr-2" /> Save Changes</>
-            )}
-          </Button>
-        )}
+        {/* Edit Save Button — moved to sticky bar */}
 
         {/* Acknowledgment Gate */}
         {/* Acknowledged Badge */}
@@ -730,78 +716,30 @@ export default function QuoteDetail() {
           </div>
         )}
 
-        {/* Status Actions */}
+        {/* Secondary status actions */}
         {!editing && (
           <div className="space-y-2">
-            {quote.status === "draft" && (
-              <Button
-                onClick={() => {
-                  if (items.length === 0) {
-                    toast({ title: "Add line items before sending", variant: "destructive" });
-                    return;
-                  }
-                  const err = validateItems(items);
-                  if (err) {
-                    toast({ title: "Fix items before sending", description: err, variant: "destructive" });
-                    return;
-                  }
-                  handleStatusChange("sent");
-                }}
-                disabled={isUpdating}
-                className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 text-white"
-                data-testid="button-mark-sent"
-              >
-                {isUpdating ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Send className="w-5 h-5 mr-2" />}
-                Mark as Sent
-              </Button>
-            )}
             {(quote.status === "sent" || quote.status === "viewed") && (
-              <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Button
-                  onClick={() => setShowScheduleDialog(true)}
+                  onClick={() => handleStatusChange("accepted")}
                   disabled={isUpdating}
-                  className="w-full h-14 rounded-2xl text-base font-bold bg-green-600 hover:bg-green-700 text-white"
-                  data-testid="button-accept-and-schedule"
+                  variant="outline"
+                  className="h-12 rounded-2xl text-sm font-bold text-green-600 border-green-200 dark:border-green-900"
+                  data-testid="button-mark-accepted"
                 >
-                  <Calendar className="w-5 h-5 mr-2" /> Accept & Schedule
+                  <CheckCircle2 className="w-4 h-4 mr-1.5" /> Accept Only
                 </Button>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    onClick={() => handleStatusChange("accepted")}
-                    disabled={isUpdating}
-                    variant="outline"
-                    className="h-12 rounded-2xl text-sm font-bold text-green-600 border-green-200 dark:border-green-900"
-                    data-testid="button-mark-accepted"
-                  >
-                    <CheckCircle2 className="w-4 h-4 mr-1.5" /> Accept Only
-                  </Button>
-                  <Button
-                    onClick={() => setShowRejectDialog(true)}
-                    disabled={isUpdating}
-                    variant="outline"
-                    className="h-12 rounded-2xl text-sm font-bold text-red-500 border-red-200 dark:border-red-900"
-                    data-testid="button-mark-rejected"
-                  >
-                    <XCircle className="w-4 h-4 mr-1.5" /> Rejected
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => setShowRejectDialog(true)}
+                  disabled={isUpdating}
+                  variant="outline"
+                  className="h-12 rounded-2xl text-sm font-bold text-red-500 border-red-200 dark:border-red-900"
+                  data-testid="button-mark-rejected"
+                >
+                  <XCircle className="w-4 h-4 mr-1.5" /> Rejected
+                </Button>
               </div>
-            )}
-            {quote.status === "accepted" && (
-              <Button
-                onClick={() => {
-                  createInvoiceMutation.mutate(quote.id, {
-                    onSuccess: (invoice: any) => {
-                      setLocation(`/invoices/${invoice.id}`);
-                    },
-                  });
-                }}
-                disabled={createInvoiceMutation.isPending}
-                className="w-full h-14 rounded-2xl text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                {createInvoiceMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Receipt className="w-5 h-5 mr-2" />}
-                Create Invoice
-              </Button>
             )}
             {(quote.status === "accepted" || quote.status === "rejected") && (
               <Button
@@ -814,7 +752,7 @@ export default function QuoteDetail() {
                 Revert to Draft
               </Button>
             )}
-            {!editing && scheduledJobId && quote.status === "accepted" && (
+            {scheduledJobId && quote.status === "accepted" && (
               <Button
                 onClick={() => setLocation(`/jobs`)}
                 variant="outline"
@@ -826,6 +764,73 @@ export default function QuoteDetail() {
             )}
           </div>
         )}
+
+        {/* Sticky primary action bar */}
+        {(() => {
+          if (editing) return (
+            <div className="fixed bottom-20 left-0 right-0 px-5 z-40 pointer-events-none">
+              <div className="pointer-events-auto">
+                <Button
+                  onClick={handleSaveEdit}
+                  disabled={isUpdating}
+                  className="w-full h-14 rounded-2xl text-base font-bold shadow-xl shadow-primary/25"
+                  data-testid="button-save-edit"
+                >
+                  {isUpdating ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Saving...</> : <><Save className="w-5 h-5 mr-2" /> Save Changes</>}
+                </Button>
+              </div>
+            </div>
+          );
+          if (quote.status === "draft") return (
+            <div className="fixed bottom-20 left-0 right-0 px-5 z-40 pointer-events-none">
+              <div className="pointer-events-auto">
+                <Button
+                  onClick={() => {
+                    if (items.length === 0) { toast({ title: "Add line items before sending", variant: "destructive" }); return; }
+                    const err = validateItems(items);
+                    if (err) { toast({ title: "Fix items before sending", description: err, variant: "destructive" }); return; }
+                    handleStatusChange("sent");
+                  }}
+                  disabled={isUpdating}
+                  className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-600/30"
+                  data-testid="button-mark-sent"
+                >
+                  {isUpdating ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Send className="w-5 h-5 mr-2" />}
+                  Mark as Sent
+                </Button>
+              </div>
+            </div>
+          );
+          if (quote.status === "sent" || quote.status === "viewed") return (
+            <div className="fixed bottom-20 left-0 right-0 px-5 z-40 pointer-events-none">
+              <div className="pointer-events-auto">
+                <Button
+                  onClick={() => setShowScheduleDialog(true)}
+                  disabled={isUpdating}
+                  className="w-full h-14 rounded-2xl text-base font-bold bg-green-600 hover:bg-green-700 text-white shadow-xl shadow-green-600/30"
+                  data-testid="button-accept-and-schedule"
+                >
+                  <Calendar className="w-5 h-5 mr-2" /> Accept & Schedule
+                </Button>
+              </div>
+            </div>
+          );
+          if (quote.status === "accepted") return (
+            <div className="fixed bottom-20 left-0 right-0 px-5 z-40 pointer-events-none">
+              <div className="pointer-events-auto">
+                <Button
+                  onClick={() => { createInvoiceMutation.mutate(quote.id, { onSuccess: (invoice: any) => setLocation(`/invoices/${invoice.id}`) }); }}
+                  disabled={createInvoiceMutation.isPending}
+                  className="w-full h-14 rounded-2xl text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-600/30"
+                >
+                  {createInvoiceMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Receipt className="w-5 h-5 mr-2" />}
+                  Create Invoice
+                </Button>
+              </div>
+            </div>
+          );
+          return null;
+        })()}
       </div>
       {/* Xero Invoice - shown when quote is accepted and Xero is connected */}
       {!editing && quote.status === "accepted" && xeroStatus?.connected && (
