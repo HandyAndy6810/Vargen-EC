@@ -365,8 +365,8 @@ export default function Quotes() {
                 className="rounded-2xl"
                 actions={[{
                   label: "Delete",
-                  icon: <Trash2 className="w-5 h-5" />,
-                  bgClass: "bg-red-500 rounded-r-2xl",
+                  icon: <Trash2 className="w-4 h-4 text-white" />,
+                  bgClass: "bg-red-400/90",
                   onClick: () => setConfirmDeleteId(quote.id),
                 }]}
               >
