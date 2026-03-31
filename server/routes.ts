@@ -397,7 +397,7 @@ export async function registerRoutes(
   // AI Quote Generation
   app.post("/api/quotes/generate", async (req, res) => {
     try {
-      const { description, imageBase64, customerName, tradeType, labourRate, markupPercent, callOutFee, includeGST } = req.body;
+      const { description, imageBase64, customerName, tradeType, labourRate, markupPercent, callOutFee, includeGST, targetPrice } = req.body;
 
       if (!description || typeof description !== "string") {
         return res.status(400).json({ message: "Job description is required" });
@@ -424,6 +424,13 @@ export async function registerRoutes(
         pricingInstructions += `\n- Add 10% GST to the total. Include a "gstAmount" field in your response with the GST dollar amount. The "totalAmount" should be the GST-inclusive total`;
       } else {
         pricingInstructions += `\n- All prices are GST-exclusive. Mention "All prices exclude GST" in the notes`;
+      }
+
+      const targetPriceNum = typeof targetPrice === "number" && targetPrice > 0 ? targetPrice
+        : typeof targetPrice === "string" && parseFloat(targetPrice) > 0 ? parseFloat(targetPrice)
+        : null;
+      if (targetPriceNum) {
+        pricingInstructions += `\n- TARGET PRICE: The tradesperson expects this job to come in at approximately $${targetPriceNum}${gstEnabled ? " (GST inclusive)" : " (ex GST)"}. Shape your line items so the total lands close to this figure. Adjust labour hours and material specs to fit — if you cannot reach the target without being dishonest, note the shortfall in the "notes" field and explain why the true cost is higher. Do NOT sacrifice safety or compliance to hit the number.`;
       }
 
       const tradeContext = tradeType && tradeType !== "general" ? `\nThe tradesperson is a ${tradeType}. Use pricing, terminology, units of measure, and compliance requirements specific to this trade.` : "";

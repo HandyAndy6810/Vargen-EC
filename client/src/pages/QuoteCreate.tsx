@@ -197,6 +197,7 @@ export default function QuoteCreate() {
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [editorMargin, setEditorMargin] = useState(0);
   const [baseItemPrices, setBaseItemPrices] = useState<Record<string, number>>({});
+  const [targetPrice, setTargetPrice] = useState("");
 
   const [defaults, setDefaults] = useState<QuoteDefaults>(loadDefaults);
   const [showTradeDropdown, setShowTradeDropdown] = useState(false);
@@ -282,6 +283,7 @@ export default function QuoteCreate() {
         customerName: customerName || undefined,
         markupPercent: defaults.markupPercent,
         callOutFee: defaults.callOutEnabled ? defaults.callOutFee : 0,
+        targetPrice: targetPrice && parseFloat(targetPrice) > 0 ? parseFloat(targetPrice) : undefined,
       };
       if (mode === "advanced") {
         body.tradeType = defaults.tradeType;
@@ -670,6 +672,26 @@ export default function QuoteCreate() {
                     )}
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-2 pt-4 border-t border-black/5">
+                <Label className="text-sm font-bold text-muted-foreground">
+                  Estimated Price <span className="font-normal">(optional)</span>
+                </Label>
+                <p className="text-xs text-muted-foreground -mt-1">Rough idea of what it should cost? AI will shape the quote around it.</p>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">$</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={targetPrice}
+                    onChange={e => setTargetPrice(e.target.value)}
+                    placeholder="e.g. 850"
+                    className="rounded-xl h-12 pl-7 border-black/10 font-medium"
+                    data-testid="input-target-price"
+                  />
+                </div>
               </div>
 
               <SharedSettings compact />
