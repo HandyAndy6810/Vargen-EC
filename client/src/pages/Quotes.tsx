@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
 import { useNavAction } from "@/hooks/use-nav-action";
+import { QuickQuoteSheet } from "@/components/QuickQuoteSheet";
 import { cn } from "@/lib/utils";
 import { format, differenceInDays, addDays } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -37,9 +38,10 @@ export default function Quotes() {
   const [followUpQuote, setFollowUpQuote] = useState<any>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [showQuickQuote, setShowQuickQuote] = useState(false);
   const { mutate: deleteQuote } = useDeleteQuote();
 
-  useNavAction({ label: "New", icon: Plus, onClick: () => setLocation("/quotes/new") }, []);
+  useNavAction({ label: "Quote", icon: Plus, onClick: () => setShowQuickQuote(true), color: "bg-primary" }, []);
 
   const sendEmailMutation = useMutation({
     mutationFn: async ({ to, subject, body }: { to: string; subject: string; body: string }) => {
@@ -466,6 +468,8 @@ export default function Quotes() {
           daysSinceSent={followUpQuote.createdAt ? differenceInDays(new Date(), new Date(followUpQuote.createdAt)) : 0}
         />
       )}
+
+      <QuickQuoteSheet open={showQuickQuote} onOpenChange={setShowQuickQuote} />
     </div>
   );
 }

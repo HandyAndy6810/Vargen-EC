@@ -47,7 +47,7 @@ export default function Jobs() {
   const [search, setSearch] = useState("");
   const { mutate: updateJob } = useUpdateJob();
 
-  useNavAction({ label: "New", icon: Plus, onClick: () => setIsDialogOpen(true) }, []);
+  useNavAction({ label: "Add Job", icon: Plus, onClick: () => setIsDialogOpen(true), color: "bg-blue-600" }, []);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
