@@ -15,12 +15,11 @@ interface SwipeableRowProps {
 }
 
 export function SwipeableRow({ children, actions, className }: SwipeableRowProps) {
-  const ACTION_WIDTH = 76 * actions.length;
+  const ACTION_WIDTH = 64 * actions.length;
   const [translateX, setTranslateX] = useState(0);
   const [animating, setAnimating] = useState(false);
 
   const startX = useRef(0);
-  const startY = useRef(0);
   const baseX = useRef(0);
   const axis = useRef<"h" | "v" | null>(null);
   const active = useRef(false);
@@ -34,7 +33,6 @@ export function SwipeableRow({ children, actions, className }: SwipeableRowProps
 
   const onTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
-    startY.current = e.touches[0].clientY;
     baseX.current = translateX;
     axis.current = null;
     active.current = false;
@@ -43,21 +41,15 @@ export function SwipeableRow({ children, actions, className }: SwipeableRowProps
 
   const onTouchMove = (e: React.TouchEvent) => {
     const dx = e.touches[0].clientX - startX.current;
-    const dy = e.touches[0].clientY - startY.current;
 
     if (!axis.current) {
-      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
-      axis.current = Math.abs(dx) >= Math.abs(dy) ? "h" : "v";
+      if (Math.abs(dx) < 5) return;
+      axis.current = "h";
     }
-
-    if (axis.current !== "h") return;
 
     e.preventDefault();
     active.current = true;
-
-    const raw = baseX.current + dx;
-    // Only allow swiping left (negative), not past full reveal
-    const clamped = Math.max(-ACTION_WIDTH, Math.min(0, raw));
+    const clamped = Math.max(-ACTION_WIDTH, Math.min(0, baseX.current + dx));
     setTranslateX(clamped);
   };
 
@@ -65,47 +57,49 @@ export function SwipeableRow({ children, actions, className }: SwipeableRowProps
     if (!active.current) return;
     active.current = false;
     setAnimating(true);
-    if (translateX < -(ACTION_WIDTH * 0.4)) {
-      setTranslateX(-ACTION_WIDTH);
-    } else {
-      setTranslateX(0);
-    }
+    setTranslateX(translateX < -(ACTION_WIDTH * 0.35) ? -ACTION_WIDTH : 0);
   };
 
   return (
     <div className={cn("relative overflow-hidden", className)}>
-      {/* Revealed action buttons */}
-      <div
-        className="absolute inset-y-0 right-0 flex"
-        style={{ width: ACTION_WIDTH }}
-      >
-        {actions.map((action, i) => (
-          <button
-            key={i}
-            onClick={() => { close(); action.onClick(); }}
-            className={cn(
-              "flex-1 flex flex-col items-center justify-center gap-1 text-white text-xs font-bold select-none",
-              action.bgClass
-            )}
-          >
-            {action.icon}
-            <span>{action.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Sliding content */}
+      {/*
+        Track approach: content + action are laid out side-by-side in a
+        wider-than-container row. overflow-hidden on the parent clips the
+        action off-screen until the track slides left.
+      */}
       <div
         style={{
+          display: "flex",
+          width: `calc(100% + ${ACTION_WIDTH}px)`,
           transform: `translateX(${translateX}px)`,
-          transition: animating ? "transform 0.22s ease-out" : "none",
+          transition: animating ? "transform 0.2s ease-out" : "none",
         }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onClick={() => { if (translateX < 0) close(); }}
       >
-        {children}
+        {/* Main content — fills the visible area */}
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
+          {children}
+        </div>
+
+        {/* Action buttons — hidden off-screen until swiped */}
+        <div style={{ width: ACTION_WIDTH, flexShrink: 0 }} className="flex items-center justify-end pr-3 gap-2">
+          {actions.map((action, i) => (
+            <button
+              key={i}
+              onClick={(e) => { e.stopPropagation(); close(); action.onClick(); }}
+              className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm active:scale-95 transition-transform",
+                action.bgClass
+              )}
+              aria-label={action.label}
+            >
+              {action.icon}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
