@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useCustomers } from "@/hooks/use-customers";
 import { useCreateQuote } from "@/hooks/use-quotes";
 import { SuccessFlash } from "@/components/SuccessFlash";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -77,14 +77,12 @@ export function QuickQuoteSheet({ open, onOpenChange }: Props) {
 
       <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
         <DialogContent className="sm:max-w-sm rounded-[2rem] p-7 mx-4">
-          <DialogHeader className="mb-5">
-            <DialogTitle className="flex items-center gap-2.5 text-xl font-bold">
-              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shrink-0">
-                <Zap className="w-4 h-4 text-white" strokeWidth={2.5} />
-              </div>
-              Quick Quote
-            </DialogTitle>
-          </DialogHeader>
+            <div className="flex items-center gap-2.5 mb-5">
+            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shrink-0">
+              <Zap className="w-4 h-4 text-white" strokeWidth={2.5} />
+            </div>
+            <h2 className="text-xl font-bold">Quick Quote</h2>
+          </div>
 
           <div className="space-y-4">
             {/* Customer */}
