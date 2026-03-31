@@ -3,7 +3,7 @@ import { useJob, useUpdateJob } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useRoute, Link } from "wouter";
 import { useState, useEffect } from "react";
-import { Loader2, Calendar, User, MapPin, Phone, CheckCircle2, XCircle, AlertTriangle, Clock, TrendingUp, TrendingDown, Play } from "lucide-react";
+import { Loader2, Calendar, User, MapPin, Phone, CheckCircle2, XCircle, AlertTriangle, TrendingUp, TrendingDown, Play } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ export default function JobDetail() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-28">
       <Header title="Job Details" showBack />
 
       <div className="bg-card rounded-3xl p-6 border border-border shadow-sm">
@@ -156,57 +156,63 @@ export default function JobDetail() {
         </div>
       )}
 
-      {/* Start Job Button */}
-      {(job.status === "scheduled" || job.status === "pending") && (
-        <Button
-          className="w-full h-14 rounded-xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white"
-          onClick={() => handleStatusChange("in_progress")}
-          disabled={isUpdating}
-        >
-          <Play className="w-5 h-5 mr-2 fill-white" />
-          Start Job
-        </Button>
+      {/* Secondary actions — cancel + running late */}
+      {(job.status !== "completed" && job.status !== "cancelled") && (
+        <div className={cn("grid gap-3", job.status === "scheduled" ? "grid-cols-2" : "grid-cols-1")}>
+          {job.status === "scheduled" && (
+            <Button
+              onClick={() => setShowLateModal(true)}
+              variant="outline"
+              className="h-12 rounded-xl border border-orange-200 bg-[#FFF1EB] dark:bg-primary/10 text-primary font-bold text-sm hover:bg-[#FFE5D9]"
+              data-testid="button-running-late"
+            >
+              <AlertTriangle className="w-4 h-4 mr-1.5" />
+              Running Late
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            className="h-12 rounded-xl border border-red-200 dark:border-red-900 text-red-500 font-bold text-sm hover:bg-red-50"
+            onClick={() => setShowCancelConfirm(true)}
+            disabled={isUpdating}
+          >
+            <XCircle className="w-4 h-4 mr-1.5" />
+            Cancel Job
+          </Button>
+        </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="grid grid-cols-2 gap-4">
-        <Button
-          variant="outline"
-          className="h-14 rounded-xl border-2 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
-          onClick={() => setShowCompletionModal(true)}
-          disabled={isUpdating || job.status === "completed"}
-        >
-          <CheckCircle2 className="w-5 h-5 mr-2" />
-          Mark Complete
-        </Button>
-        <Button
-          variant="outline"
-          className="h-14 rounded-xl border-2 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
-          onClick={() => setShowCancelConfirm(true)}
-          disabled={isUpdating || job.status === "cancelled"}
-        >
-          <XCircle className="w-5 h-5 mr-2" />
-          Cancel Job
-        </Button>
-      </div>
+      <Button className="w-full h-12 rounded-xl text-sm font-semibold bg-primary" asChild>
+        <Link href={`/quotes/new?jobId=${job.id}`}>Create Quote for Job</Link>
+      </Button>
 
-      {job.status === "scheduled" && (
-        <Button
-          onClick={() => setShowLateModal(true)}
-          variant="outline"
-          className="w-full h-14 rounded-xl border-2 border-orange-200 bg-[#FFF1EB] text-primary font-bold text-lg hover:bg-[#FFE5D9] hover:border-orange-300"
-          data-testid="button-running-late"
-        >
-          <AlertTriangle className="w-5 h-5 mr-2" />
-          Running Late
-        </Button>
+      {/* Sticky primary action bar */}
+      {(job.status === "scheduled" || job.status === "pending" || job.status === "in_progress") && (
+        <div className="fixed bottom-20 left-0 right-0 px-5 z-40 pointer-events-none">
+          <div className="pointer-events-auto">
+            {(job.status === "scheduled" || job.status === "pending") && (
+              <Button
+                className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-600/30"
+                onClick={() => handleStatusChange("in_progress")}
+                disabled={isUpdating}
+              >
+                {isUpdating ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Play className="w-5 h-5 mr-2 fill-white" />}
+                Start Job
+              </Button>
+            )}
+            {job.status === "in_progress" && (
+              <Button
+                className="w-full h-14 rounded-2xl text-base font-bold bg-green-600 hover:bg-green-700 text-white shadow-xl shadow-green-600/30"
+                onClick={() => setShowCompletionModal(true)}
+                disabled={isUpdating}
+              >
+                <CheckCircle2 className="w-5 h-5 mr-2" />
+                Mark Complete
+              </Button>
+            )}
+          </div>
+        </div>
       )}
-
-      <div className="mt-2">
-         <Button className="w-full h-14 rounded-xl text-lg font-semibold bg-primary" asChild>
-           <Link href={`/quotes/new?jobId=${job.id}`}>Create Quote for Job</Link>
-         </Button>
-      </div>
 
       <RunningLateModal
         open={showLateModal}
