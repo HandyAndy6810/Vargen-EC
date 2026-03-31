@@ -91,13 +91,19 @@ export function BottomNav() {
         >
           <button
             onClick={action?.onClick}
-            className="liquid-glass-nav w-full h-full flex flex-col items-center justify-center gap-0.5 rounded-[28px] active:scale-90 transition-transform duration-150"
+            className={cn(
+              "w-full h-full flex flex-col items-center justify-center gap-0.5 rounded-[28px] active:scale-90 transition-transform duration-150",
+              action?.color ? action.color : "liquid-glass-nav"
+            )}
             data-testid="nav-action-button"
           >
             {action && (
               <>
-                <action.icon className="h-5 w-5 text-primary" strokeWidth={2} />
-                <span className="text-[9px] font-bold leading-none tracking-wide text-primary">
+                <action.icon
+                  className={cn("h-5 w-5", action.color ? "text-white" : "text-primary")}
+                  strokeWidth={2}
+                />
+                <span className={cn("text-[9px] font-bold leading-none tracking-wide", action.color ? "text-white" : "text-primary")}>
                   {action.label}
                 </span>
               </>

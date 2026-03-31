@@ -5,6 +5,8 @@ export interface NavAction {
   label: string;
   icon: LucideIcon;
   onClick: () => void;
+  /** Optional Tailwind bg + text classes for a coloured pill, e.g. "bg-primary text-white" */
+  color?: string;
 }
 
 interface NavActionContextType {
