@@ -3,7 +3,7 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useCustomers } from "@/hooks/use-customers";
 import { ActiveTimerBanner } from "@/components/ActiveTimerBanner";
 import { useState } from "react";
-import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, User, Loader2, Calendar, Briefcase, FileText, Check, AlertTriangle, XCircle, Search } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Loader2, Calendar, Briefcase, FileText, Check, AlertTriangle, XCircle, Search } from "lucide-react";
 import { SwipeableRow } from "@/components/SwipeableRow";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,6 +38,7 @@ import { Link } from "wouter";
 export default function Jobs() {
   const { data: jobs, isLoading } = useJobs();
   const { data: quotes } = useQuotes();
+  const { data: customers } = useCustomers();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -218,7 +219,7 @@ export default function Jobs() {
                   <div className="text-center py-12 text-muted-foreground text-sm">No jobs matched</div>
                 ) : matches.map(job => (
                   <Link key={job.id} href={`/jobs/${job.id}`}>
-                    <div className="bg-white dark:bg-card p-4 rounded-2xl shadow-sm border border-black/5 flex items-center gap-3 active:scale-[0.98] transition-all">
+                    <div className="bg-white dark:bg-card px-4 py-3.5 rounded-xl border border-black/5 dark:border-white/10 flex items-center gap-3 active:scale-[0.98] transition-transform">
                       <div className={cn("w-2.5 h-2.5 rounded-full shrink-0",
                         job.status === "completed" ? "bg-green-500" :
                         job.status === "cancelled" ? "bg-red-400" :
@@ -227,10 +228,11 @@ export default function Jobs() {
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sm truncate">{job.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {job.scheduledDate ? format(new Date(job.scheduledDate), "eee d MMM · h:mm a") : "Unscheduled"} · <span className="capitalize">{job.status}</span>
+                          {job.scheduledDate ? format(new Date(job.scheduledDate), "eee d MMM · h:mm a") : "Unscheduled"}
+                          {customers?.find(c => c.id === job.customerId)?.name && ` · ${customers?.find(c => c.id === job.customerId)?.name}`}
                         </p>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
                     </div>
                   </Link>
                 ))}
@@ -248,15 +250,14 @@ export default function Jobs() {
           </div>
 
           {isLoading ? (
-            Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="bg-white dark:bg-card p-5 rounded-3xl border border-black/5 space-y-3">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="w-10 h-10 rounded-2xl shrink-0" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-5 w-3/4 rounded-lg" />
-                    <Skeleton className="h-3 w-1/2 rounded-lg" />
-                  </div>
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-card rounded-xl border border-black/5 dark:border-white/10 px-4 py-3.5 flex items-center gap-3">
+                <Skeleton className="w-2.5 h-2.5 rounded-full shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-2/5 rounded" />
+                  <Skeleton className="h-2.5 w-1/3 rounded" />
                 </div>
+                <Skeleton className="h-5 w-16 rounded-full shrink-0" />
               </div>
             ))
           ) : selectedDateJobs.length === 0 ? (
@@ -276,7 +277,9 @@ export default function Jobs() {
               {selectedDateJobs.map(job => {
                 const statusDot =
                   job.status === "completed" ? "bg-green-500"
+                  : job.status === "in_progress" ? "bg-blue-500"
                   : job.status === "pending" ? "bg-yellow-400"
+                  : job.status === "cancelled" ? "bg-red-400"
                   : "bg-primary";
                 const statusBadge = job.status === "completed"
                   ? { label: "Completed", cls: "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800" }
@@ -284,63 +287,46 @@ export default function Jobs() {
                   ? { label: "In Progress", cls: "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800" }
                   : job.status === "pending"
                   ? { label: "Pending", cls: "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800" }
+                  : job.status === "cancelled"
+                  ? { label: "Cancelled", cls: "bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 border-red-200 dark:border-red-800" }
                   : { label: "Scheduled", cls: "bg-orange-50 dark:bg-orange-900/20 text-primary border-orange-200 dark:border-orange-800" };
                 const canCancel = job.status !== "completed" && job.status !== "cancelled";
+                const customerName = customers?.find(c => c.id === job.customerId)?.name;
                 return (
                   <SwipeableRow
                     key={job.id}
-                    className="rounded-3xl"
-                    actions={canCancel ? [{
-                      label: "Cancel",
-                      icon: <XCircle className="w-4 h-4 text-white" />,
-                      bgClass: "bg-red-400/90",
-                      onClick: () => setConfirmCancelId(job.id),
-                    }] : []}
+                    className="rounded-xl"
+                    actions={[
+                      ...(job.status === "scheduled" ? [{
+                        label: "Running Late",
+                        icon: <AlertTriangle className="w-4 h-4 text-white" />,
+                        bgClass: "bg-amber-400/90",
+                        onClick: () => setLateJob(job),
+                      }] : []),
+                      ...(canCancel ? [{
+                        label: "Cancel",
+                        icon: <XCircle className="w-4 h-4 text-white" />,
+                        bgClass: "bg-red-400/90",
+                        onClick: () => setConfirmCancelId(job.id),
+                      }] : []),
+                    ]}
                   >
-                  <div className="bg-white dark:bg-card p-5 rounded-3xl shadow-sm border border-black/5 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
-                    <Link href={`/jobs/${job.id}`}>
-                      <div className="cursor-pointer active:scale-[0.98]">
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="relative w-10 h-10 rounded-2xl bg-[#FFF1EB] dark:bg-primary/10 flex items-center justify-center">
-                              <Clock className="w-5 h-5 text-primary" />
-                              <span className={cn("absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-card", statusDot)} />
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-foreground group-hover:text-primary transition-colors">{job.title}</h4>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <p className="text-xs text-muted-foreground font-medium">
-                                  {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "TBD"}
-                                </p>
-                                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", statusBadge.cls)}>
-                                  {statusBadge.label}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                        </div>
-                        
-                        <div className="space-y-2 pl-1">
-                          {job.customerId && <CustomerName id={job.customerId} />}
-                          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                            {job.description}
-                          </p>
-                        </div>
+                  <Link href={`/jobs/${job.id}`}>
+                    <div className="bg-white dark:bg-card px-4 py-3.5 rounded-xl border border-black/5 dark:border-white/10 flex items-center gap-3 active:scale-[0.98] transition-transform">
+                      <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", statusDot)} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate">{job.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "TBD"}
+                          {customerName && ` · ${customerName}`}
+                        </p>
                       </div>
-                    </Link>
-
-                    {job.status === "scheduled" && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setLateJob(job); }}
-                        className="mt-3 w-full py-3 rounded-2xl bg-[#FFF1EB] dark:bg-primary/10 text-primary font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-[#FFE5D9]"
-                        data-testid={`button-running-late-${job.id}`}
-                      >
-                        <AlertTriangle className="w-4 h-4" />
-                        Running Late
-                      </button>
-                    )}
-                  </div>
+                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0", statusBadge.cls)}>
+                        {statusBadge.label}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
+                    </div>
+                  </Link>
                   </SwipeableRow>
                 );
               })}
