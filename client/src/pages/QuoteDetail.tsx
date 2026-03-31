@@ -25,6 +25,10 @@ import {
   Eye,
   ExternalLink,
   Receipt,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
 } from "lucide-react";
 import AcceptAndScheduleDialog from "@/components/AcceptAndScheduleDialog";
 import { jsPDF } from "jspdf";
@@ -99,6 +103,9 @@ export default function QuoteDetail() {
   const parsed = quote ? parseContent(quote.content) : null;
 
   const [editing, setEditing] = useState(false);
+  const [showAdjust, setShowAdjust] = useState(false);
+  const [adjustTarget, setAdjustTarget] = useState("");
+  const [isAdjusting, setIsAdjusting] = useState(false);
   useNavAction(
     editing ? null : { label: "Edit", icon: Pencil, onClick: () => setEditing(true) },
     [editing]
@@ -453,6 +460,73 @@ export default function QuoteDetail() {
     setEditItems(updated);
   };
 
+  const handleAdjustPrice = async () => {
+    const target = parseFloat(adjustTarget);
+    if (!target || target <= 0) return;
+    setIsAdjusting(true);
+    try {
+      const description = [
+        parsed?.jobTitle,
+        parsed?.summary,
+        items.length > 0 && `Existing line items for context:\n${items.map(i => `- ${i.description}`).join("\n")}`,
+      ].filter(Boolean).join("\n\n");
+
+      const res = await fetch("/api/quotes/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          description,
+          customerName: customerName !== `Quote #${quote.id}` ? customerName : undefined,
+          targetPrice: target,
+          includeGST: parsed?.includeGST ?? false,
+        }),
+      });
+      if (!res.ok) throw new Error("Regeneration failed");
+      const data = await res.json();
+
+      const newItems = Array.isArray(data.items)
+        ? data.items.map((item: any) => ({
+            description: item.description || "Item",
+            quantity: Number(item.quantity) || 1,
+            unit: item.unit || "each",
+            unitPrice: Number(item.unitPrice) || 0,
+          }))
+        : items;
+
+      const sub = newItems.reduce((s: number, i: any) => s + i.quantity * i.unitPrice, 0);
+      const gst = (parsed?.includeGST ?? false) ? sub * 0.1 : 0;
+      const total = sub + gst;
+
+      const updatedContent = {
+        ...parsed,
+        jobTitle: data.jobTitle || parsed?.jobTitle,
+        summary: data.summary || parsed?.summary,
+        items: newItems,
+        notes: data.notes || parsed?.notes,
+        subtotal: sub,
+        gstAmount: gst,
+        totalAmount: total,
+        acknowledged: false,
+      };
+
+      updateQuote(
+        { id: quote.id, content: JSON.stringify(updatedContent), totalAmount: String(total) },
+        {
+          onSuccess: () => {
+            toast({ title: "Quote repriced", description: `New total: $${total.toFixed(2)}` });
+            setShowAdjust(false);
+            setAdjustTarget("");
+          },
+        }
+      );
+    } catch (err: any) {
+      toast({ title: "Reprice failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsAdjusting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-32">
       {/* Header */}
@@ -706,6 +780,65 @@ export default function QuoteDetail() {
         )}
 
         {/* Edit Save Button — moved to sticky bar */}
+
+        {/* ── Something not right? Price adjustment ── */}
+        {!editing && items.length > 0 && (
+          <div className="rounded-2xl border border-black/5 dark:border-white/10 overflow-hidden">
+            <button
+              onClick={() => setShowAdjust(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3.5 bg-white dark:bg-white/5 active:bg-black/5 transition-colors"
+              data-testid="button-toggle-adjust"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                  <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-foreground">Something not right?</p>
+                  <p className="text-xs text-muted-foreground">Adjust the target price, AI will reprice</p>
+                </div>
+              </div>
+              {showAdjust
+                ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
+                : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+              }
+            </button>
+
+            {showAdjust && (
+              <div className="px-4 pb-4 pt-2 bg-white dark:bg-white/5 space-y-3 border-t border-black/5 dark:border-white/10">
+                <p className="text-xs text-muted-foreground">
+                  Current total: <span className="font-bold text-foreground">${totalAmount.toFixed(2)}</span>. Enter what you think it should be and we'll rebuild the line items to match.
+                </p>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">$</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="50"
+                      value={adjustTarget}
+                      onChange={e => setAdjustTarget(e.target.value)}
+                      placeholder={Math.round(totalAmount * 0.85).toString()}
+                      className="pl-6 h-11 rounded-xl border-black/10 dark:border-white/10 font-medium"
+                      data-testid="input-adjust-price"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleAdjustPrice}
+                    disabled={!adjustTarget || parseFloat(adjustTarget) <= 0 || isAdjusting}
+                    className="h-11 px-4 rounded-xl bg-primary text-white font-bold shrink-0"
+                    data-testid="button-reprice"
+                  >
+                    {isAdjusting
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <><RotateCcw className="w-4 h-4 mr-1.5" /> Reprice</>
+                    }
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Acknowledgment Gate */}
         {/* Acknowledged Badge */}
