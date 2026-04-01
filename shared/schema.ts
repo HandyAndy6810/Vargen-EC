@@ -25,6 +25,7 @@ export const jobs = pgTable("jobs", {
   description: text("description"),
   status: text("status").default("scheduled"), // scheduled, completed, cancelled
   scheduledDate: timestamp("scheduled_date"),
+  estimatedDuration: integer("estimated_duration"), // minutes
   completionData: text("completion_data"), // JSON: { actualHours, extraNotes, completedAt, estimatedHours, quotedAmount }
   createdAt: timestamp("created_at").defaultNow(),
 });

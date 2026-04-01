@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useInvoice, useUpdateInvoice } from "@/hooks/use-invoices";
 import { useCustomer } from "@/hooks/use-customers";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { ArrowLeft, Download, Send, CheckCircle, DollarSign, Building, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { jsPDF } from "jspdf";
@@ -73,12 +77,29 @@ export default function InvoiceDetail() {
     }
   };
 
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("bank");
+  const [paymentReference, setPaymentReference] = useState("");
+
+  const PAYMENT_METHODS = [
+    { value: "bank", label: "Bank Transfer" },
+    { value: "cash", label: "Cash" },
+    { value: "card", label: "Card" },
+    { value: "cheque", label: "Cheque" },
+  ];
+
   const handleMarkSent = () => {
     updateInvoice({ id: invoice.id, status: "sent" });
   };
 
-  const handleMarkPaid = () => {
-    updateInvoice({ id: invoice.id, status: "paid", paidDate: new Date().toISOString() } as any);
+  const handleConfirmPaid = () => {
+    const methodLabel = PAYMENT_METHODS.find(m => m.value === paymentMethod)?.label || paymentMethod;
+    const paymentNote = `Paid via ${methodLabel}${paymentReference ? ` — Ref: ${paymentReference}` : ""}`;
+    const updatedNotes = invoice.notes ? `${invoice.notes}\n${paymentNote}` : paymentNote;
+    updateInvoice(
+      { id: invoice.id, status: "paid", paidDate: new Date().toISOString(), notes: updatedNotes } as any,
+      { onSuccess: () => { setShowPaymentDialog(false); setPaymentReference(""); } }
+    );
   };
 
   const bankName = settings?.bankName || "";
@@ -101,19 +122,46 @@ export default function InvoiceDetail() {
       }
     };
 
-    // Header
+    // Header — business details (left) + INVOICE label (right)
+    const businessName = settings?.businessName || "";
+    const businessAbn = settings?.abn || "";
+    const businessPhone = settings?.phone || "";
+    const businessEmail = settings?.email || "";
+    const businessAddress = settings?.address || "";
+
+    if (businessName) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(0, 0, 0);
+      doc.text(businessName, margin, y);
+    }
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
-    doc.text("INVOICE", margin, y);
-    y += 10;
+    doc.setTextColor(0, 0, 0);
+    doc.text("INVOICE", pageWidth - margin, y, { align: "right" });
+    y += 7;
 
-    doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(120, 120, 120);
-    doc.text(invoice.invoiceNumber, margin, y);
-    doc.text(invoiceDate, pageWidth - margin, y, { align: "right" });
-    y += 8;
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    if (businessAbn) { doc.text(`ABN: ${businessAbn}`, margin, y); y += 5; }
+    if (businessPhone) { doc.text(businessPhone, margin, y); y += 5; }
+    if (businessEmail) { doc.text(businessEmail, margin, y); y += 5; }
+    if (businessAddress) {
+      const addrLines = doc.splitTextToSize(businessAddress, contentWidth * 0.5);
+      addrLines.forEach((line: string) => { doc.text(line, margin, y); y += 5; });
+    }
 
+    // Invoice meta on right side
+    const metaY = 32;
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(9);
+    doc.text(invoice.invoiceNumber, pageWidth - margin, metaY, { align: "right" });
+    doc.text(invoiceDate, pageWidth - margin, metaY + 5, { align: "right" });
+    if (dueDate) doc.text(`Due: ${dueDate}`, pageWidth - margin, metaY + 10, { align: "right" });
+
+    y = Math.max(y, metaY + 18) + 5;
     doc.setDrawColor(220, 220, 220);
     doc.line(margin, y, pageWidth - margin, y);
     y += 10;
@@ -135,15 +183,7 @@ export default function InvoiceDetail() {
       y += 5;
     }
 
-    // Status & Due Date
-    doc.setTextColor(100, 100, 100);
-    doc.setFontSize(10);
-    const statusLabel = (invoice.status || "draft").charAt(0).toUpperCase() + (invoice.status || "draft").slice(1);
-    doc.text(`Status: ${statusLabel}`, margin, y);
-    if (dueDate) {
-      doc.text(`Due: ${dueDate}`, pageWidth - margin, y, { align: "right" });
-    }
-    y += 10;
+    y += 5;
 
     // Line Items
     if (items.length > 0) {
@@ -423,15 +463,11 @@ export default function InvoiceDetail() {
 
           {(invoice.status === "sent" || invoice.status === "overdue") && (
             <Button
-              onClick={handleMarkPaid}
+              onClick={() => setShowPaymentDialog(true)}
               disabled={isUpdating}
               className="w-full h-14 rounded-2xl text-base font-bold bg-green-600 hover:bg-green-700 text-white"
             >
-              {isUpdating ? (
-                <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Updating...</>
-              ) : (
-                <><DollarSign className="w-5 h-5 mr-2" /> Mark as Paid</>
-              )}
+              <DollarSign className="w-5 h-5 mr-2" /> Record Payment
             </Button>
           )}
 
@@ -452,6 +488,56 @@ export default function InvoiceDetail() {
           </Button>
         </div>
       </div>
+
+      {/* Record Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="rounded-[2rem] mx-4 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Record Payment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Amount</p>
+              <p className="text-2xl font-bold text-foreground">${totalAmount.toFixed(2)}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Payment Method</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {PAYMENT_METHODS.map(m => (
+                  <button
+                    key={m.value}
+                    onClick={() => setPaymentMethod(m.value)}
+                    className={cn(
+                      "h-11 rounded-xl text-sm font-semibold border transition-all",
+                      paymentMethod === m.value
+                        ? "bg-primary text-white border-primary"
+                        : "bg-transparent text-foreground border-black/10 dark:border-white/10"
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Reference <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                value={paymentReference}
+                onChange={e => setPaymentReference(e.target.value)}
+                placeholder="e.g. receipt number, transaction ID"
+                className="rounded-xl"
+              />
+            </div>
+            <Button
+              onClick={handleConfirmPaid}
+              disabled={isUpdating}
+              className="w-full h-14 rounded-2xl text-base font-bold bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isUpdating ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Saving...</> : <><CheckCircle className="w-5 h-5 mr-2" /> Confirm Payment</>}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

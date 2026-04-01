@@ -56,6 +56,7 @@ export default function AcceptAndScheduleDialog({
     format(new Date(), "yyyy-MM-dd")
   );
   const [time, setTime] = useState("09:00");
+  const [duration, setDuration] = useState("2");
   const [notes, setNotes] = useState(initialSummary);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -66,6 +67,7 @@ export default function AcceptAndScheduleDialog({
       setCustomerId(initialCustomerId?.toString() ?? "");
       setScheduledDate(format(new Date(), "yyyy-MM-dd"));
       setTime("09:00");
+      setDuration("2");
       setNotes(initialSummary);
     }
     onOpenChange(nextOpen);
@@ -86,6 +88,7 @@ export default function AcceptAndScheduleDialog({
           customerId: parseInt(customerId),
           description: notes.trim() || undefined,
           scheduledDate: new Date(`${scheduledDate}T${time}`).toISOString(),
+          estimatedDuration: duration ? Math.round(parseFloat(duration) * 60) : undefined,
           status: "scheduled",
         }),
       });
@@ -212,6 +215,20 @@ export default function AcceptAndScheduleDialog({
                 data-testid="input-schedule-time"
               />
             </div>
+          </div>
+
+          {/* Duration */}
+          <div className="space-y-1.5">
+            <Label>Estimated Duration <span className="text-muted-foreground font-normal">(hours)</span></Label>
+            <Input
+              type="number"
+              min="0.5"
+              step="0.5"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              placeholder="e.g. 2"
+              data-testid="input-schedule-duration"
+            />
           </div>
 
           {/* Notes */}

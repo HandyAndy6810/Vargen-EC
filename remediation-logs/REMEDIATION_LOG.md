@@ -92,52 +92,52 @@ Update the status and resolution notes as each item is addressed.
 ## MEDIUM Priority
 
 ### BUG-008 — Labour rate silently defaults to $0
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/pages/QuoteCreate.tsx`
 - **Description:** If a user hasn't configured trade defaults, `labourRate` defaults to `0`. The AI generates a quote with $0/hr labour and no warning is shown. The user may send a massively underpriced quote without realising.
 - **Fix Required:** Show a warning banner if `labourRate === 0` before allowing quote generation. Prompt the user to set their rate in Settings.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** `handleGenerate` in `QuoteCreate.tsx` now blocks generation when `defaults.labourRate === 0`, showing a destructive toast directing the user to the settings panel.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-009 — Invoice PDF has no business header (FROM section)
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/pages/InvoiceDetail.tsx:104-200`
 - **Description:** The generated invoice PDF includes "BILL TO" (customer) but has no "FROM" section showing the business name, ABN, phone, or email. This is unprofessional and may be non-compliant for tax invoice requirements.
 - **Fix Required:** Add a business details header to the top of the invoice PDF pulling from `userSettings` (businessName, ABN, phone, email, address).
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** Restructured `handleDownloadPDF` in `InvoiceDetail.tsx`. Business name (left, prominent), ABN, phone, email, address now appear top-left. "INVOICE" label, invoice number, date, and due date appear top-right. Standard divider then leads into the BILL TO section.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-010 — QuickQuote creates draft with no redirect or confirmation
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/components/QuickQuoteSheet.tsx`, `client/src/pages/Home.tsx`
 - **Description:** After QuickQuote creates a draft, the user is not redirected to the quote or shown a "View Quote" action. There is no obvious signal telling the user where to find what was just created.
 - **Fix Required:** After successful QuickQuote creation, show a toast with a "View Quote" action link, or navigate directly to the new draft.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** Already implemented — `QuickQuoteSheet.handleFlashDone` already calls `setLocation(\`/quotes/${newQuoteId}\`)` after the success flash. No code change needed.
+- **Completed:** 2026-04-01 (pre-existing)
 
 ---
 
 ### BUG-011 — "Mark as Paid" captures no payment details
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/pages/InvoiceDetail.tsx:80-82`
 - **Description:** `handleMarkPaid` sets `status: "paid"` and `paidDate: now` with no prompt for payment method, reference number, or partial payment amount. No financial record is kept beyond a timestamp.
 - **Fix Required:** Add a "Record Payment" dialog collecting: payment method (cash/card/bank transfer), reference/receipt number, and amount (to support partial payments).
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** "Mark as Paid" button replaced with "Record Payment" which opens a dialog. Captures payment method (Bank Transfer/Cash/Card/Cheque) and optional reference number. Payment details are appended to the invoice notes field (e.g. "Paid via Bank Transfer — Ref: ABC123") so the record is preserved without a schema change.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-012 — Schedule dialog missing job duration / end time
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/components/AcceptAndScheduleDialog.tsx`
 - **Description:** The dialog collects date, time, and notes but no estimated job duration. The calendar shows jobs with no end time, making scheduling conflicts invisible.
 - **Fix Required:** Add an "Estimated Duration" field (hours) to the dialog. Store and display end time on the calendar.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** Added `estimatedDuration` integer column (minutes) to the `jobs` table in `shared/schema.ts`. `AcceptAndScheduleDialog` now includes an "Estimated Duration (hours)" input, defaulting to 2h. Value is converted to minutes and stored on the job record. Schema change applies via `drizzle-kit push` on next server start.
+- **Completed:** 2026-04-01
 
 ---
 
@@ -234,3 +234,8 @@ Update the status and resolution notes as each item is addressed.
 | 2026-04-01 | BUG-005 | Fixed | Invoice PATCH now sends customer email on status → sent |
 | 2026-04-01 | BUG-006 | Fixed | Job completion modal shows invoice CTA after completing |
 | 2026-04-01 | BUG-007 | Fixed | Resolved via BUG-004 — share sheet auto-opens after sent |
+| 2026-04-01 | BUG-008 | Fixed | handleGenerate blocks when labourRate === 0, shows toast |
+| 2026-04-01 | BUG-009 | Fixed | Invoice PDF now has business FROM header (name, ABN, phone, email, address) |
+| 2026-04-01 | BUG-010 | N/A | Already implemented — QuickQuote redirects to new draft on success |
+| 2026-04-01 | BUG-011 | Fixed | Record Payment dialog added with method + reference capture |
+| 2026-04-01 | BUG-012 | Fixed | estimatedDuration column added to jobs; AcceptAndScheduleDialog has duration field |
