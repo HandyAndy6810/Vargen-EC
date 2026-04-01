@@ -264,10 +264,11 @@ export async function registerRoutes(
   // Valid quote status transitions
   const QUOTE_TRANSITIONS: Record<string, string[]> = {
     draft:    ["sent"],
-    sent:     ["accepted", "declined", "draft"],
-    viewed:   ["accepted", "declined", "sent"],
-    accepted: ["invoiced"],
-    declined: ["sent"],
+    sent:     ["accepted", "rejected", "declined", "draft"],
+    viewed:   ["accepted", "rejected", "declined", "sent"],
+    accepted: ["invoiced", "draft"],
+    rejected: ["sent", "draft"],
+    declined: ["sent", "draft"],
     invoiced: [],
   };
 
@@ -690,9 +691,9 @@ CRITICAL RULES — follow these exactly:
       // Fetch business details from user settings
       const s = await storage.getAnyUserSettings();
       const businessName = s?.businessName || "";
-      const businessPhone = s?.businessPhone || "";
-      const businessEmail = s?.businessEmail || "";
-      const businessAddress = s?.businessAddress || "";
+      const businessPhone = s?.phone || "";
+      const businessEmail = s?.email || "";
+      const businessAddress = s?.address || "";
 
       res.json({
         quote,
@@ -814,6 +815,9 @@ CRITICAL RULES — follow these exactly:
         dueDate,
         notes,
       });
+
+      // Mark the originating quote as invoiced
+      await storage.updateQuote(quoteId, { status: "invoiced" });
 
       res.status(201).json(invoice);
     } catch (error: any) {
