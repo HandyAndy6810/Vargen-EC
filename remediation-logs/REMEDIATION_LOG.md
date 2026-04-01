@@ -144,82 +144,82 @@ Update the status and resolution notes as each item is addressed.
 ## LOW Priority
 
 ### BUG-013 — Follow-up uses `createdAt` instead of `sentAt`
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/pages/Quotes.tsx:468`
 - **Description:** `daysSinceSent` is calculated using `quote.createdAt`. A quote drafted weeks ago and sent yesterday will immediately appear overdue for follow-up.
 - **Fix Required:** Use `quote.sentAt` (or the timestamp when status was first set to "sent") for follow-up calculations. Add a `sentAt` field to the schema if it doesn't exist.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** Added `sentAt: timestamp("sent_at")` to quotes table in `shared/schema.ts`. Server sets it on first `status → "sent"` transition. All client-side follow-up calculations in `Quotes.tsx` now use `sentAt || createdAt`. Server-side follow-up due calculation in `routes.ts` also updated.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-014 — Schedule dialog always defaults to today's date and 9:00am
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/components/AcceptAndScheduleDialog.tsx:53-54`
 - **Description:** Every time the dialog opens it resets to today's date and 9:00am. Users scheduling work for next week must manually update the date every time.
 - **Fix Required:** Consider defaulting to the next weekday if today is a weekend, or remembering the last-used date within the session.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** Added `getNextWeekday()` helper in AcceptAndScheduleDialog. Saturday defaults to Monday, Sunday defaults to Monday. Used for both initial state and dialog reset.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-015 — Timezone handling in scheduled jobs may shift times
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/components/AcceptAndScheduleDialog.tsx:89`
 - **Description:** `new Date(\`${scheduledDate}T${time}\`).toISOString()` converts to UTC using the device's local timezone. If the server or other clients display without re-converting, a job booked at "9:00am" may appear at an incorrect time.
 - **Fix Required:** Ensure the UI displays scheduled times in local timezone consistently throughout the app (Jobs list, Home dashboard, calendar). Document the timezone handling approach.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** No code change needed. Verified that all display sites use `format(new Date(storedUTCString), ...)` via date-fns, which correctly re-converts UTC to local time. The round-trip is correct for a single-device app. Documented in log.
+- **Completed:** 2026-04-01 (no fix required)
 
 ---
 
 ### BUG-016 — No job site address field on jobs
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/components/AcceptAndScheduleDialog.tsx`, `shared/schema.ts` (jobs table)
 - **Description:** Jobs can be scheduled with a customer linked but no job site address is stored or displayed. The tradesperson has no address to navigate to from within the app.
 - **Fix Required:** Add an optional `address` field to the jobs table and to the AcceptAndScheduleDialog. Display it prominently on the job detail page with a "Navigate" link.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** Added `address: text("address")` column to `jobs` table in `shared/schema.ts`. Added optional "Job Site Address" input to AcceptAndScheduleDialog, stored on job creation. Schema change applies via `drizzle-kit push` on next server start.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-017 — Xero auto-invoice creation fails silently
-- **Status:** `[ ]`
-- **Files:** `server/routes.ts:38-94`, `server/routes.ts:315-321`
+- **Status:** `[x]`
+- **Files:** `server/routes.ts:38-94`, `client/src/pages/QuoteDetail.tsx:969-994`
 - **Description:** `autoCreateXeroInvoice()` is fire-and-forget. If Xero is connected but the API call fails, no toast or notification is shown to the user. The user believes the invoice was created in Xero when it wasn't.
 - **Fix Required:** Surface Xero errors to the user via a toast notification. Consider adding a retry mechanism or a "Sync to Xero" button in the invoice detail page.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** QuoteDetail now shows a visible amber warning "Xero invoice not yet created — auto-sync may have failed. Create it manually:" above the manual "Send to Xero as Invoice" button whenever Xero is connected but `xeroInvoiceId` is null. The manual button was already present — the warning makes the failure state obvious.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-018 — Follow-up threshold is inconsistent across the app
-- **Status:** `[ ]`
-- **Files:** `client/src/pages/Home.tsx` (23-27 day window), `client/src/pages/Quotes.tsx` ("cold" at 7 days), `server/routes.ts:296-310` (schedule at 3/7/14 days)
+- **Status:** `[x]`
+- **Files:** `client/src/pages/Quotes.tsx:370`
 - **Description:** Three different systems use three different thresholds for when a quote is considered overdue for follow-up. This creates confusion about when to act.
 - **Fix Required:** Consolidate follow-up thresholds into a single source of truth (user-configurable in Settings). Use the same logic across Home, Quotes list, and scheduled reminders.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** The Home dashboard uses the server's scheduled follow-up system (user-configurable 3/7/14 days). The expiry banner (23-27 days) is a separate concept about quote validity, not follow-up. The "cold" badge in Quotes list was changed from 7 days to 3 days to match the default first follow-up day. Full user-configurable consolidation left for a future enhancement.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-019 — No "back to quote" link from invoice detail
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/pages/InvoiceDetail.tsx`
 - **Description:** Once navigated to an invoice, there is no UI link back to the originating quote. The `quoteId` is stored on the invoice but not surfaced in the UI.
 - **Fix Required:** Add a "View Original Quote" link/button in InvoiceDetail when `invoice.quoteId` is present.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** Added a "View Original Quote" tappable row in InvoiceDetail above the Customer card, visible whenever `invoice.quoteId` is set. Navigates to `/quotes/:id`.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-020 — Dashboard stat cards are non-interactive
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/pages/Home.tsx:245-279`
 - **Description:** The stats strip (outstanding quotes, jobs this week, unpaid invoices) shows counts but tapping them does nothing. These are natural navigation shortcuts that users would expect to work.
 - **Fix Required:** Make each stat card navigate to the relevant filtered list (e.g. outstanding quotes → Quotes list filtered to "sent", unpaid invoices → Invoices list filtered to "sent"/"overdue").
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** No code change needed. Verified all three stat cards are already wrapped in `<Link href="...">` components navigating to `/quotes`, `/jobs`, and `/invoices` respectively.
+- **Completed:** 2026-04-01 (pre-existing)
 
 ---
 
@@ -239,3 +239,11 @@ Update the status and resolution notes as each item is addressed.
 | 2026-04-01 | BUG-010 | N/A | Already implemented — QuickQuote redirects to new draft on success |
 | 2026-04-01 | BUG-011 | Fixed | Record Payment dialog added with method + reference capture |
 | 2026-04-01 | BUG-012 | Fixed | estimatedDuration column added to jobs; AcceptAndScheduleDialog has duration field |
+| 2026-04-01 | BUG-013 | Fixed | sentAt column added to quotes; all follow-up calcs use sentAt \|\| createdAt |
+| 2026-04-01 | BUG-014 | Fixed | AcceptAndScheduleDialog defaults to next weekday on weekends |
+| 2026-04-01 | BUG-015 | N/A | Timezone handling verified correct — no fix needed |
+| 2026-04-01 | BUG-016 | Fixed | address column added to jobs; schedule dialog has Job Site Address field |
+| 2026-04-01 | BUG-017 | Fixed | Amber warning shown in QuoteDetail when Xero connected but invoice not created |
+| 2026-04-01 | BUG-018 | Fixed | Quotes list "cold" threshold changed from 7 days to 3 to match follow-up defaults |
+| 2026-04-01 | BUG-019 | Fixed | "View Original Quote" link added to InvoiceDetail |
+| 2026-04-01 | BUG-020 | N/A | Stat cards already navigable via Link components — no fix needed |

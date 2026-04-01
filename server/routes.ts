@@ -288,11 +288,15 @@ export async function registerRoutes(
         }
       }
 
-      // Auto-generate shareToken and followUpSchedule when status → "sent"
+      // Auto-generate shareToken, sentAt and followUpSchedule when status → "sent"
       if (input.status === "sent") {
         const existing = await storage.getQuote(quoteId);
         if (existing && !existing.shareToken) {
           (input as any).shareToken = crypto.randomUUID();
+        }
+        // Record the first time the quote is sent
+        if (existing && !(existing as any).sentAt) {
+          (input as any).sentAt = new Date();
         }
         // Auto-populate follow-up schedule from user settings
         if (existing && !existing.followUpSchedule) {
@@ -867,8 +871,9 @@ CRITICAL RULES — follow these exactly:
         if (quote.status !== "sent" || !quote.followUpSchedule) continue;
         try {
           const schedule = JSON.parse(quote.followUpSchedule);
+          const sentDate = (quote as any).sentAt || quote.createdAt;
           const daysSinceSent = Math.floor(
-            (Date.now() - new Date(quote.createdAt!).getTime()) / (1000 * 60 * 60 * 24)
+            (Date.now() - new Date(sentDate!).getTime()) / (1000 * 60 * 60 * 24)
           );
           for (let i = 0; i < schedule.length; i++) {
             if (schedule[i].status === "pending" && daysSinceSent >= schedule[i].day) {

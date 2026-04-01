@@ -977,19 +977,24 @@ export default function QuoteDetail() {
               </div>
             </div>
           ) : (
-            <Button
-              onClick={() => createXeroInvoice(quote.id)}
-              disabled={isCreatingInvoice}
-              className="w-full h-12 rounded-2xl text-sm font-bold bg-[#13B5EA] hover:bg-[#0FA1D1] text-white"
-              data-testid="button-create-xero-invoice"
-            >
-              {isCreatingInvoice ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <ExternalLink className="w-4 h-4 mr-2" />
-              )}
-              Send to Xero as Invoice
-            </Button>
+            <div className="space-y-2">
+              <p className="text-xs text-amber-600 dark:text-amber-400 px-1">
+                Xero invoice not yet created — auto-sync may have failed. Create it manually:
+              </p>
+              <Button
+                onClick={() => createXeroInvoice(quote.id)}
+                disabled={isCreatingInvoice}
+                className="w-full h-12 rounded-2xl text-sm font-bold bg-[#13B5EA] hover:bg-[#0FA1D1] text-white"
+                data-testid="button-create-xero-invoice"
+              >
+                {isCreatingInvoice ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                )}
+                Send to Xero as Invoice
+              </Button>
+            </div>
           )}
         </div>
       )}

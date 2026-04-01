@@ -48,15 +48,23 @@ export default function AcceptAndScheduleDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const getNextWeekday = () => {
+    const d = new Date();
+    if (d.getDay() === 6) d.setDate(d.getDate() + 2); // Saturday → Monday
+    if (d.getDay() === 0) d.setDate(d.getDate() + 1); // Sunday → Monday
+    return format(d, "yyyy-MM-dd");
+  };
+
   const [title, setTitle] = useState(initialTitle);
   const [customerId, setCustomerId] = useState<string>(
     initialCustomerId?.toString() ?? ""
   );
   const [scheduledDate, setScheduledDate] = useState(
-    format(new Date(), "yyyy-MM-dd")
+    getNextWeekday()
   );
   const [time, setTime] = useState("09:00");
   const [duration, setDuration] = useState("2");
+  const [address, setAddress] = useState("");
   const [notes, setNotes] = useState(initialSummary);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -65,9 +73,10 @@ export default function AcceptAndScheduleDialog({
     if (nextOpen) {
       setTitle(initialTitle);
       setCustomerId(initialCustomerId?.toString() ?? "");
-      setScheduledDate(format(new Date(), "yyyy-MM-dd"));
+      setScheduledDate(getNextWeekday());
       setTime("09:00");
       setDuration("2");
+      setAddress("");
       setNotes(initialSummary);
     }
     onOpenChange(nextOpen);
@@ -87,6 +96,7 @@ export default function AcceptAndScheduleDialog({
           title: title.trim(),
           customerId: parseInt(customerId),
           description: notes.trim() || undefined,
+          address: address.trim() || undefined,
           scheduledDate: new Date(`${scheduledDate}T${time}`).toISOString(),
           estimatedDuration: duration ? Math.round(parseFloat(duration) * 60) : undefined,
           status: "scheduled",
@@ -228,6 +238,20 @@ export default function AcceptAndScheduleDialog({
               onChange={(e) => setDuration(e.target.value)}
               placeholder="e.g. 2"
               data-testid="input-schedule-duration"
+            />
+          </div>
+
+          {/* Job Site Address */}
+          <div className="space-y-1.5">
+            <Label>
+              Job Site Address{" "}
+              <span className="text-muted-foreground font-normal">(optional)</span>
+            </Label>
+            <Input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="e.g. 12 Main St, Suburb"
+              data-testid="input-schedule-address"
             />
           </div>
 

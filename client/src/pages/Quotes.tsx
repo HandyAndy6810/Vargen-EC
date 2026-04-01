@@ -184,8 +184,10 @@ export default function Quotes() {
   };
 
   const expiringQuotes = quotes?.filter(q => {
-    if (q.status !== "sent" || !q.createdAt) return false;
-    const daysSinceSent = differenceInDays(new Date(), new Date(q.createdAt));
+    if (q.status !== "sent") return false;
+    const sentDate = (q as any).sentAt || q.createdAt;
+    if (!sentDate) return false;
+    const daysSinceSent = differenceInDays(new Date(), new Date(sentDate));
     // Quotes expire after 30 days based on T&Cs, surfacing those 23-27 days old (3-7 days left)
     return daysSinceSent >= 23 && daysSinceSent <= 27;
   }) || [];
@@ -244,7 +246,8 @@ export default function Quotes() {
             {expiringQuotes.map(quote => {
               const customer = getCustomer(quote);
               const name = getCustomerName(quote);
-              const daysLeft = 30 - differenceInDays(new Date(), new Date(quote.createdAt!));
+              const sentDate = (quote as any).sentAt || quote.createdAt;
+              const daysLeft = 30 - differenceInDays(new Date(), new Date(sentDate!));
               
               return (
                 <div key={`nudge-${quote.id}`} className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-2xl p-4 flex items-center justify-between gap-4">
@@ -367,7 +370,8 @@ export default function Quotes() {
         ) : (
           filteredQuotes.map(quote => {
             const status = quote.status || "draft";
-            const isCold = !!(status === "sent" && quote.createdAt && differenceInDays(new Date(), new Date(quote.createdAt)) >= 7);
+            const quoteSentDate = (quote as any).sentAt || quote.createdAt;
+            const isCold = !!(status === "sent" && quoteSentDate && differenceInDays(new Date(), new Date(quoteSentDate)) >= 3);
             const warnings = getQuoteWarnings(quote);
             const hasWarning = warnings.length > 0;
 
@@ -465,7 +469,7 @@ export default function Quotes() {
           clientPhone={getCustomer(followUpQuote)?.phone || null}
           jobDescription={getJobTitle(followUpQuote)}
           amount={Number(followUpQuote.totalAmount).toLocaleString()}
-          daysSinceSent={followUpQuote.createdAt ? differenceInDays(new Date(), new Date(followUpQuote.createdAt)) : 0}
+          daysSinceSent={(() => { const d = (followUpQuote as any).sentAt || followUpQuote.createdAt; return d ? differenceInDays(new Date(), new Date(d)) : 0; })()}
         />
       )}
 
