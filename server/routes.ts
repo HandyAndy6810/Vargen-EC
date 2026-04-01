@@ -833,6 +833,24 @@ CRITICAL RULES — follow these exactly:
 
       const updated = await storage.updateInvoice(id, req.body);
       res.json(updated);
+
+      // Send email when invoice is first marked as sent
+      const justSent = req.body.status === "sent" && existing.status !== "sent";
+      if (justSent && existing.customerId) {
+        const customer = await storage.getCustomer(existing.customerId);
+        if (customer?.email) {
+          const s = await storage.getAnyUserSettings();
+          const businessName = s?.businessName || "Your Tradie";
+          const dueDate = updated.dueDate
+            ? new Date(updated.dueDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" })
+            : null;
+          sendCustomerEmail(
+            customer.email,
+            `Invoice ${existing.invoiceNumber} from ${businessName}`,
+            `Hi ${customer.name},\n\nYour invoice is ready.\n\nInvoice Number: ${existing.invoiceNumber}\nAmount Due: $${Number(updated.totalAmount).toFixed(2)}${dueDate ? `\nDue Date: ${dueDate}` : ""}\n\nPlease contact us if you have any questions.\n\nKind regards,\n${businessName}`
+          ).catch((err: Error) => console.error("Invoice email failed:", err));
+        }
+      }
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to update invoice" });
     }

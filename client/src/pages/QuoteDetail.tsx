@@ -1020,6 +1020,7 @@ export default function QuoteDetail() {
               disabled={sendEmailMutation.isPending}
               onClick={() => {
                 const customer = customers?.find(c => {
+                  if (quote.customerId) return c.id === quote.customerId;
                   if (quote.jobId) {
                     const job = jobs?.find(j => j.id === quote.jobId);
                     return c.id === job?.customerId;
@@ -1028,14 +1029,17 @@ export default function QuoteDetail() {
                 });
                 const email = customer?.email || "";
                 if (!email) {
-                  toast({ title: "No email on file", description: "Link this quote to a customer with an email address to use email share." });
+                  toast({ title: "No email on file", description: "Add an email address to this customer to send directly to their inbox." });
                   setShowShareSheet(false);
                   return;
                 }
+                const portalUrl = quote.shareToken
+                  ? `${window.location.origin}/portal/${quote.shareToken}`
+                  : `${window.location.origin}/quotes/${quote.id}`;
                 sendEmailMutation.mutate({
                   to: email,
                   subject: `Quote: ${jobTitle}`,
-                  body: `Hi ${customer?.name || customerName || "there"},\n\nPlease find your quote for ${jobTitle} attached.\n\nTotal: $${totalAmount.toFixed(2)}\n\nView details: ${window.location.origin}/quotes/${quote.id}\n\nKind regards,\n${settings?.businessName || "Your Tradie"}`,
+                  body: `Hi ${customer?.name || customerName || "there"},\n\nPlease find your quote for ${jobTitle} below.\n\nTotal: $${totalAmount.toFixed(2)}\n\nView and accept your quote online:\n${portalUrl}\n\nKind regards,\n${settings?.businessName || "Your Tradie"}`,
                 });
               }}
               className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left hover-elevate active-elevate-2 transition-all disabled:opacity-60"
@@ -1130,7 +1134,7 @@ export default function QuoteDetail() {
         </DialogContent>
       </Dialog>
 
-      <SuccessFlash show={showSentFlash} message="Quote Sent!" onDone={() => setShowSentFlash(false)} />
+      <SuccessFlash show={showSentFlash} message="Quote Sent!" onDone={() => { setShowSentFlash(false); setShowShareSheet(true); }} />
 
       {/* Reject Confirmation */}
       <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>

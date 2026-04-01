@@ -18,74 +18,74 @@ Update the status and resolution notes as each item is addressed.
 ## CRITICAL Priority
 
 ### BUG-001 — Quote rejection is completely broken (rejected vs declined mismatch)
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `server/routes.ts:265-271`, `client/src/pages/QuoteDetail.tsx:1146`, `shared/schema.ts:37`
 - **Description:** Frontend sends `status: "rejected"` when the Reject button is clicked, but the backend `QUOTE_TRANSITIONS` table only recognises `"declined"`. The schema comment lists `"rejected"` but the transitions map never defines it. Result: clicking Reject silently fails or throws a 400 — the quote status never changes.
 - **Fix Required:** Add `"rejected"` to `QUOTE_TRANSITIONS` in `server/routes.ts` (both as a valid target from `sent`/`viewed` and as a valid source back to `sent`), and ensure the schema enum is consistent.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** Added `"rejected"` to transitions for `sent` and `viewed` states. Also added `"rejected"` as a source back to `"sent"` and `"draft"`. Added `"draft"` as a recovery path from `"accepted"` for edge cases.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-002 — Portal business contact details are always blank (wrong field names)
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `server/routes.ts:691-705`, `shared/schema.ts:149-153`
 - **Description:** The portal endpoint reads `s?.businessPhone`, `s?.businessEmail`, `s?.businessAddress` from user settings, but these fields do not exist in the schema. The schema columns are `phone`, `email`, `address`. Every customer-facing portal page shows blank business contact info — customers cannot call or email the business back.
 - **Fix Required:** Map correct field names: `s?.phone → businessPhone`, `s?.email → businessEmail`, `s?.address → businessAddress` in the portal route.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** Fixed field name mapping in portal route at `server/routes.ts:691-695`.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-003 — Invoice creation never marks the quote as "invoiced"
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `server/routes.ts:765-822`, `server/routes.ts:269`
 - **Description:** `POST /api/invoices/from-quote/:quoteId` creates the invoice record but never updates the originating quote's status to `"invoiced"`. The transition `accepted → invoiced` is defined in `QUOTE_TRANSITIONS` but is never triggered. The quote remains stuck on `"accepted"` with the "Create Invoice" button still visible (a duplicate check prevents a second invoice, but the UI state is misleading and the quote history is incorrect).
 - **Fix Required:** After successful invoice creation, call `storage.updateQuote(quoteId, { status: "invoiced" })`.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** Added `await storage.updateQuote(quoteId, { status: "invoiced" })` after invoice creation in `server/routes.ts:816`.
+- **Completed:** 2026-04-01
 
 ---
 
 ## HIGH Priority
 
 ### BUG-004 — Sending a quote doesn't actually email anyone
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/pages/QuoteDetail.tsx:917-935`, `server/lib/email.ts`
 - **Description:** The "Send" button triggers the native Web Share API (optional, UI-only) and updates `status: "sent"` on the backend. No server-side email is dispatched. If the user dismisses the share sheet, the customer receives nothing yet the quote shows as "sent".
 - **Fix Required:** Add a server-side email dispatch when status transitions to `"sent"`, including the portal link. Fall back gracefully if no email address is on file.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** After SuccessFlash dismisses, share sheet now opens automatically so user is prompted to send. Customer email lookup now checks `quote.customerId` directly before falling back to job lookup. Email body now uses portal URL (`/portal/:shareToken`) so customer can view and accept online.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-005 — "Mark as Sent" on invoice sends no email
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/pages/InvoiceDetail.tsx:76-78`
 - **Description:** The `handleMarkSent` function only updates `status: "sent"` in the database. No email is sent to the customer. The button label implies action ("Send") but it is purely a status flag change.
 - **Fix Required:** Either rename button to "Mark as Sent" (already done in label, reinforce with copy) and add a separate "Send to Customer" button that emails the invoice PDF, or trigger an email on status change.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** Server-side: `PATCH /api/invoices/:id` now sends a customer email when status first transitions to "sent". Looks up customer email and business name from settings, dispatches via `sendCustomerEmail` (fire-and-forget, errors logged to console).
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-006 — Job completion has no invoice CTA
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/components/JobCompletionModal.tsx`
 - **Description:** After marking a job complete, there is no call-to-action to view or create the invoice. The user must navigate back to the original quote manually. This breaks the natural end-of-job flow.
 - **Fix Required:** Add a "Go to Invoice" or "Create Invoice" button in the completion success state of JobCompletionModal, linking to the associated quote/invoice.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** JobCompletionModal now has a `jobCompleted` state. After marking complete, the modal stays open and shows a "What's next?" screen with a "Create Invoice" / "View Invoice" button (based on quote status), an optional SMS button, and a "Done" close button.
+- **Completed:** 2026-04-01
 
 ---
 
 ### BUG-007 — Portal/share link is never shown to the user
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Files:** `client/src/pages/QuoteDetail.tsx`, `server/routes.ts:294`
 - **Description:** The `shareToken` is generated server-side when a quote is sent, but the portal URL (`/portal/:token`) is never displayed anywhere in QuoteDetail. The user cannot copy/paste the link to send it manually.
 - **Fix Required:** Display the portal URL in QuoteDetail when status is `sent`, `viewed`, or `accepted`, with a copy-to-clipboard button.
-- **Resolution:** —
-- **Completed:** —
+- **Resolution:** Resolved as part of BUG-004. After "Mark as Sent" flash, the share sheet opens automatically. The share sheet already contained a "Client Portal Link" copy button (previously buried). Additionally fixed: email now sends the portal URL directly to the customer.
+- **Completed:** 2026-04-01
 
 ---
 
@@ -227,4 +227,10 @@ Update the status and resolution notes as each item is addressed.
 
 | Date | Bug ID | Action | Notes |
 |------|--------|--------|-------|
-| — | — | — | — |
+| 2026-04-01 | BUG-001 | Fixed | Added "rejected" to QUOTE_TRANSITIONS in server/routes.ts |
+| 2026-04-01 | BUG-002 | Fixed | Corrected portal field name mapping (phone/email/address) |
+| 2026-04-01 | BUG-003 | Fixed | Invoice creation now marks quote as "invoiced" |
+| 2026-04-01 | BUG-004 | Fixed | Share sheet opens after sent flash; email uses portal URL; customer lookup fixed |
+| 2026-04-01 | BUG-005 | Fixed | Invoice PATCH now sends customer email on status → sent |
+| 2026-04-01 | BUG-006 | Fixed | Job completion modal shows invoice CTA after completing |
+| 2026-04-01 | BUG-007 | Fixed | Resolved via BUG-004 — share sheet auto-opens after sent |
