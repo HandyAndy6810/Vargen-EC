@@ -442,6 +442,10 @@ export default function QuoteCreate() {
       toast({ title: "Description required", description: "Tell us about the job first.", variant: "destructive" });
       return;
     }
+    if (defaults.labourRate === 0) {
+      toast({ title: "Labour rate is $0/hr", description: "Set your labour rate in the settings panel below before generating to avoid underpricing.", variant: "destructive" });
+      return;
+    }
     setPhase("generating");
     generateMutation.mutate();
   };

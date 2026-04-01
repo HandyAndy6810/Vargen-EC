@@ -264,10 +264,11 @@ export async function registerRoutes(
   // Valid quote status transitions
   const QUOTE_TRANSITIONS: Record<string, string[]> = {
     draft:    ["sent"],
-    sent:     ["accepted", "declined", "draft"],
-    viewed:   ["accepted", "declined", "sent"],
-    accepted: ["invoiced"],
-    declined: ["sent"],
+    sent:     ["accepted", "rejected", "declined", "draft"],
+    viewed:   ["accepted", "rejected", "declined", "sent"],
+    accepted: ["invoiced", "draft"],
+    rejected: ["sent", "draft"],
+    declined: ["sent", "draft"],
     invoiced: [],
   };
 
@@ -287,11 +288,15 @@ export async function registerRoutes(
         }
       }
 
-      // Auto-generate shareToken and followUpSchedule when status → "sent"
+      // Auto-generate shareToken, sentAt and followUpSchedule when status → "sent"
       if (input.status === "sent") {
         const existing = await storage.getQuote(quoteId);
         if (existing && !existing.shareToken) {
           (input as any).shareToken = crypto.randomUUID();
+        }
+        // Record the first time the quote is sent
+        if (existing && !(existing as any).sentAt) {
+          (input as any).sentAt = new Date();
         }
         // Auto-populate follow-up schedule from user settings
         if (existing && !existing.followUpSchedule) {
@@ -690,9 +695,9 @@ CRITICAL RULES — follow these exactly:
       // Fetch business details from user settings
       const s = await storage.getAnyUserSettings();
       const businessName = s?.businessName || "";
-      const businessPhone = s?.businessPhone || "";
-      const businessEmail = s?.businessEmail || "";
-      const businessAddress = s?.businessAddress || "";
+      const businessPhone = s?.phone || "";
+      const businessEmail = s?.email || "";
+      const businessAddress = s?.address || "";
 
       res.json({
         quote,
@@ -815,6 +820,9 @@ CRITICAL RULES — follow these exactly:
         notes,
       });
 
+      // Mark the originating quote as invoiced
+      await storage.updateQuote(quoteId, { status: "invoiced" });
+
       res.status(201).json(invoice);
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to create invoice" });
@@ -829,6 +837,24 @@ CRITICAL RULES — follow these exactly:
 
       const updated = await storage.updateInvoice(id, req.body);
       res.json(updated);
+
+      // Send email when invoice is first marked as sent
+      const justSent = req.body.status === "sent" && existing.status !== "sent";
+      if (justSent && existing.customerId) {
+        const customer = await storage.getCustomer(existing.customerId);
+        if (customer?.email) {
+          const s = await storage.getAnyUserSettings();
+          const businessName = s?.businessName || "Your Tradie";
+          const dueDate = updated.dueDate
+            ? new Date(updated.dueDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" })
+            : null;
+          sendCustomerEmail(
+            customer.email,
+            `Invoice ${existing.invoiceNumber} from ${businessName}`,
+            `Hi ${customer.name},\n\nYour invoice is ready.\n\nInvoice Number: ${existing.invoiceNumber}\nAmount Due: $${Number(updated.totalAmount).toFixed(2)}${dueDate ? `\nDue Date: ${dueDate}` : ""}\n\nPlease contact us if you have any questions.\n\nKind regards,\n${businessName}`
+          ).catch((err: Error) => console.error("Invoice email failed:", err));
+        }
+      }
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to update invoice" });
     }
@@ -845,8 +871,9 @@ CRITICAL RULES — follow these exactly:
         if (quote.status !== "sent" || !quote.followUpSchedule) continue;
         try {
           const schedule = JSON.parse(quote.followUpSchedule);
+          const sentDate = (quote as any).sentAt || quote.createdAt;
           const daysSinceSent = Math.floor(
-            (Date.now() - new Date(quote.createdAt!).getTime()) / (1000 * 60 * 60 * 24)
+            (Date.now() - new Date(sentDate!).getTime()) / (1000 * 60 * 60 * 24)
           );
           for (let i = 0; i < schedule.length; i++) {
             if (schedule[i].status === "pending" && daysSinceSent >= schedule[i].day) {

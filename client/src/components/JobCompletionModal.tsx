@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useLocation } from "wouter";
 import { SuccessFlash } from "@/components/SuccessFlash";
 import { useTimerEntries, formatDuration } from "@/hooks/use-timers";
 import { useUpdateJob } from "@/hooks/use-jobs";
@@ -21,6 +22,7 @@ import {
   TrendingDown,
   MessageSquare,
   Loader2,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,9 +48,11 @@ export function JobCompletionModal({
   const { data: quotes } = useQuotes();
   const { data: customer } = useCustomer(customerId || 0);
 
+  const [, setLocation] = useLocation();
   const [actualHours, setActualHours] = useState<string>("");
   const [extraNotes, setExtraNotes] = useState("");
   const [showFlash, setShowFlash] = useState(false);
+  const [jobCompleted, setJobCompleted] = useState(false);
 
   // Find linked quote: either by explicit linkedQuoteId or by matching jobId
   const linkedQuote = quotes?.find(
@@ -86,6 +90,7 @@ export function JobCompletionModal({
   useEffect(() => {
     if (open) {
       setExtraNotes("");
+      setJobCompleted(false);
     }
   }, [open]);
 
@@ -118,6 +123,7 @@ export function JobCompletionModal({
       {
         onSuccess: () => {
           setShowFlash(true);
+          setJobCompleted(true);
         },
       }
     );
@@ -134,7 +140,7 @@ export function JobCompletionModal({
     <SuccessFlash
       show={showFlash}
       message="Job Complete!"
-      onDone={() => { setShowFlash(false); onOpenChange(false); }}
+      onDone={() => setShowFlash(false)}
     />
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[420px] rounded-[2rem] mx-4">
@@ -145,13 +151,44 @@ export function JobCompletionModal({
             </div>
             <div>
               <DialogTitle className="text-lg font-bold">
-                Complete Job
+                {jobCompleted ? "Job Complete!" : "Complete Job"}
               </DialogTitle>
               <p className="text-sm text-muted-foreground">{jobTitle}</p>
             </div>
           </div>
         </DialogHeader>
 
+        {jobCompleted ? (
+          <div className="space-y-3 pt-2">
+            <p className="text-sm text-muted-foreground text-center">What would you like to do next?</p>
+            {linkedQuote && (
+              <Button
+                onClick={() => { onOpenChange(false); setLocation(`/quotes/${linkedQuote.id}`); }}
+                className="w-full h-14 rounded-2xl text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <Receipt className="w-5 h-5 mr-2" />
+                {linkedQuote.status === "invoiced" ? "View Invoice" : "Create Invoice"}
+              </Button>
+            )}
+            {customer?.phone && (
+              <Button
+                variant="outline"
+                onClick={handleSendMessage}
+                className="w-full h-12 rounded-2xl text-sm font-bold border-black/10 dark:border-white/10"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Send Job Complete Message
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="w-full h-12 rounded-2xl text-sm font-bold"
+            >
+              Done
+            </Button>
+          </div>
+        ) : (
         <div className="space-y-5 pt-2">
           {/* Timer summary strip */}
           {totalTimerSeconds > 0 && (
@@ -303,6 +340,7 @@ export function JobCompletionModal({
             </Button>
           )}
         </div>
+        )}
       </DialogContent>
     </Dialog>
     </>

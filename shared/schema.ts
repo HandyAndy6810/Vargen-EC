@@ -23,8 +23,10 @@ export const jobs = pgTable("jobs", {
   customerId: integer("customer_id").references(() => customers.id),
   title: text("title").notNull(),
   description: text("description"),
+  address: text("address"),
   status: text("status").default("scheduled"), // scheduled, completed, cancelled
   scheduledDate: timestamp("scheduled_date"),
+  estimatedDuration: integer("estimated_duration"), // minutes
   completionData: text("completion_data"), // JSON: { actualHours, extraNotes, completedAt, estimatedHours, quotedAmount }
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -34,12 +36,13 @@ export const quotes = pgTable("quotes", {
   jobId: integer("job_id").references(() => jobs.id),
   customerId: integer("customer_id").references(() => customers.id),
   totalAmount: numeric("total_amount").notNull(),
-  status: text("status").default("draft"), // draft, sent, viewed, accepted, rejected
+  status: text("status").default("draft"), // draft, sent, viewed, accepted, rejected, invoiced
   content: text("content"), // AI generated text or structured notes
   xeroInvoiceId: text("xero_invoice_id"),
   xeroInvoiceNumber: text("xero_invoice_number"),
   shareToken: text("share_token"), // UUID for client portal link
   followUpSchedule: text("follow_up_schedule"), // JSON: [{ day, status, sentAt? }]
+  sentAt: timestamp("sent_at"), // set when status first changes to "sent"
   createdAt: timestamp("created_at").defaultNow(),
 });
 
