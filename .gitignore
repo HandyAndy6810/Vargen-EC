@@ -4,6 +4,7 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+.env
 
 # Capacitor native platform folders (generated — commit these if you want to customise native code)
 ios/
