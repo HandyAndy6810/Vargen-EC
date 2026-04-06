@@ -460,17 +460,24 @@ export default function InvoiceDetail() {
         {/* Action Buttons */}
         <div className="space-y-2">
           {invoice.status === "draft" && (
-            <Button
-              onClick={handleMarkSent}
-              disabled={isUpdating}
-              className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isUpdating ? (
-                <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Updating...</>
-              ) : (
-                <><Send className="w-5 h-5 mr-2" /> Mark as Sent</>
+            <div className="space-y-2">
+              <Button
+                onClick={handleMarkSent}
+                disabled={isUpdating}
+                className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isUpdating ? (
+                  <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Sending...</>
+                ) : (
+                  <><Send className="w-5 h-5 mr-2" /> Send to Customer</>
+                )}
+              </Button>
+              {customer?.email && (
+                <p className="text-xs text-center text-muted-foreground">
+                  Invoice will be emailed to {customer.email}
+                </p>
               )}
-            </Button>
+            </div>
           )}
 
           {(invoice.status === "sent" || invoice.status === "overdue") && (

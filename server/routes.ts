@@ -424,6 +424,8 @@ export async function registerRoutes(
       }
       if (callOutNum > 0) {
         pricingInstructions += `\n- Include a call-out/travel fee of $${callOutNum} as a separate line item`;
+      } else {
+        pricingInstructions += `\n- Do NOT include any call-out fee, site visit fee, or travel fee line item. The customer is not being charged for call-out.`;
       }
       if (gstEnabled) {
         pricingInstructions += `\n- Add 10% GST to the total. Include a "gstAmount" field in your response with the GST dollar amount. The "totalAmount" should be the GST-inclusive total`;
@@ -469,14 +471,15 @@ ${tradeKnowledge}
 CRITICAL RULES — follow these exactly:
 1. LINE ITEMS must be specific. BAD: "Labour". GOOD: "Labour – remove existing hot water unit, install new unit, connect copper pipework and test". BAD: "Materials". GOOD: "25mm copper half-union x2 @ $18 each".
 2. ALWAYS break labour and materials into SEPARATE line items. Never bundle them.
-3. LIST ORDER: call-out/travel first (if applicable), then labour items, then materials, then any permit or disposal fees.
+3. LIST ORDER: call-out/travel first (only if a call-out fee is specified in pricing instructions), then labour items, then materials, then any permit or disposal fees.
 4. QUANTITIES must be real numbers — if 3 fittings are needed, quantity is 3, unitPrice is cost per fitting.
 5. NEVER under-quote. Australian tradies routinely lose money from thin margins. Include: travel/setup time, consumables (tape, sealant, fixings), waste disposal where applicable, and at least 15 minutes of post-job cleanup time.
 6. USE THE TRADE KNOWLEDGE BASE: All pricing must align with the reference data above. Use the estimation formulas provided to calculate quantities. Apply the correct units of measure for this trade.
 7. NOTES section must include: what is NOT included (exclusions), assumptions made, relevant compliance requirements from the knowledge base, and quote validity period (14 days).
 8. jobTitle must be professional and specific — suitable to show a client on a formal document.
 9. CROSS-CHECK every price against the pricing reference before finalising. If a material or labour rate differs by more than 20% from the reference ranges, adjust it — unless the job description specifically calls for a premium brand, remote location, or unusual circumstance.
-10. CHECK THE GOTCHAS: Review the trade-specific gotchas section and ensure your quote accounts for commonly missed items (e.g. disposal fees, compliance certificates, consumables allowance).${pricingInstructions}`;
+10. CHECK THE GOTCHAS: Review the trade-specific gotchas section and ensure your quote accounts for commonly missed items (e.g. disposal fees, compliance certificates, consumables allowance).
+11. CONSISTENCY: Ensure line item descriptions and the notes/exclusions section do not contradict each other. If an item is included as a line item, do NOT exclude it in the notes. If something is genuinely excluded, it must not appear as a line item.${pricingInstructions}`;
 
       messages.push({ role: "system", content: systemPrompt });
 
@@ -554,6 +557,19 @@ CRITICAL RULES — follow these exactly:
         parsed = JSON.parse(raw);
       } catch {
         return res.status(500).json({ message: "AI returned invalid JSON", raw });
+      }
+
+      // Post-generation filter: strip call-out/travel items when no call-out fee was requested
+      if (callOutNum === 0 && Array.isArray(parsed.items)) {
+        const callOutPattern = /call.?out|site.?visit|travel.?fee|call.?in|mobilisation/i;
+        parsed.items = parsed.items.filter((item: any) => !callOutPattern.test(item.description || ""));
+        // Recalculate totals after filtering
+        if (parsed.items.length > 0) {
+          const subtotal = parsed.items.reduce((sum: number, item: any) => sum + (item.quantity || 0) * (item.unitPrice || 0), 0);
+          parsed.subtotal = Math.round(subtotal * 100) / 100;
+          parsed.gstAmount = gstEnabled ? Math.round(subtotal * 0.1 * 100) / 100 : 0;
+          parsed.totalAmount = Math.round((parsed.subtotal + parsed.gstAmount) * 100) / 100;
+        }
       }
 
       res.json(parsed);
@@ -720,10 +736,29 @@ CRITICAL RULES — follow these exactly:
       const quote = await storage.getQuoteByShareToken(token);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
-      await storage.updateQuote(quote.id, { status: "accepted" });
+      const { preferredDate } = req.body;
+      const updates: any = { status: "accepted" };
+      if (preferredDate && typeof preferredDate === "string") {
+        const existing = quote.content ? (() => { try { return JSON.parse(quote.content); } catch { return {}; } })() : {};
+        updates.content = JSON.stringify({ ...existing, preferredDate });
+      }
+      await storage.updateQuote(quote.id, updates);
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to accept quote" });
+    }
+  });
+
+  app.post("/api/portal/:token/decline", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const quote = await storage.getQuoteByShareToken(token);
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      await storage.updateQuote(quote.id, { status: "rejected" });
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to decline quote" });
     }
   });
 

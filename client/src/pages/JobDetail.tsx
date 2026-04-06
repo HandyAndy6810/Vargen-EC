@@ -188,7 +188,7 @@ export default function JobDetail() {
 
       {/* Sticky primary action bar */}
       {(job.status === "scheduled" || job.status === "pending" || job.status === "in_progress") && (
-        <div className="fixed bottom-20 left-0 right-0 px-5 z-40 pointer-events-none">
+        <div className="fixed bottom-24 left-0 right-0 px-5 z-40 pointer-events-none">
           <div className="pointer-events-auto">
             {(job.status === "scheduled" || job.status === "pending") && (
               <Button

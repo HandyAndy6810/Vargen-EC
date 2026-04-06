@@ -117,6 +117,9 @@ export default function QuoteDetail() {
   const [editIncludeGST, setEditIncludeGST] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showAckDialog, setShowAckDialog] = useState(false);
+  const [ackChecked, setAckChecked] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   const [showSentFlash, setShowSentFlash] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
@@ -295,9 +298,11 @@ export default function QuoteDetail() {
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/quotes/${quote.id}`;
+    const url = quote.shareToken
+      ? `${window.location.origin}/portal/${quote.shareToken}`
+      : `${window.location.origin}/quotes/${quote.id}`;
     navigator.clipboard.writeText(url).then(() => {
-      toast({ title: "Link Copied", description: "Quote link copied to clipboard." });
+      toast({ title: "Client Link Copied", description: quote.shareToken ? "Customer portal link copied." : "Quote link copied to clipboard." });
       setShowShareSheet(false);
     }).catch(() => {
       toast({ title: "Copy failed", variant: "destructive" });
@@ -528,7 +533,7 @@ export default function QuoteDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="min-h-screen bg-background pb-36">
       {/* Header */}
       <div className="px-4 pt-12 pb-4">
         <div className="flex items-center justify-between gap-2">
@@ -673,21 +678,36 @@ export default function QuoteDetail() {
               {items.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">No line items</p>
               ) : (
-                items.map((item, i) => (
-                  <div key={i} className="flex items-start justify-between gap-3 py-2 border-b border-black/5 dark:border-white/5 last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate" data-testid={`text-item-desc-${i}`}>
-                        {item.description}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.quantity} {item.unit || "x"} @ ${item.unitPrice.toFixed(2)}
-                      </p>
+                items.map((item, i) => {
+                  const isExpanded = expandedItems.has(i);
+                  const toggleExpand = () => setExpandedItems(prev => {
+                    const next = new Set(prev);
+                    if (next.has(i)) next.delete(i); else next.add(i);
+                    return next;
+                  });
+                  return (
+                  <div key={i} className="py-2 border-b border-black/5 dark:border-white/5 last:border-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium text-foreground ${isExpanded ? "whitespace-normal" : "truncate"}`} data-testid={`text-item-desc-${i}`}>
+                          {item.description}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.quantity} {item.unit || "x"} @ ${item.unitPrice.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-sm font-bold text-foreground" data-testid={`text-item-total-${i}`}>
+                          ${(item.quantity * item.unitPrice).toFixed(2)}
+                        </span>
+                        <button onClick={toggleExpand} className="p-0.5 text-muted-foreground hover:text-foreground transition-colors" aria-label={isExpanded ? "Collapse" : "Expand"}>
+                          {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     </div>
-                    <span className="text-sm font-bold text-foreground shrink-0" data-testid={`text-item-total-${i}`}>
-                      ${(item.quantity * item.unitPrice).toFixed(2)}
-                    </span>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
@@ -901,7 +921,7 @@ export default function QuoteDetail() {
         {/* Sticky primary action bar */}
         {(() => {
           if (editing) return (
-            <div className="fixed bottom-20 left-0 right-0 px-5 z-40 pointer-events-none">
+            <div className="fixed bottom-24 left-0 right-0 px-5 z-40 pointer-events-none">
               <div className="pointer-events-auto">
                 <Button
                   onClick={handleSaveEdit}
@@ -915,14 +935,15 @@ export default function QuoteDetail() {
             </div>
           );
           if (quote.status === "draft") return (
-            <div className="fixed bottom-20 left-0 right-0 px-5 z-40 pointer-events-none">
+            <div className="fixed bottom-24 left-0 right-0 px-5 z-40 pointer-events-none">
               <div className="pointer-events-auto">
                 <Button
                   onClick={() => {
                     if (items.length === 0) { toast({ title: "Add line items before sending", variant: "destructive" }); return; }
                     const err = validateItems(items);
                     if (err) { toast({ title: "Fix items before sending", description: err, variant: "destructive" }); return; }
-                    handleStatusChange("sent");
+                    setAckChecked(false);
+                    setShowAckDialog(true);
                   }}
                   disabled={isUpdating}
                   className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-600/30"
@@ -935,7 +956,7 @@ export default function QuoteDetail() {
             </div>
           );
           if (quote.status === "sent" || quote.status === "viewed") return (
-            <div className="fixed bottom-20 left-0 right-0 px-5 z-40 pointer-events-none">
+            <div className="fixed bottom-24 left-0 right-0 px-5 z-40 pointer-events-none">
               <div className="pointer-events-auto">
                 <Button
                   onClick={() => setShowScheduleDialog(true)}
@@ -949,7 +970,7 @@ export default function QuoteDetail() {
             </div>
           );
           if (quote.status === "accepted") return (
-            <div className="fixed bottom-20 left-0 right-0 px-5 z-40 pointer-events-none">
+            <div className="fixed bottom-24 left-0 right-0 px-5 z-40 pointer-events-none">
               <div className="pointer-events-auto">
                 <Button
                   onClick={() => { createInvoiceMutation.mutate(quote.id, { onSuccess: (invoice: any) => setLocation(`/invoices/${invoice.id}`) }); }}
@@ -1067,30 +1088,10 @@ export default function QuoteDetail() {
                 <Share2 className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="font-bold text-foreground">Copy Link</p>
-                <p className="text-sm text-muted-foreground">Share a direct link to this quote</p>
+                <p className="font-bold text-foreground">Copy Client Link</p>
+                <p className="text-sm text-muted-foreground">{quote.shareToken ? "Customer portal link — client can accept online" : "Share a link to this quote"}</p>
               </div>
             </button>
-            {quote.shareToken && (
-              <button
-                onClick={() => {
-                  const portalUrl = `${window.location.origin}/portal/${quote.shareToken}`;
-                  navigator.clipboard.writeText(portalUrl).then(() => {
-                    toast({ title: "Portal link copied!", description: "Clients can accept or request changes from this link." });
-                    setShowShareSheet(false);
-                  });
-                }}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left hover-elevate active-elevate-2 transition-all"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
-                  <ExternalLink className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <p className="font-bold text-foreground">Client Portal Link</p>
-                  <p className="text-sm text-muted-foreground">Client can accept or request changes</p>
-                </div>
-              </button>
-            )}
             <button
               onClick={() => { setShowShareSheet(false); setLocation(`/quotes/${quote.id}/preview`); }}
               className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#F8F7F5] dark:bg-white/5 text-left hover-elevate active-elevate-2 transition-all"
@@ -1140,6 +1141,48 @@ export default function QuoteDetail() {
       </Dialog>
 
       <SuccessFlash show={showSentFlash} message="Quote Sent!" onDone={() => { setShowSentFlash(false); setShowShareSheet(true); }} />
+
+      {/* Acknowledgment Gate — shown before marking as sent */}
+      <AlertDialog open={showAckDialog} onOpenChange={setShowAckDialog}>
+        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitleComp className="text-lg font-bold">Review Before Sending</AlertDialogTitleComp>
+            <AlertDialogDescription className="text-sm">
+              Please confirm you've reviewed this quote before sending it to the client.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex items-start gap-3 px-1 py-2">
+            <input
+              type="checkbox"
+              id="ack-checkbox"
+              checked={ackChecked}
+              onChange={e => setAckChecked(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-primary"
+            />
+            <label htmlFor="ack-checkbox" className="text-sm text-foreground leading-snug cursor-pointer">
+              I have reviewed this quote and accept responsibility for its accuracy.
+            </label>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl"
+              disabled={!ackChecked}
+              onClick={() => {
+                if (!ackChecked) return;
+                const updatedContent = parsed ? { ...parsed, acknowledged: true } : { acknowledged: true };
+                updateQuote(
+                  { id: quote.id, content: JSON.stringify(updatedContent) },
+                  { onSuccess: () => handleStatusChange("sent") }
+                );
+                setShowAckDialog(false);
+              }}
+            >
+              <Send className="w-4 h-4 mr-1.5" /> Send Quote
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Reject Confirmation */}
       <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>

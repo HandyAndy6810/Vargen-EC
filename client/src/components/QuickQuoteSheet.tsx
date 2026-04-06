@@ -27,14 +27,14 @@ export function QuickQuoteSheet({ open, onOpenChange }: Props) {
   const [showFlash, setShowFlash] = useState(false);
   const [newQuoteId, setNewQuoteId] = useState<number | null>(null);
 
-  const canSubmit = customerId && title.trim() && price && Number(price) > 0;
+  const canSubmit = customerId && customerId !== "__new__" && title.trim();
 
   const handleCreate = () => {
     if (!canSubmit) return;
-    const amount = Number(price);
+    const amount = price && Number(price) > 0 ? Number(price) : 0;
     const content = JSON.stringify({
       jobTitle: title.trim(),
-      items: [{ description: title.trim(), quantity: 1, unitPrice: amount }],
+      items: amount > 0 ? [{ description: title.trim(), quantity: 1, unitPrice: amount }] : [],
       subtotal: amount,
       gstAmount: 0,
       totalAmount: amount,
@@ -88,11 +88,23 @@ export function QuickQuoteSheet({ open, onOpenChange }: Props) {
             {/* Customer */}
             <div className="space-y-1.5">
               <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Customer</Label>
-              <Select value={customerId} onValueChange={setCustomerId}>
+              <Select
+                value={customerId}
+                onValueChange={v => {
+                  if (v === "__new__") {
+                    reset();
+                    onOpenChange(false);
+                    setLocation("/quotes/new");
+                    return;
+                  }
+                  setCustomerId(v);
+                }}
+              >
                 <SelectTrigger className="h-12 rounded-xl border-black/10 dark:border-white/10" data-testid="qq-customer">
                   <SelectValue placeholder="Who's this for?" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__new__">+ New Customer</SelectItem>
                   {(customers || []).map(c => (
                     <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
                   ))}
@@ -114,7 +126,7 @@ export function QuickQuoteSheet({ open, onOpenChange }: Props) {
 
             {/* Price */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Price (total)</Label>
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Price estimate (optional)</Label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">$</span>
                 <Input
@@ -151,13 +163,14 @@ export function QuickQuoteSheet({ open, onOpenChange }: Props) {
             </Button>
 
             {/* Full builder escape */}
-            <button
+            <Button
+              variant="outline"
               onClick={() => { reset(); onOpenChange(false); setLocation("/quotes/new"); }}
-              className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-foreground py-1 transition-colors"
+              className="w-full h-12 rounded-2xl border-primary text-primary font-bold hover:bg-primary/5"
               data-testid="qq-full-builder"
             >
-              Need more options? Use full quote builder →
-            </button>
+              Use Full Quote Builder →
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

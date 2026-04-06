@@ -28,16 +28,38 @@ export function usePortalAccept(token: string) {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (preferredDate?: string) => {
       const res = await fetch(`/api/portal/${token}/accept`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferredDate }),
       });
       if (!res.ok) throw new Error("Failed to accept quote");
       return res.json();
     },
     onSuccess: () => {
       toast({ title: "Quote accepted!", description: "The tradesperson has been notified." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function usePortalDecline(token: string) {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/portal/${token}/decline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error("Failed to decline quote");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Quote declined", description: "The tradesperson has been notified." });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
