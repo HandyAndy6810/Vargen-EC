@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRoute } from "wouter";
-import { usePortalQuote, usePortalAccept, usePortalFeedback } from "@/hooks/use-portal";
-import { CheckCircle, MessageSquare, FileText, Loader2 } from "lucide-react";
+import { usePortalQuote, usePortalAccept, usePortalDecline, usePortalFeedback } from "@/hooks/use-portal";
+import { CheckCircle, MessageSquare, FileText, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
@@ -31,9 +31,12 @@ export default function Portal() {
   const token = params?.token || "";
   const { data, isLoading, isError } = usePortalQuote(token);
   const { mutate: acceptQuote, isPending: isAccepting } = usePortalAccept(token);
+  const { mutate: declineQuote, isPending: isDeclining } = usePortalDecline(token);
   const { mutate: sendFeedback, isPending: isSendingFeedback } = usePortalFeedback(token);
 
   const [accepted, setAccepted] = useState(false);
+  const [declined, setDeclined] = useState(false);
+  const [preferredDate, setPreferredDate] = useState("");
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
@@ -71,10 +74,17 @@ export default function Portal() {
   const quoteRef = `Q-${String(quote.id).padStart(4, "0")}`;
   const quoteDate = quote.createdAt ? format(new Date(quote.createdAt), "dd MMMM yyyy") : "N/A";
   const isAlreadyAccepted = quote.status === "accepted" || accepted;
+  const isAlreadyDeclined = quote.status === "rejected" || declined;
 
   const handleAccept = () => {
-    acceptQuote(undefined, {
+    acceptQuote(preferredDate || undefined, {
       onSuccess: () => setAccepted(true),
+    });
+  };
+
+  const handleDecline = () => {
+    declineQuote(undefined, {
+      onSuccess: () => setDeclined(true),
     });
   };
 
@@ -213,8 +223,27 @@ export default function Portal() {
               The tradesperson has been notified and will be in touch soon.
             </p>
           </div>
+        ) : isAlreadyDeclined ? (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+            <XCircle className="w-10 h-10 mx-auto mb-3 text-red-400" />
+            <h3 className="text-lg font-bold text-red-800">Quote Declined</h3>
+            <p className="text-sm text-red-600 mt-1">
+              The tradesperson has been notified.
+            </p>
+          </div>
         ) : (
           <div className="space-y-3">
+            {/* Optional preferred date */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Preferred Start Date (optional)</p>
+              <input
+                type="date"
+                value={preferredDate}
+                onChange={e => setPreferredDate(e.target.value)}
+                className="w-full h-10 rounded-xl border border-gray-200 px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400"
+              />
+            </div>
+
             <Button
               onClick={handleAccept}
               disabled={isAccepting}
@@ -224,6 +253,19 @@ export default function Portal() {
                 <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Accepting...</>
               ) : (
                 <><CheckCircle className="w-5 h-5 mr-2" /> Accept Quote</>
+              )}
+            </Button>
+
+            <Button
+              onClick={handleDecline}
+              disabled={isDeclining}
+              variant="outline"
+              className="w-full h-12 rounded-2xl text-sm font-bold border-red-200 text-red-600 hover:bg-red-50"
+            >
+              {isDeclining ? (
+                <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Declining...</>
+              ) : (
+                <><XCircle className="w-4 h-4 mr-2" /> Decline Quote</>
               )}
             </Button>
 

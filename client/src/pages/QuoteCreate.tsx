@@ -168,6 +168,7 @@ export default function QuoteCreate() {
   const [lineVisible, setLineVisible] = useState(true);
 
   const [description, setDescription] = useState("");
+  const [presetItems, setPresetItems] = useState<Set<string>>(new Set());
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState("");
@@ -277,8 +278,12 @@ export default function QuoteCreate() {
 
   const generateMutation = useMutation({
     mutationFn: async () => {
+      const presetList = Array.from(presetItems);
+      const fullDescription = presetList.length > 0
+        ? `${description}\n\nPlease make sure to include these items in the quote:\n${presetList.map(i => `- ${i}`).join("\n")}`
+        : description;
       const body: Record<string, any> = {
-        description,
+        description: fullDescription,
         imageBase64: photoBase64,
         customerName: customerName || undefined,
         markupPercent: defaults.markupPercent,
@@ -544,7 +549,7 @@ export default function QuoteCreate() {
     : "Step 3 of 3 — Done";
 
   return (
-    <div className="min-h-screen bg-[#F8F5F2] dark:bg-background pb-32">
+    <div className="min-h-screen bg-[#F8F5F2] dark:bg-background pb-36">
       <div className="px-6 pt-12 mb-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-2">
@@ -580,13 +585,13 @@ export default function QuoteCreate() {
               className={cn("flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all",
                 mode === "simple" ? "bg-primary text-white" : "text-muted-foreground")}
               data-testid="tab-simple">
-              <Sparkles className="w-4 h-4" /> AI Simple
+              <Sparkles className="w-4 h-4" /> AI Quick
             </button>
             <button onClick={() => setMode("advanced")}
               className={cn("flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all",
                 mode === "advanced" ? "bg-primary text-white" : "text-muted-foreground")}
               data-testid="tab-advanced">
-              <Settings className="w-4 h-4" /> Advanced
+              <Settings className="w-4 h-4" /> AI Detailed
             </button>
           </div>
         )}
@@ -600,8 +605,8 @@ export default function QuoteCreate() {
               <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center mb-3">
                 <Sparkles className="w-7 h-7 text-white" />
               </div>
-              <h2 className="text-xl font-bold text-foreground mb-1">AI Quote Generator</h2>
-              <p className="text-sm text-muted-foreground">Snap a photo and describe the job</p>
+              <h2 className="text-xl font-bold text-foreground mb-1">AI Quick Quote</h2>
+              <p className="text-sm text-muted-foreground">Describe the job and AI builds the quote</p>
             </div>
             <div className="space-y-5">
               <div className="space-y-3">
@@ -717,8 +722,8 @@ export default function QuoteCreate() {
                 <div className="w-14 h-14 rounded-full bg-[#8B7E74] dark:bg-white/20 flex items-center justify-center mb-3">
                   <Settings className="w-7 h-7 text-white" />
                 </div>
-                <h2 className="text-xl font-bold text-foreground mb-1">Advanced Quote</h2>
-                <p className="text-sm text-muted-foreground">More control over pricing and details</p>
+                <h2 className="text-xl font-bold text-foreground mb-1">AI Detailed Quote</h2>
+                <p className="text-sm text-muted-foreground">Set trade type, labour rate, GST + pre-select common items</p>
               </div>
               <div className="space-y-5">
                 <div className="space-y-3">
@@ -806,6 +811,38 @@ export default function QuoteCreate() {
               </div>
             </div>
 
+            {/* Common Items Quick-Pick */}
+            <div className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-sm border border-black/5">
+              <p className="text-sm font-bold text-foreground mb-1">Pre-select Common Items</p>
+              <p className="text-xs text-muted-foreground mb-3">Tick any items to ensure they're included in the quote.</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  "Call-out fee", "Site inspection", "Waste disposal", "Permit / compliance certificate",
+                  "Temporary protection", "Post-job cleanup", "Material delivery", "Consumables allowance"
+                ].map(item => {
+                  const selected = presetItems.has(item);
+                  return (
+                    <button
+                      key={item}
+                      onClick={() => setPresetItems(prev => {
+                        const next = new Set(prev);
+                        if (next.has(item)) next.delete(item); else next.add(item);
+                        return next;
+                      })}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-xs font-bold border transition-all",
+                        selected
+                          ? "bg-primary text-white border-primary"
+                          : "bg-muted text-muted-foreground border-black/10 hover:border-primary/40"
+                      )}
+                    >
+                      {selected && <Check className="w-3 h-3 inline mr-1" />}{item}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-sm border border-black/5">
               <SharedSettings />
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-black/5">
@@ -817,12 +854,12 @@ export default function QuoteCreate() {
             <Button onClick={handleGenerate} disabled={!description.trim()}
               className={cn(
                 "w-full h-16 rounded-2xl text-lg font-bold text-white shadow-lg transition-all disabled:opacity-40",
-                description.trim() && customerName.trim() 
-                  ? "bg-primary shadow-primary/20" 
+                description.trim() && customerName.trim()
+                  ? "bg-primary shadow-primary/20"
                   : "bg-[#8B7E74] dark:bg-white/20 shadow-[#8B7E74]/20"
               )}
               data-testid="button-generate-quote-advanced">
-              <Sparkles className="w-5 h-5 mr-2" /> Generate Advanced Quote
+              <Sparkles className="w-5 h-5 mr-2" /> Generate Detailed Quote
             </Button>
           </div>
         )}
@@ -1041,7 +1078,7 @@ export default function QuoteCreate() {
             </div>
 
             {/* Sticky Finalize Bar */}
-            <div className="fixed bottom-20 left-0 right-0 px-6 z-30">
+            <div className="fixed bottom-24 left-0 right-0 px-6 z-30">
               <div className="max-w-2xl mx-auto">
                 <Button onClick={() => { setShowFinalizeModal(true); setJobMode("existing"); setSelectedJobId(null); setNewJobTitle(quoteTitle); }}
                   disabled={lineItems.length === 0}

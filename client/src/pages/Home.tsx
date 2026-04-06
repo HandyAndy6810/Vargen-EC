@@ -210,7 +210,7 @@ export default function Home() {
         {isOn("quick-actions") && (
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => setShowQuickQuote(true)}
+              onClick={() => setLocation("/quotes/new")}
               className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 text-sm"
             >
               <FileText className="w-4 h-4" /> New Quote
