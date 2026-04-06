@@ -1170,7 +1170,7 @@ export default function QuoteDetail() {
               disabled={!ackChecked}
               onClick={() => {
                 if (!ackChecked) return;
-                const updatedContent = { ...parsed, acknowledged: true };
+                const updatedContent = parsed ? { ...parsed, acknowledged: true } : { acknowledged: true };
                 updateQuote(
                   { id: quote.id, content: JSON.stringify(updatedContent) },
                   { onSuccess: () => handleStatusChange("sent") }
