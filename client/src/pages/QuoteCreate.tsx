@@ -26,7 +26,8 @@ import {
   Briefcase,
   Star,
   CheckCircle2,
-  ShieldCheck
+  ShieldCheck,
+  ArrowRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -188,6 +189,7 @@ export default function QuoteCreate() {
   const [newItemPrice, setNewItemPrice] = useState("");
 
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [finalizeStep, setFinalizeStep] = useState<1 | 2>(1);
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [newJobTitle, setNewJobTitle] = useState("");
   const [jobMode, setJobMode] = useState<"existing" | "new">("existing");
@@ -1080,7 +1082,7 @@ export default function QuoteCreate() {
             {/* Sticky Finalize Bar */}
             <div className="fixed bottom-24 left-0 right-0 px-6 z-30">
               <div className="max-w-2xl mx-auto">
-                <Button onClick={() => { setShowFinalizeModal(true); setJobMode("existing"); setSelectedJobId(null); setNewJobTitle(quoteTitle); }}
+                <Button onClick={() => { setShowFinalizeModal(true); setFinalizeStep(1); setAckChecked(false); setJobMode("existing"); setSelectedJobId(null); setNewJobTitle(quoteTitle); }}
                   disabled={lineItems.length === 0}
                   className="w-full h-16 rounded-2xl text-lg font-bold bg-green-600 text-white shadow-lg shadow-green-600/30 disabled:opacity-40"
                   data-testid="button-finalize-quote">
@@ -1255,114 +1257,160 @@ export default function QuoteCreate() {
       </Dialog>
 
       {/* ════════════ FINALIZE MODAL ════════════ */}
-      <Dialog open={showFinalizeModal} onOpenChange={(open) => { setShowFinalizeModal(open); if (!open) setAckChecked(false); }}>
-        <DialogContent className="rounded-[2rem] mx-4 max-w-sm max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Finalize Quote</DialogTitle>
-          </DialogHeader>
+      <Dialog open={showFinalizeModal} onOpenChange={(open) => { setShowFinalizeModal(open); if (!open) { setAckChecked(false); setFinalizeStep(1); } }}>
+        <DialogContent className="rounded-[2rem] mx-4 max-w-sm max-h-[80vh] overflow-y-auto overflow-x-hidden">
+          {/* Step indicator */}
+          <div className="flex items-center gap-2 justify-center pt-1">
+            <div className={cn("w-2 h-2 rounded-full transition-colors", finalizeStep === 1 ? "bg-amber-500" : "bg-green-500")} />
+            <div className={cn("w-2 h-2 rounded-full transition-colors", finalizeStep === 2 ? "bg-primary" : "bg-muted")} />
+          </div>
 
-          <div className="space-y-4 pt-2">
-            <div className="bg-[#FFF1EB] dark:bg-primary/10 rounded-2xl p-4 text-center">
-              <p className="text-sm text-muted-foreground">Total Amount</p>
-              <p className="text-2xl font-bold text-primary">${calcTotal().toLocaleString("en-AU", { minimumFractionDigits: 2 })}</p>
-            </div>
+          {/* ── STEP 1: Review & Accept ── */}
+          {finalizeStep === 1 && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold">Review & Accept</DialogTitle>
+              </DialogHeader>
 
-            {/* Acknowledgment / Liability Acceptance */}
-            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-4 border border-amber-200 dark:border-amber-700/40">
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-800/40 flex items-center justify-center shrink-0 mt-0.5">
-                  <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              <div className="space-y-4 pt-2">
+                <div className="bg-[#FFF1EB] dark:bg-primary/10 rounded-2xl p-4 text-center">
+                  <p className="text-sm text-muted-foreground">Total Amount</p>
+                  <p className="text-2xl font-bold text-primary">${calcTotal().toLocaleString("en-AU", { minimumFractionDigits: 2 })}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{lineItems.length} line item{lineItems.length !== 1 ? "s" : ""}</p>
                 </div>
-                <div>
-                  <h3 className="font-bold text-foreground text-sm">Review & Accept Responsibility</h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Before finalizing, please confirm you have carefully reviewed all line items, pricing, GST, and notes. By proceeding, you accept full ownership and responsibility for this quote. Vargen EC provides AI-assisted estimates only — all final pricing decisions are yours.
-                  </p>
+
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-4 border border-amber-200 dark:border-amber-700/40">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-800/40 flex items-center justify-center shrink-0 mt-0.5">
+                      <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-foreground text-sm">Accept Responsibility</h3>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Please confirm you have carefully reviewed all line items, pricing, GST, and notes. By proceeding, you accept full ownership and responsibility for this quote. Vargen EC provides AI-assisted estimates only — all final pricing decisions are yours.
+                      </p>
+                    </div>
+                  </div>
+                  <label className="flex items-start gap-3 cursor-pointer" data-testid="label-ack-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={ackChecked}
+                      onChange={(e) => setAckChecked(e.target.checked)}
+                      className="mt-0.5 w-5 h-5 rounded accent-amber-600"
+                      data-testid="input-ack-checkbox"
+                    />
+                    <span className="text-sm text-foreground leading-snug">
+                      I have carefully reviewed this quote and accept full ownership of all items, pricing, and details.
+                    </span>
+                  </label>
                 </div>
+
+                <Button
+                  onClick={() => setFinalizeStep(2)}
+                  disabled={!ackChecked}
+                  className="w-full h-14 rounded-2xl font-bold bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-40"
+                  data-testid="button-ack-continue"
+                >
+                  <ArrowRight className="w-5 h-5 mr-2" /> Continue
+                </Button>
               </div>
-              <label className="flex items-start gap-3 cursor-pointer" data-testid="label-ack-checkbox">
-                <input
-                  type="checkbox"
-                  checked={ackChecked}
-                  onChange={(e) => setAckChecked(e.target.checked)}
-                  className="mt-0.5 w-5 h-5 rounded accent-amber-600"
-                  data-testid="input-ack-checkbox"
-                />
-                <span className="text-sm text-foreground leading-snug">
-                  I have carefully reviewed this quote and accept full ownership of all items, pricing, and details.
-                </span>
-              </label>
-            </div>
+            </>
+          )}
 
-            <div className="space-y-3">
-              <Label className="text-base font-bold text-foreground flex items-center gap-2">
-                <Link2 className="w-4 h-4" /> Link to Job
-              </Label>
+          {/* ── STEP 2: Link to Job & Finalize ── */}
+          {finalizeStep === 2 && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold">Link & Finalize</DialogTitle>
+              </DialogHeader>
 
-              <div className="bg-muted p-1 rounded-xl flex gap-1">
-                <button onClick={() => setJobMode("existing")}
-                  className={cn("flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
-                    jobMode === "existing" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground")}
-                  data-testid="tab-existing-job">
-                  Existing Job
-                </button>
-                <button onClick={() => setJobMode("new")}
-                  className={cn("flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
-                    jobMode === "new" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground")}
-                  data-testid="tab-new-job">
-                  New Job
-                </button>
-              </div>
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-green-50 dark:bg-green-900/20 rounded-2xl border border-green-200 dark:border-green-700/40">
+                  <ShieldCheck className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <span className="text-xs font-semibold text-green-700 dark:text-green-400">Reviewed & accepted — you own this quote</span>
+                </div>
 
-              {jobMode === "existing" && (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {!jobs || jobs.length === 0 ? (
-                    <p className="text-center text-sm text-muted-foreground py-4">No jobs found. Create a new one instead.</p>
-                  ) : (
-                    <>
-                      <button onClick={() => setSelectedJobId(null)}
-                        className={cn("w-full text-left p-3 rounded-xl text-sm transition-colors",
-                          selectedJobId === null ? "bg-primary/10 text-primary font-bold border border-primary/20" : "bg-[#FAFAFA] dark:bg-muted text-muted-foreground")}
-                        data-testid="button-no-job">
-                        No linked job (standalone quote)
-                      </button>
-                      {jobs.map(job => (
-                        <button key={job.id} onClick={() => setSelectedJobId(job.id)}
-                          className={cn("w-full text-left p-3 rounded-xl text-sm transition-colors",
-                            selectedJobId === job.id ? "bg-primary/10 text-primary font-bold border border-primary/20" : "bg-[#FAFAFA] dark:bg-muted text-foreground")}
-                          data-testid={`button-job-${job.id}`}>
-                          <div className="flex items-center gap-2">
-                            <Briefcase className="w-4 h-4 shrink-0" />
-                            <span className="truncate">{job.title}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </>
+                <div className="space-y-3">
+                  <Label className="text-base font-bold text-foreground flex items-center gap-2">
+                    <Link2 className="w-4 h-4" /> Link to Job
+                  </Label>
+
+                  <div className="bg-muted p-1 rounded-xl flex gap-1">
+                    <button onClick={() => setJobMode("existing")}
+                      className={cn("flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
+                        jobMode === "existing" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground")}
+                      data-testid="tab-existing-job">
+                      Existing Job
+                    </button>
+                    <button onClick={() => setJobMode("new")}
+                      className={cn("flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
+                        jobMode === "new" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground")}
+                      data-testid="tab-new-job">
+                      New Job
+                    </button>
+                  </div>
+
+                  {jobMode === "existing" && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {!jobs || jobs.length === 0 ? (
+                        <p className="text-center text-sm text-muted-foreground py-4">No jobs found. Create a new one instead.</p>
+                      ) : (
+                        <>
+                          <button onClick={() => setSelectedJobId(null)}
+                            className={cn("w-full text-left p-3 rounded-xl text-sm transition-colors",
+                              selectedJobId === null ? "bg-primary/10 text-primary font-bold border border-primary/20" : "bg-[#FAFAFA] dark:bg-muted text-muted-foreground")}
+                            data-testid="button-no-job">
+                            No linked job (standalone quote)
+                          </button>
+                          {jobs.map(job => (
+                            <button key={job.id} onClick={() => setSelectedJobId(job.id)}
+                              className={cn("w-full text-left p-3 rounded-xl text-sm transition-colors",
+                                selectedJobId === job.id ? "bg-primary/10 text-primary font-bold border border-primary/20" : "bg-[#FAFAFA] dark:bg-muted text-foreground")}
+                              data-testid={`button-job-${job.id}`}>
+                              <div className="flex items-center gap-2">
+                                <Briefcase className="w-4 h-4 shrink-0" />
+                                <span className="truncate">{job.title}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {jobMode === "new" && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Job Title</Label>
+                      <Input value={newJobTitle} onChange={(e) => setNewJobTitle(e.target.value)}
+                        placeholder="e.g. Kitchen Renovation" className="rounded-xl h-12"
+                        data-testid="input-new-job-title" />
+                    </div>
                   )}
                 </div>
-              )}
 
-              {jobMode === "new" && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Job Title</Label>
-                  <Input value={newJobTitle} onChange={(e) => setNewJobTitle(e.target.value)}
-                    placeholder="e.g. Kitchen Renovation" className="rounded-xl h-12"
-                    data-testid="input-new-job-title" />
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => setFinalizeStep(1)}
+                    variant="outline"
+                    className="h-14 rounded-2xl font-bold px-5"
+                    data-testid="button-back-to-review"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                  <Button onClick={() => finalizeMutation.mutate()}
+                    disabled={finalizeMutation.isPending || (jobMode === "new" && !newJobTitle.trim())}
+                    className="flex-1 h-14 rounded-2xl font-bold bg-green-600 text-white disabled:opacity-40"
+                    data-testid="button-confirm-finalize">
+                    {finalizeMutation.isPending ? (
+                      <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Saving...</>
+                    ) : (
+                      <><CheckCircle2 className="w-5 h-5 mr-2" /> Save & Finalize</>
+                    )}
+                  </Button>
                 </div>
-              )}
-            </div>
-
-            <Button onClick={() => finalizeMutation.mutate()}
-              disabled={finalizeMutation.isPending || !ackChecked || (jobMode === "new" && !newJobTitle.trim())}
-              className="w-full h-14 rounded-2xl font-bold bg-green-600 text-white disabled:opacity-40"
-              data-testid="button-confirm-finalize">
-              {finalizeMutation.isPending ? (
-                <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Saving...</>
-              ) : (
-                <><CheckCircle2 className="w-5 h-5 mr-2" /> Save & Finalize</>
-              )}
-            </Button>
-          </div>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
