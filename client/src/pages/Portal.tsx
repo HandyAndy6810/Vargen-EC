@@ -277,6 +277,7 @@ export default function Portal() {
                   onChange={(e) => setFeedbackMessage(e.target.value)}
                   placeholder="Describe the changes you'd like..."
                   className="min-h-[100px] resize-none rounded-xl border-gray-200 text-sm"
+                  disabled={isSendingFeedback}
                 />
                 <div className="flex gap-2">
                   <Button

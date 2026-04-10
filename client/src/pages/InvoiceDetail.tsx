@@ -98,7 +98,7 @@ export default function InvoiceDetail() {
     const updatedNotes = invoice.notes ? `${invoice.notes}\n${paymentNote}` : paymentNote;
     updateInvoice(
       { id: invoice.id, status: "paid", paidDate: new Date().toISOString(), notes: updatedNotes } as any,
-      { onSuccess: () => { setShowPaymentDialog(false); setPaymentReference(""); } }
+      { onSuccess: () => { setShowPaymentDialog(false); setPaymentReference(""); setPaymentMethod("bank"); } }
     );
   };
 

@@ -312,7 +312,7 @@ export function JobCompletionModal({
           {/* Complete button */}
           <Button
             onClick={handleComplete}
-            disabled={updateJob.isPending || !actualHours}
+            disabled={updateJob.isPending || !actualHours || parseFloat(actualHours) <= 0}
             className="w-full h-14 rounded-2xl text-base font-bold bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20"
           >
             {updateJob.isPending ? (

@@ -277,6 +277,7 @@ export default function AcceptAndScheduleDialog({
                     <Input
                       type="date"
                       value={scheduledDate}
+                      min={format(new Date(), "yyyy-MM-dd")}
                       onChange={(e) => setScheduledDate(e.target.value)}
                       data-testid="input-schedule-date"
                     />
