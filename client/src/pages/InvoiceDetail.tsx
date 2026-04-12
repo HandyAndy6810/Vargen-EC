@@ -68,10 +68,14 @@ export default function InvoiceDetail() {
 
   const saveEdits = () => {
     if (!invoice) return;
+    // Validate: at least one item with description and non-zero values
+    const invalidItems = editItems.filter(item => !item.description.trim() || item.quantity <= 0 || item.unitPrice < 0);
+    if (editItems.length === 0 || invalidItems.length > 0) return;
+
     const subtotal = editItems.reduce((s, item) => s + item.quantity * item.unitPrice, 0);
-    const gstAmount = parseItems(invoice.items).some(() => Number(invoice.gstAmount) > 0)
-      ? Number(invoice.gstAmount) > 0 ? +(subtotal * 0.1).toFixed(2) : 0
-      : 0;
+    // Preserve original GST setting — don't silently drop GST on edit
+    const wasGSTEnabled = Number(invoice.gstAmount) > 0;
+    const gstAmount = wasGSTEnabled ? +(subtotal * 0.1).toFixed(2) : 0;
     const totalAmount = subtotal + gstAmount;
     updateInvoice(
       {
@@ -79,9 +83,9 @@ export default function InvoiceDetail() {
         dueDate: editDueDate ? new Date(editDueDate).toISOString() : null,
         notes: editNotes || null,
         items: JSON.stringify(editItems),
-        subtotal: String(subtotal.toFixed(2)),
-        gstAmount: String(gstAmount.toFixed(2)),
-        totalAmount: String(totalAmount.toFixed(2)),
+        subtotal: subtotal.toFixed(2),
+        gstAmount: gstAmount.toFixed(2),
+        totalAmount: totalAmount.toFixed(2),
       } as any,
       { onSuccess: () => setIsEditing(false) }
     );
@@ -142,7 +146,15 @@ export default function InvoiceDetail() {
     { value: "cheque", label: "Cheque" },
   ];
 
-  const handleMarkSent = () => updateInvoice({ id: invoice.id, status: "sent" });
+  const [showNoEmailWarning, setShowNoEmailWarning] = useState(false);
+  const handleMarkSent = () => {
+    if (!customer?.email) { setShowNoEmailWarning(true); return; }
+    updateInvoice({ id: invoice.id, status: "sent" });
+  };
+  const handleMarkSentAnyway = () => {
+    setShowNoEmailWarning(false);
+    updateInvoice({ id: invoice.id, status: "sent" });
+  };
 
   const alreadyPaid = Number(invoice?.paidAmount || 0);
   const remaining = totalAmount - alreadyPaid;
@@ -154,7 +166,11 @@ export default function InvoiceDetail() {
     setShowPaymentDialog(true);
   };
 
+  const enteredAmount = parseFloat(paymentAmountInput) || 0;
+  const amountExceedsRemaining = enteredAmount > remaining + 0.005;
+
   const handleConfirmPaid = () => {
+    if (enteredAmount <= 0 || amountExceedsRemaining) return;
     const methodLabel = PAYMENT_METHODS.find(m => m.value === paymentMethod)?.label || paymentMethod;
     const amountNote = !isFullPayment ? ` ($${payAmount.toFixed(2)})` : "";
     const paymentNote = `Payment${amountNote} via ${methodLabel}${paymentReference ? ` — Ref: ${paymentReference}` : ""}`;
@@ -639,8 +655,8 @@ export default function InvoiceDetail() {
               </div>
               {alreadyPaid > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Already paid</span>
-                  <span className="font-medium text-green-600">−${alreadyPaid.toFixed(2)}</span>
+                  <span className="text-muted-foreground">Paid so far</span>
+                  <span className="font-medium text-green-600">${alreadyPaid.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between font-bold text-base border-t border-black/5 dark:border-white/10 pt-2">
@@ -670,9 +686,14 @@ export default function InvoiceDetail() {
                 onChange={e => setPaymentAmountInput(e.target.value)}
                 className="rounded-xl h-12 text-lg font-bold"
               />
-              {!isFullPayment && parseFloat(paymentAmountInput) > 0 && (
+              {amountExceedsRemaining && (
+                <p className="text-xs text-red-600 dark:text-red-400 font-medium">
+                  Amount exceeds the ${remaining.toFixed(2)} remaining balance
+                </p>
+              )}
+              {!isFullPayment && enteredAmount > 0 && !amountExceedsRemaining && (
                 <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                  Partial payment — ${(remaining - payAmount).toFixed(2)} will still be outstanding
+                  Partial payment — ${(remaining - payAmount).toFixed(2)} still outstanding after this
                 </p>
               )}
             </div>
@@ -709,7 +730,7 @@ export default function InvoiceDetail() {
 
             <Button
               onClick={handleConfirmPaid}
-              disabled={isUpdating || !paymentAmountInput || parseFloat(paymentAmountInput) <= 0}
+              disabled={isUpdating || enteredAmount <= 0 || amountExceedsRemaining}
               className={cn(
                 "w-full h-14 rounded-2xl text-base font-bold text-white",
                 isFullPayment ? "bg-green-600 hover:bg-green-700" : "bg-orange-500 hover:bg-orange-600"
@@ -722,6 +743,28 @@ export default function InvoiceDetail() {
                   : <><DollarSign className="w-5 h-5 mr-2" /> Record Partial Payment</>
               }
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* No-email warning dialog */}
+      <Dialog open={showNoEmailWarning} onOpenChange={setShowNoEmailWarning}>
+        <DialogContent className="rounded-[2rem] max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">No Email on File</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <p className="text-sm text-muted-foreground">
+              {customer?.name || "This customer"} has no email address — the invoice will be marked as sent but no email will be delivered.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowNoEmailWarning(false)} className="flex-1 rounded-2xl h-12">
+                Cancel
+              </Button>
+              <Button onClick={handleMarkSentAnyway} className="flex-1 rounded-2xl h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold">
+                Mark Sent Anyway
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

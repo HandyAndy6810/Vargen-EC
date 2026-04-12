@@ -135,14 +135,15 @@ export default function Invoices() {
           <div className="bg-white dark:bg-white/5 rounded-[2rem] p-12 text-center shadow-sm border border-black/5 dark:border-white/10">
             <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />
             <p className="font-medium text-muted-foreground">
-              {tab === "all"
-                ? "No invoices yet"
-                : `No ${tab} invoices`}
+              {tab === "all" ? "No invoices yet" : `No ${tab} invoices`}
             </p>
             <p className="text-sm text-muted-foreground/60 mt-1">
-              {tab === "all"
-                ? "Create your first invoice from an accepted quote."
-                : `Invoices with "${tab}" status will appear here.`}
+              {tab === "all" && "Tap + to create one, or create from an accepted quote."}
+              {tab === "draft" && "Drafts appear here before you send them to customers."}
+              {tab === "sent" && "Invoices waiting on payment will appear here."}
+              {tab === "partial" && "Invoices with a deposit or partial payment appear here."}
+              {tab === "paid" && "Fully paid invoices will appear here."}
+              {tab === "overdue" && "Invoices past their due date will appear here automatically."}
             </p>
           </div>
         ) : (
