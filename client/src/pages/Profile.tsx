@@ -1121,7 +1121,7 @@ export default function Profile() {
 
       {/* Clear All Data confirmation dialog */}
       <AlertDialog open={showClearDialog} onOpenChange={(v) => { if (!v) { setShowClearDialog(false); setClearConfirmText(""); } }}>
-        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+        <AlertDialogContent className="rounded-[2rem] max-w-sm">
           <AlertDialogHeader>
             <div className="flex items-center gap-3 mb-1">
               <div className="w-10 h-10 rounded-2xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">

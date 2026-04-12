@@ -13,7 +13,7 @@ interface Props {
 export function WidgetCustomiseSheet({ open, onOpenChange, config, toggle }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm rounded-[2rem] p-7 mx-4">
+      <DialogContent className="sm:max-w-sm rounded-[2rem] p-7">
         <DialogHeader className="mb-5">
           <DialogTitle className="flex items-center gap-2.5 text-xl font-bold">
             <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center shrink-0">

@@ -510,7 +510,7 @@ export default function InvoiceDetail() {
 
       {/* Record Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="rounded-[2rem] mx-4 max-w-sm">
+        <DialogContent className="rounded-[2rem] max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Record Payment</DialogTitle>
           </DialogHeader>

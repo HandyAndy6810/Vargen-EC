@@ -230,7 +230,7 @@ export default function JobDetail() {
       />
 
       <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
-        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+        <AlertDialogContent className="rounded-[2rem] max-w-sm">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg font-bold">Cancel Job?</AlertDialogTitle>
             <AlertDialogDescription>This will mark the job as cancelled. You can reopen it from the job list.</AlertDialogDescription>

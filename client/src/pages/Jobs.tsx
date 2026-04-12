@@ -353,7 +353,7 @@ export default function Jobs() {
       />
 
       <AlertDialog open={confirmCancelId !== null} onOpenChange={(o) => { if (!o) setConfirmCancelId(null); }}>
-        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+        <AlertDialogContent className="rounded-[2rem] max-w-sm">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg font-bold">Cancel Job?</AlertDialogTitle>
             <AlertDialogDescription>This will mark the job as cancelled.</AlertDialogDescription>
