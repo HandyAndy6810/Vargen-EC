@@ -76,7 +76,7 @@ export function QuickQuoteSheet({ open, onOpenChange }: Props) {
       <SuccessFlash show={showFlash} message="Quote Created!" onDone={handleFlashDone} duration={1200} />
 
       <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
-        <DialogContent className="sm:max-w-sm rounded-[2rem] p-7 mx-4">
+        <DialogContent className="sm:max-w-sm rounded-[2rem] p-7">
             <div className="flex items-center gap-2.5 mb-5">
             <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shrink-0">
               <Zap className="w-4 h-4 text-white" strokeWidth={2.5} />

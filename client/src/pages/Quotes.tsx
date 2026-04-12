@@ -439,7 +439,7 @@ export default function Quotes() {
       </div>
 
       <AlertDialog open={confirmDeleteId !== null} onOpenChange={(o) => { if (!o) setConfirmDeleteId(null); }}>
-        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+        <AlertDialogContent className="rounded-[2rem] max-w-sm">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-lg font-bold">Delete Quote?</AlertDialogTitle>
             <AlertDialogDescription>This can't be undone.</AlertDialogDescription>

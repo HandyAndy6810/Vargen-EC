@@ -1037,7 +1037,7 @@ export default function QuoteDetail() {
 
       {/* Share Sheet Dialog */}
       <Dialog open={showShareSheet} onOpenChange={setShowShareSheet}>
-        <DialogContent className="rounded-[2rem] mx-4 max-w-sm">
+        <DialogContent className="rounded-[2rem] max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Share Quote</DialogTitle>
           </DialogHeader>
@@ -1111,7 +1111,7 @@ export default function QuoteDetail() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="rounded-[2rem] mx-4 max-w-sm">
+        <DialogContent className="rounded-[2rem] max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Delete Quote?</DialogTitle>
           </DialogHeader>
@@ -1144,7 +1144,7 @@ export default function QuoteDetail() {
 
       {/* Acknowledgment Gate — shown before marking as sent */}
       <AlertDialog open={showAckDialog} onOpenChange={setShowAckDialog}>
-        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+        <AlertDialogContent className="rounded-[2rem] max-w-sm">
           <AlertDialogHeader>
             <AlertDialogTitleComp className="text-lg font-bold">Review Before Sending</AlertDialogTitleComp>
             <AlertDialogDescription className="text-sm">
@@ -1186,7 +1186,7 @@ export default function QuoteDetail() {
 
       {/* Reject Confirmation */}
       <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <AlertDialogContent className="rounded-[2rem] mx-4 max-w-sm">
+        <AlertDialogContent className="rounded-[2rem] max-w-sm">
           <AlertDialogHeader>
             <AlertDialogTitleComp className="text-lg font-bold">Mark as Rejected?</AlertDialogTitleComp>
             <AlertDialogDescription>This will mark the quote as rejected by the client.</AlertDialogDescription>

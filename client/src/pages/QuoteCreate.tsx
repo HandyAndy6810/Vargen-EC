@@ -1185,7 +1185,7 @@ export default function QuoteCreate() {
 
       {/* ════════════ ADD ITEM MODAL ════════════ */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="rounded-[2rem] mx-4 max-w-sm max-h-[80vh] overflow-y-auto">
+        <DialogContent className="rounded-[2rem] max-w-sm max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Add Item</DialogTitle>
           </DialogHeader>
@@ -1258,7 +1258,7 @@ export default function QuoteCreate() {
 
       {/* ════════════ FINALIZE MODAL ════════════ */}
       <Dialog open={showFinalizeModal} onOpenChange={(open) => { setShowFinalizeModal(open); if (!open) { setAckChecked(false); setFinalizeStep(1); } }}>
-        <DialogContent className="rounded-[2rem] mx-4 max-w-sm max-h-[80vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="rounded-[2rem] max-w-sm max-h-[80vh] overflow-y-auto overflow-x-hidden">
           {/* Step indicator */}
           <div className="flex items-center gap-2 justify-center pt-1">
             <div className={cn("w-2 h-2 rounded-full transition-colors", finalizeStep === 1 ? "bg-amber-500" : "bg-green-500")} />
