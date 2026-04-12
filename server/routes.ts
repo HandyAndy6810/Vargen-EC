@@ -799,6 +799,46 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
+  // Standalone invoice creation (no quote required)
+  app.post("/api/invoices", async (req: any, res) => {
+    try {
+      const { customerId, items, dueDate, notes, includeGST } = req.body;
+      if (!customerId) return res.status(400).json({ message: "Customer is required" });
+      if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: "At least one line item is required" });
+
+      const subtotal = items.reduce((s: number, item: any) => s + (Number(item.quantity) * Number(item.unitPrice)), 0);
+      const gstAmount = includeGST ? +(subtotal * 0.1).toFixed(2) : 0;
+      const totalAmount = subtotal + gstAmount;
+
+      // Default due date: today + payment terms (fallback 14 days)
+      let dueDateValue: Date;
+      if (dueDate) {
+        dueDateValue = new Date(dueDate);
+      } else {
+        const s = await storage.getAnyUserSettings();
+        const days = s?.paymentTermsDays ?? 14;
+        dueDateValue = new Date(Date.now() + Number(days) * 24 * 60 * 60 * 1000);
+      }
+
+      const invoiceNumber = await storage.getNextInvoiceNumber();
+      const invoice = await storage.createInvoice({
+        customerId: Number(customerId),
+        invoiceNumber,
+        status: "draft",
+        items: JSON.stringify(items),
+        subtotal: subtotal.toFixed(2),
+        gstAmount: gstAmount.toFixed(2),
+        totalAmount: totalAmount.toFixed(2),
+        dueDate: dueDateValue,
+        notes: notes || null,
+      });
+
+      res.status(201).json(invoice);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to create invoice" });
+    }
+  });
+
   app.get("/api/invoices/:id", async (req: any, res) => {
     try {
       const id = Number(req.params.id);
@@ -878,7 +918,23 @@ CRITICAL RULES — follow these exactly:
       const existing = await storage.getInvoice(id);
       if (!existing) return res.status(404).json({ message: "Invoice not found" });
 
-      const updated = await storage.updateInvoice(id, req.body);
+      // Partial payment handling: if payAmount is provided, accumulate and decide status
+      let patchBody = { ...req.body };
+      if (typeof patchBody.payAmount === "number") {
+        const already = Number(existing.paidAmount || 0);
+        const newPaidAmount = +(already + patchBody.payAmount).toFixed(2);
+        const total = Number(existing.totalAmount);
+        patchBody.paidAmount = String(newPaidAmount);
+        if (newPaidAmount >= total) {
+          patchBody.status = "paid";
+          patchBody.paidDate = new Date().toISOString();
+        } else {
+          patchBody.status = "partial";
+        }
+        delete patchBody.payAmount;
+      }
+
+      const updated = await storage.updateInvoice(id, patchBody);
       res.json(updated);
 
       // Send email when invoice is first marked as sent

@@ -2,17 +2,19 @@ import { useState } from "react";
 import { useInvoices } from "@/hooks/use-invoices";
 import { useCustomers } from "@/hooks/use-customers";
 import { useLocation } from "wouter";
-import { FileText, DollarSign, Clock, CheckCircle, Loader2 } from "lucide-react";
+import { FileText, DollarSign, Clock, CheckCircle, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isAfter, startOfMonth } from "date-fns";
+import { NewInvoiceSheet } from "@/components/NewInvoiceSheet";
 
-type FilterTab = "all" | "draft" | "sent" | "paid" | "overdue";
+type FilterTab = "all" | "draft" | "sent" | "partial" | "paid" | "overdue";
 
 export default function Invoices() {
   const { data: invoices, isLoading } = useInvoices();
   const { data: customers } = useCustomers();
   const [, setLocation] = useLocation();
   const [tab, setTab] = useState<FilterTab>("all");
+  const [showNew, setShowNew] = useState(false);
 
   const getCustomerName = (customerId: number | null) => {
     if (!customerId) return "No customer";
@@ -29,8 +31,11 @@ export default function Invoices() {
     }) || [];
 
   const totalOutstanding = invoices
-    ?.filter(inv => inv.status === "sent" || inv.status === "overdue")
-    .reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0) || 0;
+    ?.filter(inv => ["sent", "overdue", "partial"].includes(inv.status || ""))
+    .reduce((sum, inv) => {
+      const paid = Number((inv as any).paidAmount || 0);
+      return sum + Math.max(Number(inv.totalAmount || 0) - paid, 0);
+    }, 0) || 0;
 
   const monthStart = startOfMonth(new Date());
   const paidThisMonth = invoices
@@ -43,6 +48,8 @@ export default function Invoices() {
         return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
       case "sent":
         return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+      case "partial":
+        return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
       case "paid":
         return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
       case "overdue":
@@ -56,6 +63,7 @@ export default function Invoices() {
     { key: "all", label: "All" },
     { key: "draft", label: "Draft" },
     { key: "sent", label: "Sent" },
+    { key: "partial", label: "Partial" },
     { key: "paid", label: "Paid" },
     { key: "overdue", label: "Overdue" },
   ];
@@ -66,11 +74,12 @@ export default function Invoices() {
       <div className="px-6 pt-12 mb-6">
         <div className="flex items-center justify-between gap-4 mb-4">
           <h1 className="text-3xl font-bold text-foreground">Invoices</h1>
-          {invoices && (
-            <span className="text-sm font-bold text-muted-foreground">
-              {invoices.length} total
-            </span>
-          )}
+          <button
+            onClick={() => setShowNew(true)}
+            className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/25 active:scale-90 transition-transform"
+          >
+            <Plus className="w-5 h-5 text-white" />
+          </button>
         </div>
 
         {/* Summary Stats */}
@@ -185,6 +194,8 @@ export default function Invoices() {
           ))
         )}
       </div>
+
+      <NewInvoiceSheet open={showNew} onOpenChange={setShowNew} />
     </div>
   );
 }

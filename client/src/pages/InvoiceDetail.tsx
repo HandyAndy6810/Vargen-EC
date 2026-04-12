@@ -48,6 +48,7 @@ export default function InvoiceDetail() {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("bank");
   const [paymentReference, setPaymentReference] = useState("");
+  const [paymentAmountInput, setPaymentAmountInput] = useState("");
 
   // Edit mode state (draft only)
   const [isEditing, setIsEditing] = useState(false);
@@ -125,11 +126,12 @@ export default function InvoiceDetail() {
 
   const statusColor = (status: string | null) => {
     switch (status) {
-      case "draft":   return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
-      case "sent":    return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      case "paid":    return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-      case "overdue": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-      default:        return "bg-muted text-muted-foreground";
+      case "draft":    return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+      case "sent":     return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+      case "partial":  return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
+      case "paid":     return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+      case "overdue":  return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+      default:         return "bg-muted text-muted-foreground";
     }
   };
 
@@ -142,13 +144,24 @@ export default function InvoiceDetail() {
 
   const handleMarkSent = () => updateInvoice({ id: invoice.id, status: "sent" });
 
+  const alreadyPaid = Number(invoice?.paidAmount || 0);
+  const remaining = totalAmount - alreadyPaid;
+  const payAmount = parseFloat(paymentAmountInput) || remaining;
+  const isFullPayment = payAmount >= remaining;
+
+  const openPaymentDialog = () => {
+    setPaymentAmountInput(remaining.toFixed(2));
+    setShowPaymentDialog(true);
+  };
+
   const handleConfirmPaid = () => {
     const methodLabel = PAYMENT_METHODS.find(m => m.value === paymentMethod)?.label || paymentMethod;
-    const paymentNote = `Paid via ${methodLabel}${paymentReference ? ` — Ref: ${paymentReference}` : ""}`;
+    const amountNote = !isFullPayment ? ` ($${payAmount.toFixed(2)})` : "";
+    const paymentNote = `Payment${amountNote} via ${methodLabel}${paymentReference ? ` — Ref: ${paymentReference}` : ""}`;
     const updatedNotes = invoice.notes ? `${invoice.notes}\n${paymentNote}` : paymentNote;
     updateInvoice(
-      { id: invoice.id, status: "paid", paidDate: new Date().toISOString(), notes: updatedNotes } as any,
-      { onSuccess: () => { setShowPaymentDialog(false); setPaymentReference(""); setPaymentMethod("bank"); } }
+      { id: invoice.id, payAmount, notes: updatedNotes } as any,
+      { onSuccess: () => { setShowPaymentDialog(false); setPaymentReference(""); setPaymentMethod("bank"); setPaymentAmountInput(""); } }
     );
   };
 
@@ -570,14 +583,15 @@ export default function InvoiceDetail() {
                 </div>
               )}
 
-              {(invoice.status === "sent" || invoice.status === "overdue") && (
+              {(invoice.status === "sent" || invoice.status === "overdue" || invoice.status === "partial") && (
                 <div className="space-y-2">
                   <Button
-                    onClick={() => setShowPaymentDialog(true)}
+                    onClick={openPaymentDialog}
                     disabled={isUpdating}
                     className="w-full h-14 rounded-2xl text-base font-bold bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <DollarSign className="w-5 h-5 mr-2" /> Record Payment
+                    <DollarSign className="w-5 h-5 mr-2" />
+                    {invoice.status === "partial" ? `Record Payment ($${remaining.toFixed(2)} remaining)` : "Record Payment"}
                   </Button>
                   <Button
                     onClick={() => resendInvoice(invoice.id)}
@@ -617,10 +631,52 @@ export default function InvoiceDetail() {
             <DialogTitle className="text-lg font-bold">Record Payment</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-1">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Amount</p>
-              <p className="text-2xl font-bold text-foreground">${totalAmount.toFixed(2)}</p>
+            {/* Payment progress */}
+            <div className="bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Invoice total</span>
+                <span className="font-bold">${totalAmount.toFixed(2)}</span>
+              </div>
+              {alreadyPaid > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Already paid</span>
+                  <span className="font-medium text-green-600">−${alreadyPaid.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-base border-t border-black/5 dark:border-white/10 pt-2">
+                <span>Remaining</span>
+                <span className="text-primary">${remaining.toFixed(2)}</span>
+              </div>
+              {/* Progress bar */}
+              {alreadyPaid > 0 && (
+                <div className="w-full h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-full"
+                    style={{ width: `${Math.min((alreadyPaid / totalAmount) * 100, 100)}%` }}
+                  />
+                </div>
+              )}
             </div>
+
+            {/* Amount received */}
+            <div className="space-y-1.5">
+              <Label>Amount Received ($)</Label>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                max={remaining}
+                value={paymentAmountInput}
+                onChange={e => setPaymentAmountInput(e.target.value)}
+                className="rounded-xl h-12 text-lg font-bold"
+              />
+              {!isFullPayment && parseFloat(paymentAmountInput) > 0 && (
+                <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                  Partial payment — ${(remaining - payAmount).toFixed(2)} will still be outstanding
+                </p>
+              )}
+            </div>
+
             <div className="space-y-1.5">
               <Label>Payment Method</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -640,6 +696,7 @@ export default function InvoiceDetail() {
                 ))}
               </div>
             </div>
+
             <div className="space-y-1.5">
               <Label>Reference <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input
@@ -649,12 +706,21 @@ export default function InvoiceDetail() {
                 className="rounded-xl"
               />
             </div>
+
             <Button
               onClick={handleConfirmPaid}
-              disabled={isUpdating}
-              className="w-full h-14 rounded-2xl text-base font-bold bg-green-600 hover:bg-green-700 text-white"
+              disabled={isUpdating || !paymentAmountInput || parseFloat(paymentAmountInput) <= 0}
+              className={cn(
+                "w-full h-14 rounded-2xl text-base font-bold text-white",
+                isFullPayment ? "bg-green-600 hover:bg-green-700" : "bg-orange-500 hover:bg-orange-600"
+              )}
             >
-              {isUpdating ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Saving…</> : <><CheckCircle className="w-5 h-5 mr-2" /> Confirm Payment</>}
+              {isUpdating
+                ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Saving…</>
+                : isFullPayment
+                  ? <><CheckCircle className="w-5 h-5 mr-2" /> Mark as Paid</>
+                  : <><DollarSign className="w-5 h-5 mr-2" /> Record Partial Payment</>
+              }
             </Button>
           </div>
         </DialogContent>
