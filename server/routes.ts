@@ -785,13 +785,14 @@ CRITICAL RULES — follow these exactly:
   app.get(api.invoices.list.path, async (req: any, res) => {
     try {
       const allInvoices = await storage.getInvoices();
-      // Auto-mark overdue: any "sent" invoice where dueDate is in the past
+      // Auto-mark overdue: batch-update any "sent" invoice past its due date
       const now = new Date();
-      for (const inv of allInvoices) {
-        if (inv.status === "sent" && inv.dueDate && new Date(inv.dueDate) < now) {
-          await storage.updateInvoice(inv.id, { status: "overdue" });
-          inv.status = "overdue";
-        }
+      const overdueIds = allInvoices
+        .filter(inv => inv.status === "sent" && inv.dueDate && new Date(inv.dueDate) < now)
+        .map(inv => inv.id);
+      if (overdueIds.length > 0) {
+        await Promise.all(overdueIds.map(id => storage.updateInvoice(id, { status: "overdue" })));
+        allInvoices.forEach(inv => { if (overdueIds.includes(inv.id)) inv.status = "overdue"; });
       }
       res.json(allInvoices);
     } catch (error: any) {

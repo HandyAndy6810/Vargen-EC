@@ -61,10 +61,15 @@ export default function InvoicePreview() {
   const paidDate = invoice.paidDate ? format(new Date(invoice.paidDate), "dd MMMM yyyy") : null;
 
   const bankName = settings?.bankName || "";
-  const bankBsb = settings?.bankBsb || "";
+  const bankBsb = settings?.bsb || "";
   const bankAccountNumber = settings?.accountNumber || "";
-  const bankAccountName = settings?.bankAccountName || "";
+  const bankAccountName = settings?.accountName || "";
   const hasBankDetails = bankName || bankBsb || bankAccountNumber;
+
+  const alreadyPaid = Number((invoice as any).paidAmount || 0);
+  const remaining = totalAmount - alreadyPaid;
+  const isPartial = invoice.status === "partial";
+  const isFullyPaid = invoice.status === "paid";
 
   const businessName = settings?.businessName || "Your Business";
 
@@ -150,11 +155,19 @@ export default function InvoicePreview() {
                   <p className="text-sm text-gray-400 italic">No customer specified</p>
                 )}
               </div>
-              {invoice.status === "paid" && paidDate && (
+              {isFullyPaid && paidDate && (
                 <div>
                   <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-2">Payment</p>
-                  <p className="font-bold text-base text-green-600">Paid</p>
+                  <p className="font-bold text-base text-green-600">Paid in Full</p>
                   <p className="text-sm text-gray-600 mt-0.5">{paidDate}</p>
+                </div>
+              )}
+              {isPartial && alreadyPaid > 0 && (
+                <div>
+                  <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-2">Payment</p>
+                  <p className="font-bold text-base text-orange-600">Partially Paid</p>
+                  <p className="text-sm text-gray-600 mt-0.5">${alreadyPaid.toFixed(2)} received</p>
+                  <p className="text-sm font-semibold text-red-600 mt-0.5">${remaining.toFixed(2)} outstanding</p>
                 </div>
               )}
             </div>
@@ -253,11 +266,13 @@ export default function InvoicePreview() {
             </div>
           )}
 
-          {/* Due Date Highlight */}
-          {dueDate && invoice.status !== "paid" && (
-            <div className="px-4 sm:px-8 py-4 print:px-10 bg-red-50 border-t border-red-100 text-center">
-              <p className="text-sm font-bold text-red-700">
-                Payment due by {dueDate}
+          {/* Due Date / Outstanding Highlight */}
+          {dueDate && !isFullyPaid && (
+            <div className={`px-4 sm:px-8 py-4 print:px-10 border-t text-center ${isPartial ? "bg-orange-50 border-orange-100" : "bg-red-50 border-red-100"}`}>
+              <p className={`text-sm font-bold ${isPartial ? "text-orange-700" : "text-red-700"}`}>
+                {isPartial
+                  ? `$${remaining.toFixed(2)} outstanding — due ${dueDate}`
+                  : `Payment due by ${dueDate}`}
               </p>
             </div>
           )}
