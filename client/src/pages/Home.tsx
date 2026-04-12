@@ -101,6 +101,13 @@ export default function Home() {
     [invoices]
   );
 
+  const overdueTotal = useMemo(() =>
+    (invoices || [])
+      .filter(i => i.status === "overdue")
+      .reduce((s, i) => s + parseFloat(i.totalAmount || "0"), 0),
+    [invoices]
+  );
+
   // Recent quotes (last 3 accepted/sent/draft)
   const recentQuotes = useMemo(() =>
     (quotes || [])
@@ -287,6 +294,24 @@ export default function Home() {
                 {followUpsDue.length} quote follow-up{followUpsDue.length !== 1 ? "s" : ""} due
               </p>
               <ChevronRight className="w-4 h-4 text-amber-600 shrink-0" />
+            </div>
+          </Link>
+        )}
+
+        {/* ── Overdue Invoice Alert ────────────────────────────── */}
+        {overdueCount > 0 && (
+          <Link href="/invoices">
+            <div className="flex items-center gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl px-4 py-3 active:scale-[0.98] transition-transform">
+              <FileText className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+                  {overdueCount} overdue invoice{overdueCount !== 1 ? "s" : ""}
+                </p>
+                <p className="text-xs text-red-600/70 dark:text-red-400/70">
+                  ${overdueTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} outstanding
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
             </div>
           </Link>
         )}

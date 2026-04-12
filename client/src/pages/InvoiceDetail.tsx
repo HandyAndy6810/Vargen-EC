@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { useRoute, useLocation } from "wouter";
-import { useInvoice, useUpdateInvoice } from "@/hooks/use-invoices";
+import { useInvoice, useUpdateInvoice, useResendInvoice } from "@/hooks/use-invoices";
 import { useCustomer } from "@/hooks/use-customers";
 import { useUserSettings } from "@/hooks/use-user-settings";
-import { ArrowLeft, Download, Send, CheckCircle, DollarSign, Building, Loader2 } from "lucide-react";
+import {
+  ArrowLeft, Download, Send, CheckCircle, DollarSign, Building,
+  Loader2, RefreshCw, Pencil, X, Plus, Trash2, Save,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -35,9 +39,62 @@ export default function InvoiceDetail() {
   const id = parseInt(params?.id || "0");
   const { data: invoice, isLoading } = useInvoice(id);
   const { mutate: updateInvoice, isPending: isUpdating } = useUpdateInvoice();
+  const { mutate: resendInvoice, isPending: isResending } = useResendInvoice();
   const customerId = invoice?.customerId || 0;
   const { data: customer } = useCustomer(customerId);
   const { data: settings } = useUserSettings();
+
+  // Payment dialog state
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("bank");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentAmountInput, setPaymentAmountInput] = useState("");
+
+  // Edit mode state (draft only)
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editItems, setEditItems] = useState<ParsedItem[]>([]);
+
+  const startEditing = () => {
+    if (!invoice) return;
+    setEditDueDate(invoice.dueDate ? format(new Date(invoice.dueDate), "yyyy-MM-dd") : "");
+    setEditNotes(invoice.notes || "");
+    setEditItems(parseItems(invoice.items));
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => setIsEditing(false);
+
+  const saveEdits = () => {
+    if (!invoice) return;
+    const subtotal = editItems.reduce((s, item) => s + item.quantity * item.unitPrice, 0);
+    const gstAmount = parseItems(invoice.items).some(() => Number(invoice.gstAmount) > 0)
+      ? Number(invoice.gstAmount) > 0 ? +(subtotal * 0.1).toFixed(2) : 0
+      : 0;
+    const totalAmount = subtotal + gstAmount;
+    updateInvoice(
+      {
+        id: invoice.id,
+        dueDate: editDueDate ? new Date(editDueDate).toISOString() : null,
+        notes: editNotes || null,
+        items: JSON.stringify(editItems),
+        subtotal: String(subtotal.toFixed(2)),
+        gstAmount: String(gstAmount.toFixed(2)),
+        totalAmount: String(totalAmount.toFixed(2)),
+      } as any,
+      { onSuccess: () => setIsEditing(false) }
+    );
+  };
+
+  const addItem = () =>
+    setEditItems(prev => [...prev, { description: "", quantity: 1, unitPrice: 0 }]);
+
+  const removeItem = (i: number) =>
+    setEditItems(prev => prev.filter((_, idx) => idx !== i));
+
+  const updateItem = (i: number, field: keyof ParsedItem, value: string | number) =>
+    setEditItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
 
   if (isLoading) {
     return (
@@ -69,36 +126,42 @@ export default function InvoiceDetail() {
 
   const statusColor = (status: string | null) => {
     switch (status) {
-      case "draft": return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
-      case "sent": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      case "paid": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-      case "overdue": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-      default: return "bg-muted text-muted-foreground";
+      case "draft":    return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+      case "sent":     return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+      case "partial":  return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
+      case "paid":     return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+      case "overdue":  return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+      default:         return "bg-muted text-muted-foreground";
     }
   };
 
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("bank");
-  const [paymentReference, setPaymentReference] = useState("");
-
   const PAYMENT_METHODS = [
-    { value: "bank", label: "Bank Transfer" },
-    { value: "cash", label: "Cash" },
-    { value: "card", label: "Card" },
+    { value: "bank",   label: "Bank Transfer" },
+    { value: "cash",   label: "Cash" },
+    { value: "card",   label: "Card" },
     { value: "cheque", label: "Cheque" },
   ];
 
-  const handleMarkSent = () => {
-    updateInvoice({ id: invoice.id, status: "sent" });
+  const handleMarkSent = () => updateInvoice({ id: invoice.id, status: "sent" });
+
+  const alreadyPaid = Number(invoice?.paidAmount || 0);
+  const remaining = totalAmount - alreadyPaid;
+  const payAmount = parseFloat(paymentAmountInput) || remaining;
+  const isFullPayment = payAmount >= remaining;
+
+  const openPaymentDialog = () => {
+    setPaymentAmountInput(remaining.toFixed(2));
+    setShowPaymentDialog(true);
   };
 
   const handleConfirmPaid = () => {
     const methodLabel = PAYMENT_METHODS.find(m => m.value === paymentMethod)?.label || paymentMethod;
-    const paymentNote = `Paid via ${methodLabel}${paymentReference ? ` — Ref: ${paymentReference}` : ""}`;
+    const amountNote = !isFullPayment ? ` ($${payAmount.toFixed(2)})` : "";
+    const paymentNote = `Payment${amountNote} via ${methodLabel}${paymentReference ? ` — Ref: ${paymentReference}` : ""}`;
     const updatedNotes = invoice.notes ? `${invoice.notes}\n${paymentNote}` : paymentNote;
     updateInvoice(
-      { id: invoice.id, status: "paid", paidDate: new Date().toISOString(), notes: updatedNotes } as any,
-      { onSuccess: () => { setShowPaymentDialog(false); setPaymentReference(""); setPaymentMethod("bank"); } }
+      { id: invoice.id, payAmount, notes: updatedNotes } as any,
+      { onSuccess: () => { setShowPaymentDialog(false); setPaymentReference(""); setPaymentMethod("bank"); setPaymentAmountInput(""); } }
     );
   };
 
@@ -108,6 +171,11 @@ export default function InvoiceDetail() {
   const bankAccountName = settings?.accountName || "";
   const hasBankDetails = bankName || bankBsb || bankAccountNumber;
 
+  // Edit-mode line item totals
+  const editSubtotal = editItems.reduce((s, item) => s + item.quantity * item.unitPrice, 0);
+  const editGST = includeGST ? +(editSubtotal * 0.1).toFixed(2) : 0;
+  const editTotal = editSubtotal + editGST;
+
   const handleDownloadPDF = () => {
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -116,13 +184,9 @@ export default function InvoiceDetail() {
     let y = 25;
 
     const checkPageBreak = (needed: number) => {
-      if (y + needed > 270) {
-        doc.addPage();
-        y = 25;
-      }
+      if (y + needed > 270) { doc.addPage(); y = 25; }
     };
 
-    // Header — business details (left) + INVOICE label (right)
     const businessName = settings?.businessName || "";
     const businessAbn = settings?.abn || "";
     const businessPhone = settings?.phone || "";
@@ -130,21 +194,13 @@ export default function InvoiceDetail() {
     const businessAddress = settings?.address || "";
 
     if (businessName) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
-      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(0, 0, 0);
       doc.text(businessName, margin, y);
     }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(0, 0, 0);
     doc.text("INVOICE", pageWidth - margin, y, { align: "right" });
     y += 7;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100, 100, 100);
     if (businessAbn) { doc.text(`ABN: ${businessAbn}`, margin, y); y += 5; }
     if (businessPhone) { doc.text(businessPhone, margin, y); y += 5; }
     if (businessEmail) { doc.text(businessEmail, margin, y); y += 5; }
@@ -153,10 +209,8 @@ export default function InvoiceDetail() {
       addrLines.forEach((line: string) => { doc.text(line, margin, y); y += 5; });
     }
 
-    // Invoice meta on right side
     const metaY = 32;
-    doc.setTextColor(100, 100, 100);
-    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100); doc.setFontSize(9);
     doc.text(invoice.invoiceNumber, pageWidth - margin, metaY, { align: "right" });
     doc.text(invoiceDate, pageWidth - margin, metaY + 5, { align: "right" });
     if (dueDate) doc.text(`Due: ${dueDate}`, pageWidth - margin, metaY + 10, { align: "right" });
@@ -166,42 +220,28 @@ export default function InvoiceDetail() {
     doc.line(margin, y, pageWidth - margin, y);
     y += 10;
 
-    // Customer
     if (customer) {
-      doc.setTextColor(0, 0, 0);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.text("BILL TO", margin, y);
-      y += 6;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.text(customer.name, margin, y);
-      y += 5;
+      doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+      doc.text("BILL TO", margin, y); y += 6;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+      doc.text(customer.name, margin, y); y += 5;
       if (customer.email) { doc.text(customer.email, margin, y); y += 5; }
       if (customer.phone) { doc.text(customer.phone, margin, y); y += 5; }
       if (customer.address) { doc.text(customer.address, margin, y); y += 5; }
       y += 5;
     }
-
     y += 5;
 
-    // Line Items
     if (items.length > 0) {
       checkPageBreak(20);
-      doc.setTextColor(0, 0, 0);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold"); doc.setFontSize(11);
       doc.text("Item", margin, y);
       doc.text("Qty", margin + contentWidth * 0.55, y, { align: "right" });
       doc.text("Unit Price", margin + contentWidth * 0.75, y, { align: "right" });
       doc.text("Total", pageWidth - margin, y, { align: "right" });
       y += 3;
-      doc.setDrawColor(200, 200, 200);
-      doc.line(margin, y, pageWidth - margin, y);
-      y += 5;
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
+      doc.setDrawColor(200, 200, 200); doc.line(margin, y, pageWidth - margin, y); y += 5;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10);
       items.forEach((item) => {
         const descLines = doc.splitTextToSize(item.description, contentWidth * 0.5);
         const itemHeight = Math.max(descLines.length * 5, 6) + 2;
@@ -213,85 +253,50 @@ export default function InvoiceDetail() {
         doc.text(`$${(item.quantity * item.unitPrice).toFixed(2)}`, pageWidth - margin, y, { align: "right" });
         y += itemHeight;
       });
-
-      y += 4;
-      doc.setDrawColor(200, 200, 200);
-      doc.line(margin + contentWidth * 0.5, y, pageWidth - margin, y);
-      y += 7;
+      y += 4; doc.setDrawColor(200, 200, 200);
+      doc.line(margin + contentWidth * 0.5, y, pageWidth - margin, y); y += 7;
     }
 
-    // Totals
     checkPageBreak(30);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(100, 100, 100);
     doc.text("Subtotal", margin + contentWidth * 0.5, y);
     doc.setTextColor(0, 0, 0);
-    doc.text(`$${subtotal.toFixed(2)}`, pageWidth - margin, y, { align: "right" });
-    y += 6;
-
+    doc.text(`$${subtotal.toFixed(2)}`, pageWidth - margin, y, { align: "right" }); y += 6;
     if (includeGST) {
       doc.setTextColor(100, 100, 100);
       doc.text("GST (10%)", margin + contentWidth * 0.5, y);
       doc.setTextColor(0, 0, 0);
-      doc.text(`$${gstAmount.toFixed(2)}`, pageWidth - margin, y, { align: "right" });
-      y += 6;
+      doc.text(`$${gstAmount.toFixed(2)}`, pageWidth - margin, y, { align: "right" }); y += 6;
     }
-
     doc.setDrawColor(200, 200, 200);
-    doc.line(margin + contentWidth * 0.5, y, pageWidth - margin, y);
-    y += 7;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
+    doc.line(margin + contentWidth * 0.5, y, pageWidth - margin, y); y += 7;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(13);
     doc.text("Total", margin + contentWidth * 0.5, y);
-    doc.text(`$${totalAmount.toFixed(2)}`, pageWidth - margin, y, { align: "right" });
-    y += 14;
+    doc.text(`$${totalAmount.toFixed(2)}`, pageWidth - margin, y, { align: "right" }); y += 14;
 
-    // Bank Details
     if (hasBankDetails) {
       checkPageBreak(35);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(0, 0, 0);
-      doc.text("Payment Details", margin, y);
-      y += 7;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(80, 80, 80);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(0, 0, 0);
+      doc.text("Payment Details", margin, y); y += 7;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(80, 80, 80);
       if (bankName) { doc.text(`Bank: ${bankName}`, margin, y); y += 5; }
       if (bankBsb) { doc.text(`BSB: ${bankBsb}`, margin, y); y += 5; }
       if (bankAccountNumber) { doc.text(`Account: ${bankAccountNumber}`, margin, y); y += 5; }
       if (bankAccountName) { doc.text(`Account Name: ${bankAccountName}`, margin, y); y += 5; }
       y += 5;
     }
-
-    // Due Date
     if (dueDate) {
       checkPageBreak(15);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(200, 50, 50);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(200, 50, 50);
       doc.text(`Payment due by: ${dueDate}`, margin, y);
     }
-
-    // Notes
     if (invoice.notes) {
-      y += 10;
-      checkPageBreak(20);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(0, 0, 0);
-      doc.text("Notes", margin, y);
-      y += 6;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(80, 80, 80);
+      y += 10; checkPageBreak(20);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(0, 0, 0);
+      doc.text("Notes", margin, y); y += 6;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(80, 80, 80);
       const noteLines = doc.splitTextToSize(invoice.notes, contentWidth);
-      noteLines.forEach((line: string) => {
-        checkPageBreak(6);
-        doc.text(line, margin, y);
-        y += 5;
-      });
+      noteLines.forEach((line: string) => { checkPageBreak(6); doc.text(line, margin, y); y += 5; });
     }
 
     const pdfBlob = doc.output("blob");
@@ -309,7 +314,17 @@ export default function InvoiceDetail() {
             <ArrowLeft className="w-6 h-6 text-foreground" />
           </button>
           <span className="font-bold text-sm text-foreground">Invoice Detail</span>
-          <div className="w-10" />
+          {invoice.status === "draft" && !isEditing ? (
+            <button onClick={startEditing} className="p-2 -mr-2">
+              <Pencil className="w-5 h-5 text-muted-foreground" />
+            </button>
+          ) : isEditing ? (
+            <button onClick={cancelEditing} className="p-2 -mr-2">
+              <X className="w-5 h-5 text-muted-foreground" />
+            </button>
+          ) : (
+            <div className="w-10" />
+          )}
         </div>
       </div>
 
@@ -321,25 +336,36 @@ export default function InvoiceDetail() {
               <h1 className="text-xl font-bold text-foreground">{invoice.invoiceNumber}</h1>
               <p className="text-sm text-muted-foreground mt-0.5">{invoiceDate}</p>
             </div>
-            <span className={cn(
-              "text-xs font-bold px-3 py-1.5 rounded-full capitalize",
-              statusColor(invoice.status)
-            )}>
+            <span className={cn("text-xs font-bold px-3 py-1.5 rounded-full capitalize", statusColor(invoice.status))}>
               {invoice.status || "draft"}
             </span>
           </div>
-          {dueDate && invoice.status !== "paid" && (
-            <p className="text-sm text-muted-foreground">
-              Payment due by <span className="font-semibold text-foreground">{dueDate}</span>
-            </p>
-          )}
-          {invoice.status === "paid" && paidDate && (
-            <div className="flex items-center gap-2 mt-1">
-              <CheckCircle className="w-4 h-4 text-green-500" />
-              <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                Paid on {paidDate}
-              </span>
+
+          {/* Due date — editable in edit mode */}
+          {isEditing ? (
+            <div className="space-y-1.5 mt-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Due Date</Label>
+              <Input
+                type="date"
+                value={editDueDate}
+                onChange={e => setEditDueDate(e.target.value)}
+                className="rounded-xl h-11"
+              />
             </div>
+          ) : (
+            <>
+              {dueDate && invoice.status !== "paid" && (
+                <p className="text-sm text-muted-foreground">
+                  Payment due by <span className="font-semibold text-foreground">{dueDate}</span>
+                </p>
+              )}
+              {invoice.status === "paid" && paidDate && (
+                <div className="flex items-center gap-2 mt-1">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-medium text-green-600 dark:text-green-400">Paid on {paidDate}</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -366,145 +392,235 @@ export default function InvoiceDetail() {
           </div>
         )}
 
-        {/* Line Items */}
+        {/* Line Items — editable in edit mode */}
         <div className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-black/5 dark:border-white/10">
           <h2 className="font-bold text-foreground mb-4">Line Items</h2>
-          <div className="space-y-3">
-            {items.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No line items</p>
-            ) : (
-              items.map((item, i) => (
-                <div key={i} className="flex items-start justify-between gap-3 py-2 border-b border-black/5 dark:border-white/5 last:border-0">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {item.description}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.quantity} {item.unit || "x"} @ ${item.unitPrice.toFixed(2)}
-                    </p>
+
+          {isEditing ? (
+            <div className="space-y-3">
+              {editItems.map((item, i) => (
+                <div key={i} className="space-y-2 pb-3 border-b border-black/5 dark:border-white/5 last:border-0">
+                  <div className="flex items-start gap-2">
+                    <Input
+                      value={item.description}
+                      onChange={e => updateItem(i, "description", e.target.value)}
+                      placeholder="Description"
+                      className="rounded-xl flex-1"
+                    />
+                    <button onClick={() => removeItem(i)} className="p-2 text-red-500 shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                  <span className="text-sm font-bold text-foreground shrink-0">
-                    ${(item.quantity * item.unitPrice).toFixed(2)}
-                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Qty</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={item.quantity}
+                        onChange={e => updateItem(i, "quantity", parseFloat(e.target.value) || 0)}
+                        className="rounded-xl h-10"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Unit Price ($)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.unitPrice}
+                        onChange={e => updateItem(i, "unitPrice", parseFloat(e.target.value) || 0)}
+                        className="rounded-xl h-10"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-right text-muted-foreground font-medium">
+                    Line total: ${(item.quantity * item.unitPrice).toFixed(2)}
+                  </p>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+              <button
+                onClick={addItem}
+                className="w-full h-10 rounded-xl border-2 border-dashed border-primary/30 text-primary text-sm font-semibold flex items-center justify-center gap-1.5 hover:border-primary/60 transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Add Item
+              </button>
+              {/* Running totals in edit mode */}
+              <div className="space-y-1 pt-2 border-t border-black/5 dark:border-white/10">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="font-medium">${editSubtotal.toFixed(2)}</span>
+                </div>
+                {includeGST && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">GST (10%)</span>
+                    <span className="font-medium">${editGST.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold">
+                  <span>Total</span>
+                  <span className="text-primary">${editTotal.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {items.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No line items</p>
+              ) : (
+                items.map((item, i) => (
+                  <div key={i} className="flex items-start justify-between gap-3 py-2 border-b border-black/5 dark:border-white/5 last:border-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">{item.description}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.quantity} {item.unit || "x"} @ ${item.unitPrice.toFixed(2)}
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-foreground shrink-0">
+                      ${(item.quantity * item.unitPrice).toFixed(2)}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Totals */}
-        <div className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-black/5 dark:border-white/10">
-          <h2 className="font-bold text-foreground mb-3">Summary</h2>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-medium text-foreground">${subtotal.toFixed(2)}</span>
-            </div>
-            {includeGST && (
+        {/* Totals — only show in view mode (edit mode shows inline above) */}
+        {!isEditing && (
+          <div className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-black/5 dark:border-white/10">
+            <h2 className="font-bold text-foreground mb-3">Summary</h2>
+            <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">GST (10%)</span>
-                <span className="font-medium text-foreground">${gstAmount.toFixed(2)}</span>
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-medium text-foreground">${subtotal.toFixed(2)}</span>
               </div>
-            )}
-            <div className="border-t border-black/5 dark:border-white/10 pt-2 flex justify-between">
-              <span className="font-bold text-foreground">Total</span>
-              <span className="text-xl font-bold text-primary">${totalAmount.toFixed(2)}</span>
+              {includeGST && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">GST (10%)</span>
+                  <span className="font-medium text-foreground">${gstAmount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="border-t border-black/5 dark:border-white/10 pt-2 flex justify-between">
+                <span className="font-bold text-foreground">Total</span>
+                <span className="text-xl font-bold text-primary">${totalAmount.toFixed(2)}</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Notes — editable in edit mode */}
+        {isEditing ? (
+          <div className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-black/5 dark:border-white/10">
+            <Label className="font-bold text-foreground block mb-3">Notes</Label>
+            <Textarea
+              value={editNotes}
+              onChange={e => setEditNotes(e.target.value)}
+              placeholder="Payment instructions, job notes, terms…"
+              rows={4}
+              className="rounded-xl resize-none"
+            />
+          </div>
+        ) : invoice.notes ? (
+          <div className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-black/5 dark:border-white/10">
+            <h2 className="font-bold text-foreground mb-3">Notes</h2>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{invoice.notes}</p>
+          </div>
+        ) : null}
 
         {/* Bank Details */}
-        {hasBankDetails && (
+        {!isEditing && hasBankDetails && (
           <div className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-black/5 dark:border-white/10">
             <div className="flex items-center gap-2 mb-3">
               <Building className="w-4 h-4 text-muted-foreground" />
               <h2 className="font-bold text-foreground">Payment Details</h2>
             </div>
             <div className="space-y-1.5 text-sm">
-              {bankName && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Bank</span>
-                  <span className="font-medium text-foreground">{bankName}</span>
-                </div>
-              )}
-              {bankBsb && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">BSB</span>
-                  <span className="font-medium text-foreground">{bankBsb}</span>
-                </div>
-              )}
-              {bankAccountNumber && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Account Number</span>
-                  <span className="font-medium text-foreground">{bankAccountNumber}</span>
-                </div>
-              )}
-              {bankAccountName && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Account Name</span>
-                  <span className="font-medium text-foreground">{bankAccountName}</span>
-                </div>
-              )}
+              {bankName && <div className="flex justify-between"><span className="text-muted-foreground">Bank</span><span className="font-medium text-foreground">{bankName}</span></div>}
+              {bankBsb && <div className="flex justify-between"><span className="text-muted-foreground">BSB</span><span className="font-medium text-foreground">{bankBsb}</span></div>}
+              {bankAccountNumber && <div className="flex justify-between"><span className="text-muted-foreground">Account Number</span><span className="font-medium text-foreground">{bankAccountNumber}</span></div>}
+              {bankAccountName && <div className="flex justify-between"><span className="text-muted-foreground">Account Name</span><span className="font-medium text-foreground">{bankAccountName}</span></div>}
             </div>
-          </div>
-        )}
-
-        {/* Notes */}
-        {invoice.notes && (
-          <div className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-black/5 dark:border-white/10">
-            <h2 className="font-bold text-foreground mb-3">Notes</h2>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{invoice.notes}</p>
           </div>
         )}
 
         {/* Action Buttons */}
         <div className="space-y-2">
-          {invoice.status === "draft" && (
-            <div className="space-y-2">
+          {isEditing ? (
+            <>
               <Button
-                onClick={handleMarkSent}
+                onClick={saveEdits}
                 disabled={isUpdating}
-                className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                className="w-full h-14 rounded-2xl text-base font-bold bg-primary hover:bg-primary/90 text-white"
               >
-                {isUpdating ? (
-                  <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Sending...</>
-                ) : (
-                  <><Send className="w-5 h-5 mr-2" /> Send to Customer</>
-                )}
+                {isUpdating ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Saving…</> : <><Save className="w-5 h-5 mr-2" /> Save Changes</>}
               </Button>
-              {customer?.email && (
-                <p className="text-xs text-center text-muted-foreground">
-                  Invoice will be emailed to {customer.email}
-                </p>
+              <Button
+                onClick={cancelEditing}
+                variant="outline"
+                className="w-full h-12 rounded-2xl text-sm font-bold"
+              >
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              {invoice.status === "draft" && (
+                <div className="space-y-2">
+                  <Button
+                    onClick={handleMarkSent}
+                    disabled={isUpdating}
+                    className="w-full h-14 rounded-2xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {isUpdating ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Sending…</> : <><Send className="w-5 h-5 mr-2" /> Send to Customer</>}
+                  </Button>
+                  {customer?.email && (
+                    <p className="text-xs text-center text-muted-foreground">
+                      Invoice will be emailed to {customer.email}
+                    </p>
+                  )}
+                </div>
               )}
-            </div>
+
+              {(invoice.status === "sent" || invoice.status === "overdue" || invoice.status === "partial") && (
+                <div className="space-y-2">
+                  <Button
+                    onClick={openPaymentDialog}
+                    disabled={isUpdating}
+                    className="w-full h-14 rounded-2xl text-base font-bold bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <DollarSign className="w-5 h-5 mr-2" />
+                    {invoice.status === "partial" ? `Record Payment ($${remaining.toFixed(2)} remaining)` : "Record Payment"}
+                  </Button>
+                  <Button
+                    onClick={() => resendInvoice(invoice.id)}
+                    disabled={isResending}
+                    variant="outline"
+                    className="w-full h-12 rounded-2xl text-sm font-bold border-blue-500/30 text-blue-600 dark:text-blue-400"
+                  >
+                    {isResending ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Resending…</> : <><RefreshCw className="w-4 h-4 mr-2" /> Resend to Customer</>}
+                  </Button>
+                </div>
+              )}
+
+              <Button
+                onClick={handleDownloadPDF}
+                variant="outline"
+                className="w-full h-14 rounded-2xl text-base font-bold border-primary/20 text-primary"
+              >
+                <Download className="w-5 h-5 mr-2" /> Download PDF
+              </Button>
+
+              <Button
+                onClick={() => setLocation(`/invoices/${invoice.id}/preview`)}
+                variant="outline"
+                className="w-full h-12 rounded-2xl text-sm font-bold"
+              >
+                View Print Preview
+              </Button>
+            </>
           )}
-
-          {(invoice.status === "sent" || invoice.status === "overdue") && (
-            <Button
-              onClick={() => setShowPaymentDialog(true)}
-              disabled={isUpdating}
-              className="w-full h-14 rounded-2xl text-base font-bold bg-green-600 hover:bg-green-700 text-white"
-            >
-              <DollarSign className="w-5 h-5 mr-2" /> Record Payment
-            </Button>
-          )}
-
-          <Button
-            onClick={handleDownloadPDF}
-            variant="outline"
-            className="w-full h-14 rounded-2xl text-base font-bold border-primary/20 text-primary"
-          >
-            <Download className="w-5 h-5 mr-2" /> Download PDF
-          </Button>
-
-          <Button
-            onClick={() => setLocation(`/invoices/${invoice.id}/preview`)}
-            variant="outline"
-            className="w-full h-12 rounded-2xl text-sm font-bold"
-          >
-            View Print Preview
-          </Button>
         </div>
       </div>
 
@@ -515,10 +631,52 @@ export default function InvoiceDetail() {
             <DialogTitle className="text-lg font-bold">Record Payment</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-1">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Amount</p>
-              <p className="text-2xl font-bold text-foreground">${totalAmount.toFixed(2)}</p>
+            {/* Payment progress */}
+            <div className="bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Invoice total</span>
+                <span className="font-bold">${totalAmount.toFixed(2)}</span>
+              </div>
+              {alreadyPaid > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Already paid</span>
+                  <span className="font-medium text-green-600">−${alreadyPaid.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-base border-t border-black/5 dark:border-white/10 pt-2">
+                <span>Remaining</span>
+                <span className="text-primary">${remaining.toFixed(2)}</span>
+              </div>
+              {/* Progress bar */}
+              {alreadyPaid > 0 && (
+                <div className="w-full h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-full"
+                    style={{ width: `${Math.min((alreadyPaid / totalAmount) * 100, 100)}%` }}
+                  />
+                </div>
+              )}
             </div>
+
+            {/* Amount received */}
+            <div className="space-y-1.5">
+              <Label>Amount Received ($)</Label>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                max={remaining}
+                value={paymentAmountInput}
+                onChange={e => setPaymentAmountInput(e.target.value)}
+                className="rounded-xl h-12 text-lg font-bold"
+              />
+              {!isFullPayment && parseFloat(paymentAmountInput) > 0 && (
+                <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                  Partial payment — ${(remaining - payAmount).toFixed(2)} will still be outstanding
+                </p>
+              )}
+            </div>
+
             <div className="space-y-1.5">
               <Label>Payment Method</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -538,6 +696,7 @@ export default function InvoiceDetail() {
                 ))}
               </div>
             </div>
+
             <div className="space-y-1.5">
               <Label>Reference <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input
@@ -547,12 +706,21 @@ export default function InvoiceDetail() {
                 className="rounded-xl"
               />
             </div>
+
             <Button
               onClick={handleConfirmPaid}
-              disabled={isUpdating}
-              className="w-full h-14 rounded-2xl text-base font-bold bg-green-600 hover:bg-green-700 text-white"
+              disabled={isUpdating || !paymentAmountInput || parseFloat(paymentAmountInput) <= 0}
+              className={cn(
+                "w-full h-14 rounded-2xl text-base font-bold text-white",
+                isFullPayment ? "bg-green-600 hover:bg-green-700" : "bg-orange-500 hover:bg-orange-600"
+              )}
             >
-              {isUpdating ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Saving...</> : <><CheckCircle className="w-5 h-5 mr-2" /> Confirm Payment</>}
+              {isUpdating
+                ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Saving…</>
+                : isFullPayment
+                  ? <><CheckCircle className="w-5 h-5 mr-2" /> Mark as Paid</>
+                  : <><DollarSign className="w-5 h-5 mr-2" /> Record Partial Payment</>
+              }
             </Button>
           </div>
         </DialogContent>

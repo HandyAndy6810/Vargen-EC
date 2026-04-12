@@ -66,6 +66,7 @@ export const invoices = pgTable("invoices", {
   totalAmount: numeric("total_amount").notNull(),
   dueDate: timestamp("due_date"),
   paidDate: timestamp("paid_date"),
+  paidAmount: numeric("paid_amount").default("0"), // tracks cumulative partial payments
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 });
