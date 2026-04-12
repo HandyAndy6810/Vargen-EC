@@ -77,3 +77,35 @@ export function useUpdateInvoice() {
     },
   });
 }
+
+export function useResendInvoice() {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/invoices/${id}/resend`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to resend invoice");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Invoice resent", description: "Email sent to customer" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useOverdueInvoices() {
+  const { data: invoices } = useInvoices();
+  const overdue = (invoices || []).filter(inv => inv.status === "overdue");
+  const overdueCount = overdue.length;
+  const overdueTotal = overdue.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
+  return { overdueCount, overdueTotal };
+}

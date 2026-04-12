@@ -785,6 +785,14 @@ CRITICAL RULES — follow these exactly:
   app.get(api.invoices.list.path, async (req: any, res) => {
     try {
       const allInvoices = await storage.getInvoices();
+      // Auto-mark overdue: any "sent" invoice where dueDate is in the past
+      const now = new Date();
+      for (const inv of allInvoices) {
+        if (inv.status === "sent" && inv.dueDate && new Date(inv.dueDate) < now) {
+          await storage.updateInvoice(inv.id, { status: "overdue" });
+          inv.status = "overdue";
+        }
+      }
       res.json(allInvoices);
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to get invoices" });
@@ -883,15 +891,47 @@ CRITICAL RULES — follow these exactly:
           const dueDate = updated.dueDate
             ? new Date(updated.dueDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" })
             : null;
+          const origin = `${req.protocol}://${req.get("host")}`;
+          const previewLink = `${origin}/invoices/${existing.id}/preview`;
           sendCustomerEmail(
             customer.email,
             `Invoice ${existing.invoiceNumber} from ${businessName}`,
-            `Hi ${customer.name},\n\nYour invoice is ready.\n\nInvoice Number: ${existing.invoiceNumber}\nAmount Due: $${Number(updated.totalAmount).toFixed(2)}${dueDate ? `\nDue Date: ${dueDate}` : ""}\n\nPlease contact us if you have any questions.\n\nKind regards,\n${businessName}`
+            `Hi ${customer.name},\n\nYour invoice is ready.\n\nInvoice Number: ${existing.invoiceNumber}\nAmount Due: $${Number(updated.totalAmount).toFixed(2)}${dueDate ? `\nDue Date: ${dueDate}` : ""}\n\nView and download your invoice here:\n${previewLink}\n\nPlease contact us if you have any questions.\n\nKind regards,\n${businessName}`
           ).catch((err: Error) => console.error("Invoice email failed:", err));
         }
       }
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to update invoice" });
+    }
+  });
+
+  app.post("/api/invoices/:id/resend", async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const invoice = await storage.getInvoice(id);
+      if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+      if (!invoice.customerId) return res.status(400).json({ message: "Invoice has no customer" });
+
+      const customer = await storage.getCustomer(invoice.customerId);
+      if (!customer?.email) return res.status(400).json({ message: "Customer has no email address" });
+
+      const s = await storage.getAnyUserSettings();
+      const businessName = s?.businessName || "Your Tradie";
+      const dueDate = invoice.dueDate
+        ? new Date(invoice.dueDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" })
+        : null;
+      const origin = `${req.protocol}://${req.get("host")}`;
+      const previewLink = `${origin}/invoices/${invoice.id}/preview`;
+
+      await sendCustomerEmail(
+        customer.email,
+        `Invoice ${invoice.invoiceNumber} from ${businessName}`,
+        `Hi ${customer.name},\n\nA reminder — your invoice is ready.\n\nInvoice Number: ${invoice.invoiceNumber}\nAmount Due: $${Number(invoice.totalAmount).toFixed(2)}${dueDate ? `\nDue Date: ${dueDate}` : ""}\n\nView and download your invoice here:\n${previewLink}\n\nPlease contact us if you have any questions.\n\nKind regards,\n${businessName}`
+      );
+
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to resend invoice" });
     }
   });
 
