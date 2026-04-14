@@ -11,51 +11,51 @@ import {
   type PortalFeedback, type InsertPortalFeedback,
   type JobTemplate, type InsertJobTemplate
 } from "../shared/schema";
-import { eq, desc, isNull, and, or, sql } from "drizzle-orm";
+import { eq, desc, isNull, and, sql } from "drizzle-orm";
 
 export interface IStorage {
-  // Customers
-  getCustomers(): Promise<Customer[]>;
-  getCustomer(id: number): Promise<Customer | undefined>;
+  // Customers (userId-scoped)
+  getCustomers(userId: string): Promise<Customer[]>;
+  getCustomer(id: number, userId?: string): Promise<Customer | undefined>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
-  updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer>;
-  deleteCustomer(id: number): Promise<void>;
+  updateCustomer(id: number, customer: Partial<InsertCustomer>, userId?: string): Promise<Customer>;
+  deleteCustomer(id: number, userId: string): Promise<void>;
 
-  // Jobs
-  getJobs(): Promise<Job[]>;
-  getJob(id: number): Promise<Job | undefined>;
+  // Jobs (userId-scoped)
+  getJobs(userId: string): Promise<Job[]>;
+  getJob(id: number, userId?: string): Promise<Job | undefined>;
   createJob(job: InsertJob): Promise<Job>;
-  updateJob(id: number, job: Partial<InsertJob>): Promise<Job>;
+  updateJob(id: number, job: Partial<InsertJob>, userId?: string): Promise<Job>;
 
-  // Quotes
-  getQuotes(): Promise<Quote[]>;
-  getQuote(id: number): Promise<Quote | undefined>;
+  // Quotes (userId-scoped)
+  getQuotes(userId: string): Promise<Quote[]>;
+  getQuote(id: number, userId?: string): Promise<Quote | undefined>;
   createQuote(quote: InsertQuote): Promise<Quote>;
-  updateQuote(id: number, quote: Partial<InsertQuote>): Promise<Quote>;
+  updateQuote(id: number, quote: Partial<InsertQuote>, userId?: string): Promise<Quote>;
   getQuoteByShareToken(token: string): Promise<Quote | undefined>;
+  deleteQuote(id: number, userId: string): Promise<void>;
 
   // Quote Items
   getQuoteItems(quoteId: number): Promise<QuoteItem[]>;
   createQuoteItem(item: InsertQuoteItem): Promise<QuoteItem>;
   deleteQuoteItem(id: number): Promise<void>;
-  deleteQuote(id: number): Promise<void>;
 
-  // Invoices
-  getInvoices(): Promise<Invoice[]>;
-  getInvoice(id: number): Promise<Invoice | undefined>;
+  // Invoices (userId-scoped)
+  getInvoices(userId: string): Promise<Invoice[]>;
+  getInvoice(id: number, userId?: string): Promise<Invoice | undefined>;
   getInvoiceByQuoteId(quoteId: number): Promise<Invoice | undefined>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
-  updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice>;
-  getNextInvoiceNumber(): Promise<string>;
+  updateInvoice(id: number, invoice: Partial<InsertInvoice>, userId?: string): Promise<Invoice>;
+  getNextInvoiceNumber(userId: string): Promise<string>;
 
-  // Job Timer Entries
+  // Job Timer Entries (userId-scoped)
   getTimerEntries(jobId: number): Promise<JobTimerEntry[]>;
-  getActiveTimer(): Promise<JobTimerEntry | undefined>;
+  getActiveTimer(userId: string): Promise<JobTimerEntry | undefined>;
   createTimerEntry(entry: InsertJobTimerEntry): Promise<JobTimerEntry>;
   updateTimerEntry(id: number, entry: Partial<InsertJobTimerEntry>): Promise<JobTimerEntry>;
   deleteTimerEntry(id: number): Promise<void>;
 
-  // Portal Feedback
+  // Portal Feedback (no auth — public)
   createPortalFeedback(feedback: InsertPortalFeedback): Promise<PortalFeedback>;
   getPortalFeedback(quoteId: number): Promise<PortalFeedback[]>;
 
@@ -69,8 +69,8 @@ export interface IStorage {
   createJobTemplate(template: InsertJobTemplate): Promise<JobTemplate>;
   deleteJobTemplate(id: number, userId: string): Promise<void>;
 
-  // Recent Activity
-  getRecentActivity(limit?: number): Promise<Array<{
+  // Recent Activity (userId-scoped)
+  getRecentActivity(userId: string, limit?: number): Promise<Array<{
     type: "quote_created" | "quote_accepted" | "quote_rejected" | "job_scheduled" | "job_completed";
     description: string;
     timestamp: Date;
@@ -85,12 +85,18 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  async getCustomers(): Promise<Customer[]> {
-    return await db.select().from(customers).orderBy(desc(customers.createdAt));
+  // ── Customers ───────────────────────────────────────────────────────
+  async getCustomers(userId: string): Promise<Customer[]> {
+    return await db.select().from(customers)
+      .where(eq(customers.userId, userId))
+      .orderBy(desc(customers.createdAt));
   }
 
-  async getCustomer(id: number): Promise<Customer | undefined> {
-    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
+  async getCustomer(id: number, userId?: string): Promise<Customer | undefined> {
+    const conditions = userId
+      ? and(eq(customers.id, id), eq(customers.userId, userId))
+      : eq(customers.id, id);
+    const [customer] = await db.select().from(customers).where(conditions);
     return customer;
   }
 
@@ -99,21 +105,30 @@ export class DatabaseStorage implements IStorage {
     return newCustomer;
   }
 
-  async updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer> {
-    const [updated] = await db.update(customers).set(customer).where(eq(customers.id, id)).returning();
+  async updateCustomer(id: number, customer: Partial<InsertCustomer>, userId?: string): Promise<Customer> {
+    const conditions = userId
+      ? and(eq(customers.id, id), eq(customers.userId, userId))
+      : eq(customers.id, id);
+    const [updated] = await db.update(customers).set(customer).where(conditions).returning();
     return updated;
   }
 
-  async deleteCustomer(id: number): Promise<void> {
-    await db.delete(customers).where(eq(customers.id, id));
+  async deleteCustomer(id: number, userId: string): Promise<void> {
+    await db.delete(customers).where(and(eq(customers.id, id), eq(customers.userId, userId)));
   }
 
-  async getJobs(): Promise<Job[]> {
-    return await db.select().from(jobs).orderBy(desc(jobs.scheduledDate));
+  // ── Jobs ─────────────────────────────────────────────────────────────
+  async getJobs(userId: string): Promise<Job[]> {
+    return await db.select().from(jobs)
+      .where(eq(jobs.userId, userId))
+      .orderBy(desc(jobs.scheduledDate));
   }
 
-  async getJob(id: number): Promise<Job | undefined> {
-    const [job] = await db.select().from(jobs).where(eq(jobs.id, id));
+  async getJob(id: number, userId?: string): Promise<Job | undefined> {
+    const conditions = userId
+      ? and(eq(jobs.id, id), eq(jobs.userId, userId))
+      : eq(jobs.id, id);
+    const [job] = await db.select().from(jobs).where(conditions);
     return job;
   }
 
@@ -122,17 +137,26 @@ export class DatabaseStorage implements IStorage {
     return newJob;
   }
 
-  async updateJob(id: number, job: Partial<InsertJob>): Promise<Job> {
-    const [updatedJob] = await db.update(jobs).set(job).where(eq(jobs.id, id)).returning();
+  async updateJob(id: number, job: Partial<InsertJob>, userId?: string): Promise<Job> {
+    const conditions = userId
+      ? and(eq(jobs.id, id), eq(jobs.userId, userId))
+      : eq(jobs.id, id);
+    const [updatedJob] = await db.update(jobs).set(job).where(conditions).returning();
     return updatedJob;
   }
 
-  async getQuotes(): Promise<Quote[]> {
-    return await db.select().from(quotes).orderBy(desc(quotes.createdAt));
+  // ── Quotes ────────────────────────────────────────────────────────────
+  async getQuotes(userId: string): Promise<Quote[]> {
+    return await db.select().from(quotes)
+      .where(eq(quotes.userId, userId))
+      .orderBy(desc(quotes.createdAt));
   }
 
-  async getQuote(id: number): Promise<Quote | undefined> {
-    const [quote] = await db.select().from(quotes).where(eq(quotes.id, id));
+  async getQuote(id: number, userId?: string): Promise<Quote | undefined> {
+    const conditions = userId
+      ? and(eq(quotes.id, id), eq(quotes.userId, userId))
+      : eq(quotes.id, id);
+    const [quote] = await db.select().from(quotes).where(conditions);
     return quote;
   }
 
@@ -141,16 +165,26 @@ export class DatabaseStorage implements IStorage {
     return newQuote;
   }
 
-  async updateQuote(id: number, quote: Partial<InsertQuote>): Promise<Quote> {
-    const [updatedQuote] = await db.update(quotes).set(quote).where(eq(quotes.id, id)).returning();
+  async updateQuote(id: number, quote: Partial<InsertQuote>, userId?: string): Promise<Quote> {
+    const conditions = userId
+      ? and(eq(quotes.id, id), eq(quotes.userId, userId))
+      : eq(quotes.id, id);
+    const [updatedQuote] = await db.update(quotes).set(quote).where(conditions).returning();
     return updatedQuote;
   }
 
   async getQuoteByShareToken(token: string): Promise<Quote | undefined> {
+    // Public — no userId filter (portal access)
     const [quote] = await db.select().from(quotes).where(eq(quotes.shareToken, token));
     return quote;
   }
 
+  async deleteQuote(id: number, userId: string): Promise<void> {
+    await db.delete(quoteItems).where(eq(quoteItems.quoteId, id));
+    await db.delete(quotes).where(and(eq(quotes.id, id), eq(quotes.userId, userId)));
+  }
+
+  // ── Quote Items ───────────────────────────────────────────────────────
   async getQuoteItems(quoteId: number): Promise<QuoteItem[]> {
     return await db.select().from(quoteItems).where(eq(quoteItems.quoteId, quoteId));
   }
@@ -164,18 +198,18 @@ export class DatabaseStorage implements IStorage {
     await db.delete(quoteItems).where(eq(quoteItems.id, id));
   }
 
-  async deleteQuote(id: number): Promise<void> {
-    await db.delete(quoteItems).where(eq(quoteItems.quoteId, id));
-    await db.delete(quotes).where(eq(quotes.id, id));
+  // ── Invoices ──────────────────────────────────────────────────────────
+  async getInvoices(userId: string): Promise<Invoice[]> {
+    return await db.select().from(invoices)
+      .where(eq(invoices.userId, userId))
+      .orderBy(desc(invoices.createdAt));
   }
 
-  // Invoices
-  async getInvoices(): Promise<Invoice[]> {
-    return await db.select().from(invoices).orderBy(desc(invoices.createdAt));
-  }
-
-  async getInvoice(id: number): Promise<Invoice | undefined> {
-    const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id));
+  async getInvoice(id: number, userId?: string): Promise<Invoice | undefined> {
+    const conditions = userId
+      ? and(eq(invoices.id, id), eq(invoices.userId, userId))
+      : eq(invoices.id, id);
+    const [invoice] = await db.select().from(invoices).where(conditions);
     return invoice;
   }
 
@@ -189,27 +223,32 @@ export class DatabaseStorage implements IStorage {
     return newInvoice;
   }
 
-  async updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice> {
-    const [updated] = await db.update(invoices).set(invoice).where(eq(invoices.id, id)).returning();
+  async updateInvoice(id: number, invoice: Partial<InsertInvoice>, userId?: string): Promise<Invoice> {
+    const conditions = userId
+      ? and(eq(invoices.id, id), eq(invoices.userId, userId))
+      : eq(invoices.id, id);
+    const [updated] = await db.update(invoices).set(invoice).where(conditions).returning();
     return updated;
   }
 
-  async getNextInvoiceNumber(): Promise<string> {
-    const [result] = await db.select({ count: sql<number>`count(*)` }).from(invoices);
+  async getNextInvoiceNumber(userId: string): Promise<string> {
+    const [result] = await db.select({ count: sql<number>`count(*)` })
+      .from(invoices)
+      .where(eq(invoices.userId, userId));
     const next = (result?.count || 0) + 1;
     return `INV-${String(next).padStart(4, "0")}`;
   }
 
-  // Job Timer Entries
+  // ── Job Timer Entries ─────────────────────────────────────────────────
   async getTimerEntries(jobId: number): Promise<JobTimerEntry[]> {
     return await db.select().from(jobTimerEntries)
       .where(eq(jobTimerEntries.jobId, jobId))
       .orderBy(desc(jobTimerEntries.startTime));
   }
 
-  async getActiveTimer(): Promise<JobTimerEntry | undefined> {
+  async getActiveTimer(userId: string): Promise<JobTimerEntry | undefined> {
     const [entry] = await db.select().from(jobTimerEntries)
-      .where(isNull(jobTimerEntries.endTime));
+      .where(and(isNull(jobTimerEntries.endTime), eq(jobTimerEntries.userId, userId)));
     return entry;
   }
 
@@ -228,7 +267,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(jobTimerEntries).where(eq(jobTimerEntries.id, id));
   }
 
-  // Portal Feedback
+  // ── Portal Feedback ───────────────────────────────────────────────────
   async createPortalFeedback(feedback: InsertPortalFeedback): Promise<PortalFeedback> {
     const [newFeedback] = await db.insert(portalFeedback).values(feedback).returning();
     return newFeedback;
@@ -240,13 +279,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(portalFeedback.createdAt));
   }
 
-  // User Settings
+  // ── User Settings ─────────────────────────────────────────────────────
   async getUserSettings(userId: string): Promise<UserSettings | undefined> {
     const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
     return settings;
   }
 
   async getAnyUserSettings(): Promise<UserSettings | undefined> {
+    // Used only in public portal routes to fetch business name/contact
     const [settings] = await db.select().from(userSettings).limit(1);
     return settings;
   }
@@ -263,8 +303,11 @@ export class DatabaseStorage implements IStorage {
     return settings;
   }
 
+  // ── Job Templates ─────────────────────────────────────────────────────
   async getJobTemplates(userId: string): Promise<JobTemplate[]> {
-    return await db.select().from(jobTemplates).where(eq(jobTemplates.userId, userId)).orderBy(desc(jobTemplates.createdAt));
+    return await db.select().from(jobTemplates)
+      .where(eq(jobTemplates.userId, userId))
+      .orderBy(desc(jobTemplates.createdAt));
   }
 
   async createJobTemplate(template: InsertJobTemplate): Promise<JobTemplate> {
@@ -273,18 +316,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteJobTemplate(id: number, userId: string): Promise<void> {
-    await db.delete(jobTemplates).where(sql`${jobTemplates.id} = ${id} AND ${jobTemplates.userId} = ${userId}`);
+    await db.delete(jobTemplates)
+      .where(and(eq(jobTemplates.id, id), eq(jobTemplates.userId, userId)));
   }
 
-  async getRecentActivity(limit: number = 20): Promise<Array<{
+  // ── Recent Activity ───────────────────────────────────────────────────
+  async getRecentActivity(userId: string, limit: number = 20): Promise<Array<{
     type: "quote_created" | "quote_accepted" | "quote_rejected" | "job_scheduled" | "job_completed";
     description: string;
     timestamp: Date;
     entityId: number;
     entityType: "quote" | "job";
   }>> {
-    const recentQuotes = await db.select().from(quotes).orderBy(desc(quotes.createdAt)).limit(limit);
-    const recentJobs = await db.select().from(jobs).orderBy(desc(jobs.createdAt)).limit(limit);
+    const recentQuotes = await db.select().from(quotes)
+      .where(eq(quotes.userId, userId))
+      .orderBy(desc(quotes.createdAt))
+      .limit(limit);
+
+    const recentJobs = await db.select().from(jobs)
+      .where(eq(jobs.userId, userId))
+      .orderBy(desc(jobs.createdAt))
+      .limit(limit);
 
     const activities: Array<{
       type: "quote_created" | "quote_accepted" | "quote_rejected" | "job_scheduled" | "job_completed";
@@ -302,49 +354,19 @@ export class DatabaseStorage implements IStorage {
       } catch {}
 
       if (q.status === "accepted") {
-        activities.push({
-          type: "quote_accepted",
-          description: `Quote accepted: ${jobTitle} ($${Number(q.totalAmount).toLocaleString()})`,
-          timestamp: q.createdAt || new Date(),
-          entityId: q.id,
-          entityType: "quote",
-        });
+        activities.push({ type: "quote_accepted", description: `Quote accepted: ${jobTitle} ($${Number(q.totalAmount).toLocaleString()})`, timestamp: q.createdAt || new Date(), entityId: q.id, entityType: "quote" });
       } else if (q.status === "rejected") {
-        activities.push({
-          type: "quote_rejected",
-          description: `Quote rejected: ${jobTitle}`,
-          timestamp: q.createdAt || new Date(),
-          entityId: q.id,
-          entityType: "quote",
-        });
+        activities.push({ type: "quote_rejected", description: `Quote rejected: ${jobTitle}`, timestamp: q.createdAt || new Date(), entityId: q.id, entityType: "quote" });
       } else {
-        activities.push({
-          type: "quote_created",
-          description: `Quote created: ${jobTitle} ($${Number(q.totalAmount).toLocaleString()})`,
-          timestamp: q.createdAt || new Date(),
-          entityId: q.id,
-          entityType: "quote",
-        });
+        activities.push({ type: "quote_created", description: `Quote created: ${jobTitle} ($${Number(q.totalAmount).toLocaleString()})`, timestamp: q.createdAt || new Date(), entityId: q.id, entityType: "quote" });
       }
     }
 
     for (const j of recentJobs) {
       if (j.status === "completed") {
-        activities.push({
-          type: "job_completed",
-          description: `Job completed: ${j.title}`,
-          timestamp: j.createdAt || new Date(),
-          entityId: j.id,
-          entityType: "job",
-        });
+        activities.push({ type: "job_completed", description: `Job completed: ${j.title}`, timestamp: j.createdAt || new Date(), entityId: j.id, entityType: "job" });
       } else {
-        activities.push({
-          type: "job_scheduled",
-          description: `Job scheduled: ${j.title}`,
-          timestamp: j.createdAt || new Date(),
-          entityId: j.id,
-          entityType: "job",
-        });
+        activities.push({ type: "job_scheduled", description: `Job scheduled: ${j.title}`, timestamp: j.createdAt || new Date(), entityId: j.id, entityType: "job" });
       }
     }
 
@@ -352,6 +374,7 @@ export class DatabaseStorage implements IStorage {
     return activities.slice(0, limit);
   }
 
+  // ── Xero Tokens ───────────────────────────────────────────────────────
   async getXeroToken(userId: string): Promise<XeroToken | undefined> {
     const [token] = await db.select().from(xeroTokens).where(eq(xeroTokens.userId, userId));
     return token;

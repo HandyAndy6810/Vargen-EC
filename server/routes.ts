@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { api } from "../shared/routes";
 import { z } from "zod";
@@ -116,6 +117,33 @@ try {
   openai = null as any;
 }
 
+// Rate limiters
+const aiRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20,                   // 20 AI generations per user per hour
+  keyGenerator: (req: any) => (req.session as any)?.localUserId || req.ip,
+  message: { message: "Too many requests. Please wait before generating another quote." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const loginRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                   // 10 login attempts per IP
+  message: { message: "Too many login attempts. Please try again in 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const emailRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 30,                   // 30 emails per user per hour
+  keyGenerator: (req: any) => (req.session as any)?.localUserId || req.ip,
+  message: { message: "Email sending rate limit reached. Try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -124,31 +152,38 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
 
+  // Auth middleware: all protected routes must pass this
+  const requireAuth = (req: any, res: any, next: any) => {
+    const userId = (req.session as any)?.localUserId;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    req.userId = userId;
+    next();
+  };
+
   // 2. Register Integration Routes
   registerChatRoutes(app);
   registerAudioRoutes(app);
   registerImageRoutes(app);
 
   // 3. Register Application Routes
-  
+
   // Customers
-  app.get(api.customers.list.path, async (req, res) => {
-    const customers = await storage.getCustomers();
+  app.get(api.customers.list.path, requireAuth, async (req: any, res) => {
+    const customers = await storage.getCustomers(req.userId);
     res.json(customers);
   });
 
-  app.get(api.customers.get.path, async (req, res) => {
-    const customer = await storage.getCustomer(Number(req.params.id));
+  app.get(api.customers.get.path, requireAuth, async (req: any, res) => {
+    const customer = await storage.getCustomer(Number(req.params.id), req.userId);
     if (!customer) return res.status(404).json({ message: "Customer not found" });
     res.json(customer);
   });
 
-  app.post(api.customers.create.path, async (req, res) => {
+  app.post(api.customers.create.path, requireAuth, async (req: any, res) => {
     try {
       const input = api.customers.create.input.parse(req.body);
-      const customer = await storage.createCustomer(input);
-      const userId = (req as any).user?.claims?.sub;
-      if (userId) autoSyncCustomerToXero(userId, customer.id);
+      const customer = await storage.createCustomer({ ...input, userId: req.userId });
+      autoSyncCustomerToXero(req.userId, customer.id);
       res.status(201).json(customer);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -159,15 +194,14 @@ export async function registerRoutes(
     }
   });
 
-  app.patch(api.customers.update.path, async (req: any, res) => {
+  app.patch(api.customers.update.path, requireAuth, async (req: any, res) => {
     try {
       const id = Number(req.params.id);
-      const existing = await storage.getCustomer(id);
+      const existing = await storage.getCustomer(id, req.userId);
       if (!existing) return res.status(404).json({ message: "Customer not found" });
       const input = api.customers.update.input.parse(req.body);
-      const customer = await storage.updateCustomer(id, input);
-      const userId = (req as any).user?.claims?.sub;
-      if (userId) autoSyncCustomerToXero(userId, id);
+      const customer = await storage.updateCustomer(id, input, req.userId);
+      autoSyncCustomerToXero(req.userId, id);
       res.json(customer);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -178,24 +212,24 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.customers.delete.path, async (req: any, res) => {
+  app.delete(api.customers.delete.path, requireAuth, async (req: any, res) => {
     try {
       const id = Number(req.params.id);
-      const existing = await storage.getCustomer(id);
+      const existing = await storage.getCustomer(id, req.userId);
       if (!existing) return res.status(404).json({ message: "Customer not found" });
       // Check for linked jobs
-      const allJobs = await storage.getJobs();
+      const allJobs = await storage.getJobs(req.userId);
       const linkedJobs = allJobs.filter(j => j.customerId === id);
       if (linkedJobs.length > 0) {
         return res.status(409).json({ message: `Customer has ${linkedJobs.length} linked job(s). Remove or reassign them first.` });
       }
       // Check for linked quotes
-      const allQuotes = await storage.getQuotes();
+      const allQuotes = await storage.getQuotes(req.userId);
       const linkedQuotes = allQuotes.filter(q => q.customerId === id);
       if (linkedQuotes.length > 0) {
         return res.status(409).json({ message: `Customer has ${linkedQuotes.length} linked quote(s). Remove or reassign them first.` });
       }
-      await storage.deleteCustomer(id);
+      await storage.deleteCustomer(id, req.userId);
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ message: "Internal server error" });
@@ -203,21 +237,21 @@ export async function registerRoutes(
   });
 
   // Jobs
-  app.get(api.jobs.list.path, async (req, res) => {
-    const jobs = await storage.getJobs();
+  app.get(api.jobs.list.path, requireAuth, async (req: any, res) => {
+    const jobs = await storage.getJobs(req.userId);
     res.json(jobs);
   });
 
-  app.get(api.jobs.get.path, async (req, res) => {
-    const job = await storage.getJob(Number(req.params.id));
+  app.get(api.jobs.get.path, requireAuth, async (req: any, res) => {
+    const job = await storage.getJob(Number(req.params.id), req.userId);
     if (!job) return res.status(404).json({ message: "Job not found" });
     res.json(job);
   });
 
-  app.post(api.jobs.create.path, async (req, res) => {
+  app.post(api.jobs.create.path, requireAuth, async (req: any, res) => {
     try {
       const input = api.jobs.create.input.parse(req.body);
-      const job = await storage.createJob(input);
+      const job = await storage.createJob({ ...input, userId: req.userId });
       res.status(201).json(job);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -228,13 +262,13 @@ export async function registerRoutes(
     }
   });
 
-  app.patch(api.jobs.update.path, async (req, res) => {
+  app.patch(api.jobs.update.path, requireAuth, async (req: any, res) => {
     try {
       const id = Number(req.params.id);
-      const existing = await storage.getJob(id);
+      const existing = await storage.getJob(id, req.userId);
       if (!existing) return res.status(404).json({ message: "Job not found" });
       const input = api.jobs.update.input.parse(req.body);
-      const job = await storage.updateJob(id, input);
+      const job = await storage.updateJob(id, input, req.userId);
       res.json(job);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -246,15 +280,15 @@ export async function registerRoutes(
   });
 
   // Quotes
-  app.get(api.quotes.list.path, async (req, res) => {
-    const quotes = await storage.getQuotes();
+  app.get(api.quotes.list.path, requireAuth, async (req: any, res) => {
+    const quotes = await storage.getQuotes(req.userId);
     res.json(quotes);
   });
 
-  app.post(api.quotes.create.path, async (req, res) => {
+  app.post(api.quotes.create.path, requireAuth, async (req: any, res) => {
     try {
       const input = api.quotes.create.input.parse(req.body);
-      const quote = await storage.createQuote(input);
+      const quote = await storage.createQuote({ ...input, userId: req.userId });
       res.status(201).json(quote);
     } catch (err) {
       res.status(400).json({ message: "Validation error" });
@@ -272,11 +306,11 @@ export async function registerRoutes(
     invoiced: [],
   };
 
-  app.patch(api.quotes.update.path, async (req: any, res) => {
+  app.patch(api.quotes.update.path, requireAuth, async (req: any, res) => {
     try {
       const quoteId = Number(req.params.id);
       const input = api.quotes.update.input.parse(req.body);
-      const prevQuote = await storage.getQuote(quoteId);
+      const prevQuote = await storage.getQuote(quoteId, req.userId);
 
       // Validate status transition
       if (input.status && prevQuote && input.status !== prevQuote.status) {
@@ -290,7 +324,7 @@ export async function registerRoutes(
 
       // Auto-generate shareToken, sentAt and followUpSchedule when status → "sent"
       if (input.status === "sent") {
-        const existing = await storage.getQuote(quoteId);
+        const existing = await storage.getQuote(quoteId, req.userId);
         if (existing && !existing.shareToken) {
           (input as any).shareToken = crypto.randomUUID();
         }
@@ -301,27 +335,23 @@ export async function registerRoutes(
         // Auto-populate follow-up schedule from user settings
         if (existing && !existing.followUpSchedule) {
           try {
-            const userId = (req.session as any)?.localUserId;
-            if (userId) {
-              const settings = await storage.getUserSettings(userId);
-              if (settings?.followUpEnabled) {
-                const days = JSON.parse(settings.followUpDays || "[3,7,14]");
-                const schedule = days.map((day: number) => ({ day, status: "pending" }));
-                (input as any).followUpSchedule = JSON.stringify(schedule);
-              }
+            const settings = await storage.getUserSettings(req.userId);
+            if (settings?.followUpEnabled) {
+              const days = JSON.parse(settings.followUpDays || "[3,7,14]");
+              const schedule = days.map((day: number) => ({ day, status: "pending" }));
+              (input as any).followUpSchedule = JSON.stringify(schedule);
             }
           } catch { /* non-critical */ }
         }
       }
 
-      const quote = await storage.updateQuote(quoteId, input);
+      const quote = await storage.updateQuote(quoteId, input, req.userId);
       res.json(quote);
 
       // Auto-create Xero invoice when a quote is first accepted
-      const userId = (req.session as any)?.localUserId;
       const justAccepted = input.status === "accepted" && prevQuote?.status !== "accepted";
-      if (userId && justAccepted && !quote.xeroInvoiceId) {
-        autoCreateXeroInvoice(userId, quoteId).catch((err) =>
+      if (justAccepted && !quote.xeroInvoiceId) {
+        autoCreateXeroInvoice(req.userId, quoteId).catch((err) =>
           console.error("Auto Xero invoice creation failed for quote", quoteId, err)
         );
       }
@@ -330,19 +360,19 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/quotes/:id", async (req, res) => {
-    const quote = await storage.getQuote(Number(req.params.id));
+  app.get("/api/quotes/:id", requireAuth, async (req: any, res) => {
+    const quote = await storage.getQuote(Number(req.params.id), req.userId);
     if (!quote) return res.status(404).json({ message: "Quote not found" });
     res.json(quote);
   });
 
   // Quote Items
-  app.get("/api/quotes/:quoteId/items", async (req, res) => {
+  app.get("/api/quotes/:quoteId/items", requireAuth, async (req: any, res) => {
     const items = await storage.getQuoteItems(Number(req.params.quoteId));
     res.json(items);
   });
 
-  app.post("/api/quotes/:quoteId/items", async (req, res) => {
+  app.post("/api/quotes/:quoteId/items", requireAuth, async (req: any, res) => {
     try {
       const item = await storage.createQuoteItem({
         quoteId: Number(req.params.quoteId),
@@ -356,23 +386,23 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/quotes/items/:id", async (req, res) => {
+  app.delete("/api/quotes/items/:id", requireAuth, async (req: any, res) => {
     await storage.deleteQuoteItem(Number(req.params.id));
     res.json({ ok: true });
   });
 
-  app.delete(api.quotes.delete.path, async (req, res) => {
+  app.delete(api.quotes.delete.path, requireAuth, async (req: any, res) => {
     try {
-      const quote = await storage.getQuote(Number(req.params.id));
+      const quote = await storage.getQuote(Number(req.params.id), req.userId);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
-      await storage.deleteQuote(Number(req.params.id));
+      await storage.deleteQuote(Number(req.params.id), req.userId);
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ message: "Failed to delete quote" });
     }
   });
 
-  app.post("/api/audio/transcribe", upload.single("audio"), async (req, res) => {
+  app.post("/api/audio/transcribe", requireAuth, upload.single("audio"), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No audio file provided" });
@@ -400,7 +430,7 @@ export async function registerRoutes(
   // Trade-specific knowledge is now in server/trade-knowledge.ts
 
   // AI Quote Generation
-  app.post("/api/quotes/generate", async (req, res) => {
+  app.post("/api/quotes/generate", requireAuth, aiRateLimit, async (req: any, res) => {
     try {
       const { description, imageBase64, customerName, tradeType, labourRate, markupPercent, callOutFee, includeGST, targetPrice } = req.body;
 
@@ -485,7 +515,7 @@ CRITICAL RULES — follow these exactly:
 
       // Learn from past quotes — inject recent accepted/sent quotes as few-shot examples
       try {
-        const allQuotes = await storage.getQuotes();
+        const allQuotes = await storage.getQuotes(req.userId);
         const pastQuotes = allQuotes
           .filter(q => q.content && (q.status === "accepted" || q.status === "sent"))
           .slice(0, 5); // up to 5 most recent successful quotes
@@ -580,17 +610,47 @@ CRITICAL RULES — follow these exactly:
   });
 
   // Clear All Data
-  app.delete("/api/data/clear-all", async (req: any, res) => {
+  app.delete("/api/data/clear-all", requireAuth, async (req: any, res) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(403).json({ message: "Not available in production" });
+    }
     try {
       const { db } = await import("./db");
       const { customers, jobs, quotes, quoteItems, invoices, jobTimerEntries } = await import("../shared/schema");
+      const { eq } = await import("drizzle-orm");
 
-      await db.delete(jobTimerEntries);
-      await db.delete(quoteItems);
-      await db.delete(invoices);
-      await db.delete(quotes);
-      await db.delete(jobs);
-      await db.delete(customers);
+      // Only delete data belonging to the current user
+      const userCustomers = await storage.getCustomers(req.userId);
+      const userCustomerIds = userCustomers.map((c: any) => c.id);
+
+      const userJobs = await storage.getJobs(req.userId);
+      const userJobIds = userJobs.map((j: any) => j.id);
+
+      const userQuotes = await storage.getQuotes(req.userId);
+      const userQuoteIds = userQuotes.map((q: any) => q.id);
+
+      const userInvoices = await storage.getInvoices(req.userId);
+      const userInvoiceIds = userInvoices.map((i: any) => i.id);
+
+      // Delete in dependency order
+      for (const qId of userQuoteIds) {
+        await db.delete(quoteItems).where(eq(quoteItems.quoteId, qId));
+      }
+      for (const jId of userJobIds) {
+        await db.delete(jobTimerEntries).where(eq(jobTimerEntries.jobId, jId));
+      }
+      for (const invId of userInvoiceIds) {
+        await db.delete(invoices).where(eq(invoices.id, invId));
+      }
+      for (const qId of userQuoteIds) {
+        await db.delete(quotes).where(eq(quotes.id, qId));
+      }
+      for (const jId of userJobIds) {
+        await db.delete(jobs).where(eq(jobs.id, jId));
+      }
+      for (const cId of userCustomerIds) {
+        await db.delete(customers).where(eq(customers.id, cId));
+      }
 
       res.json({ ok: true });
     } catch (err: any) {
@@ -600,19 +660,15 @@ CRITICAL RULES — follow these exactly:
   });
 
   // User Settings
-  app.get(api.settings.get.path, async (req: any, res) => {
-    const userId = (req.session as any)?.localUserId;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    const settings = await storage.getUserSettings(userId);
+  app.get(api.settings.get.path, requireAuth, async (req: any, res) => {
+    const settings = await storage.getUserSettings(req.userId);
     res.json(settings ?? null);
   });
 
-  app.patch(api.settings.update.path, async (req: any, res) => {
+  app.patch(api.settings.update.path, requireAuth, async (req: any, res) => {
     try {
-      const userId = (req.session as any)?.localUserId;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const input = api.settings.update.input.parse(req.body);
-      const settings = await storage.upsertUserSettings(userId, input);
+      const settings = await storage.upsertUserSettings(req.userId, input);
       res.json(settings);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -628,16 +684,16 @@ CRITICAL RULES — follow these exactly:
 
   // ─── Job Timer Routes ───
 
-  app.get(api.timers.active.path, async (req: any, res) => {
+  app.get(api.timers.active.path, requireAuth, async (req: any, res) => {
     try {
-      const entry = await storage.getActiveTimer();
+      const entry = await storage.getActiveTimer(req.userId);
       res.json(entry ?? null);
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to get active timer" });
     }
   });
 
-  app.get(api.timers.listForJob.path, async (req: any, res) => {
+  app.get(api.timers.listForJob.path, requireAuth, async (req: any, res) => {
     try {
       const jobId = Number(req.params.jobId);
       const entries = await storage.getTimerEntries(jobId);
@@ -647,14 +703,14 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.post(api.timers.start.path, async (req: any, res) => {
+  app.post(api.timers.start.path, requireAuth, async (req: any, res) => {
     try {
       const { jobId } = api.timers.start.input.parse(req.body);
-      const active = await storage.getActiveTimer();
+      const active = await storage.getActiveTimer(req.userId);
       if (active) {
         return res.status(409).json({ message: "A timer is already running. Stop it first." });
       }
-      const entry = await storage.createTimerEntry({ jobId, startTime: new Date() });
+      const entry = await storage.createTimerEntry({ jobId, startTime: new Date(), userId: req.userId });
       res.status(201).json(entry);
     } catch (err: any) {
       if (err instanceof z.ZodError) {
@@ -664,13 +720,12 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.post("/api/timers/:id/stop", async (req: any, res) => {
+  app.post("/api/timers/:id/stop", requireAuth, async (req: any, res) => {
     try {
       const id = Number(req.params.id);
       const { notes } = req.body || {};
       const endTime = new Date();
-      const entries = await storage.getTimerEntries(0);
-      const active = await storage.getActiveTimer();
+      const active = await storage.getActiveTimer(req.userId);
       if (!active || active.id !== id) {
         return res.status(404).json({ message: "Timer not found or already stopped" });
       }
@@ -682,7 +737,7 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.delete("/api/timers/:id", async (req: any, res) => {
+  app.delete("/api/timers/:id", requireAuth, async (req: any, res) => {
     try {
       const id = Number(req.params.id);
       await storage.deleteTimerEntry(id);
@@ -782,16 +837,16 @@ CRITICAL RULES — follow these exactly:
 
   // ─── Invoice Routes ───
 
-  app.get(api.invoices.list.path, async (req: any, res) => {
+  app.get(api.invoices.list.path, requireAuth, async (req: any, res) => {
     try {
-      const allInvoices = await storage.getInvoices();
+      const allInvoices = await storage.getInvoices(req.userId);
       // Auto-mark overdue: batch-update any "sent" invoice past its due date
       const now = new Date();
       const overdueIds = allInvoices
         .filter(inv => inv.status === "sent" && inv.dueDate && new Date(inv.dueDate) < now)
         .map(inv => inv.id);
       if (overdueIds.length > 0) {
-        await Promise.all(overdueIds.map(id => storage.updateInvoice(id, { status: "overdue" })));
+        await Promise.all(overdueIds.map(id => storage.updateInvoice(id, { status: "overdue" }, req.userId)));
         allInvoices.forEach(inv => { if (overdueIds.includes(inv.id)) inv.status = "overdue"; });
       }
       res.json(allInvoices);
@@ -801,7 +856,7 @@ CRITICAL RULES — follow these exactly:
   });
 
   // Standalone invoice creation (no quote required)
-  app.post("/api/invoices", async (req: any, res) => {
+  app.post("/api/invoices", requireAuth, async (req: any, res) => {
     try {
       const { customerId, items, dueDate, notes, includeGST } = req.body;
       if (!customerId) return res.status(400).json({ message: "Customer is required" });
@@ -816,12 +871,12 @@ CRITICAL RULES — follow these exactly:
       if (dueDate) {
         dueDateValue = new Date(dueDate);
       } else {
-        const s = await storage.getAnyUserSettings();
+        const s = await storage.getUserSettings(req.userId);
         const days = s?.paymentTermsDays ?? 14;
         dueDateValue = new Date(Date.now() + Number(days) * 24 * 60 * 60 * 1000);
       }
 
-      const invoiceNumber = await storage.getNextInvoiceNumber();
+      const invoiceNumber = await storage.getNextInvoiceNumber(req.userId);
       const invoice = await storage.createInvoice({
         customerId: Number(customerId),
         invoiceNumber,
@@ -832,6 +887,7 @@ CRITICAL RULES — follow these exactly:
         totalAmount: totalAmount.toFixed(2),
         dueDate: dueDateValue,
         notes: notes || null,
+        userId: req.userId,
       });
 
       res.status(201).json(invoice);
@@ -840,10 +896,10 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.get("/api/invoices/:id", async (req: any, res) => {
+  app.get("/api/invoices/:id", requireAuth, async (req: any, res) => {
     try {
       const id = Number(req.params.id);
-      const invoice = await storage.getInvoice(id);
+      const invoice = await storage.getInvoice(id, req.userId);
       if (!invoice) return res.status(404).json({ message: "Invoice not found" });
       res.json(invoice);
     } catch (error: any) {
@@ -851,10 +907,10 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.post("/api/invoices/from-quote/:quoteId", async (req: any, res) => {
+  app.post("/api/invoices/from-quote/:quoteId", requireAuth, async (req: any, res) => {
     try {
       const quoteId = Number(req.params.quoteId);
-      const quote = await storage.getQuote(quoteId);
+      const quote = await storage.getQuote(quoteId, req.userId);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
       const existing = await storage.getInvoiceByQuoteId(quoteId);
@@ -880,14 +936,11 @@ CRITICAL RULES — follow these exactly:
         subtotal = Number(quote.totalAmount) || 0;
       }
 
-      const userId = (req.session as any)?.localUserId;
       let paymentTermsDays = 14;
-      if (userId) {
-        const settings = await storage.getUserSettings(userId);
-        if (settings?.paymentTermsDays) paymentTermsDays = settings.paymentTermsDays;
-      }
+      const settings = await storage.getUserSettings(req.userId);
+      if (settings?.paymentTermsDays) paymentTermsDays = settings.paymentTermsDays;
 
-      const invoiceNumber = await storage.getNextInvoiceNumber();
+      const invoiceNumber = await storage.getNextInvoiceNumber(req.userId);
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + paymentTermsDays);
 
@@ -902,10 +955,11 @@ CRITICAL RULES — follow these exactly:
         totalAmount: String(Number(subtotal) + Number(gstAmount)),
         dueDate,
         notes,
+        userId: req.userId,
       });
 
       // Mark the originating quote as invoiced
-      await storage.updateQuote(quoteId, { status: "invoiced" });
+      await storage.updateQuote(quoteId, { status: "invoiced" }, req.userId);
 
       res.status(201).json(invoice);
     } catch (error: any) {
@@ -913,10 +967,10 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.patch("/api/invoices/:id", async (req: any, res) => {
+  app.patch("/api/invoices/:id", requireAuth, async (req: any, res) => {
     try {
       const id = Number(req.params.id);
-      const existing = await storage.getInvoice(id);
+      const existing = await storage.getInvoice(id, req.userId);
       if (!existing) return res.status(404).json({ message: "Invoice not found" });
 
       // Partial payment handling: if payAmount is provided, accumulate and decide status
@@ -935,7 +989,7 @@ CRITICAL RULES — follow these exactly:
         delete patchBody.payAmount;
       }
 
-      const updated = await storage.updateInvoice(id, patchBody);
+      const updated = await storage.updateInvoice(id, patchBody, req.userId);
       res.json(updated);
 
       // Send email when invoice is first marked as sent
@@ -962,10 +1016,10 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.post("/api/invoices/:id/resend", async (req: any, res) => {
+  app.post("/api/invoices/:id/resend", requireAuth, async (req: any, res) => {
     try {
       const id = Number(req.params.id);
-      const invoice = await storage.getInvoice(id);
+      const invoice = await storage.getInvoice(id, req.userId);
       if (!invoice) return res.status(404).json({ message: "Invoice not found" });
       if (!invoice.customerId) return res.status(400).json({ message: "Invoice has no customer" });
 
@@ -994,9 +1048,9 @@ CRITICAL RULES — follow these exactly:
 
   // ─── Follow-Up Routes ───
 
-  app.get(api.followUps.due.path, async (req: any, res) => {
+  app.get(api.followUps.due.path, requireAuth, async (req: any, res) => {
     try {
-      const allQuotes = await storage.getQuotes();
+      const allQuotes = await storage.getQuotes(req.userId);
       const dueFollowUps: any[] = [];
 
       for (const quote of allQuotes) {
@@ -1022,11 +1076,11 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.post("/api/follow-ups/:quoteId/mark-sent", async (req: any, res) => {
+  app.post("/api/follow-ups/:quoteId/mark-sent", requireAuth, async (req: any, res) => {
     try {
       const quoteId = Number(req.params.quoteId);
       const { dayIndex } = req.body;
-      const quote = await storage.getQuote(quoteId);
+      const quote = await storage.getQuote(quoteId, req.userId);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
       const schedule = JSON.parse(quote.followUpSchedule || "[]");
@@ -1034,7 +1088,7 @@ CRITICAL RULES — follow these exactly:
         schedule[dayIndex].status = "sent";
         schedule[dayIndex].sentAt = new Date().toISOString();
       }
-      await storage.updateQuote(quoteId, { followUpSchedule: JSON.stringify(schedule) });
+      await storage.updateQuote(quoteId, { followUpSchedule: JSON.stringify(schedule) }, req.userId);
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to mark follow-up sent" });
@@ -1061,7 +1115,7 @@ CRITICAL RULES — follow these exactly:
 
   // ─── Customer Email ───
 
-  app.post("/api/messages/email", async (req: any, res) => {
+  app.post("/api/messages/email", requireAuth, emailRateLimit, async (req: any, res) => {
     try {
       const { to, subject, body } = req.body || {};
       if (!to || !subject || !body) {
@@ -1113,11 +1167,9 @@ CRITICAL RULES — follow these exactly:
 
   // ─── Recent Activity ───
 
-  app.get("/api/activity", async (req: any, res) => {
+  app.get("/api/activity", requireAuth, async (req: any, res) => {
     try {
-      const userId = (req.session as any)?.localUserId;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const activities = await storage.getRecentActivity(20);
+      const activities = await storage.getRecentActivity(req.userId, 20);
       res.json(activities);
     } catch (err) {
       console.error("Activity fetch error:", err);
@@ -1127,11 +1179,9 @@ CRITICAL RULES — follow these exactly:
 
   // ─── Frequent Job Types ───
 
-  app.get("/api/templates/frequent", async (req: any, res) => {
+  app.get("/api/templates/frequent", requireAuth, async (req: any, res) => {
     try {
-      const userId = (req.session as any)?.localUserId;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const allQuotes = await storage.getQuotes();
+      const allQuotes = await storage.getQuotes(req.userId);
       const counts: Record<string, { count: number; icon: string }> = {};
       allQuotes.forEach(q => {
         try {
@@ -1300,12 +1350,12 @@ CRITICAL RULES — follow these exactly:
 
   // Sync ALL customers to Xero contacts
   app.post("/api/xero/sync-all-customers", async (req: any, res) => {
-    const userId = (req.session as any)?.localUserId;
+    const userId = req.userId || (req.session as any)?.localUserId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
     const token = await getValidToken(userId);
     if (!token) return res.status(400).json({ message: "Xero not connected" });
 
-    const customers = await storage.getCustomers();
+    const customers = await storage.getCustomers(userId);
     let synced = 0;
     let failed = 0;
     for (const customer of customers) {
@@ -1379,38 +1429,4 @@ CRITICAL RULES — follow these exactly:
   });
 
   return httpServer;
-}
-
-async function seedDatabase() {
-  const existingCustomers = await storage.getCustomers();
-  if (existingCustomers.length === 0) {
-    const c1 = await storage.createCustomer({
-      name: "Alice Smith",
-      email: "alice@example.com",
-      phone: "555-0101",
-      address: "123 Maple St",
-    });
-    const c2 = await storage.createCustomer({
-      name: "Bob Jones",
-      email: "bob@example.com",
-      phone: "555-0102",
-      address: "456 Oak Ave",
-    });
-
-    await storage.createJob({
-      customerId: c1.id,
-      title: "Fix Leaky Faucet",
-      description: "Kitchen sink faucet is dripping continuously.",
-      status: "scheduled",
-      scheduledDate: new Date("2026-04-15T14:00:00Z"),
-    });
-
-    await storage.createJob({
-      customerId: c2.id,
-      title: "Install Ceiling Fan",
-      description: "Master bedroom ceiling fan installation.",
-      status: "pending",
-      scheduledDate: new Date("2026-04-16T10:00:00Z"),
-    });
-  }
 }

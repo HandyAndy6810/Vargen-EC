@@ -9,6 +9,7 @@ import { users } from "./models/auth";
 
 export const customers = pgTable("customers", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
   name: text("name").notNull(),
   email: text("email"),
   phone: text("phone"),
@@ -20,6 +21,7 @@ export const customers = pgTable("customers", {
 
 export const jobs = pgTable("jobs", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
   customerId: integer("customer_id").references(() => customers.id),
   title: text("title").notNull(),
   description: text("description"),
@@ -33,6 +35,7 @@ export const jobs = pgTable("jobs", {
 
 export const quotes = pgTable("quotes", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
   jobId: integer("job_id").references(() => jobs.id),
   customerId: integer("customer_id").references(() => customers.id),
   totalAmount: numeric("total_amount").notNull(),
@@ -56,6 +59,7 @@ export const quoteItems = pgTable("quote_items", {
 
 export const invoices = pgTable("invoices", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
   quoteId: integer("quote_id").references(() => quotes.id),
   customerId: integer("customer_id").references(() => customers.id),
   invoiceNumber: text("invoice_number").notNull(),
@@ -73,6 +77,7 @@ export const invoices = pgTable("invoices", {
 
 export const jobTimerEntries = pgTable("job_timer_entries", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
   jobId: integer("job_id").references(() => jobs.id),
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time"),
