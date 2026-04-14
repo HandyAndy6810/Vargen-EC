@@ -799,6 +799,13 @@ CRITICAL RULES — follow these exactly:
       }
       await storage.updateQuote(quote.id, updates);
       res.json({ ok: true });
+
+      // Auto-create Xero invoice using the quote owner's userId
+      if (quote.userId && !quote.xeroInvoiceId) {
+        autoCreateXeroInvoice(quote.userId, quote.id).catch((err) =>
+          console.error("Auto Xero invoice creation failed for portal-accepted quote", quote.id, err)
+        );
+      }
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to accept quote" });
     }
@@ -1216,9 +1223,7 @@ CRITICAL RULES — follow these exactly:
 
   app.get("/api/xero/connect", (req: any, res) => {
     const userId = (req.session as any)?.localUserId;
-    if (!userId) {
-      return res.redirect("/login?returnTo=/api/xero/connect");
-    }
+    if (!userId) return res.redirect("/login?returnTo=/api/xero/connect");
 
     // Pre-flight: check env vars are configured before starting OAuth
     if (!process.env.XERO_CLIENT_ID || !process.env.XERO_REDIRECT_URI) {
@@ -1289,17 +1294,14 @@ CRITICAL RULES — follow these exactly:
   });
 
   // Check connection status
-  app.get("/api/xero/status", async (req: any, res) => {
-    const userId = (req.session as any)?.localUserId;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const token = await storage.getXeroToken(userId);
+  app.get("/api/xero/status", requireAuth, async (req: any, res) => {
+    const token = await storage.getXeroToken(req.userId);
     if (!token) {
       return res.json({ connected: false });
     }
 
     // Check if token can be refreshed
-    const valid = await getValidToken(userId);
+    const valid = await getValidToken(req.userId);
     if (!valid) {
       return res.json({ connected: false });
     }
@@ -1312,30 +1314,25 @@ CRITICAL RULES — follow these exactly:
   });
 
   // Disconnect from Xero
-  app.post("/api/xero/disconnect", async (req: any, res) => {
-    const userId = (req.session as any)?.localUserId;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    await storage.deleteXeroToken(userId);
+  app.post("/api/xero/disconnect", requireAuth, async (req: any, res) => {
+    await storage.deleteXeroToken(req.userId);
     res.json({ ok: true });
   });
 
   // ─── Xero Sync Routes ────────────────────────────────────────────────────
 
   // Manually sync a single customer to Xero contacts
-  app.post("/api/xero/sync-customer/:id", async (req: any, res) => {
-    const userId = (req.session as any)?.localUserId;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    const token = await getValidToken(userId);
+  app.post("/api/xero/sync-customer/:id", requireAuth, async (req: any, res) => {
+    const token = await getValidToken(req.userId);
     if (!token) return res.status(400).json({ message: "Xero not connected" });
 
     const customerId = Number(req.params.id);
-    const customer = await storage.getCustomer(customerId);
+    const customer = await storage.getCustomer(customerId, req.userId);
     if (!customer) return res.status(404).json({ message: "Customer not found" });
 
     try {
       const result = await upsertXeroContact(token.accessToken, token.tenantId, customer);
-      await storage.updateCustomer(customerId, { xeroContactId: result.contactId });
+      await storage.updateCustomer(customerId, { xeroContactId: result.contactId }, req.userId);
       res.json({ ok: true, contactId: result.contactId, name: result.name });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to sync contact" });
@@ -1343,19 +1340,17 @@ CRITICAL RULES — follow these exactly:
   });
 
   // Sync ALL customers to Xero contacts
-  app.post("/api/xero/sync-all-customers", async (req: any, res) => {
-    const userId = req.userId || (req.session as any)?.localUserId;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    const token = await getValidToken(userId);
+  app.post("/api/xero/sync-all-customers", requireAuth, async (req: any, res) => {
+    const token = await getValidToken(req.userId);
     if (!token) return res.status(400).json({ message: "Xero not connected" });
 
-    const customers = await storage.getCustomers(userId);
+    const customers = await storage.getCustomers(req.userId);
     let synced = 0;
     let failed = 0;
     for (const customer of customers) {
       try {
         const result = await upsertXeroContact(token.accessToken, token.tenantId, customer);
-        await storage.updateCustomer(customer.id, { xeroContactId: result.contactId });
+        await storage.updateCustomer(customer.id, { xeroContactId: result.contactId }, req.userId);
         synced++;
       } catch (err) {
         console.error("Sync failed for customer", customer.id, err);
@@ -1366,14 +1361,12 @@ CRITICAL RULES — follow these exactly:
   });
 
   // Manually create a Xero invoice from an accepted quote
-  app.post("/api/xero/invoice/:quoteId", async (req: any, res) => {
-    const userId = (req.session as any)?.localUserId;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    const token = await getValidToken(userId);
+  app.post("/api/xero/invoice/:quoteId", requireAuth, async (req: any, res) => {
+    const token = await getValidToken(req.userId);
     if (!token) return res.status(400).json({ message: "Xero not connected" });
 
     const quoteId = Number(req.params.quoteId);
-    const quote = await storage.getQuote(quoteId);
+    const quote = await storage.getQuote(quoteId, req.userId);
     if (!quote) return res.status(404).json({ message: "Quote not found" });
     if (quote.status !== "accepted") return res.status(400).json({ message: "Only accepted quotes can be invoiced" });
     if (quote.xeroInvoiceId) return res.json({ ok: true, invoiceId: quote.xeroInvoiceId, invoiceNumber: quote.xeroInvoiceNumber, alreadyExists: true });
@@ -1414,7 +1407,7 @@ CRITICAL RULES — follow these exactly:
       await storage.updateQuote(quoteId, {
         xeroInvoiceId: result.invoiceId,
         xeroInvoiceNumber: result.invoiceNumber,
-      });
+      }, req.userId);
 
       res.json({ ok: true, invoiceId: result.invoiceId, invoiceNumber: result.invoiceNumber });
     } catch (err: any) {
