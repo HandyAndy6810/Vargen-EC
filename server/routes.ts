@@ -1095,18 +1095,18 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.post("/api/follow-ups/:quoteId/skip", async (req: any, res) => {
+  app.post("/api/follow-ups/:quoteId/skip", requireAuth, async (req: any, res) => {
     try {
       const quoteId = Number(req.params.quoteId);
       const { dayIndex } = req.body;
-      const quote = await storage.getQuote(quoteId);
+      const quote = await storage.getQuote(quoteId, req.userId);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
       const schedule = JSON.parse(quote.followUpSchedule || "[]");
       if (schedule[dayIndex]) {
         schedule[dayIndex].status = "skipped";
       }
-      await storage.updateQuote(quoteId, { followUpSchedule: JSON.stringify(schedule) });
+      await storage.updateQuote(quoteId, { followUpSchedule: JSON.stringify(schedule) }, req.userId);
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to skip follow-up" });
@@ -1131,23 +1131,19 @@ CRITICAL RULES — follow these exactly:
 
   // ─── Job Templates ───
 
-  app.get("/api/templates", async (req: any, res) => {
-    const userId = (req.session as any)?.localUserId;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    const templates = await storage.getJobTemplates(userId);
+  app.get("/api/templates", requireAuth, async (req: any, res) => {
+    const templates = await storage.getJobTemplates(req.userId);
     res.json(templates);
   });
 
-  app.post("/api/templates", async (req: any, res) => {
+  app.post("/api/templates", requireAuth, async (req: any, res) => {
     try {
-      const userId = (req.session as any)?.localUserId;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const { label, icon, description } = req.body;
       if (!label || typeof label !== "string") {
         return res.status(400).json({ message: "Label is required" });
       }
       const template = await storage.createJobTemplate({
-        userId,
+        userId: req.userId,
         label,
         icon: icon || "📋",
         description: description || "",
@@ -1158,10 +1154,8 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.delete("/api/templates/:id", async (req: any, res) => {
-    const userId = (req.session as any)?.localUserId;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    await storage.deleteJobTemplate(Number(req.params.id), userId);
+  app.delete("/api/templates/:id", requireAuth, async (req: any, res) => {
+    await storage.deleteJobTemplate(Number(req.params.id), req.userId);
     res.json({ ok: true });
   });
 
