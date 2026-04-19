@@ -91,48 +91,54 @@ export default function Jobs() {
     .reduce((sum, q) => sum + parseFloat(q.totalAmount || "0"), 0) || 0;
 
   return (
-    <div className="min-h-screen bg-[#F8F5F2] dark:bg-background pb-32">
+    <div className="min-h-screen bg-background pb-32">
       {/* Active Timer Banner */}
       <ActiveTimerBanner />
       {/* Header */}
-      <div className="px-6 pt-12 mb-6">
-        <div className="flex items-start justify-between mb-6">
+      <div className="px-5 pt-12 mb-4">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
-            <p className="text-muted-foreground">{format(currentDate, "MMMM yyyy")}</p>
+            <p className="text-[10px] font-extrabold uppercase tracking-[2px] text-muted-foreground mb-0.5">
+              {format(currentDate, "MMMM yyyy")}
+            </p>
+            <h1 className="text-[28px] font-extrabold text-foreground tracking-[-0.5px]">Calendar</h1>
           </div>
         </div>
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search all jobs..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full h-11 pl-11 pr-4 rounded-2xl bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full h-11 pl-11 pr-4 rounded-[14px] bg-card border border-black/8 dark:border-white/8 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
 
         {/* Next Job Banner */}
         {nextJob && (
           <Link href={`/jobs/${nextJob.id}`}>
-            <div className="flex items-center gap-3 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-2xl px-4 py-3 mb-6 active:scale-[0.98] transition-all cursor-pointer" data-testid="banner-next-job">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
-                <Calendar className="w-4 h-4 text-white" />
+            <div className="header-card mb-4 active:scale-[0.98] transition-all cursor-pointer" data-testid="banner-next-job">
+              <div className="relative z-10 flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[2px] text-white/40 mb-1">Next Job · {nextJobDayLabel}</p>
+                  <p className="text-[18px] font-extrabold text-white truncate">{nextJob.title}</p>
+                  <p className="text-[13px] text-white/50 mt-0.5">
+                    {nextJob.scheduledDate ? format(new Date(nextJob.scheduledDate), "h:mm a") : "TBD"}
+                  </p>
+                </div>
+                <div className="shrink-0 ml-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-primary" />
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-0.5">Next Job · {nextJobDayLabel}</p>
-                <p className="text-sm font-bold truncate text-foreground">{nextJob.title}</p>
-              </div>
-              <span className="text-[11px] font-semibold text-primary/70 shrink-0">
-                {nextJob.scheduledDate ? format(new Date(nextJob.scheduledDate), "h:mm a") : "TBD"}
-              </span>
             </div>
           </Link>
         )}
 
         {/* Calendar Card */}
-        <div className="bg-white dark:bg-card rounded-[2.5rem] p-6 shadow-xl border border-black/5 mb-8">
+        <div className="bg-card rounded-[22px] p-5 border border-black/5 dark:border-white/5 mb-6">
           <div className="flex justify-between items-center mb-6 px-2">
             <h2 className="font-bold text-lg">{format(currentDate, "MMMM yyyy")}</h2>
             <div className="flex gap-2">
@@ -219,7 +225,7 @@ export default function Jobs() {
                   <div className="text-center py-12 text-muted-foreground text-sm">No jobs matched</div>
                 ) : matches.map(job => (
                   <Link key={job.id} href={`/jobs/${job.id}`}>
-                    <div className="bg-white dark:bg-card px-4 py-3.5 rounded-xl border border-black/5 dark:border-white/10 flex items-center gap-3 active:scale-[0.98] transition-transform">
+                    <div className="bg-card px-4 py-3.5 rounded-[14px] border border-black/5 dark:border-white/8 flex items-center gap-3 active:scale-[0.98] transition-transform">
                       <div className={cn("w-2.5 h-2.5 rounded-full shrink-0",
                         job.status === "completed" ? "bg-green-500" :
                         job.status === "cancelled" ? "bg-red-400" :
@@ -241,17 +247,17 @@ export default function Jobs() {
           })() : (
           <>
           <div className="flex justify-between items-center px-1 mb-4">
-            <h3 className="text-xl font-bold text-foreground">
-              {isSameDay(selectedDate, new Date()) ? "Today's Schedule" : format(selectedDate, "EEEE, MMM d")}
+            <h3 className="text-[18px] font-extrabold text-foreground tracking-[-0.3px]">
+              {isSameDay(selectedDate, new Date()) ? "Today's Schedule" : format(selectedDate, "eee d MMM")}
             </h3>
-            <span className="text-sm font-medium text-muted-foreground bg-white dark:bg-card px-3 py-1 rounded-full shadow-sm border border-black/5">
+            <span className="text-[11px] font-bold text-muted-foreground bg-card px-3 py-1 rounded-full border border-black/5 dark:border-white/5">
               {selectedDateJobs.length} {selectedDateJobs.length === 1 ? 'Job' : 'Jobs'}
             </span>
           </div>
 
           {isLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white dark:bg-card rounded-xl border border-black/5 dark:border-white/10 px-4 py-3.5 flex items-center gap-3">
+              <div key={i} className="bg-card rounded-[14px] border border-black/5 dark:border-white/8 px-4 py-3.5 flex items-center gap-3">
                 <Skeleton className="w-2.5 h-2.5 rounded-full shrink-0" />
                 <div className="flex-1 space-y-1.5">
                   <Skeleton className="h-3.5 w-2/5 rounded" />
@@ -263,7 +269,7 @@ export default function Jobs() {
           ) : selectedDateJobs.length === 0 ? (
             <div
               onClick={() => setIsDialogOpen(true)}
-              className="bg-white/50 dark:bg-card/50 border-2 border-dashed border-black/10 dark:border-white/10 hover:border-primary/40 hover:bg-primary/5 rounded-3xl p-12 text-center cursor-pointer transition-all active:scale-[0.98]"
+              className="bg-card/50 border-2 border-dashed border-black/10 dark:border-white/10 hover:border-primary/40 hover:bg-primary/5 rounded-[22px] p-12 text-center cursor-pointer transition-all active:scale-[0.98]"
               data-testid="button-add-job-empty"
             >
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
@@ -282,14 +288,14 @@ export default function Jobs() {
                   : job.status === "cancelled" ? "bg-red-400"
                   : "bg-primary";
                 const statusBadge = job.status === "completed"
-                  ? { label: "Completed", cls: "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800" }
+                  ? { label: "Completed", cls: "bg-greenSoft text-greenStatus border-[#bde2c9] dark:bg-[rgba(78,196,114,0.15)] dark:text-[#4ec472] dark:border-[rgba(78,196,114,0.3)]" }
                   : job.status === "in_progress"
-                  ? { label: "In Progress", cls: "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800" }
+                  ? { label: "Active", cls: "bg-orangeSoft text-primary border-[#fcc9a8] dark:bg-[rgba(242,106,42,0.18)] dark:border-[rgba(242,106,42,0.3)]" }
                   : job.status === "pending"
-                  ? { label: "Pending", cls: "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800" }
+                  ? { label: "Pending", cls: "bg-[#fffbeb] text-yellow-700 border-[#fde68a] dark:bg-[rgba(234,179,8,0.15)] dark:text-yellow-400 dark:border-[rgba(234,179,8,0.3)]" }
                   : job.status === "cancelled"
-                  ? { label: "Cancelled", cls: "bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 border-red-200 dark:border-red-800" }
-                  : { label: "Scheduled", cls: "bg-orange-50 dark:bg-orange-900/20 text-primary border-orange-200 dark:border-orange-800" };
+                  ? { label: "Cancelled", cls: "bg-redSoft text-red-600 border-[#f5c6c6] dark:bg-[rgba(255,106,106,0.15)] dark:text-[#ff6a6a] dark:border-[rgba(255,106,106,0.3)]" }
+                  : { label: "Scheduled", cls: "bg-blueSoft text-blueStatus border-[#c8dcff] dark:bg-[rgba(90,156,255,0.15)] dark:text-[#5a9cff] dark:border-[rgba(90,156,255,0.3)]" };
                 const canCancel = job.status !== "completed" && job.status !== "cancelled";
                 const customerName = customers?.find(c => c.id === job.customerId)?.name;
                 return (
@@ -312,7 +318,7 @@ export default function Jobs() {
                     ]}
                   >
                   <Link href={`/jobs/${job.id}`}>
-                    <div className="bg-white dark:bg-card px-4 py-3.5 rounded-xl border border-black/5 dark:border-white/10 flex items-center gap-3 active:scale-[0.98] transition-transform">
+                    <div className="bg-card px-4 py-3.5 rounded-[14px] border border-black/5 dark:border-white/8 flex items-center gap-3 active:scale-[0.98] transition-transform">
                       <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", statusDot)} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold truncate">{job.title}</p>
@@ -333,7 +339,7 @@ export default function Jobs() {
 
               {/* Day earnings preview */}
               {selectedDayEarnings > 0 && (
-                <div className="bg-white dark:bg-card rounded-2xl p-4 shadow-sm border border-black/5 flex items-center justify-between">
+                <div className="bg-card rounded-[14px] px-4 py-3.5 border border-black/5 dark:border-white/5 flex items-center justify-between">
                   <span className="text-sm text-muted-foreground font-medium">Est. day earnings</span>
                   <span className="text-lg font-bold text-green-600 dark:text-green-400">
                     ${selectedDayEarnings.toLocaleString("en-AU", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
