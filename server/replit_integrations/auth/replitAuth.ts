@@ -1,10 +1,19 @@
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
+import rateLimit from "express-rate-limit";
 import connectPg from "connect-pg-simple";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { authStorage } from "./storage";
 import { sendPasswordResetEmail } from "../../lib/email";
+
+const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                   // 10 attempts per IP
+  message: { message: "Too many attempts. Please try again in 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
@@ -23,6 +32,7 @@ export function getSession() {
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      sameSite: "lax" as const, // CSRF mitigation: blocks cross-origin POST
       maxAge: sessionTtl,
     },
   });
@@ -33,7 +43,7 @@ export async function setupAuth(app: Express) {
   app.use(getSession());
 
   // Sign in
-  app.post("/api/login", async (req, res) => {
+  app.post("/api/login", authRateLimit, async (req, res) => {
     try {
       const { username, password } = req.body || {};
       if (!username || !password) {
@@ -60,7 +70,7 @@ export async function setupAuth(app: Express) {
   });
 
   // Register
-  app.post("/api/register", async (req, res) => {
+  app.post("/api/register", authRateLimit, async (req, res) => {
     try {
       const { email, password, firstName, lastName } = req.body || {};
       if (!email || !password) {

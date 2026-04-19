@@ -424,27 +424,27 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      <div className="px-6 pt-12 mb-6">
-        <h1 className="text-3xl font-bold text-foreground mb-1">Settings</h1>
-        <p className="text-muted-foreground">Configure your app</p>
-      </div>
-
-      <div className="px-6 space-y-4 max-w-2xl mx-auto">
-        {/* User Info Card */}
-        <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <UserRound className="w-7 h-7 text-primary" />
+      {/* Profile Hero */}
+      <div className="header-card mx-5 mt-12 mb-5">
+        <div className="relative z-10 flex items-center gap-4">
+          <div className="w-16 h-16 rounded-[18px] bg-primary/20 flex items-center justify-center shrink-0">
+            <UserRound className="w-8 h-8 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-foreground text-lg truncate" data-testid="text-profile-name">
+            <p className="text-[10px] font-extrabold uppercase tracking-[2px] text-white/40 mb-0.5">Your Account</p>
+            <p className="text-[20px] font-extrabold text-white leading-tight truncate" data-testid="text-profile-name">
               {user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Tradie"}
             </p>
-            <p className="text-sm text-muted-foreground truncate" data-testid="text-profile-email">{user?.email || "No email"}</p>
+            <p className="text-[13px] text-white/50 truncate" data-testid="text-profile-email">
+              {user?.email || "No email"}
+            </p>
           </div>
         </div>
+      </div>
 
+      <div className="px-5 space-y-3 max-w-2xl mx-auto">
         {/* Settings Menu */}
-        <div className="bg-white dark:bg-white/5 rounded-[2rem] shadow-sm border border-black/5 dark:border-white/10 overflow-hidden">
+        <div className="bg-card rounded-[18px] border border-black/5 dark:border-white/8 overflow-hidden">
           {menuItems.map((item, idx) => (
             <div
               key={item.id}
@@ -458,20 +458,20 @@ export default function Profile() {
                 }
               }}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
-              className={`w-full flex items-center gap-4 px-6 py-4 text-left transition-colors cursor-pointer ${idx < menuItems.length - 1 ? "border-b border-black/5 dark:border-white/10" : ""}`}
+              className={`w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors cursor-pointer ${idx < menuItems.length - 1 ? "border-b border-black/5 dark:border-white/8" : ""}`}
               data-testid={`button-settings-${item.id}`}
             >
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <item.icon className="w-5 h-5 text-primary" />
+              <div className="w-9 h-9 rounded-[10px] bg-primary/10 flex items-center justify-center shrink-0">
+                <item.icon className="w-4.5 h-4.5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground">{item.label}</p>
-                <p className="text-xs text-muted-foreground">{item.desc}</p>
+                <p className="text-[13px] font-bold text-foreground">{item.label}</p>
+                <p className="text-[11px] text-muted-foreground">{item.desc}</p>
               </div>
               {item.id === "appearance" ? (
                 <Switch checked={darkMode} onCheckedChange={setDarkMode} data-testid="switch-dark-mode" />
               ) : (
-                <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${activeSection === item.id ? "rotate-90" : ""}`} />
+                <ChevronRight className={`w-4 h-4 text-muted-foreground/50 transition-transform ${activeSection === item.id ? "rotate-90" : ""}`} />
               )}
             </div>
           ))}
@@ -479,7 +479,7 @@ export default function Profile() {
 
         {/* Business Profile Expanded */}
         {activeSection === "business" && (
-          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-4 animate-in slide-in-from-top-2 duration-200">
+          <div className="bg-card rounded-[18px] p-5 border border-black/5 dark:border-white/8 space-y-4 animate-in slide-in-from-top-2 duration-200">
             <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
               <Building2 className="w-5 h-5 text-primary" /> Business Profile
             </h3>
@@ -539,7 +539,7 @@ export default function Profile() {
 
         {/* Quote Defaults Expanded */}
         {activeSection === "quoteDefaults" && (
-          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-4 animate-in slide-in-from-top-2 duration-200">
+          <div className="bg-card rounded-[18px] p-5 border border-black/5 dark:border-white/8 space-y-4 animate-in slide-in-from-top-2 duration-200">
             <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-primary" /> Quote Defaults
             </h3>
@@ -606,7 +606,7 @@ export default function Profile() {
 
         {/* Goals Expanded */}
         {activeSection === "goals" && (
-          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-4 animate-in slide-in-from-top-2 duration-200">
+          <div className="bg-card rounded-[18px] p-5 border border-black/5 dark:border-white/8 space-y-4 animate-in slide-in-from-top-2 duration-200">
             <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
               <Target className="w-5 h-5 text-primary" /> Goals
             </h3>
@@ -639,7 +639,7 @@ export default function Profile() {
 
         {/* Home Layout Expanded */}
         {activeSection === "homeLayout" && (
-          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-4 animate-in slide-in-from-top-2 duration-200">
+          <div className="bg-card rounded-[18px] p-5 border border-black/5 dark:border-white/8 space-y-4 animate-in slide-in-from-top-2 duration-200">
             <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
               <Layout className="w-5 h-5 text-primary" /> Home Layout
             </h3>
@@ -863,7 +863,7 @@ export default function Profile() {
 
         {/* Bank Details Expanded */}
         {activeSection === "bank" && (
-          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-4 animate-in slide-in-from-top-2 duration-200">
+          <div className="bg-card rounded-[18px] p-5 border border-black/5 dark:border-white/8 space-y-4 animate-in slide-in-from-top-2 duration-200">
             <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
               <Building2 className="w-5 h-5 text-primary" /> Bank Details
             </h3>
@@ -926,7 +926,7 @@ export default function Profile() {
 
         {/* Follow-Up Settings Expanded */}
         {activeSection === "followups" && (
-          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-4 animate-in slide-in-from-top-2 duration-200">
+          <div className="bg-card rounded-[18px] p-5 border border-black/5 dark:border-white/8 space-y-4 animate-in slide-in-from-top-2 duration-200">
             <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
               <Clock className="w-5 h-5 text-primary" /> Follow-Up Automation
             </h3>
@@ -985,7 +985,7 @@ export default function Profile() {
 
         {/* Xero Integration Expanded */}
         {activeSection === "xero" && (
-          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-6 shadow-sm border border-black/5 dark:border-white/10 space-y-4 animate-in slide-in-from-top-2 duration-200">
+          <div className="bg-card rounded-[18px] p-5 border border-black/5 dark:border-white/8 space-y-4 animate-in slide-in-from-top-2 duration-200">
             <h3 className="font-bold text-foreground text-lg flex items-center gap-2">
               <Link2 className="w-5 h-5 text-primary" /> Xero Integration
             </h3>

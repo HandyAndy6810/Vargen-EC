@@ -5,70 +5,70 @@
 @tailwind utilities;
 
 :root {
-  /* Modern Trade Palette: Deep Blue & Safety Orange */
-  --background: 30 20% 96%; /* Warm off-white */
-  --foreground: 0 0% 15%; /* Soft black */
+  /* VGN-EC Design System — Warm Tradie Palette */
+  --background: 43 29% 95%; /* paper #f7f4ee */
+  --foreground: 43 11% 7%;  /* ink #141310 */
 
-  --card: 0 0% 100%; /* Pure white */
-  --card-foreground: 0 0% 15%;
-  
+  --card: 0 0% 100%;
+  --card-foreground: 43 11% 7%;
+
   --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 15%;
-  
-  /* Primary: Professional Safety Orange */
-  --primary: 18 90% 55%; 
+  --popover-foreground: 43 11% 7%;
+
+  /* Primary: Safety Orange #f26a2a */
+  --primary: 18 89% 54%;
   --primary-foreground: 0 0% 100%;
-  
-  /* Secondary: Dark slate/brown for headers */
-  --secondary: 0 0% 18%; 
+
+  /* Secondary: Near-black warm */
+  --secondary: 43 14% 14%;
   --secondary-foreground: 0 0% 100%;
-  
-  /* Muted: Soft grays */
-  --muted: 0 0% 93%;
-  --muted-foreground: 0 0% 40%;
-  
-  /* Accent: Professional Safety Orange */
-  --accent: 18 90% 55%;
+
+  /* Muted: Warm paper-deep */
+  --muted: 40 30% 90%;      /* paperDeep #efe9dd */
+  --muted-foreground: 43 11% 37%;
+
+  /* Accent = orange */
+  --accent: 18 89% 54%;
   --accent-foreground: 0 0% 100%;
-  
-  --destructive: 0 84% 60%;
+
+  --destructive: 0 62% 53%; /* red #d23b3b */
   --destructive-foreground: 0 0% 100%;
 
-  --border: 0 0% 90%;
-  --input: 0 0% 90%;
-  --ring: 18 90% 55%;
-  
-  --radius: 1.5rem; /* Large rounded corners as seen in screenshot */
+  --border: 43 15% 88%;
+  --input: 43 15% 88%;
+  --ring: 18 89% 54%;
+
+  --radius: 0.75rem;
 }
 
 .dark {
-  --background: 0 0% 10%;
-  --foreground: 0 0% 95%;
-  
-  --card: 0 0% 13%;
-  --card-foreground: 0 0% 95%;
-  
-  --popover: 0 0% 13%;
-  --popover-foreground: 0 0% 95%;
-  
-  --primary: 18 90% 55%;
+  --background: 43 21% 7%;   /* paper dark #17150f */
+  --foreground: 43 18% 95%;  /* ink dark #f5f3ef */
+
+  --card: 40 19% 11%;        /* card dark #221e17 */
+  --card-foreground: 43 18% 95%;
+
+  --popover: 40 19% 11%;
+  --popover-foreground: 43 18% 95%;
+
+  --primary: 20 100% 61%;    /* orange dark #ff7a3c */
   --primary-foreground: 0 0% 100%;
-  
-  --secondary: 0 0% 25%;
-  --secondary-foreground: 0 0% 100%;
-  
-  --muted: 0 0% 20%;
-  --muted-foreground: 0 0% 70%;
-  
-  --accent: 18 90% 55%;
+
+  --secondary: 42 19% 18%;
+  --secondary-foreground: 43 18% 95%;
+
+  --muted: 42 19% 13%;       /* paperDeep dark #1f1c15 */
+  --muted-foreground: 43 12% 58%;
+
+  --accent: 20 100% 61%;
   --accent-foreground: 0 0% 100%;
-  
-  --destructive: 0 62% 30%;
+
+  --destructive: 0 100% 71%; /* red dark #ff6a6a */
   --destructive-foreground: 0 0% 100%;
-  
-  --border: 0 0% 20%;
-  --input: 0 0% 20%;
-  --ring: 18 90% 55%;
+
+  --border: 43 14% 17%;
+  --input: 43 14% 17%;
+  --ring: 20 100% 61%;
 }
 
 @layer base {
@@ -86,10 +86,33 @@
 }
 
 @layer components {
-  /* High-contrast header as seen in screenshot */
+  /* VGN-EC dark hero card — warm near-black with orange accent */
   .header-card {
-    @apply rounded-[2rem] p-8 text-white shadow-xl;
-    background: linear-gradient(135deg, hsl(0, 0%, 14%) 0%, hsl(0, 0%, 22%) 60%, hsl(18, 60%, 22%) 100%);
+    @apply rounded-[22px] p-5 text-white overflow-hidden relative;
+    background: #0f0e0b;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+  }
+
+  .header-card::after {
+    content: '';
+    position: absolute;
+    bottom: -80px;
+    right: -40px;
+    width: 240px;
+    height: 240px;
+    background: radial-gradient(circle, rgba(242, 106, 42, 0.3) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  /* Orange primary CTA button */
+  .btn-orange {
+    background: linear-gradient(135deg, #f26a2a 0%, #d94d0e 100%);
+    box-shadow: 0 10px 24px rgba(242, 106, 42, 0.4);
+    @apply text-white font-extrabold rounded-[16px];
+  }
+
+  .dark .btn-orange {
+    background: linear-gradient(135deg, #ff7a3c 0%, #f26a2a 100%);
   }
   
   /* Action tile styling */

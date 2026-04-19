@@ -194,45 +194,41 @@ export default function Quotes() {
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      {/* Header & Dashboard Strip */}
-      <div className="px-6 pt-12 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-3xl font-bold text-foreground" data-testid="text-quotes-title">Quotes</h1>
-          <button
-            onClick={() => setLocation("/quotes/new")}
-            className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md active:scale-90 transition-transform duration-150"
-          >
-            <Plus className="w-5 h-5 text-primary-foreground" strokeWidth={2.5} />
-          </button>
-        </div>
-        
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
-            <div className="flex items-center gap-1.5 mb-1">
-              <TrendingUp className="w-3 h-3 text-primary" />
-              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Pipeline</p>
+      {/* Header & Pipeline Hero */}
+      <div className="px-5 pt-12 mb-4">
+        {/* Dark hero card */}
+        <div className="header-card mb-4">
+          <div className="relative z-10">
+            <div className="flex items-start justify-between mb-1">
+              <p className="text-[10px] font-extrabold uppercase tracking-[2px] text-white/40">Your Pipeline</p>
+              <button
+                onClick={() => setLocation("/quotes/new")}
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center active:scale-90 transition-all"
+                data-testid="button-new-quote"
+              >
+                <Plus className="w-5 h-5 text-white" strokeWidth={2.5} />
+              </button>
             </div>
-            <p className="text-sm font-bold text-primary truncate" data-testid="text-pipeline-value">
-              ${totalPipeline.toLocaleString()}
+            <p className="text-[42px] font-extrabold text-white leading-none tracking-[-1.4px] mb-1" data-testid="text-pipeline-value">
+              ${totalPipeline.toLocaleString("en-AU")}
             </p>
-          </div>
-          <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Percent className="w-3 h-3 text-emerald-500" />
-              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Win Rate</p>
+            <p className="text-white/50 text-[13px] mb-4">
+              {(quotes?.filter(q => activeStatuses.includes(q.status || "")) || []).length} active quotes
+            </p>
+            <div className="flex gap-6">
+              <div>
+                <p className="text-[9px] font-extrabold uppercase tracking-[2px] text-white/30 mb-0.5">Win Rate</p>
+                <p className="text-[15px] font-extrabold text-white" data-testid="text-win-rate">
+                  {stats.winRate.toFixed(0)}%
+                </p>
+              </div>
+              <div>
+                <p className="text-[9px] font-extrabold uppercase tracking-[2px] text-white/30 mb-0.5">Avg Value</p>
+                <p className="text-[15px] font-extrabold text-white" data-testid="text-avg-value">
+                  ${stats.avgValue.toLocaleString("en-AU", { maximumFractionDigits: 0 })}
+                </p>
+              </div>
             </div>
-            <p className="text-sm font-bold text-foreground truncate" data-testid="text-win-rate">
-              {stats.winRate.toFixed(0)}%
-            </p>
-          </div>
-          <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
-            <div className="flex items-center gap-1.5 mb-1">
-              <DollarSign className="w-3 h-3 text-blue-500" />
-              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Avg Value</p>
-            </div>
-            <p className="text-sm font-bold text-foreground truncate" data-testid="text-avg-value">
-              ${stats.avgValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </p>
           </div>
         </div>
 
@@ -296,7 +292,7 @@ export default function Quotes() {
       </div>
 
       {/* Search */}
-      <div className="px-6 mb-4">
+      <div className="px-5 mb-3">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -304,19 +300,19 @@ export default function Quotes() {
             placeholder="Search quotes..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full h-11 pl-11 pr-4 rounded-2xl bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full h-11 pl-11 pr-4 rounded-[14px] bg-card border border-black/8 dark:border-white/8 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
       </div>
 
-      {/* Segmented Control */}
-      <div className="px-6 mb-6">
-        <div className="bg-[#F0EEEB] dark:bg-white/10 p-1 rounded-2xl flex gap-1">
+      {/* Filter chips */}
+      <div className="px-5 mb-4">
+        <div className="bg-paperDeep dark:bg-muted p-1 rounded-[14px] flex gap-1">
           <button
             onClick={() => setTab("active")}
             className={cn(
-              "flex-1 py-3 rounded-xl font-bold text-sm transition-all",
-              tab === "active" ? "bg-white dark:bg-white/20 text-foreground shadow-sm" : "text-muted-foreground"
+              "flex-1 py-2.5 rounded-[10px] font-extrabold text-[13px] transition-all",
+              tab === "active" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
             )}
             data-testid="tab-active"
           >
@@ -325,8 +321,8 @@ export default function Quotes() {
           <button
             onClick={() => setTab("history")}
             className={cn(
-              "flex-1 py-3 rounded-xl font-bold text-sm transition-all",
-              tab === "history" ? "bg-white dark:bg-white/20 text-foreground shadow-sm" : "text-muted-foreground"
+              "flex-1 py-2.5 rounded-[10px] font-extrabold text-[13px] transition-all",
+              tab === "history" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
             )}
             data-testid="tab-history"
           >
@@ -336,10 +332,10 @@ export default function Quotes() {
       </div>
 
       {/* Quote List */}
-      <div className="px-6 space-y-2">
+      <div className="px-5 space-y-2">
         {isLoading ? (
           Array.from({ length: 7 }).map((_, i) => (
-            <div key={i} className="bg-white dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/10 px-4 py-3.5 flex items-center gap-3">
+            <div key={i} className="bg-card rounded-[14px] border border-black/5 dark:border-white/8 px-4 py-3.5 flex items-center gap-3">
               <Skeleton className="w-2.5 h-2.5 rounded-full shrink-0" />
               <div className="flex-1 space-y-1.5">
                 <Skeleton className="h-3.5 w-2/5 rounded" />
@@ -349,7 +345,7 @@ export default function Quotes() {
             </div>
           ))
         ) : filteredQuotes.length === 0 ? (
-          <div className="bg-white dark:bg-white/5 rounded-[2rem] p-10 text-center shadow-sm border border-black/5 dark:border-white/10">
+          <div className="bg-card rounded-[22px] p-10 text-center border border-black/5 dark:border-white/8">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 dark:from-primary/20 dark:to-amber-900/20 flex items-center justify-center mx-auto mb-4">
               <FileText className="w-8 h-8 text-primary" />
             </div>
@@ -388,7 +384,7 @@ export default function Quotes() {
               >
                 <div
                   onClick={() => setLocation(`/quotes/${quote.id}`)}
-                  className="bg-white dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/10 cursor-pointer active:scale-[0.98] transition-transform flex items-center gap-3 px-4 py-3.5"
+                  className="bg-card rounded-[14px] border border-black/5 dark:border-white/8 cursor-pointer active:scale-[0.98] transition-transform flex items-center gap-3 px-4 py-3.5"
                   data-testid={`card-quote-${quote.id}`}
                 >
                   {/* Status dot — warning overlay if needed */}

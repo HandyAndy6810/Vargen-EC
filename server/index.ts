@@ -1,7 +1,31 @@
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+
+// ── Environment validation ──────────────────────────────────────────────
+const REQUIRED_ENV_VARS = ["DATABASE_URL", "SESSION_SECRET"];
+const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+if (missing.length > 0) {
+  console.error(`[startup] Missing required environment variables: ${missing.join(", ")}`);
+  console.error("[startup] Set these in your .env file or hosting environment and restart.");
+  process.exit(1);
+}
+
+if (process.env.SESSION_SECRET && process.env.SESSION_SECRET.length < 32) {
+  console.error("[startup] SESSION_SECRET must be at least 32 characters long.");
+  process.exit(1);
+}
+
+// ── Global error handlers ──────────────────────────────────────────────
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err);
+  process.exit(1);
+});
 
 const app = express();
 const httpServer = createServer(app);
@@ -11,6 +35,14 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+// ── Security headers ───────────────────────────────────────────────────
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Disabled to avoid breaking the SPA in dev; re-enable with proper CSP for prod
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 app.use(
   express.json({
@@ -49,10 +81,10 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      if (capturedJsonResponse && res.statusCode >= 400) {
+        // Only log response bodies on errors to avoid leaking data in logs
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       log(logLine);
     }
   });
@@ -63,17 +95,13 @@ app.use((req, res, next) => {
 (async () => {
   await registerRoutes(httpServer, app);
 
+  // Generic error handler — never expose stack traces to clients
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+    console.error(`[error] ${status}:`, err.message || err);
+    res.status(status).json({ message: status < 500 ? (err.message || "Request error") : "Internal server error" });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
@@ -81,10 +109,6 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {
