@@ -96,11 +96,11 @@
   .header-card::after {
     content: '';
     position: absolute;
-    bottom: -80px;
-    right: -40px;
-    width: 240px;
-    height: 240px;
-    background: radial-gradient(circle, rgba(242, 106, 42, 0.3) 0%, transparent 65%);
+    top: 0;
+    right: 0;
+    width: 140px;
+    height: 140px;
+    background: radial-gradient(circle at top right, rgba(242, 106, 42, 0.45) 0%, transparent 70%);
     pointer-events: none;
   }
 

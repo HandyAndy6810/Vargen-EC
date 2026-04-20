@@ -1,7 +1,10 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings";
 import { useXeroStatus, useXeroDisconnect, useXeroSyncAllCustomers } from "@/hooks/use-xero";
-import { useState, useEffect, useRef } from "react";
+import { useJobs } from "@/hooks/use-jobs";
+import { useInvoices } from "@/hooks/use-invoices";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { startOfMonth } from "date-fns";
 import { useSearch } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
-  UserRound,
   Building2,
   Briefcase,
   Trash2,
@@ -123,6 +125,8 @@ export default function Profile() {
   const { data: dbSettings } = useUserSettings();
   const { mutate: updateSettings, mutateAsync: updateSettingsAsync } = useUpdateUserSettings();
   const queryClient = useQueryClient();
+  const { data: jobs } = useJobs();
+  const { data: invoices } = useInvoices();
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const isInitialized = useRef(false);
@@ -410,72 +414,152 @@ export default function Profile() {
     }
   };
 
-  const menuItems = [
-    { id: "business", icon: Building2, label: "Business Profile", desc: "Name, ABN, contact details" },
-    { id: "quoteDefaults", icon: DollarSign, label: "Quote Defaults", desc: "Trade, rates, markup, GST" },
-    { id: "goals", icon: Target, label: "Goals", desc: "Weekly revenue target" },
-    { id: "homeLayout", icon: Layout, label: "Home Layout", desc: "Change the stack of dashboard items" },
-    { id: "appearance", icon: darkMode ? Moon : Sun, label: "Appearance", desc: darkMode ? "Dark mode" : "Light mode" },
-    { id: "branding", icon: Palette, label: "Quote Branding", desc: "Logo, colours, fonts & header style" },
-    { id: "bank", icon: Building2, label: "Bank Details", desc: "For invoicing — BSB, account number" },
-    { id: "followups", icon: Clock, label: "Follow-Up Automation", desc: dbSettings?.followUpEnabled ? "Enabled" : "Disabled" },
-    { id: "xero", icon: Link2, label: "Xero Integration", desc: xeroStatus?.connected ? `Connected to ${xeroStatus.tenantName}` : "Connect your accounting" },
+  // Quick stats
+  const monthStart = startOfMonth(new Date());
+  const jobsThisMonth = useMemo(() =>
+    (jobs || []).filter(j => j.scheduledDate && new Date(j.scheduledDate) >= monthStart).length,
+    [jobs]
+  );
+  const revenueThisMonth = useMemo(() =>
+    (invoices || [])
+      .filter(i => i.status === "paid" && i.paidDate && new Date(i.paidDate) >= monthStart)
+      .reduce((s, i) => s + parseFloat(i.totalAmount || "0"), 0),
+    [invoices]
+  );
+  const revenueStr = revenueThisMonth >= 1000
+    ? `$${(revenueThisMonth / 1000).toFixed(1)}k`
+    : `$${Math.round(revenueThisMonth)}`;
+
+  const fullName = user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Tradie";
+  const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "VG";
+
+  const settingsGroups = [
+    {
+      title: "Business",
+      items: [
+        { id: "business",      icon: Building2, label: "Business details",       sub: "ABN, logo, invoice footer" },
+        { id: "quoteDefaults", icon: DollarSign, label: "Invoice & quote settings", sub: "Numbering, GST, payment terms" },
+        { id: "branding",      icon: Palette,   label: "Quote branding",         sub: "Logo, colours, fonts & header style" },
+        { id: "bank",          icon: Building2, label: "Bank details",           sub: "For invoicing — BSB, account number" },
+      ],
+    },
+    {
+      title: "AI & Automations",
+      items: [
+        { id: "followups", icon: Clock, label: "Follow-Up Automation", sub: dbSettings?.followUpEnabled ? "Enabled" : "Disabled" },
+        { id: "xero",      icon: Link2, label: "Xero Integration",      sub: xeroStatus?.connected ? `Connected to ${xeroStatus.tenantName}` : "Connect your accounting" },
+      ],
+    },
+    {
+      title: "Preferences",
+      items: [
+        { id: "goals",      icon: Target,              label: "Goals",        sub: "Weekly revenue target" },
+        { id: "homeLayout", icon: Layout,              label: "Home Layout",  sub: "Dashboard sections" },
+        { id: "appearance", icon: darkMode ? Moon : Sun, label: "Appearance", sub: darkMode ? "Dark mode" : "Light mode", toggle: true },
+      ],
+    },
   ];
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      {/* Profile Hero */}
-      <div className="header-card mx-5 mt-12 mb-5">
-        <div className="relative z-10 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-[18px] bg-primary/20 flex items-center justify-center shrink-0">
-            <UserRound className="w-8 h-8 text-primary" />
+
+      {/* ── Profile Hero ─────────────────────────────────────────── */}
+      <div className="relative px-5 pt-14 pb-6 overflow-hidden">
+        {/* Orange ambient blob */}
+        <div className="absolute top-0 right-0 w-[300px] h-[300px] pointer-events-none"
+          style={{ background: "radial-gradient(circle, rgba(242,106,42,0.13), transparent 70%)", transform: "translate(30%, -40%)" }} />
+
+        <div className="flex items-center gap-3.5 relative">
+          {/* Ink circle avatar */}
+          <div className="w-[72px] h-[72px] rounded-full shrink-0 flex items-center justify-center text-[26px] font-extrabold text-primary"
+            style={{
+              background: "#141310",
+              boxShadow: "0 8px 24px rgba(242,106,42,0.22)",
+            }}
+            >
+            {initials}
           </div>
+
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-extrabold uppercase tracking-[2px] text-white/40 mb-0.5">Your Account</p>
-            <p className="text-[20px] font-extrabold text-white leading-tight truncate" data-testid="text-profile-name">
-              {user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Tradie"}
+            <p className="text-[22px] font-extrabold text-foreground leading-tight tracking-[-0.5px] truncate"
+              data-testid="text-profile-name">
+              {fullName}
             </p>
-            <p className="text-[13px] text-white/50 truncate" data-testid="text-profile-email">
-              {user?.email || "No email"}
+            <p className="text-[12px] text-muted-foreground mt-0.5 truncate" data-testid="text-profile-email">
+              {dbSettings?.businessName || "Your Business"}
+              {dbSettings?.abn ? ` · ABN ${dbSettings.abn}` : ""}
             </p>
+            <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orangeSoft text-[9.5px] font-extrabold text-orangeDeep uppercase tracking-[0.7px]">
+              ✦ Pro plan
+            </div>
           </div>
+
+          <button className="w-10 h-10 rounded-[12px] bg-card border border-black/8 dark:border-white/8 flex items-center justify-center shrink-0"
+            onClick={() => setActiveSection(activeSection === "business" ? null : "business")}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
         </div>
       </div>
 
-      <div className="px-5 space-y-3 max-w-2xl mx-auto">
-        {/* Settings Menu */}
-        <div className="bg-card rounded-[18px] border border-black/5 dark:border-white/8 overflow-hidden">
-          {menuItems.map((item, idx) => (
-            <div
-              key={item.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                if (item.id === "appearance") {
-                  setDarkMode(!darkMode);
-                } else {
-                  setActiveSection(activeSection === item.id ? null : item.id);
-                }
-              }}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
-              className={`w-full flex items-center gap-4 px-5 py-3.5 text-left transition-colors cursor-pointer ${idx < menuItems.length - 1 ? "border-b border-black/5 dark:border-white/8" : ""}`}
-              data-testid={`button-settings-${item.id}`}
-            >
-              <div className="w-9 h-9 rounded-[10px] bg-primary/10 flex items-center justify-center shrink-0">
-                <item.icon className="w-4.5 h-4.5 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-bold text-foreground">{item.label}</p>
-                <p className="text-[11px] text-muted-foreground">{item.desc}</p>
-              </div>
-              {item.id === "appearance" ? (
-                <Switch checked={darkMode} onCheckedChange={setDarkMode} data-testid="switch-dark-mode" />
-              ) : (
-                <ChevronRight className={`w-4 h-4 text-muted-foreground/50 transition-transform ${activeSection === item.id ? "rotate-90" : ""}`} />
-              )}
+      {/* ── Quick stats ──────────────────────────────────────────── */}
+      <div className="px-5 pb-2">
+        <div className="flex gap-2">
+          {[
+            { l: "Jobs this month", v: String(jobsThisMonth) },
+            { l: "Revenue",         v: revenueStr },
+            { l: "On-time",         v: "—" },
+          ].map(s => (
+            <div key={s.l} className="flex-1 px-3.5 py-3.5 rounded-[16px] bg-card border border-black/5 dark:border-white/8">
+              <p className="text-[20px] font-extrabold text-foreground leading-none tracking-[-0.4px]">{s.v}</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.6px] text-muted-foreground mt-1.5">{s.l}</p>
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="px-5 space-y-4 max-w-2xl mx-auto">
+
+        {/* ── Settings Groups ──────────────────────────────────────── */}
+        {settingsGroups.map(group => (
+          <div key={group.title}>
+            <p className="text-[10px] font-extrabold uppercase tracking-[2px] text-muted-foreground mb-2 px-1">{group.title}</p>
+            <div className="bg-card rounded-[16px] border border-black/5 dark:border-white/8 overflow-hidden">
+              {group.items.map((item, idx) => (
+                <div
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    if (item.id === "appearance") {
+                      setDarkMode(!darkMode);
+                    } else {
+                      setActiveSection(activeSection === item.id ? null : item.id);
+                    }
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-3.5 text-left cursor-pointer transition-colors ${idx > 0 ? "border-t border-black/5 dark:border-white/8" : ""}`}
+                  data-testid={`button-settings-${item.id}`}
+                >
+                  <div className="w-9 h-9 rounded-[10px] bg-paperDeep dark:bg-muted flex items-center justify-center shrink-0">
+                    <item.icon className="w-4 h-4 text-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-extrabold text-foreground">{item.label}</p>
+                    {item.sub && <p className="text-[11px] text-muted-foreground mt-0.5">{item.sub}</p>}
+                  </div>
+                  {(item as any).toggle ? (
+                    <Switch checked={darkMode} onCheckedChange={setDarkMode} data-testid="switch-dark-mode" />
+                  ) : (
+                    <ChevronRight className={`w-4 h-4 text-muted-foreground/40 transition-transform ${activeSection === item.id ? "rotate-90" : ""}`} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
 
         {/* Business Profile Expanded */}
         {activeSection === "business" && (
@@ -1112,11 +1196,21 @@ export default function Profile() {
         {/* Sign Out */}
         <button
           onClick={() => logout()}
-          className="w-full bg-white dark:bg-white/5 rounded-[2rem] p-5 shadow-sm border border-black/5 dark:border-white/10 flex items-center justify-center gap-3 text-red-500 font-bold transition-colors"
+          className="w-full bg-card rounded-[16px] border border-black/5 dark:border-white/8 p-4 flex items-center justify-center gap-3 text-red-500 font-extrabold transition-colors active:scale-[0.98]"
           data-testid="button-logout"
         >
           <LogOut className="w-5 h-5" /> Sign Out
         </button>
+
+        {/* Sig footer */}
+        <div className="py-4 text-center">
+          <p className="text-[11px] text-muted-foreground font-semibold" style={{ letterSpacing: 0.2 }}>
+            Admin for people who'd rather be on the tools.
+          </p>
+          <p className="text-[10px] text-muted-foreground font-extrabold mt-1.5 uppercase" style={{ letterSpacing: 2 }}>
+            VARGENEZEY · v1.0
+          </p>
+        </div>
       </div>
 
       {/* Clear All Data confirmation dialog */}

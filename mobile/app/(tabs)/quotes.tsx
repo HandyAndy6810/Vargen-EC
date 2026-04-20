@@ -6,44 +6,63 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
-} from "react-native";
-import { useState, useCallback } from "react";
-import { queryClient } from "@/lib/queryClient";
-import { useQuotes, useUpdateQuote, useDeleteQuote } from "@/hooks/use-quotes";
-import type { Quote } from "@shared/schema";
+  StyleSheet,
+} from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import { format } from 'date-fns';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { queryClient } from '@/lib/queryClient';
+import { useQuotes, useUpdateQuote, useDeleteQuote } from '@/hooks/use-quotes';
+import { FileText, User, ChevronRight, Trash2 } from 'lucide-react-native';
+import type { Quote } from '@shared/schema';
 
-type QuoteWithJoins = Quote & { customerName?: string; title?: string };
+type QuoteWithJoins = Quote & { customerName?: string };
 
-const STATUS_COLORS: Record<string, string> = {
-  draft:    "bg-gray-100 text-gray-600",
-  sent:     "bg-blue-100 text-blue-700",
-  accepted: "bg-green-100 text-green-700",
-  declined: "bg-red-100 text-red-600",
-  invoiced: "bg-purple-100 text-purple-700",
+const BRAND      = '#ea580c';
+const INK        = '#1c1917';
+const MUTED      = '#78716c';
+const PAPER      = '#faf9f7';
+const PAPER_DEEP = '#f0ece4';
+const CARD       = '#ffffff';
+const LINE       = '#e7e5e4';
+
+type Filter = 'all' | 'draft' | 'sent' | 'accepted' | 'overdue';
+
+const STATUS_META: Record<string, { label: string; dot: string; bg: string; fg: string }> = {
+  draft:    { label: 'Draft',    dot: '#a8a29e', bg: PAPER_DEEP, fg: '#57534e' },
+  sent:     { label: 'Sent',     dot: '#2563eb', bg: '#dbeafe',  fg: '#1d4ed8' },
+  accepted: { label: 'Accepted', dot: '#16a34a', bg: '#dcfce7',  fg: '#15803d' },
+  rejected: { label: 'Declined', dot: '#dc2626', bg: '#fee2e2',  fg: '#b91c1c' },
+  invoiced: { label: 'Invoiced', dot: '#7c3aed', bg: '#ede9fe',  fg: '#6d28d9' },
 };
 
-// Valid next statuses for each current status (mirrors server validation)
 const NEXT_STATUSES: Record<string, { label: string; value: string }[]> = {
-  draft:    [{ label: "Mark as Sent", value: "sent" }],
+  draft:    [{ label: 'Mark as Sent', value: 'sent' }],
   sent:     [
-    { label: "Mark as Accepted", value: "accepted" },
-    { label: "Mark as Declined", value: "declined" },
-    { label: "Revert to Draft",  value: "draft" },
+    { label: 'Mark as Accepted', value: 'accepted' },
+    { label: 'Mark as Declined', value: 'rejected' },
+    { label: 'Revert to Draft',  value: 'draft' },
   ],
-  viewed:   [
-    { label: "Mark as Accepted", value: "accepted" },
-    { label: "Mark as Declined", value: "declined" },
-  ],
+  rejected: [{ label: 'Re-send Quote', value: 'sent' }],
   accepted: [],
-  declined: [{ label: "Re-send Quote", value: "sent" }],
   invoiced: [],
 };
+
+function parseTitle(quote: QuoteWithJoins): string {
+  if (quote.title) return quote.title;
+  try {
+    const p = JSON.parse(quote.content || '{}');
+    if (p.jobTitle) return p.jobTitle;
+  } catch {}
+  return `Quote #${quote.id}`;
+}
 
 export default function QuotesScreen() {
   const { data: quotes, isLoading, isError } = useQuotes();
   const { mutate: updateQuote } = useUpdateQuote();
   const { mutate: deleteQuote } = useDeleteQuote();
   const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState<Filter>('all');
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -51,147 +70,319 @@ export default function QuotesScreen() {
     setRefreshing(false);
   }, []);
 
-  const handleStatusPress = (quote: QuoteWithJoins) => {
-    const options = NEXT_STATUSES[quote.status ?? "draft"] ?? [];
-    if (options.length === 0) return;
+  const allQuotes = (quotes || []) as QuoteWithJoins[];
 
+  const sorted = useMemo(
+    () => [...allQuotes].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
+    [allQuotes]
+  );
+
+  const filtered = useMemo(() => {
+    if (filter === 'all') return sorted;
+    if (filter === 'overdue') {
+      return sorted.filter((q) => q.status === 'sent' && q.expiresAt && new Date(q.expiresAt) < new Date());
+    }
+    return sorted.filter((q) => q.status === filter);
+  }, [sorted, filter]);
+
+  const counts = useMemo(() => ({
+    all:      sorted.length,
+    draft:    sorted.filter((q) => q.status === 'draft').length,
+    sent:     sorted.filter((q) => q.status === 'sent').length,
+    accepted: sorted.filter((q) => q.status === 'accepted').length,
+    overdue:  sorted.filter((q) => q.status === 'sent' && q.expiresAt && new Date(q.expiresAt) < new Date()).length,
+  }), [sorted]);
+
+  const totalValue = useMemo(
+    () => sorted.filter((q) => q.status === 'accepted').reduce((s, q) => s + parseFloat(String(q.totalAmount || '0')), 0),
+    [sorted]
+  );
+
+  const handleStatusPress = (quote: QuoteWithJoins) => {
+    const options = NEXT_STATUSES[quote.status ?? 'draft'] ?? [];
+    if (options.length === 0) return;
     const buttons = options.map((opt) => ({
       text: opt.label,
       onPress: () => updateQuote({ id: quote.id, status: opt.value }),
     }));
-    buttons.push({ text: "Cancel", onPress: () => {} });
-
-    Alert.alert("Change Status", `Current: ${quote.status}`, buttons as any);
+    buttons.push({ text: 'Cancel', onPress: () => {} });
+    Alert.alert('Change Status', parseTitle(quote), buttons as any);
   };
 
   const handleDeletePress = (quote: QuoteWithJoins) => {
-    Alert.alert(
-      "Delete Quote",
-      "Are you sure you want to delete this quote? This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => deleteQuote(quote.id),
-        },
-      ]
-    );
+    Alert.alert('Delete Quote', 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteQuote(quote.id) },
+    ]);
   };
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#2563eb" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: PAPER }}>
+        <ActivityIndicator size="large" color={BRAND} />
       </View>
     );
   }
 
   if (isError) {
     return (
-      <View className="flex-1 items-center justify-center bg-gray-50 px-8">
-        <Text className="text-4xl mb-4">⚠️</Text>
-        <Text className="text-gray-900 font-bold text-lg text-center">Couldn't load quotes</Text>
-        <Text className="text-gray-400 text-sm mt-1 text-center">Check your connection and try again.</Text>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: PAPER }}>
+        <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: INK }}>Couldn't load quotes</Text>
       </View>
     );
   }
 
-  const sorted = [...((quotes || []) as QuoteWithJoins[])].sort(
-    (a, b) =>
-      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-  );
-
   return (
-    <View className="flex-1 bg-gray-50">
-      <View className="px-6 pt-16 pb-4 bg-white border-b border-gray-100">
-        <Text className="text-2xl font-bold text-gray-900">Quotes</Text>
-        <Text className="text-gray-500 text-sm mt-0.5">{sorted.length} total quotes</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+      {/* Dark summary ribbon */}
+      <View style={s.heroCard}>
+        <Text style={s.heroEyebrow}>QUOTES</Text>
+        <View style={{ flexDirection: 'row', gap: 24, marginTop: 4 }}>
+          <HeroStat label="Total" value={String(counts.all)} />
+          <HeroStat label="Pending" value={String(counts.sent)} />
+          <HeroStat label="Won" value={`$${(totalValue / 1000).toFixed(1)}k`} />
+        </View>
       </View>
 
+      {/* Filter chips */}
       <ScrollView
-        className="flex-1 px-4 pt-4"
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />
-        }
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.chipsRow}
+        style={{ maxHeight: 48 }}
       >
-        {sorted.length === 0 ? (
-          <View className="items-center py-20">
-            <Text className="text-4xl mb-4">💬</Text>
-            <Text className="text-gray-900 font-bold text-lg">No quotes yet</Text>
-            <Text className="text-gray-400 text-sm mt-1 text-center">
-              Your quotes will appear here once created.
+        {(['all', 'draft', 'sent', 'accepted', 'overdue'] as Filter[]).map((f) => (
+          <TouchableOpacity
+            key={f}
+            style={[s.chip, filter === f && s.chipActive]}
+            onPress={() => setFilter(f)}
+            activeOpacity={0.7}
+          >
+            <Text style={[s.chipText, filter === f && s.chipTextActive]}>
+              {f.charAt(0).toUpperCase() + f.slice(1)}
             </Text>
+            <Text style={[s.chipCount, filter === f && { color: 'rgba(255,255,255,0.65)' }]}>
+              {counts[f]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 16, paddingBottom: 120, gap: 10 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND} />}
+      >
+        {filtered.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 48 }}>
+            <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: PAPER_DEEP, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+              <FileText size={24} color={MUTED} />
+            </View>
+            <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: INK }}>No quotes here</Text>
           </View>
         ) : (
-          sorted.map((quote) => {
-            let jobTitle = quote.title;
-            try {
-              const parsed = JSON.parse(quote.content || "{}");
-              if (parsed.jobTitle) jobTitle = parsed.jobTitle;
-            } catch {}
-
-            const canChangeStatus = (NEXT_STATUSES[quote.status ?? "draft"] ?? []).length > 0;
-            const canDelete = quote.status === "draft" || quote.status === "declined";
+          filtered.map((quote) => {
+            const meta = STATUS_META[quote.status ?? 'draft'] ?? STATUS_META.draft;
+            const title = parseTitle(quote);
+            const amount = parseFloat(String(quote.totalAmount || '0'));
+            const canAct = (NEXT_STATUSES[quote.status ?? 'draft'] ?? []).length > 0;
+            const canDelete = quote.status === 'draft' || quote.status === 'rejected';
 
             return (
-              <View
-                key={quote.id}
-                className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-gray-100"
-              >
-                <View className="flex-row justify-between items-start mb-1">
-                  <Text
-                    className="text-base font-bold text-gray-900 flex-1 mr-2"
-                    numberOfLines={1}
-                  >
-                    {jobTitle || `Quote #${quote.id}`}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => handleStatusPress(quote)}
-                    disabled={!canChangeStatus}
-                  >
-                    <View
-                      className={`px-2 py-0.5 rounded-full ${
-                        STATUS_COLORS[quote.status ?? "draft"] ?? "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      <Text className="text-xs font-semibold capitalize">
-                        {quote.status}
-                        {canChangeStatus ? " ›" : ""}
-                      </Text>
+              <View key={quote.id} style={s.quoteCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                  {/* Quote # avatar */}
+                  <View style={s.quoteAvatar}>
+                    <Text style={s.quoteAvatarNum}>Q{quote.id}</Text>
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                      <Text style={s.quoteTitle} numberOfLines={2}>{title}</Text>
+                      <View style={[s.badge, { backgroundColor: meta.bg }]}>
+                        <Text style={[s.badgeText, { color: meta.fg }]}>{meta.label}</Text>
+                      </View>
                     </View>
-                  </TouchableOpacity>
+
+                    {quote.customerName && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 }}>
+                        <User size={11} color={MUTED} />
+                        <Text style={s.metaText}>{quote.customerName}</Text>
+                      </View>
+                    )}
+
+                    {amount > 0 && (
+                      <Text style={s.amount}>
+                        ${amount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                    )}
+
+                    {quote.createdAt && (
+                      <Text style={s.date}>{format(new Date(quote.createdAt), 'd MMM yyyy')}</Text>
+                    )}
+                  </View>
                 </View>
 
-                {quote.customerName && (
-                  <Text className="text-sm text-gray-500">👤 {quote.customerName}</Text>
-                )}
-
-                {quote.totalAmount && parseFloat(String(quote.totalAmount)) > 0 && (
-                  <Text className="text-sm font-semibold text-gray-900 mt-1">
-                    $
-                    {parseFloat(String(quote.totalAmount)).toLocaleString("en-AU", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </Text>
-                )}
-
-                {canDelete && (
-                  <TouchableOpacity
-                    onPress={() => handleDeletePress(quote)}
-                    className="mt-2 self-start"
-                  >
-                    <Text className="text-xs text-red-400 font-medium">Delete</Text>
-                  </TouchableOpacity>
+                {(canAct || canDelete) && (
+                  <View style={s.actRow}>
+                    {canAct && (
+                      <TouchableOpacity style={s.actBtn} onPress={() => handleStatusPress(quote)} activeOpacity={0.7}>
+                        <Text style={s.actBtnText}>Update status</Text>
+                        <ChevronRight size={12} color={BRAND} />
+                      </TouchableOpacity>
+                    )}
+                    {canDelete && (
+                      <TouchableOpacity onPress={() => handleDeletePress(quote)} activeOpacity={0.7} style={s.deleteBtn}>
+                        <Trash2 size={14} color="#dc2626" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 )}
               </View>
             );
           })
         )}
-        <View className="h-8" />
       </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function HeroStat({ label, value }: { label: string; value: string }) {
+  return (
+    <View>
+      <Text style={{ fontSize: 28, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.8 }}>{value}</Text>
+      <Text style={{ fontSize: 10, fontFamily: 'Manrope_700Bold', color: 'rgba(255,255,255,0.5)', letterSpacing: 0.8, textTransform: 'uppercase' }}>{label}</Text>
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  heroCard: {
+    backgroundColor: '#0f0e0b',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  heroEyebrow: {
+    fontSize: 9,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: PAPER_DEEP,
+  },
+  chipActive: {
+    backgroundColor: INK,
+  },
+  chipText: {
+    fontSize: 13,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED,
+  },
+  chipTextActive: {
+    color: '#fff',
+  },
+  chipCount: {
+    fontSize: 11,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED,
+  },
+  quoteCard: {
+    backgroundColor: CARD,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: LINE,
+  },
+  quoteAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: PAPER_DEEP,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quoteAvatarNum: {
+    fontSize: 11,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.3,
+  },
+  quoteTitle: {
+    fontSize: 14,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
+    flex: 1,
+    letterSpacing: -0.2,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontFamily: 'Manrope_700Bold',
+  },
+  metaText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+  },
+  amount: {
+    fontSize: 16,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    marginTop: 6,
+    letterSpacing: -0.3,
+  },
+  date: {
+    fontSize: 11,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+    marginTop: 2,
+  },
+  actRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: LINE,
+    gap: 8,
+  },
+  actBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
+  },
+  actBtnText: {
+    fontSize: 13,
+    fontFamily: 'Manrope_700Bold',
+    color: BRAND,
+  },
+  deleteBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
