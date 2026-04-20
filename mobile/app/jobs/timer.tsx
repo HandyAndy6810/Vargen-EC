@@ -4,6 +4,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  type DimensionValue,
 } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -47,7 +48,7 @@ export default function JobTimerScreen() {
 
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
+  const secs = sec % 60;
   const progress = Math.min((sec / ESTIMATED_SECS) * 100, 100);
 
   return (
@@ -82,14 +83,14 @@ export default function JobTimerScreen() {
             <Text style={s_.elapsedEyebrow}>Elapsed</Text>
             <Text style={s_.clock}>
               {pad(h)}:{pad(m)}
-              <Text style={s_.clockSecs}>:{pad(s)}</Text>
+              <Text style={s_.clockSecs}>:{pad(secs)}</Text>
             </Text>
             <Text style={s_.paceText}>Estimated 1h 45m · on pace</Text>
           </View>
 
           {/* Progress bar */}
           <View style={s_.progressTrack}>
-            <View style={[s_.progressFill, { width: `${progress}%` as any }]} />
+            <View style={[s_.progressFill, { width: `${progress}%` as DimensionValue }]} />
           </View>
 
           {/* Controls */}

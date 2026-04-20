@@ -316,7 +316,6 @@ const s = StyleSheet.create({
     padding: 14,
     borderTopWidth: 1,
     borderTopColor: LINE_MID,
-    borderStyle: 'dashed',
   },
   addLineBtnText: {
     fontSize: 13,

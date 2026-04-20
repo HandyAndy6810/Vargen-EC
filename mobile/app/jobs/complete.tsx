@@ -92,7 +92,7 @@ export default function JobCompleteScreen() {
         <TouchableOpacity
           style={s.finishBtn}
           activeOpacity={0.7}
-          onPress={() => router.replace('/(tabs)')}
+          onPress={() => router.replace('/')}
         >
           <Text style={s.finishBtnText}>Finish</Text>
         </TouchableOpacity>

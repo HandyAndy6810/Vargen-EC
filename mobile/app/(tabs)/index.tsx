@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
+  type DimensionValue,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useMemo, useState, useCallback } from 'react';
@@ -99,7 +100,7 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} />}
       >
         {/* Ambient blobs */}
-        <View style={{ position: 'absolute', top: -80, right: -100, width: 340, height: 340, borderRadius: 170, backgroundColor: `${ORANGE}15`, pointerEvents: 'none' } as any} />
+        <View pointerEvents="none" style={{ position: 'absolute', top: -80, right: -100, width: 340, height: 340, borderRadius: 170, backgroundColor: `${ORANGE}15` }} />
 
         {/* TopBar */}
         <View style={s.topBar}>
@@ -196,7 +197,7 @@ export default function HomeScreen() {
             <View style={s.progressBg}>
               <View style={[s.progressFill, { width: '62%' }]} />
               {[25, 50, 75].map(m => (
-                <View key={m} style={[s.progressTick, { left: `${m}%` as any }]} />
+                <View key={m} style={[s.progressTick, { left: `${m}%` as DimensionValue }]} />
               ))}
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>

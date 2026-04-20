@@ -333,7 +333,6 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Manrope_800ExtraBold',
     color: MUTED_HI,
-    whiteSpace: 'nowrap' as any,
   },
   tabTextActive: {
     color: '#fff',
