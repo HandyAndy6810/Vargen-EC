@@ -3,12 +3,11 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
+  StyleSheet,
   RefreshControl,
-} from "react-native";
-import { router } from "expo-router";
-import { useMemo, useState, useCallback } from "react";
+} from 'react-native';
+import { router } from 'expo-router';
+import { useMemo, useState, useCallback } from 'react';
 import {
   format,
   startOfWeek,
@@ -18,14 +17,26 @@ import {
   isToday,
   isTomorrow,
   startOfDay,
-} from "date-fns";
-import { useAuth } from "@/hooks/use-auth";
-import { useJobs } from "@/hooks/use-jobs";
-import { queryClient } from "@/lib/queryClient";
+} from 'date-fns';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/hooks/use-auth';
+import { useJobs } from '@/hooks/use-jobs';
+import { useQuotes } from '@/hooks/use-quotes';
+import { queryClient } from '@/lib/queryClient';
+import { Sparkles, ChevronRight, Bot, FileText, Briefcase, Users, ArrowRight } from 'lucide-react-native';
+
+const BRAND       = '#ea580c';
+const INK         = '#1c1917';
+const MUTED       = '#78716c';
+const PAPER       = '#faf9f7';
+const PAPER_DEEP  = '#f0ece4';
+const CARD        = '#ffffff';
+const LINE        = '#e7e5e4';
 
 export default function HomeScreen() {
-  const { user, logout } = useAuth();
-  const { data: jobs, isLoading, refetch } = useJobs();
+  const { user } = useAuth();
+  const { data: jobs, isLoading: jobsLoading, refetch: refetchJobs } = useJobs();
+  const { data: quotes, refetch: refetchQuotes } = useQuotes();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
 
@@ -35,317 +46,476 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, []);
 
-  const handleLogout = () => {
-    Alert.alert(
-      "Sign Out",
-      "Are you sure you want to sign out?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Sign Out", style: "destructive", onPress: () => logout() },
-      ]
-    );
-  };
+  const firstName = user?.firstName || user?.email?.split('@')[0] || 'there';
+  const initial = (user?.firstName?.[0] || user?.email?.[0] || '?').toUpperCase();
 
   const weekDays = useMemo(() => {
-    const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
-    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 0 });
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
     return eachDayOfInterval({ start: weekStart, end: weekEnd });
   }, []);
 
-  const upcomingJobsCount = useMemo(
-    () => jobs?.filter((j) => j.status === "scheduled").length || 0,
+  const todayJobs = useMemo(
+    () => (jobs as any[])?.filter((j: any) => j.scheduledDate && isToday(new Date(j.scheduledDate))) || [],
     [jobs]
+  );
+
+  const pendingQuotes = useMemo(
+    () => quotes?.filter((q) => q.status === 'sent') || [],
+    [quotes]
   );
 
   const nextJob = useMemo(
     () =>
-      jobs
-        ?.filter(
-          (job) =>
-            job.scheduledDate &&
-            startOfDay(new Date(job.scheduledDate)) >= startOfDay(new Date())
-        )
-        .sort(
-          (a, b) =>
-            new Date(a.scheduledDate!).getTime() -
-            new Date(b.scheduledDate!).getTime()
-        )[0] || null,
+      (jobs as any[])
+        ?.filter((job: any) => job.scheduledDate && startOfDay(new Date(job.scheduledDate)) >= startOfDay(new Date()))
+        .sort((a: any, b: any) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime())[0] || null,
     [jobs]
   );
 
-  const nextJobDayLabel = useMemo(() => {
-    if (!nextJob?.scheduledDate) return "";
+  const nextJobLabel = useMemo(() => {
+    if (!nextJob?.scheduledDate) return '';
     const d = new Date(nextJob.scheduledDate);
-    if (isToday(d)) return "Today";
-    if (isTomorrow(d)) return "Tomorrow";
-    return format(d, "eee d MMM");
+    if (isToday(d)) return 'Today';
+    if (isTomorrow(d)) return 'Tomorrow';
+    return format(d, 'eee d MMM');
   }, [nextJob]);
 
   const selectedDateJobs = useMemo(
-    () =>
-      jobs?.filter(
-        (job) =>
-          job.scheduledDate && isSameDay(new Date(job.scheduledDate), selectedDate)
-      ) || [],
+    () => (jobs as any[])?.filter((job: any) => job.scheduledDate && isSameDay(new Date(job.scheduledDate), selectedDate)) || [],
     [jobs, selectedDate]
   );
 
-  const getDayBadge = (day: Date) => {
-    const dayJobs =
-      jobs?.filter(
-        (job) => job.scheduledDate && isSameDay(new Date(job.scheduledDate), day)
-      ) || [];
-    if (!dayJobs.length) return null;
-    const hasScheduled = dayJobs.some((j) => j.status === "scheduled");
-    const hasPending = dayJobs.some((j) => j.status === "pending");
-    const color = hasScheduled ? "blue" : hasPending ? "yellow" : "green";
-    return { count: dayJobs.length, color };
+  const getDayDot = (day: Date) => {
+    const count = (jobs as any[])?.filter((j: any) => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day)).length || 0;
+    return count > 0;
   };
 
-  const firstName = user?.firstName || user?.email?.split("@")[0] || "there";
-
-  if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#2563eb" />
-      </View>
-    );
-  }
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "G'day";
+    if (h < 17) return 'Afternoon';
+    return 'Evening';
+  })();
 
   return (
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />
-      }
-    >
-      {/* Header */}
-      <View className="px-6 pt-16 pb-6 bg-white flex-row items-start justify-between">
-        <View className="flex-1 mr-4">
-          <Text className="text-3xl font-bold text-gray-900">
-            Hey, {firstName} 👋
-          </Text>
-          <Text className="text-gray-500 mt-1">Ready to grow your business?</Text>
-        </View>
-        <TouchableOpacity
-          onPress={handleLogout}
-          activeOpacity={0.7}
-          className="w-10 h-10 rounded-full bg-blue-100 items-center justify-center mt-1"
-        >
-          <Text className="text-blue-700 font-bold text-base">
-            {(user?.firstName?.[0] || user?.email?.[0] || "?").toUpperCase()}
-          </Text>
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND} />
+        }
+      >
+        {/* Top bar */}
+        <View style={s.topBar}>
+          <TouchableOpacity
+            onPress={() => router.push('/profile')}
+            style={s.avatar}
+            activeOpacity={0.8}
+          >
+            <Text style={s.avatarText}>{initial}</Text>
+          </TouchableOpacity>
 
-      <View className="px-4 py-4 space-y-4">
-        {/* Stats Row */}
-        <View className="flex-row gap-3 mt-2">
-          <StatCard
-            value={upcomingJobsCount}
-            label="Upcoming Jobs"
-            color="text-emerald-500"
-          />
-          <StatCard
-            value={jobs?.filter((j) => j.status === "pending").length || 0}
-            label="Pending Jobs"
-            color="text-blue-600"
-          />
+          <View style={{ flex: 1, marginHorizontal: 12 }}>
+            <Text style={s.greetingLabel}>
+              {greeting},{' '}
+              <Text style={{ color: BRAND }}>{firstName}</Text>
+            </Text>
+            <Text style={s.subLabel}>Here's your day at a glance</Text>
+          </View>
+
+          <TouchableOpacity
+            style={s.aiBtn}
+            onPress={() => router.push('/ai-chat')}
+            activeOpacity={0.8}
+          >
+            <Bot size={18} color={BRAND} strokeWidth={2} />
+          </TouchableOpacity>
         </View>
 
-        {/* Quick Actions */}
-        <View className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mt-4">
-          <Text className="text-base font-bold text-gray-900 mb-3">Quick Actions</Text>
-          <View className="space-y-2">
-            <ActionRow
-              emoji="💬"
-              title="View Quotes"
-              subtitle="See all your quotes"
-              onPress={() => router.push("/(tabs)/quotes")}
-            />
-            <ActionRow
-              emoji="📋"
-              title="View Jobs"
-              subtitle="See your schedule"
-              onPress={() => router.push("/(tabs)/jobs")}
-            />
-            <ActionRow
-              emoji="👥"
-              title="Customers"
-              subtitle="Manage & message clients"
-              onPress={() => router.push("/(tabs)/customers")}
-            />
+        {/* Hero card */}
+        <View style={s.heroWrap}>
+          <View style={s.heroCard}>
+            {/* orange glow */}
+            <View style={s.heroGlow} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <View>
+                <Text style={s.heroLabel}>TODAY'S SCHEDULE</Text>
+                <Text style={s.heroVal}>{todayJobs.length} jobs</Text>
+                <Text style={s.heroSub}>
+                  {todayJobs.filter((j: any) => j.status === 'completed').length} done ·{' '}
+                  {todayJobs.filter((j: any) => j.status === 'in_progress').length} in progress
+                </Text>
+              </View>
+              <View style={{ alignItems: 'flex-end', gap: 12 }}>
+                <StatPill label="Pending quotes" value={String(pendingQuotes.length)} />
+                <StatPill label="Open jobs" value={String((jobs as any[])?.filter((j: any) => ['pending','confirmed'].includes(j.status)).length || 0)} />
+              </View>
+            </View>
+
+            {nextJob && (
+              <TouchableOpacity
+                style={s.nextJobRow}
+                onPress={() => router.push('/(tabs)/jobs')}
+                activeOpacity={0.8}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.nextJobLabel}>NEXT · {nextJobLabel.toUpperCase()}</Text>
+                  <Text style={s.nextJobTitle} numberOfLines={1}>{nextJob.title}</Text>
+                </View>
+                <ChevronRight size={16} color="rgba(255,255,255,0.5)" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
-        {/* Next Job Banner */}
-        {nextJob && (
-          <TouchableOpacity
-            className="flex-row items-center gap-3 bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 mt-4"
-            onPress={() => router.push("/(tabs)/jobs")}
-            activeOpacity={0.8}
-          >
-            <View className="w-8 h-8 rounded-full bg-blue-600 items-center justify-center">
-              <Text className="text-white text-xs font-bold">📅</Text>
-            </View>
-            <View className="flex-1">
-              <Text className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-0.5">
-                Next Job · {nextJobDayLabel}
-              </Text>
-              <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
-                {nextJob.title}
-              </Text>
-            </View>
-            <Text className="text-xs font-semibold text-blue-500">
-              {nextJob.scheduledDate
-                ? format(new Date(nextJob.scheduledDate), "h:mm a")
-                : "TBD"}
-            </Text>
-          </TouchableOpacity>
-        )}
+        {/* AI Rail */}
+        <TouchableOpacity
+          style={s.aiRail}
+          onPress={() => router.push('/ai-chat')}
+          activeOpacity={0.88}
+        >
+          <View style={s.aiIconWrap}>
+            <Sparkles size={18} color="#fff" strokeWidth={2} />
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={s.aiRailTitle}>AI Quote Assistant</Text>
+            <Text style={s.aiRailSub}>Tap to generate a quote instantly</Text>
+          </View>
+          <ArrowRight size={16} color="rgba(255,255,255,0.7)" />
+        </TouchableOpacity>
 
-        {/* This Week Calendar */}
-        <View className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mt-4">
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-base font-bold text-gray-900">This Week</Text>
-            <TouchableOpacity onPress={() => router.push("/(tabs)/jobs")}>
-              <Text className="text-sm font-semibold text-blue-600">View All</Text>
+        {/* Quick actions */}
+        <View style={s.section}>
+          <SectionEyebrow>QUICK ACTIONS</SectionEyebrow>
+          <View style={s.tileGrid}>
+            <QuickTile icon={FileText} label="New Quote" color={BRAND} onPress={() => router.push('/(tabs)/quotes')} />
+            <QuickTile icon={Briefcase} label="Jobs" color="#2563eb" onPress={() => router.push('/(tabs)/jobs')} />
+            <QuickTile icon={Users} label="Customers" color="#16a34a" onPress={() => router.push('/(tabs)/customers')} />
+          </View>
+        </View>
+
+        {/* This week */}
+        <View style={s.section}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <SectionEyebrow>THIS WEEK</SectionEyebrow>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/jobs')}>
+              <Text style={{ fontSize: 12, fontFamily: 'Manrope_700Bold', color: BRAND }}>All jobs</Text>
             </TouchableOpacity>
           </View>
 
           {/* Week strip */}
-          <View className="flex-row justify-between">
+          <View style={{ flexDirection: 'row', gap: 4, marginBottom: 12 }}>
             {weekDays.map((day, idx) => {
-              const isSelected = isSameDay(day, selectedDate);
-              const badge = getDayBadge(day);
+              const sel = isSameDay(day, selectedDate);
+              const dot = getDayDot(day);
               return (
                 <TouchableOpacity
                   key={idx}
-                  className={`flex-1 items-center py-2.5 mx-0.5 rounded-xl ${
-                    isSelected ? "bg-blue-600" : "bg-transparent"
-                  }`}
+                  style={[s.dayCell, sel && s.dayCellActive]}
                   onPress={() => setSelectedDate(day)}
                   activeOpacity={0.7}
                 >
-                  <Text
-                    className={`text-[9px] font-bold uppercase mb-1 ${
-                      isSelected ? "text-blue-100" : "text-gray-400"
-                    }`}
-                  >
-                    {format(day, "eee")}
+                  <Text style={[s.dayLabel, sel && { color: 'rgba(255,255,255,0.8)' }]}>
+                    {format(day, 'eeeee')}
                   </Text>
-                  <Text
-                    className={`text-sm font-bold ${
-                      isSelected ? "text-white" : "text-gray-900"
-                    }`}
-                  >
-                    {format(day, "d")}
-                  </Text>
-                  {badge && (
-                    <View
-                      className={`w-1.5 h-1.5 rounded-full mt-1 ${
-                        isSelected
-                          ? "bg-white"
-                          : badge.color === "green"
-                          ? "bg-emerald-500"
-                          : badge.color === "yellow"
-                          ? "bg-yellow-400"
-                          : "bg-blue-600"
-                      }`}
-                    />
-                  )}
+                  <Text style={[s.dayNum, sel && { color: '#fff' }]}>{format(day, 'd')}</Text>
+                  {dot && <View style={[s.dot, sel && { backgroundColor: 'rgba(255,255,255,0.8)' }]} />}
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {/* Selected day jobs */}
-          <View className="mt-3 pt-3 border-t border-gray-100">
-            <Text className="text-xs font-bold text-gray-400 uppercase mb-2">
-              {isToday(selectedDate) ? "Today" : format(selectedDate, "EEEE d MMM")}
-            </Text>
+          {/* Day detail */}
+          <View style={{ gap: 8 }}>
             {selectedDateJobs.length === 0 ? (
-              <View className="p-3 rounded-xl border-2 border-dashed border-gray-200">
-                <Text className="text-sm font-semibold text-gray-400 text-center">
-                  No jobs scheduled
-                </Text>
+              <View style={s.emptyDay}>
+                <Text style={s.emptyDayText}>No jobs on {isToday(selectedDate) ? 'today' : format(selectedDate, 'eeee')}</Text>
               </View>
             ) : (
-              selectedDateJobs.slice(0, 3).map((job) => (
+              selectedDateJobs.slice(0, 3).map((job: any) => (
                 <TouchableOpacity
                   key={job.id}
-                  className="flex-row items-center gap-3 p-2 rounded-xl"
-                  onPress={() => router.push("/(tabs)/jobs")}
+                  style={s.jobRow}
+                  onPress={() => router.push('/(tabs)/jobs')}
                   activeOpacity={0.7}
                 >
-                  <View className="w-8 h-8 rounded-lg bg-blue-50 items-center justify-center">
-                    <Text className="text-xs">📋</Text>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
-                      {job.title}
-                    </Text>
-                    <Text className="text-[10px] text-gray-400">
-                      {job.scheduledDate
-                        ? format(new Date(job.scheduledDate), "h:mm a")
-                        : "TBD"}
+                  <View style={s.jobDot} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.jobTitle} numberOfLines={1}>{job.title}</Text>
+                    <Text style={s.jobTime}>
+                      {job.scheduledDate ? format(new Date(job.scheduledDate), 'h:mm a') : 'TBD'}
                     </Text>
                   </View>
+                  <ChevronRight size={14} color={LINE} />
                 </TouchableOpacity>
               ))
             )}
           </View>
         </View>
-      </View>
-
-      <View className="h-8" />
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-function StatCard({
-  value,
-  label,
-  color,
-}: {
-  value: number;
-  label: string;
-  color: string;
-}) {
+function SectionEyebrow({ children }: { children: string }) {
   return (
-    <View className="flex-1 bg-white rounded-2xl p-5 items-center shadow-sm border border-gray-100">
-      <Text className={`text-4xl font-bold mb-1 ${color}`}>{value}</Text>
-      <Text className="text-gray-500 text-sm font-medium text-center">{label}</Text>
+    <Text style={{ fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 10 }}>
+      {children}
+    </Text>
+  );
+}
+
+function StatPill({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ alignItems: 'flex-end' }}>
+      <Text style={{ fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: '#fff', lineHeight: 26 }}>{value}</Text>
+      <Text style={{ fontSize: 9, fontFamily: 'Manrope_700Bold', color: 'rgba(255,255,255,0.55)', letterSpacing: 0.5, textTransform: 'uppercase' }}>{label}</Text>
     </View>
   );
 }
 
-function ActionRow({
-  emoji,
-  title,
-  subtitle,
-  onPress,
-}: {
-  emoji: string;
-  title: string;
-  subtitle: string;
-  onPress: () => void;
-}) {
+function QuickTile({ icon: Icon, label, color, onPress }: { icon: any; label: string; color: string; onPress: () => void }) {
   return (
-    <TouchableOpacity
-      className="flex-row items-center gap-3 py-2.5 border-b border-gray-50 last:border-0"
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View className="w-10 h-10 rounded-full bg-blue-50 items-center justify-center">
-        <Text className="text-lg">{emoji}</Text>
+    <TouchableOpacity style={s.tile} onPress={onPress} activeOpacity={0.7}>
+      <View style={[s.tileIcon, { backgroundColor: color + '15' }]}>
+        <Icon size={20} color={color} strokeWidth={2} />
       </View>
-      <View className="flex-1">
-        <Text className="font-bold text-gray-900 text-sm">{title}</Text>
-        <Text className="text-gray-400 text-xs">{subtitle}</Text>
-      </View>
-      <Text className="text-gray-300 text-lg">›</Text>
+      <Text style={s.tileLabel}>{label}</Text>
     </TouchableOpacity>
   );
 }
+
+const s = StyleSheet.create({
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: INK,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: BRAND,
+    fontSize: 16,
+    fontFamily: 'Manrope_800ExtraBold',
+  },
+  greetingLabel: {
+    fontSize: 20,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.5,
+  },
+  subLabel: {
+    fontSize: 12,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+    marginTop: 1,
+  },
+  aiBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: PAPER_DEEP,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroWrap: {
+    paddingHorizontal: 20,
+    marginBottom: 14,
+  },
+  heroCard: {
+    backgroundColor: '#0f0e0b',
+    borderRadius: 22,
+    padding: 20,
+    overflow: 'hidden',
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -60,
+    right: -40,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(234,88,12,0.25)',
+  },
+  heroLabel: {
+    fontSize: 9,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  heroVal: {
+    fontSize: 38,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#fff',
+    letterSpacing: -1,
+    lineHeight: 42,
+  },
+  heroSub: {
+    fontSize: 12,
+    fontFamily: 'Manrope_500Medium',
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 4,
+  },
+  nextJobRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+  nextJobLabel: {
+    fontSize: 8,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: BRAND,
+    letterSpacing: 1.2,
+    marginBottom: 3,
+  },
+  nextJobTitle: {
+    fontSize: 14,
+    fontFamily: 'Manrope_700Bold',
+    color: '#fff',
+  },
+  aiRail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    backgroundColor: BRAND,
+    borderRadius: 18,
+    padding: 16,
+  },
+  aiIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiRailTitle: {
+    fontSize: 14,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#fff',
+    letterSpacing: -0.2,
+  },
+  aiRailSub: {
+    fontSize: 11,
+    fontFamily: 'Manrope_500Medium',
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 1,
+  },
+  section: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  tileGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  tile: {
+    flex: 1,
+    backgroundColor: CARD,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: LINE,
+    alignItems: 'center',
+    gap: 8,
+  },
+  tileIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileLabel: {
+    fontSize: 11,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
+    textAlign: 'center',
+  },
+  dayCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: PAPER_DEEP,
+  },
+  dayCellActive: {
+    backgroundColor: INK,
+  },
+  dayLabel: {
+    fontSize: 9,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  dayNum: {
+    fontSize: 15,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+  },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: BRAND,
+    marginTop: 4,
+  },
+  emptyDay: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: LINE,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+  },
+  emptyDayText: {
+    fontSize: 13,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+  },
+  jobRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: CARD,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: LINE,
+  },
+  jobDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: BRAND,
+  },
+  jobTitle: {
+    fontSize: 14,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
+  },
+  jobTime: {
+    fontSize: 11,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+    marginTop: 1,
+  },
+});
