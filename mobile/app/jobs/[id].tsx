@@ -4,6 +4,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,7 +28,15 @@ const LINE_MID    = 'rgba(20,19,16,0.14)';
 
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: job } = useJob(id ? Number(id) : 0) as any;
+  const { data: job, isLoading } = useJob(id ? Number(id) : 0) as any;
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
+        <ActivityIndicator size="large" color={ORANGE} />
+      </SafeAreaView>
+    );
+  }
 
   const title = job?.title || 'Hot water swap';
   const customerName = job?.customerName || 'Jack Dalton';

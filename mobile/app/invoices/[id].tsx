@@ -4,6 +4,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -43,7 +44,15 @@ const total = subtotal + gst;
 
 export default function InvoiceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: invoice } = useInvoice(id ? Number(id) : 0) as any;
+  const { data: invoice, isLoading } = useInvoice(id ? Number(id) : 0) as any;
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
+        <ActivityIndicator size="large" color={ORANGE} />
+      </SafeAreaView>
+    );
+  }
 
   const title = invoice?.title || 'Hot water swap';
   const num = invoice?.invoiceNumber || `INV-${String(id).slice(-3)}`;

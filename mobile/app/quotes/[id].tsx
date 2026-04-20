@@ -4,6 +4,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -64,7 +65,15 @@ function getProgressIndex(status: string): number {
 
 export default function QuoteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: quote } = useQuote(id ? Number(id) : 0) as any;
+  const { data: quote, isLoading } = useQuote(id ? Number(id) : 0) as any;
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
+        <ActivityIndicator size="large" color={ORANGE} />
+      </SafeAreaView>
+    );
+  }
 
   const title = quote?.title || 'Hot water swap';
   const customerName = quote?.customerName || 'Jack Dalton';
