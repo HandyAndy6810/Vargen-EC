@@ -8,36 +8,36 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useMemo, useState, useCallback } from 'react';
-import {
-  format,
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  isSameDay,
-  isToday,
-  isTomorrow,
-  startOfDay,
-} from 'date-fns';
+import { format, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useJobs } from '@/hooks/use-jobs';
 import { useQuotes } from '@/hooks/use-quotes';
+import { useInvoices } from '@/hooks/use-invoices';
 import { queryClient } from '@/lib/queryClient';
-import { Sparkles, ChevronRight, Bot, FileText, Briefcase, Users, ArrowRight } from 'lucide-react-native';
 
-const BRAND       = '#ea580c';
-const INK         = '#1c1917';
-const MUTED       = '#78716c';
-const PAPER       = '#faf9f7';
-const PAPER_DEEP  = '#f0ece4';
+const ORANGE      = '#f26a2a';
+const ORANGE_DEEP = '#d94d0e';
+const ORANGE_SOFT = '#ffe6d3';
+const INK         = '#141310';
+const PAPER       = '#f7f4ee';
+const PAPER_DEEP  = '#efe9dd';
 const CARD        = '#ffffff';
-const LINE        = '#e7e5e4';
+const CREAM       = '#fff8ef';
+const BLACK       = '#0f0e0b';
+const BLUE        = '#1f6feb';
+const GREEN       = '#2a9d4c';
+const GREEN_SOFT  = '#e5f6eb';
+const MUTED       = 'rgba(20,19,16,0.55)';
+const MUTED_HI    = 'rgba(20,19,16,0.72)';
+const LINE_SOFT   = 'rgba(20,19,16,0.08)';
+const LINE_MID    = 'rgba(20,19,16,0.14)';
 
 export default function HomeScreen() {
   const { user } = useAuth();
-  const { data: jobs, isLoading: jobsLoading, refetch: refetchJobs } = useJobs();
-  const { data: quotes, refetch: refetchQuotes } = useQuotes();
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const { data: jobs, isLoading: jobsLoading } = useJobs();
+  const { data: quotes } = useQuotes();
+  const { data: invoices } = useInvoices();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -46,244 +46,278 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, []);
 
-  const firstName = user?.firstName || user?.email?.split('@')[0] || 'there';
-  const initial = (user?.firstName?.[0] || user?.email?.[0] || '?').toUpperCase();
+  const firstName = user?.firstName || user?.email?.split('@')[0] || 'Andy';
+  const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase() || 'AH';
 
-  const weekDays = useMemo(() => {
-    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
-    return eachDayOfInterval({ start: weekStart, end: weekEnd });
-  }, []);
+  const now = new Date();
+  const dayName = format(now, 'EEE d MMM');
+  const timeStr = format(now, 'HH:mm');
 
-  const todayJobs = useMemo(
-    () => (jobs as any[])?.filter((j: any) => j.scheduledDate && isToday(new Date(j.scheduledDate))) || [],
-    [jobs]
-  );
+  const allJobs = (jobs as any[]) || [];
+  const allQuotes = (quotes as any[]) || [];
+  const allInvoices = (invoices as any[]) || [];
 
-  const pendingQuotes = useMemo(
-    () => quotes?.filter((q) => q.status === 'sent') || [],
-    [quotes]
-  );
+  const todayJobs = useMemo(() => {
+    return allJobs.filter((j: any) => j.scheduledDate && isToday(new Date(j.scheduledDate)));
+  }, [allJobs]);
 
-  const nextJob = useMemo(
-    () =>
-      (jobs as any[])
-        ?.filter((job: any) => job.scheduledDate && startOfDay(new Date(job.scheduledDate)) >= startOfDay(new Date()))
-        .sort((a: any, b: any) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime())[0] || null,
-    [jobs]
-  );
+  const nextJob = useMemo(() => {
+    const upcoming = allJobs
+      .filter((j: any) => j.scheduledDate && new Date(j.scheduledDate) >= now && j.status !== 'completed' && j.status !== 'cancelled')
+      .sort((a: any, b: any) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
+    return upcoming[0] || todayJobs[0] || null;
+  }, [allJobs, todayJobs]);
 
-  const nextJobLabel = useMemo(() => {
-    if (!nextJob?.scheduledDate) return '';
-    const d = new Date(nextJob.scheduledDate);
-    if (isToday(d)) return 'Today';
-    if (isTomorrow(d)) return 'Tomorrow';
-    return format(d, 'eee d MMM');
-  }, [nextJob]);
+  const pipeline = useMemo(() => ({
+    draft: allQuotes.filter((q: any) => q.status === 'draft').length,
+    sent: allQuotes.filter((q: any) => q.status === 'sent' || q.status === 'viewed').length,
+    accepted: allQuotes.filter((q: any) => q.status === 'accepted').length,
+    overdue: allQuotes.filter((q: any) => q.status === 'overdue').length,
+  }), [allQuotes]);
 
-  const selectedDateJobs = useMemo(
-    () => (jobs as any[])?.filter((job: any) => job.scheduledDate && isSameDay(new Date(job.scheduledDate), selectedDate)) || [],
-    [jobs, selectedDate]
-  );
+  const pipelineTotal = allQuotes.filter((q: any) => ['draft', 'sent', 'viewed', 'accepted'].includes(q.status)).length;
+  const pipelineAmt = allQuotes
+    .filter((q: any) => ['sent', 'viewed', 'accepted'].includes(q.status))
+    .reduce((s: number, q: any) => s + (Number(q.totalAmount) || 0), 0);
 
-  const getDayDot = (day: Date) => {
-    const count = (jobs as any[])?.filter((j: any) => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day)).length || 0;
-    return count > 0;
-  };
-
-  const greeting = (() => {
-    const h = new Date().getHours();
-    if (h < 12) return "G'day";
-    if (h < 17) return 'Afternoon';
-    return 'Evening';
-  })();
+  const activityItems = useMemo(() => {
+    const items: any[] = [];
+    allInvoices.slice(0, 2).forEach((inv: any) => {
+      if (inv.status === 'paid') items.push({ type: 'paid', title: `${inv.customerName || 'Customer'} paid`, amt: `+$${Number(inv.totalAmount || 0).toLocaleString()}`, t: '2h', c: GREEN, bg: GREEN_SOFT, ic: '✓' });
+    });
+    allInvoices.filter((i: any) => i.status === 'overdue').slice(0, 1).forEach((inv: any) => {
+      items.push({ type: 'overdue', title: `INV now overdue`, amt: `$${Number(inv.totalAmount || 0).toLocaleString()}`, t: '2d', c: ORANGE, bg: ORANGE_SOFT, ic: '!' });
+    });
+    return items.slice(0, 3);
+  }, [allInvoices]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND} />
-        }
+        contentContainerStyle={{ paddingBottom: 130 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} />}
       >
-        {/* Top bar */}
+        {/* Ambient blobs */}
+        <View style={{ position: 'absolute', top: -80, right: -100, width: 340, height: 340, borderRadius: 170, backgroundColor: `${ORANGE}15`, pointerEvents: 'none' } as any} />
+
+        {/* TopBar */}
         <View style={s.topBar}>
-          <TouchableOpacity
-            onPress={() => router.push('/profile')}
-            style={s.avatar}
-            activeOpacity={0.8}
-          >
-            <Text style={s.avatarText}>{initial}</Text>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.8}>
+            <View style={s.avatar}>
+              <Text style={s.avatarText}>{initials}</Text>
+            </View>
           </TouchableOpacity>
-
-          <View style={{ flex: 1, marginHorizontal: 12 }}>
-            <Text style={s.greetingLabel}>
-              {greeting},{' '}
-              <Text style={{ color: BRAND }}>{firstName}</Text>
-            </Text>
-            <Text style={s.subLabel}>Here's your day at a glance</Text>
+          <View style={s.weatherPill}>
+            <View style={s.weatherIcon}><Text style={{ fontSize: 14 }}>☀</Text></View>
+            <Text style={s.weatherTemp}>24°</Text>
+            <Text style={s.weatherCity}>· Sydney</Text>
           </View>
-
-          <TouchableOpacity
-            style={s.aiBtn}
-            onPress={() => router.push('/ai-chat')}
-            activeOpacity={0.8}
-          >
-            <Bot size={18} color={BRAND} strokeWidth={2} />
-          </TouchableOpacity>
         </View>
 
-        {/* Hero card */}
-        <View style={s.heroWrap}>
+        {/* Hero greeting */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+          <Text style={s.eyebrow}>{dayName} · {timeStr}</Text>
+          <Text style={s.heroGreeting}>
+            {"G'day,\n"}
+            <Text style={{ color: ORANGE }}>{firstName}.</Text>
+          </Text>
+          <Text style={s.heroSub}>
+            {todayJobs.length} {todayJobs.length === 1 ? 'job' : 'jobs'} booked today.{' '}
+            <Text style={{ color: MUTED }}>Let's not touch a single form.</Text>
+          </Text>
+
+          {/* Hero job card */}
           <View style={s.heroCard}>
-            {/* orange glow */}
             <View style={s.heroGlow} />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <View>
-                <Text style={s.heroLabel}>TODAY'S SCHEDULE</Text>
-                <Text style={s.heroVal}>{todayJobs.length} jobs</Text>
-                <Text style={s.heroSub}>
-                  {todayJobs.filter((j: any) => j.status === 'completed').length} done ·{' '}
-                  {todayJobs.filter((j: any) => j.status === 'in_progress').length} in progress
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={s.pulseDot} />
+                <Text style={s.heroEyebrow}>
+                  {nextJob ? `Up next · ${nextJob.scheduledDate ? format(new Date(nextJob.scheduledDate), 'h:mm a') : 'Soon'}` : 'No upcoming jobs'}
                 </Text>
               </View>
-              <View style={{ alignItems: 'flex-end', gap: 12 }}>
-                <StatPill label="Pending quotes" value={String(pendingQuotes.length)} />
-                <StatPill label="Open jobs" value={String((jobs as any[])?.filter((j: any) => ['pending','confirmed'].includes(j.status)).length || 0)} />
-              </View>
+              {nextJob?.scheduledDate && (
+                <View style={s.durationBadge}>
+                  <Text style={s.durationText}>1H 45M</Text>
+                </View>
+              )}
             </View>
 
-            {nextJob && (
-              <TouchableOpacity
-                style={s.nextJobRow}
-                onPress={() => router.push('/(tabs)/jobs')}
-                activeOpacity={0.8}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={s.nextJobLabel}>NEXT · {nextJobLabel.toUpperCase()}</Text>
-                  <Text style={s.nextJobTitle} numberOfLines={1}>{nextJob.title}</Text>
+            {nextJob ? (
+              <>
+                <Text style={s.heroJobTitle}>{nextJob.title}</Text>
+                <Text style={s.heroJobAddr}>
+                  {(nextJob as any).address || '—'}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
+                  <TouchableOpacity style={s.startBtn} onPress={() => router.push(`/jobs/${nextJob.id}`)}>
+                    <Text style={s.startBtnText}>▶  Start job</Text>
+                  </TouchableOpacity>
+                  <View style={s.heroIconBtn}><Text style={{ fontSize: 16 }}>📍</Text></View>
+                  <View style={s.heroIconBtn}><Text style={{ fontSize: 16 }}>💬</Text></View>
                 </View>
-                <ChevronRight size={16} color="rgba(255,255,255,0.5)" />
-              </TouchableOpacity>
+              </>
+            ) : (
+              <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, fontFamily: 'Manrope_500Medium' }}>
+                Nothing scheduled — enjoy the arvo.
+              </Text>
             )}
           </View>
         </View>
 
         {/* AI Rail */}
-        <TouchableOpacity
-          style={s.aiRail}
-          onPress={() => router.push('/ai-chat')}
-          activeOpacity={0.88}
-        >
-          <View style={s.aiIconWrap}>
-            <Sparkles size={18} color="#fff" strokeWidth={2} />
-          </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={s.aiRailTitle}>AI Quote Assistant</Text>
-            <Text style={s.aiRailSub}>Tap to generate a quote instantly</Text>
-          </View>
-          <ArrowRight size={16} color="rgba(255,255,255,0.7)" />
-        </TouchableOpacity>
+        <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
+          <TouchableOpacity style={s.aiRail} onPress={() => router.push('/ai-chat')} activeOpacity={0.88}>
+            <View style={s.aiRailGlow} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, position: 'relative' }}>
+              <View style={s.aiIcon}>
+                <Text style={{ fontSize: 22 }}>✦</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.aiEyebrow}>Quote with a sentence</Text>
+                <Text style={s.aiRailText}>"Swap hot water at Dalton's, $1,840..."</Text>
+              </View>
+              <View style={s.micBtn}><Text style={{ fontSize: 18 }}>🎤</Text></View>
+            </View>
+          </TouchableOpacity>
+        </View>
 
-        {/* Quick actions */}
-        <View style={s.section}>
-          <SectionEyebrow>QUICK ACTIONS</SectionEyebrow>
-          <View style={s.tileGrid}>
-            <QuickTile icon={FileText} label="New Quote" color={BRAND} onPress={() => router.push('/(tabs)/quotes')} />
-            <QuickTile icon={Briefcase} label="Jobs" color="#2563eb" onPress={() => router.push('/(tabs)/jobs')} />
-            <QuickTile icon={Users} label="Customers" color="#16a34a" onPress={() => router.push('/(tabs)/customers')} />
+        {/* Goal Block */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
+          <View style={s.goalCard}>
+            <Text style={s.eyebrow}>Week revenue</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 8, marginBottom: 14 }}>
+              <Text style={s.goalAmount}>
+                ${(allInvoices.filter((i: any) => i.status === 'paid').reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0) / 1000).toFixed(1)}k
+              </Text>
+              <Text style={{ fontSize: 14, color: MUTED, fontFamily: 'Manrope_600SemiBold', marginBottom: 6 }}>/ $5,000 goal</Text>
+            </View>
+            <View style={s.progressBg}>
+              <View style={[s.progressFill, { width: '62%' }]} />
+              {[25, 50, 75].map(m => (
+                <View key={m} style={[s.progressTick, { left: `${m}%` as any }]} />
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+              <Text style={{ fontSize: 11, color: MUTED_HI, fontFamily: 'Manrope_600SemiBold' }}>
+                <Text style={{ color: ORANGE, fontFamily: 'Manrope_700Bold' }}>62%</Text> there
+              </Text>
+              <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_600SemiBold' }}>
+                {todayJobs.length} jobs today
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* This week */}
-        <View style={s.section}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <SectionEyebrow>THIS WEEK</SectionEyebrow>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/jobs')}>
-              <Text style={{ fontSize: 12, fontFamily: 'Manrope_700Bold', color: BRAND }}>All jobs</Text>
+        {/* Pipeline */}
+        <View style={{ paddingTop: 14 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginBottom: 12 }}>
+            <View>
+              <Text style={s.eyebrow}>Quote pipeline</Text>
+              <Text style={s.sectionTitle}>
+                {pipelineTotal} on the go ·{' '}
+                <Text style={{ color: ORANGE }}>${pipelineAmt.toLocaleString()} out</Text>
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}>
+              <Text style={s.seeAll}>See all →</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+            {[
+              { n: pipeline.draft, l: 'Draft', c: MUTED, bg: CARD, ring: LINE_MID },
+              { n: pipeline.sent, l: 'Sent', c: BLUE, bg: '#eaf2ff', ring: '#c8dcff' },
+              { n: pipeline.accepted, l: 'Accepted', c: GREEN, bg: GREEN_SOFT, ring: '#bde2c9' },
+              { n: pipeline.overdue, l: 'Overdue', c: ORANGE, bg: ORANGE_SOFT, ring: '#f8c59f' },
+            ].map(stage => (
+              <TouchableOpacity key={stage.l} onPress={() => router.push('/(tabs)/quotes')} activeOpacity={0.7}>
+                <View style={[s.pipelineChip, { backgroundColor: stage.bg, borderColor: stage.ring }]}>
+                  <Text style={[s.pipelineNum, { color: stage.c }]}>{stage.n}</Text>
+                  <Text style={[s.eyebrow, { color: stage.c, marginBottom: 0 }]}>{stage.l}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Today's Schedule */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+            <View>
+              <Text style={s.eyebrow}>Today · {todayJobs.length} stops</Text>
+              <Text style={s.sectionTitle}>Out the door by 9.</Text>
+            </View>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/calendar')}>
+              <Text style={s.seeAll}>Calendar →</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Week strip */}
-          <View style={{ flexDirection: 'row', gap: 4, marginBottom: 12 }}>
-            {weekDays.map((day, idx) => {
-              const sel = isSameDay(day, selectedDate);
-              const dot = getDayDot(day);
+          {todayJobs.length === 0 ? (
+            <View style={s.emptyTimeline}>
+              <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED }}>Nothing scheduled today</Text>
+            </View>
+          ) : (
+            todayJobs.map((job: any, i: number) => {
+              const isLast = i === todayJobs.length - 1;
+              const dotC = i === 0 ? ORANGE : BLUE;
               return (
-                <TouchableOpacity
-                  key={idx}
-                  style={[s.dayCell, sel && s.dayCellActive]}
-                  onPress={() => setSelectedDate(day)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[s.dayLabel, sel && { color: 'rgba(255,255,255,0.8)' }]}>
-                    {format(day, 'eeeee')}
-                  </Text>
-                  <Text style={[s.dayNum, sel && { color: '#fff' }]}>{format(day, 'd')}</Text>
-                  {dot && <View style={[s.dot, sel && { backgroundColor: 'rgba(255,255,255,0.8)' }]} />}
+                <TouchableOpacity key={job.id} onPress={() => router.push(`/jobs/${job.id}`)} activeOpacity={0.7}>
+                  <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 12 }}>
+                    <View style={[s.timeGutter, { width: 54 }]}>
+                      <Text style={s.timeMain}>{job.scheduledDate ? format(new Date(job.scheduledDate), 'h:mm') : '--'}</Text>
+                      <Text style={s.timeAmPm}>{job.scheduledDate ? format(new Date(job.scheduledDate), 'a') : ''}</Text>
+                      <View style={[s.timeRail, { backgroundColor: dotC, bottom: isLast ? 'auto' : -14, height: isLast ? 20 : undefined }]} />
+                      <View style={[s.timeDot, { backgroundColor: dotC, borderColor: PAPER }]} />
+                    </View>
+                    <View style={[s.timelineCard, { marginBottom: isLast ? 0 : 14 }]}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                        <Text style={s.timelineTitle}>{job.title}</Text>
+                        <Text style={s.timelineDur}>90m</Text>
+                      </View>
+                      <Text style={s.timelineSub}>
+                        {(job as any).customerName || 'Customer'}{(job as any).address ? ` · ${(job as any).address}` : ''}
+                      </Text>
+                    </View>
+                  </View>
                 </TouchableOpacity>
               );
-            })}
-          </View>
+            })
+          )}
+        </View>
 
-          {/* Day detail */}
-          <View style={{ gap: 8 }}>
-            {selectedDateJobs.length === 0 ? (
-              <View style={s.emptyDay}>
-                <Text style={s.emptyDayText}>No jobs on {isToday(selectedDate) ? 'today' : format(selectedDate, 'eeee')}</Text>
-              </View>
-            ) : (
-              selectedDateJobs.slice(0, 3).map((job: any) => (
-                <TouchableOpacity
-                  key={job.id}
-                  style={s.jobRow}
-                  onPress={() => router.push('/(tabs)/jobs')}
-                  activeOpacity={0.7}
-                >
-                  <View style={s.jobDot} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.jobTitle} numberOfLines={1}>{job.title}</Text>
-                    <Text style={s.jobTime}>
-                      {job.scheduledDate ? format(new Date(job.scheduledDate), 'h:mm a') : 'TBD'}
-                    </Text>
+        {/* Activity */}
+        {activityItems.length > 0 && (
+          <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+            <Text style={[s.eyebrow, { marginBottom: 12 }]}>Activity · Last 24h</Text>
+            <View style={[s.card, { padding: 0 }]}>
+              {activityItems.map((a: any, i: number) => (
+                <View key={i} style={[s.activityRow, i > 0 && s.activityRowBorder]}>
+                  <View style={[s.activityIcon, { backgroundColor: a.bg }]}>
+                    <Text style={{ color: a.c, fontSize: 14, fontFamily: 'Manrope_800ExtraBold' }}>{a.ic}</Text>
                   </View>
-                  <ChevronRight size={14} color={LINE} />
-                </TouchableOpacity>
-              ))
-            )}
+                  <Text style={s.activityText}>{a.title}</Text>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={[s.activityAmt, { color: a.c }]}>{a.amt}</Text>
+                    <Text style={s.activityTime}>{a.t} ago</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
+        )}
+
+        {/* Sig */}
+        <View style={{ paddingTop: 26, alignItems: 'center' }}>
+          <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_600SemiBold', letterSpacing: 0.2 }}>
+            Admin for people who'd rather be on the tools.
+          </Text>
+          <Text style={{ fontSize: 10, color: MUTED, fontFamily: 'Manrope_800ExtraBold', marginTop: 6, letterSpacing: 2, textTransform: 'uppercase' }}>
+            VARGENEZEY · v1.0
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function SectionEyebrow({ children }: { children: string }) {
-  return (
-    <Text style={{ fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 10 }}>
-      {children}
-    </Text>
-  );
-}
-
-function StatPill({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ alignItems: 'flex-end' }}>
-      <Text style={{ fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: '#fff', lineHeight: 26 }}>{value}</Text>
-      <Text style={{ fontSize: 9, fontFamily: 'Manrope_700Bold', color: 'rgba(255,255,255,0.55)', letterSpacing: 0.5, textTransform: 'uppercase' }}>{label}</Text>
-    </View>
-  );
-}
-
-function QuickTile({ icon: Icon, label, color, onPress }: { icon: any; label: string; color: string; onPress: () => void }) {
-  return (
-    <TouchableOpacity style={s.tile} onPress={onPress} activeOpacity={0.7}>
-      <View style={[s.tileIcon, { backgroundColor: color + '15' }]}>
-        <Icon size={20} color={color} strokeWidth={2} />
-      </View>
-      <Text style={s.tileLabel}>{label}</Text>
-    </TouchableOpacity>
   );
 }
 
@@ -291,231 +325,405 @@ const s = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingTop: 0,
   },
   avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: INK,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: BRAND,
-    fontSize: 16,
+    color: ORANGE,
+    fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
+    letterSpacing: -0.2,
   },
-  greetingLabel: {
-    fontSize: 20,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -0.5,
+  weatherPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingLeft: 6,
+    paddingRight: 12,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
   },
-  subLabel: {
-    fontSize: 12,
-    fontFamily: 'Manrope_500Medium',
-    color: MUTED,
-    marginTop: 1,
-  },
-  aiBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: PAPER_DEEP,
+  weatherIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#d9ecff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroWrap: {
-    paddingHorizontal: 20,
-    marginBottom: 14,
+  weatherTemp: {
+    fontSize: 12,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
+  },
+  weatherCity: {
+    fontSize: 11,
+    color: MUTED,
+    fontFamily: 'Manrope_500Medium',
+  },
+  eyebrow: {
+    fontSize: 10,
+    fontFamily: 'Manrope_800ExtraBold',
+    letterSpacing: 2,
+    color: MUTED,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  heroGreeting: {
+    fontSize: 42,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    lineHeight: 42,
+    letterSpacing: -1.5,
+    marginTop: 6,
+  },
+  heroSub: {
+    fontSize: 14,
+    fontFamily: 'Manrope_600SemiBold',
+    color: MUTED_HI,
+    marginTop: 10,
+    lineHeight: 20,
+    maxWidth: 280,
+    marginBottom: 0,
   },
   heroCard: {
-    backgroundColor: '#0f0e0b',
-    borderRadius: 22,
+    backgroundColor: BLACK,
+    borderRadius: 28,
     padding: 20,
+    marginTop: 18,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.22,
+    shadowRadius: 40,
+    elevation: 20,
   },
   heroGlow: {
     position: 'absolute',
-    top: -60,
-    right: -40,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(234,88,12,0.25)',
+    top: 0,
+    right: 0,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: `${ORANGE}73`,
+    opacity: 0.45,
   },
-  heroLabel: {
-    fontSize: 9,
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: ORANGE,
+    shadowColor: ORANGE,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+  },
+  heroEyebrow: {
+    fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: 'rgba(255,255,255,0.45)',
-    letterSpacing: 1.5,
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 2,
     textTransform: 'uppercase',
-    marginBottom: 4,
   },
-  heroVal: {
-    fontSize: 38,
+  durationBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  durationText: {
+    fontSize: 10.5,
     fontFamily: 'Manrope_800ExtraBold',
     color: '#fff',
-    letterSpacing: -1,
-    lineHeight: 42,
+    letterSpacing: 0.8,
   },
-  heroSub: {
-    fontSize: 12,
+  heroJobTitle: {
+    fontSize: 26,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#fff',
+    letterSpacing: -0.6,
+    lineHeight: 30,
+    marginBottom: 6,
+  },
+  heroJobAddr: {
+    fontSize: 13,
     fontFamily: 'Manrope_500Medium',
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: 4,
+    color: 'rgba(255,255,255,0.55)',
   },
-  nextJobRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 18,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-  },
-  nextJobLabel: {
-    fontSize: 8,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: BRAND,
-    letterSpacing: 1.2,
-    marginBottom: 3,
-  },
-  nextJobTitle: {
-    fontSize: 14,
-    fontFamily: 'Manrope_700Bold',
-    color: '#fff',
-  },
-  aiRail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    backgroundColor: BRAND,
-    borderRadius: 18,
-    padding: 16,
-  },
-  aiIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  startBtn: {
+    flex: 1,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: ORANGE,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: ORANGE,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 20,
+    elevation: 8,
   },
-  aiRailTitle: {
-    fontSize: 14,
+  startBtnText: {
+    fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
     color: '#fff',
     letterSpacing: -0.2,
   },
-  aiRailSub: {
-    fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: 1,
-  },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  tileGrid: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  tile: {
-    flex: 1,
-    backgroundColor: CARD,
+  heroIconBtn: {
+    width: 52,
+    height: 52,
     borderRadius: 16,
-    padding: 14,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
-    borderColor: LINE,
-    alignItems: 'center',
-    gap: 8,
-  },
-  tileIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    borderColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tileLabel: {
-    fontSize: 11,
-    fontFamily: 'Manrope_700Bold',
-    color: INK,
-    textAlign: 'center',
+  aiRail: {
+    backgroundColor: ORANGE,
+    borderRadius: 24,
+    padding: 18,
+    overflow: 'hidden',
+    shadowColor: ORANGE,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.3,
+    shadowRadius: 28,
+    elevation: 10,
   },
-  dayCell: {
-    flex: 1,
+  aiRailGlow: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: '50%',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 24,
+  },
+  aiIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
     alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: PAPER_DEEP,
+    justifyContent: 'center',
+    flexShrink: 0,
   },
-  dayCellActive: {
-    backgroundColor: INK,
-  },
-  dayLabel: {
-    fontSize: 9,
-    fontFamily: 'Manrope_700Bold',
-    color: MUTED,
-    marginBottom: 4,
+  aiEyebrow: {
+    fontSize: 10,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: 'rgba(255,255,255,0.75)',
+    letterSpacing: 2,
     textTransform: 'uppercase',
+    marginBottom: 4,
   },
-  dayNum: {
-    fontSize: 15,
+  aiRailText: {
+    fontSize: 16,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#fff',
+    letterSpacing: -0.2,
+    lineHeight: 20,
+  },
+  micBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalCard: {
+    backgroundColor: CREAM,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+    overflow: 'hidden',
+  },
+  goalAmount: {
+    fontSize: 44,
     fontFamily: 'Manrope_800ExtraBold',
     color: INK,
+    letterSpacing: -1.5,
+    lineHeight: 48,
   },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: BRAND,
-    marginTop: 4,
+  progressBg: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: PAPER_DEEP,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  emptyDay: {
+  progressFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    backgroundColor: ORANGE,
+    borderRadius: 999,
+  },
+  progressTick: {
+    position: 'absolute',
+    top: 2,
+    bottom: 2,
+    width: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    marginTop: 2,
+    letterSpacing: -0.3,
+  },
+  seeAll: {
+    fontSize: 11,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: ORANGE,
+  },
+  pipelineChip: {
+    borderWidth: 1.5,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minWidth: 108,
+    gap: 4,
+  },
+  pipelineNum: {
+    fontSize: 28,
+    fontFamily: 'Manrope_800ExtraBold',
+    letterSpacing: -0.8,
+    lineHeight: 32,
+  },
+  emptyTimeline: {
     padding: 16,
     borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: LINE,
-    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
     alignItems: 'center',
   },
-  emptyDayText: {
-    fontSize: 13,
+  timeGutter: {
+    flexShrink: 0,
+    position: 'relative',
+    alignItems: 'flex-end',
+    paddingTop: 6,
+    paddingRight: 14,
+  },
+  timeMain: {
+    fontSize: 12,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: 0.2,
+    lineHeight: 14,
+  },
+  timeAmPm: {
+    fontSize: 9.5,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: MUTED,
+    letterSpacing: 0.6,
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  timeRail: {
+    position: 'absolute',
+    right: 5,
+    top: 22,
+    width: 2,
+    opacity: 0.3,
+  },
+  timeDot: {
+    position: 'absolute',
+    right: -1,
+    top: 6,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 3,
+  },
+  timelineCard: {
+    flex: 1,
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+    borderRadius: 18,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+  },
+  timelineTitle: {
+    fontSize: 14,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.2,
+    flex: 1,
+  },
+  timelineDur: {
+    fontSize: 10,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: MUTED,
+    letterSpacing: 0.3,
+    flexShrink: 0,
+  },
+  timelineSub: {
+    fontSize: 11,
     fontFamily: 'Manrope_500Medium',
     color: MUTED,
+    marginTop: 2,
   },
-  jobRow: {
+  card: {
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  activityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: CARD,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: LINE,
+    paddingVertical: 14,
   },
-  jobDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: BRAND,
+  activityRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: LINE_SOFT,
   },
-  jobTitle: {
-    fontSize: 14,
-    fontFamily: 'Manrope_700Bold',
+  activityIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Manrope_600SemiBold',
     color: INK,
   },
-  jobTime: {
-    fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
+  activityAmt: {
+    fontSize: 12,
+    fontFamily: 'Manrope_800ExtraBold',
+  },
+  activityTime: {
+    fontSize: 10,
+    fontFamily: 'Manrope_600SemiBold',
     color: MUTED,
-    marginTop: 1,
   },
 });

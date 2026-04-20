@@ -15,6 +15,20 @@ export function useInvoices() {
   });
 }
 
+export function useInvoice(id: number) {
+  return useQuery({
+    queryKey: [api.invoices.get.path, id],
+    queryFn: async () => {
+      const url = buildUrl(api.invoices.get.path, { id });
+      const res = await apiRequest('GET', url);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error('Failed to fetch invoice');
+      return res.json() as Promise<Invoice>;
+    },
+    enabled: !!id,
+  });
+}
+
 export function useUpdateInvoice() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

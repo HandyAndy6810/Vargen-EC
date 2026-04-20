@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>VGN-EC — Screen Reference Pack</title>
+<style>
+  :root {
+    --bg: #0f0f10;
+    --surface: #1a1a1c;
+    --card: #222226;
+    --border: #2e2e33;
+    --text: #f3f3f5;
+    --muted: #9a9aa3;
+    --accent: #f97316;
+    --accent-soft: #fed7aa;
+    --code-bg: #0a0a0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 48px 32px 120px;
+  }
+  header {
+    max-width: 1280px;
+    margin: 0 auto 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  header .eyebrow {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+  header p {
+    color: var(--muted);
+    max-width: 720px;
+    font-size: 15px;
+  }
+  .toc {
+    max-width: 1280px;
+    margin: 0 auto 48px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px 24px;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+  .toc a {
+    color: var(--muted);
+    font-size: 13px;
+    text-decoration: none;
+    display: block;
+    padding: 6px 0;
+  }
+  .toc a:hover { color: var(--accent); }
+  .toc-group-title {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-top: 12px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .screen {
+    max-width: 1280px;
+    margin: 0 auto 64px;
+    display: grid;
+    grid-template-columns: 1fr 480px;
+    gap: 48px;
+    scroll-margin-top: 24px;
+  }
+  .screen-meta {
+    padding-top: 8px;
+  }
+  .screen-num {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .screen h2 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .screen .route {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--code-bg);
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-bottom: 24px;
+  }
+  .spec-group {
+    margin-top: 20px;
+  }
+  .spec-group h3 {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .spec-group ul {
+    list-style: none;
+    padding: 0;
+  }
+  .spec-group li {
+    font-size: 14px;
+    color: var(--text);
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .spec-group li:last-child { border-bottom: 0; }
+  .spec-group .label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+  .spec-group .val { font-size: 14px; }
+  .spec-group code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--accent-soft);
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .screen-img {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+    overflow: hidden;
+  }
+  .screen-img img {
+    width: 100%;
+    display: block;
+    border-radius: 8px;
+  }
+  .notes {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--card);
+    border-radius: 10px;
+    border-left: 3px solid var(--accent);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .notes strong { color: var(--text); }
+  @media (max-width: 900px) {
+    .screen { grid-template-columns: 1fr; }
+    .screen-img { position: static; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Design Handoff · VGN-EC Mobile</div>
+  <h1>Screen Reference Pack</h1>
+  <p>One frame per screen from the <code style="background:#0a0a0b;padding:2px 6px;border-radius:4px;font-size:13px;">VGN-EC App.html</code> prototype. Each row pairs a screenshot with build specs: route, data hooks, components to use, and notes. Use alongside <strong>CLAUDE_CODE_PROMPT.md</strong>. Route paths and hook names are exact to <code style="background:#0a0a0b;padding:2px 6px;border-radius:4px;font-size:13px;">HandyAndy6810/Vargen-EC@main</code>.</p>
+</header>
+
+<nav class="toc">
+  <div>
+    <div class="toc-group-title">Core</div>
+    <a href="#s01">01 — Home · Mission Control</a>
+    <a href="#s09">09 — Jobs · List</a>
+    <a href="#s06">06 — Quotes · List</a>
+    <a href="#s13">13 — Invoices · List</a>
+    <a href="#s17">17 — Profile · Settings</a>
+  </div>
+  <div>
+    <div class="toc-group-title">AI Chat Flow</div>
+    <a href="#s02">02 — Prompt</a>
+    <a href="#s03">03 — Clarifying</a>
+    <a href="#s04">04 — Draft quote</a>
+    <a href="#s05">05 — Confirm & send</a>
+  </div>
+  <div>
+    <div class="toc-group-title">Quotes &amp; Jobs</div>
+    <a href="#s07">07 — Quotes · Detail</a>
+    <a href="#s08">08 — Quotes · Create</a>
+    <a href="#s10">10 — Jobs · Detail</a>
+    <a href="#s11">11 — Jobs · Active timer</a>
+    <a href="#s12">12 — Jobs · Completion</a>
+  </div>
+  <div>
+    <div class="toc-group-title">Invoices &amp; Calendar</div>
+    <a href="#s14">14 — Invoices · Detail</a>
+    <a href="#s15">15 — Invoices · Create</a>
+    <a href="#s16">16 — Calendar · Week</a>
+  </div>
+</nav>
+
+<!-- 01 HOME -->
+<section class="screen" id="s01">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 01</div>
+    <h2>Home · Mission Control</h2>
+    <div class="route">mobile/app/(tabs)/index.tsx</div>
+
+    <div class="spec-group">
+      <h3>Data</h3>
+      <ul>
+        <li><span class="label">Hooks</span><span class="val"><code>useAuth()</code>, <code>useJobs()</code></span></li>
+        <li><span class="label">Derived</span><span class="val">firstName, weekDays, upcomingJobsCount, nextJob, selectedDateJobs, getDayBadge</span></li>
+        <li><span class="label">New deps</span><span class="val">none — reuse existing logic</span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout (top → bottom)</h3>
+      <ul>
+        <li><span class="label">Status bar</span><span class="val">iOS native, dark content, time + dynamic island area transparent over warm bg</span></li>
+        <li><span class="label">Greeting</span><span class="val">"G'day, {firstName}." — large 32px Manrope ExtraBold, brand-600 on the name. Subline ink-500 15px dynamic: jobs today count + weekly-goal gap</span></li>
+        <li><span class="label">Weather chip</span><span class="val">Right-aligned small pill with sun icon + °C + city. Optional — hide if no geolocation.</span></li>
+        <li><span class="label">UP NEXT hero</span><span class="val">Dark card (bg-ink-900), warm accent glow. Eyebrow <code>UP NEXT · {time}</code>. Title + sublocation. Right: duration chip. Actions row: <code>PrimaryButton</code> "Start job" + 2 icon buttons (nav pin, chat)</span></li>
+        <li><span class="label">Weekly goal bar</span><span class="val">Horizontal progress — $ earned this week vs <code>userSettings.weeklyGoal</code>. Soft brand-500 fill on ink-100 track.</span></li>
+        <li><span class="label">Activity blades</span><span class="val">Stacked cards: pipeline snapshot, quick actions, revenue this month, calendar strip. Order from <code>userSettings.bladeOrder</code> JSON array</span></li>
+        <li><span class="label">Floating tab bar</span><span class="val">BlurView, icon-only (5 tabs), active dot in brand-600. <code>mx-4 mb-6 rounded-3xl</code></span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Critical details</h3>
+      <ul>
+        <li><span class="label">Avatar</span><span class="val">Top-left 44px circle, initials on brand-100 bg / brand-700 text. Tap → <code>/profile</code></span></li>
+        <li><span class="label">Hero copy</span><span class="val">Never invent numbers. Hide weekly-goal bar if <code>weeklyGoal === 0</code>. Hide UP NEXT card if <code>!nextJob</code> — replace with empty hero.</span></li>
+        <li><span class="label">Blade order</span><span class="val">Persist re-ordering via <code>PATCH /api/settings</code> body <code>{ bladeOrder: "[...]" }</code></span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/01-home-mission-control.png" alt="Home mission control"></div>
+</section>
+
+<!-- 02 AI PROMPT -->
+<section class="screen" id="s02">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 02</div>
+    <h2>AI Chat · Prompt</h2>
+    <div class="route">mobile/app/ai-chat.tsx  <em style="color:var(--muted)">(new, Stack modal)</em></div>
+
+    <div class="spec-group">
+      <h3>Data</h3>
+      <ul>
+        <li><span class="label">Hooks</span><span class="val">none — local state only in this phase</span></li>
+        <li><span class="label">Server TODO</span><span class="val">// TODO: wire to /api/ai/chat when endpoint exists</span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout</h3>
+      <ul>
+        <li><span class="label">Header</span><span class="val">Back chevron · "AI assistant" · tiny <code>Sparkles</code> brand dot</span></li>
+        <li><span class="label">Hero prompt</span><span class="val">"What do you need?" — 28px Manrope Bold, centered. Subline ink-400 "Describe the job and I'll draft a quote."</span></li>
+        <li><span class="label">Quick-start chips</span><span class="val">3–4 suggestion chips ("Ceiling fan swap", "Switchboard upgrade", "EV charger install") — pressable, seeds input text</span></li>
+        <li><span class="label">Input bar</span><span class="val">Sticky bottom. <code>KeyboardAvoidingView</code>. 44px send button brand-600 with <code>Send</code> icon, haptic light on press</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/02-ai-chat-prompt.png" alt="AI Chat prompt"></div>
+</section>
+
+<!-- 03 AI CLARIFYING -->
+<section class="screen" id="s03">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 03</div>
+    <h2>AI Chat · Clarifying</h2>
+    <div class="route">mobile/app/ai-chat.tsx · state: <code style="background:#0a0a0b;padding:2px 6px;border-radius:4px;font-size:12px;">clarifying</code></div>
+
+    <div class="spec-group">
+      <h3>Behavior</h3>
+      <ul>
+        <li><span class="label">Bubbles</span><span class="val">AI = bg-white border-ink-100 rounded-2xl rounded-tl-sm, self-start. User = bg-brand-600 white rounded-2xl rounded-tr-sm, self-end. Max 80% width, <code>px-4 py-3</code></span></li>
+        <li><span class="label">Typing indicator</span><span class="val">3 pulsing dots in an AI bubble while "thinking" (setTimeout 600–1200ms between scripted steps)</span></li>
+        <li><span class="label">Clarifying qs</span><span class="val">Scripted: "Who's the customer?", "Any access notes?", "Parts on-site or need sourcing?"</span></li>
+        <li><span class="label">Quick replies</span><span class="val">Under AI bubble, pill chips ("New customer", "Existing", "Skip") — tapping populates the next user message</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/03-ai-chat-clarifying.png" alt="AI Chat clarifying"></div>
+</section>
+
+<!-- 04 AI DRAFT -->
+<section class="screen" id="s04">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 04</div>
+    <h2>AI Chat · Draft quote</h2>
+    <div class="route">mobile/app/ai-chat.tsx · state: <code style="background:#0a0a0b;padding:2px 6px;border-radius:4px;font-size:12px;">draft_ready</code></div>
+
+    <div class="spec-group">
+      <h3>Draft card</h3>
+      <ul>
+        <li><span class="label">Inline card</span><span class="val">Rendered inside an AI bubble. Shows: customer name, job title, 2–3 line items (qty × description × price), subtotal, GST (10%), total in brand-600 20px bold</span></li>
+        <li><span class="label">Line-item edit</span><span class="val">Each line has a small <code>MoreHorizontal</code> icon — tap expands to reveal qty/price/description inputs inline</span></li>
+        <li><span class="label">Actions</span><span class="val">Row below card: <code>SecondaryButton</code> "Edit" · <code>PrimaryButton</code> "Looks good — send"</span></li>
+        <li><span class="label">Totals formula</span><span class="val">subtotal = Σ(qty × price); gst = subtotal × 0.10 if <code>userSettings.includeGST</code>; total = subtotal + gst</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/04-ai-chat-draft-quote.png" alt="AI Chat draft quote"></div>
+</section>
+
+<!-- 05 AI CONFIRM -->
+<section class="screen" id="s05">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 05</div>
+    <h2>AI Chat · Confirm &amp; send</h2>
+    <div class="route">mobile/app/ai-chat.tsx · state: <code style="background:#0a0a0b;padding:2px 6px;border-radius:4px;font-size:12px;">confirmed</code></div>
+
+    <div class="spec-group">
+      <h3>Send flow</h3>
+      <ul>
+        <li><span class="label">Success bubble</span><span class="val">AI bubble: "Quote #1042 sent to Dalton · Hot water swap. They'll get an SMS + share link."</span></li>
+        <li><span class="label">Share preview</span><span class="val">Small card inside bubble showing redacted share-link (<code>…/portal/abc123</code>) with a Copy icon</span></li>
+        <li><span class="label">Next actions</span><span class="val">Chips: "Back home", "View in quotes list", "Draft another"</span></li>
+        <li><span class="label">Real wiring (TODO)</span><span class="val">On Send → <code>POST /api/quotes</code> via <code>useCreateQuote</code> (hook does not yet exist — add it mirroring <code>useCreateJob</code>). Share token is server-generated.</span></li>
+      </ul>
+    </div>
+
+    <div class="notes"><strong>Important:</strong> this phase ships UI only. Do not call the real API until the AI endpoint is built on server.</div>
+  </div>
+  <div class="screen-img"><img src="screenshots/05-ai-chat-confirm-send.png" alt="AI Chat confirm and send"></div>
+</section>
+
+<!-- 06 QUOTES LIST -->
+<section class="screen" id="s06">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 06</div>
+    <h2>Quotes · List</h2>
+    <div class="route">mobile/app/(tabs)/quotes.tsx</div>
+
+    <div class="spec-group">
+      <h3>Data</h3>
+      <ul>
+        <li><span class="label">Hooks</span><span class="val"><code>useQuotes</code>, <code>useUpdateQuote</code>, <code>useDeleteQuote</code></span></li>
+        <li><span class="label">Keep</span><span class="val">NEXT_STATUSES, handleStatusPress, handleDeletePress — rewrite JSX only</span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout</h3>
+      <ul>
+        <li><span class="label">Header</span><span class="val">"Quotes" · subtitle <code>{n} · {sent} sent · {accepted} accepted</code> · <code>Plus</code> IconButton → <code>/ai-chat</code></span></li>
+        <li><span class="label">Summary ribbon</span><span class="val">Single horizontal card: Total value · Awaiting response · Accepted this month (client-side derived — no new endpoint)</span></li>
+        <li><span class="label">Filter chips</span><span class="val">All · Draft · Sent · Accepted · Declined · Invoiced. Active: bg-brand-600</span></li>
+        <li><span class="label">Quote card</span><span class="val">Title · StatusBadge (with ChevronRight if <code>canChangeStatus</code>) · customer row · amount (20px bold) · "Sent {relative}" · Delete row when <code>canDelete</code></span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/06-quotes-list.png" alt="Quotes list"></div>
+</section>
+
+<!-- 07 QUOTES DETAIL -->
+<section class="screen" id="s07">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 07</div>
+    <h2>Quotes · Detail</h2>
+    <div class="route">mobile/app/quotes/[id].tsx  <em style="color:var(--muted)">(Stack)</em></div>
+
+    <div class="spec-group">
+      <h3>Data</h3>
+      <ul>
+        <li><span class="label">Hooks</span><span class="val">Find from <code>useQuotes()</code> by id; for a dedicated fetch add <code>useQuote(id)</code> mirroring <code>useJob</code></span></li>
+        <li><span class="label">Status actions</span><span class="val">Reuse <code>NEXT_STATUSES</code> map + <code>useUpdateQuote</code></span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout</h3>
+      <ul>
+        <li><span class="label">Header bar</span><span class="val">Back chevron · "Quote #{id}" · <code>MoreHorizontal</code> menu (Share · Duplicate · Delete)</span></li>
+        <li><span class="label">Customer hero</span><span class="val">Avatar + name + phone + email. <code>Phone</code> icon button → tel: and <code>Mail</code> icon → mailto:</span></li>
+        <li><span class="label">Line items</span><span class="val">Each row: description · qty × price · row total. Separator: <code>border-b border-ink-100</code></span></li>
+        <li><span class="label">Totals block</span><span class="val">Right-aligned ladder: Subtotal · GST · Total (20px bold brand-600)</span></li>
+        <li><span class="label">Status actions</span><span class="val">Sticky footer: <code>PrimaryButton</code> label follows status ("Mark as Sent" if draft, "Mark as Accepted" if sent, etc.)</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/07-quotes-detail.png" alt="Quotes detail"></div>
+</section>
+
+<!-- 08 QUOTES CREATE -->
+<section class="screen" id="s08">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 08</div>
+    <h2>Quotes · Create</h2>
+    <div class="route">mobile/app/quotes/new.tsx  <em style="color:var(--muted)">(Stack modal)</em></div>
+
+    <div class="spec-group">
+      <h3>Form</h3>
+      <ul>
+        <li><span class="label">Validation</span><span class="val">React Hook Form + Zod, schema derived from <code>insertQuoteSchema</code> in <code>@shared/schema</code></span></li>
+        <li><span class="label">Create hook</span><span class="val">Add <code>useCreateQuote</code> mirroring <code>useCreateJob</code> (POST <code>/api/quotes</code>)</span></li>
+        <li><span class="label">Fields</span><span class="val">Customer picker (modal from <code>useCustomers</code>) · Job linker (optional, from <code>useJobs</code>) · dynamic line items array · GST toggle (reads <code>userSettings.includeGST</code> default)</span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout</h3>
+      <ul>
+        <li><span class="label">Header</span><span class="val">Cancel · "New quote" · Save (disabled until form valid). Matches Customers modal pattern.</span></li>
+        <li><span class="label">Inputs</span><span class="val">bg-ink-50 border-ink-200 rounded-2xl, label in 10px uppercase ink-500</span></li>
+        <li><span class="label">Line items</span><span class="val">Dynamic array with "+ Add line" row at bottom. Each line: description · qty · unit price · delete</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/08-quotes-create.png" alt="Quotes create"></div>
+</section>
+
+<!-- 09 JOBS LIST -->
+<section class="screen" id="s09">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 09</div>
+    <h2>Jobs · List</h2>
+    <div class="route">mobile/app/(tabs)/jobs.tsx</div>
+
+    <div class="spec-group">
+      <h3>Data</h3>
+      <ul>
+        <li><span class="label">Hooks</span><span class="val"><code>useJobs</code>, <code>useUpdateJob</code></span></li>
+        <li><span class="label">Keep</span><span class="val">STATUS_ACTIONS, handleStatusPress — rewrite JSX only</span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout</h3>
+      <ul>
+        <li><span class="label">Header</span><span class="val">"Your rounds" (as shown in screenshot) · right: <code>Plus</code> IconButton routing to <code>/jobs/new</code> (TODO route)</span></li>
+        <li><span class="label">Today banner</span><span class="val">Dark card: "TODAY · 3 jobs · 3h 00m" with three time chips (first active brand, others outline)</span></li>
+        <li><span class="label">Filter chips</span><span class="val">Today · Upcoming · Past · All</span></li>
+        <li><span class="label">Job card</span><span class="val">Left rail: time/day stack in ink-900 column. Right: UP NEXT eyebrow + title + customer + location + duration</span></li>
+      </ul>
+    </div>
+
+    <div class="notes"><strong>Match screenshot closely:</strong> the time-rail-plus-content pattern is distinctive — do not replace with standard list rows.</div>
+  </div>
+  <div class="screen-img"><img src="screenshots/09-jobs-list.png" alt="Jobs list"></div>
+</section>
+
+<!-- 10 JOBS DETAIL -->
+<section class="screen" id="s10">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 10</div>
+    <h2>Jobs · Detail</h2>
+    <div class="route">mobile/app/jobs/[id].tsx</div>
+
+    <div class="spec-group">
+      <h3>Data</h3>
+      <ul>
+        <li><span class="label">Hooks</span><span class="val"><code>useJob(id)</code> from existing <code>use-jobs.ts</code>. Timer list via new <code>useJobTimers(jobId)</code> wrapping <code>api.timers.listForJob</code></span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout</h3>
+      <ul>
+        <li><span class="label">Hero</span><span class="val">Full-bleed map thumbnail (placeholder gradient is fine) with pin. Title + address overlayed at bottom</span></li>
+        <li><span class="label">Action row</span><span class="val">3 icon buttons: Call · Nav · Message (lucide Phone, Navigation, MessageSquare)</span></li>
+        <li><span class="label">Details card</span><span class="val">Customer · scheduled · estimated duration · quoted amount (from linked quote)</span></li>
+        <li><span class="label">Notes</span><span class="val">If <code>job.description</code> set, render as soft card with <code>NotebookPen</code> icon</span></li>
+        <li><span class="label">Sticky footer</span><span class="val"><code>PrimaryButton</code> "Start timer" → transitions to screen 11</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/10-jobs-detail.png" alt="Jobs detail"></div>
+</section>
+
+<!-- 11 JOBS TIMER -->
+<section class="screen" id="s11">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 11</div>
+    <h2>Jobs · Active timer</h2>
+    <div class="route">mobile/app/jobs/[id].tsx · timer active state</div>
+
+    <div class="spec-group">
+      <h3>Data</h3>
+      <ul>
+        <li><span class="label">Hooks</span><span class="val"><code>useActiveTimer()</code> — <code>GET /api/timers/active</code>. Start/stop mutations from <code>api.timers.start</code> / <code>api.timers.stop</code></span></li>
+        <li><span class="label">Local clock</span><span class="val">Tick every 1s from <code>startTime</code>, format as <code>HH:mm:ss</code></span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout</h3>
+      <ul>
+        <li><span class="label">Big timer</span><span class="val">80px Manrope ExtraBold, brand-600, tabular-nums. Under it: job title + customer in ink-500</span></li>
+        <li><span class="label">Live meta</span><span class="val">"Running since 9:32 am" with a pulsing brand-500 dot</span></li>
+        <li><span class="label">Notes field</span><span class="val">Multiline <code>TextInput</code> "What did you do?" — sent on stop via <code>api.timers.stop</code> body <code>{ notes }</code></span></li>
+        <li><span class="label">Actions</span><span class="val">Sticky footer: <code>SecondaryButton</code> "Pause" + <code>PrimaryButton</code> "Finish" (red destructive variant, confirms via Alert)</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/11-jobs-active-timer.png" alt="Jobs active timer"></div>
+</section>
+
+<!-- 12 JOBS COMPLETION -->
+<section class="screen" id="s12">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 12</div>
+    <h2>Jobs · Completion</h2>
+    <div class="route">mobile/app/jobs/[id].tsx · completion sheet</div>
+
+    <div class="spec-group">
+      <h3>Data</h3>
+      <ul>
+        <li><span class="label">Submit</span><span class="val"><code>useUpdateJob</code> with <code>status: 'completed'</code> and <code>completionData</code> JSON string: <code>{ actualHours, extraNotes, completedAt, estimatedHours, quotedAmount }</code></span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout</h3>
+      <ul>
+        <li><span class="label">Summary card</span><span class="val">Green success pill "Job complete". Duration · time saved vs estimate · quoted amount</span></li>
+        <li><span class="label">Extras section</span><span class="val">Toggle rows: "Any extras or materials used?" "Need to invoice now?" (if yes → CTA "Create invoice from this job" → <code>POST /api/invoices/from-quote/:quoteId</code>)</span></li>
+        <li><span class="label">Signature block</span><span class="val">Optional — placeholder card "Tap to capture signature" (full capture is out of scope this pass)</span></li>
+        <li><span class="label">Sticky footer</span><span class="val"><code>PrimaryButton</code> "Save &amp; close"</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/12-jobs-completion.png" alt="Jobs completion"></div>
+</section>
+
+<!-- 13 INVOICES LIST -->
+<section class="screen" id="s13">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 13</div>
+    <h2>Invoices · List</h2>
+    <div class="route">mobile/app/(tabs)/invoices.tsx</div>
+
+    <div class="spec-group">
+      <h3>Data</h3>
+      <ul>
+        <li><span class="label">Query</span><span class="val">Existing <code>useQuery</code> against <code>api.invoices.list.path</code> — do not change</span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout</h3>
+      <ul>
+        <li><span class="label">Header</span><span class="val">"Invoices" · subtitle <code>{total} · {paid} paid this month</code> · <code>Plus</code> IconButton</span></li>
+        <li><span class="label">Summary ribbon</span><span class="val">Outstanding · Overdue count · Paid this month — client-derived</span></li>
+        <li><span class="label">Filter chips</span><span class="val">All · Draft · Sent · Paid · Overdue</span></li>
+        <li><span class="label">Invoice card</span><span class="val">Invoice # · status pill · customer · amount (20px bold) · due date (red if overdue)</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/13-invoices-list.png" alt="Invoices list"></div>
+</section>
+
+<!-- 14 INVOICES DETAIL -->
+<section class="screen" id="s14">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 14</div>
+    <h2>Invoices · Detail</h2>
+    <div class="route">mobile/app/invoices/[id].tsx <em style="color:var(--muted)">(new)</em></div>
+
+    <div class="spec-group">
+      <h3>Data</h3>
+      <ul>
+        <li><span class="label">Hooks</span><span class="val">Add <code>useInvoice(id)</code> wrapping <code>api.invoices.get</code></span></li>
+        <li><span class="label">Items</span><span class="val">Parse <code>invoice.items</code> (JSON string in schema)</span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout</h3>
+      <ul>
+        <li><span class="label">Branded header</span><span class="val">Reads <code>userSettings.quoteAccentColor</code> (default <code>#ea580c</code>) + <code>logoUrl</code>. Invoice number · due date · status pill</span></li>
+        <li><span class="label">Totals ladder</span><span class="val">Subtotal · GST · Total · Paid · <strong>Outstanding</strong> (20px bold brand-600)</span></li>
+        <li><span class="label">Payment info</span><span class="val">From <code>userSettings</code>: bankName, bsb, accountNumber, accountName, paymentTermsDays</span></li>
+        <li><span class="label">Actions</span><span class="val">Mark paid · Send reminder · Share PDF (placeholder — no PDF lib yet)</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/14-invoices-detail.png" alt="Invoices detail"></div>
+</section>
+
+<!-- 15 INVOICES CREATE -->
+<section class="screen" id="s15">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 15</div>
+    <h2>Invoices · Create</h2>
+    <div class="route">mobile/app/invoices/from-quote.tsx <em style="color:var(--muted)">(picker + confirm)</em></div>
+
+    <div class="spec-group">
+      <h3>Behavior</h3>
+      <ul>
+        <li><span class="label">Entry points</span><span class="val">From completed job (screen 12) · From accepted quote (screen 07) · From invoices list + button</span></li>
+        <li><span class="label">Endpoint</span><span class="val"><code>POST /api/invoices/from-quote/:quoteId</code></span></li>
+        <li><span class="label">Due date</span><span class="val">Default = today + <code>userSettings.paymentTermsDays</code></span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout</h3>
+      <ul>
+        <li><span class="label">Quote picker</span><span class="val">List of accepted quotes (filter client-side). Selecting one pre-fills the confirm screen</span></li>
+        <li><span class="label">Confirm step</span><span class="val">Line items preview · totals · editable due date · optional notes field</span></li>
+        <li><span class="label">Save</span><span class="val">On success: toast "Invoice created", route to <code>/invoices/{id}</code></span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/15-invoices-create.png" alt="Invoices create"></div>
+</section>
+
+<!-- 16 CALENDAR -->
+<section class="screen" id="s16">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 16</div>
+    <h2>Calendar · Week</h2>
+    <div class="route">mobile/app/calendar.tsx <em style="color:var(--muted)">(not a tab — Stack route)</em></div>
+
+    <div class="spec-group">
+      <h3>Data</h3>
+      <ul>
+        <li><span class="label">Hooks</span><span class="val"><code>useJobs()</code> — same source as home week strip</span></li>
+        <li><span class="label">Layout lib</span><span class="val">No new deps. Use flex rows for each day; job blocks positioned by start/duration with simple percentage math</span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout</h3>
+      <ul>
+        <li><span class="label">Top nav</span><span class="val">Week picker: <code>ChevronLeft</code> · "18–24 Apr" · <code>ChevronRight</code></span></li>
+        <li><span class="label">Grid</span><span class="val">Horizontal scroll — 7 day columns, 48px wide. Each column is a scrollable track 8am–6pm.</span></li>
+        <li><span class="label">Job blocks</span><span class="val">Rounded rect brand-600 with white title + time. Overlap: side-by-side at 50%.</span></li>
+        <li><span class="label">Tap</span><span class="val">Tap block → <code>/jobs/[id]</code></span></li>
+      </ul>
+    </div>
+
+    <div class="notes">Entry point is the "View all" link on home's week strip — no tab bar entry.</div>
+  </div>
+  <div class="screen-img"><img src="screenshots/16-calendar-week.png" alt="Calendar week"></div>
+</section>
+
+<!-- 17 PROFILE -->
+<section class="screen" id="s17">
+  <div class="screen-meta">
+    <div class="screen-num">Screen 17</div>
+    <h2>Profile · Settings</h2>
+    <div class="route">mobile/app/profile.tsx</div>
+
+    <div class="spec-group">
+      <h3>Data</h3>
+      <ul>
+        <li><span class="label">Hooks</span><span class="val"><code>useAuth()</code>, add <code>useUserSettings()</code> wrapping <code>api.settings.get</code> / <code>api.settings.update</code></span></li>
+      </ul>
+    </div>
+
+    <div class="spec-group">
+      <h3>Layout (sections)</h3>
+      <ul>
+        <li><span class="label">Header</span><span class="val">Big avatar · name · business name + ABN · plan pill ("PRO PLAN")</span></li>
+        <li><span class="label">Stats strip</span><span class="val">Jobs this month · Revenue · On-time %. Derived client-side, hide cards that can't be computed</span></li>
+        <li><span class="label">Business</span><span class="val">Business details (ABN, logo, invoice footer) · Invoice &amp; quote settings (numbering, GST, payment terms) · Working hours</span></li>
+        <li><span class="label">Preferences</span><span class="val">Dark mode toggle (writes <code>userSettings.darkMode</code>) · Weekly goal · Labour rate · Markup % · Call-out fee</span></li>
+        <li><span class="label">Integrations</span><span class="val">Xero connect card — status from <code>/api/settings</code> (presence of token)</span></li>
+        <li><span class="label">Footer</span><span class="val">Version string (<code>expo-constants</code>) · Sign out <code>SecondaryButton</code></span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="screen-img"><img src="screenshots/17-profile-settings.png" alt="Profile settings"></div>
+</section>
+
+</body>
+</html>
