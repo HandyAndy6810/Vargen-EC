@@ -15,6 +15,19 @@ export function useQuotes() {
   });
 }
 
+export function useQuote(id: number) {
+  return useQuery({
+    queryKey: [api.quotes.list.path, id],
+    queryFn: async () => {
+      const res = await apiRequest("GET", api.quotes.list.path);
+      if (!res.ok) throw new Error("Failed to fetch quotes");
+      const list = (await res.json()) as Quote[];
+      return list.find((q) => q.id === id) ?? null;
+    },
+    enabled: !!id,
+  });
+}
+
 export function useUpdateQuote() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

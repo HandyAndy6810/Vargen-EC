@@ -1,40 +1,55 @@
 import { Tabs, router } from 'expo-router';
 import { useEffect } from 'react';
-import { Platform, View, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import * as Haptics from 'expo-haptics';
-import { Home, Briefcase, FileText, Users, Receipt } from 'lucide-react-native';
+import { Home, FileText, Receipt, Calendar, User } from 'lucide-react-native';
 
-const BRAND = '#ea580c';
-const INK   = '#1c1917';
-const MUTED = '#a8a29e';
+const ORANGE = '#f26a2a';
+const INK = '#141310';
+const MUTED = 'rgba(20,19,16,0.50)';
 
-function FloatingTabBar({ state, descriptors, navigation }: any) {
+const TABS = [
+  { name: 'index',    label: 'Home',     Icon: Home },
+  { name: 'quotes',   label: 'Quotes',   Icon: FileText },
+  { name: 'invoices', label: 'Invoices', Icon: Receipt },
+  { name: 'calendar', label: 'Calendar', Icon: Calendar },
+  { name: 'profile',  label: 'Profile',  Icon: User },
+];
+
+function FloatingTabBar({ state, navigation }: any) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.tabBarOuter} pointerEvents="box-none">
+    <View style={[styles.outer, { bottom: 22 + (insets.bottom > 20 ? insets.bottom - 20 : 0) }]} pointerEvents="box-none">
       <BlurView intensity={60} tint="light" style={styles.blur}>
-        <View style={styles.tabBarInner}>
-          {state.routes.map((route: any, index: number) => {
-            const { options } = descriptors[route.key];
-            const focused = state.index === index;
-
-            const onPress = () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (!focused && !event.defaultPrevented) {
-                navigation.navigate({ name: route.name, merge: true });
-              }
-            };
-
-            const Icon = options.tabBarIcon?.({ focused, color: focused ? BRAND : MUTED, size: 22 });
-
+        <View style={styles.specular} pointerEvents="none" />
+        <View style={styles.inner}>
+          {TABS.map((tab, i) => {
+            const isFocused = state.index === i;
+            const color = isFocused ? ORANGE : MUTED;
             return (
-              <View key={route.key} style={[styles.tab, focused && styles.tabActive]}>
-                <View onTouchEnd={onPress} style={styles.tabPressable}>
-                  {Icon}
-                </View>
-              </View>
+              <Pressable
+                key={tab.name}
+                style={[styles.tabItem, isFocused && styles.tabItemActive]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  const event = navigation.emit({
+                    type: 'tabPress',
+                    target: state.routes[i].key,
+                    canPreventDefault: true,
+                  });
+                  if (!isFocused && !event.defaultPrevented) {
+                    navigation.navigate(tab.name as never);
+                  }
+                }}
+              >
+                <tab.Icon size={20} color={color} strokeWidth={2.1} />
+                {isFocused && (
+                  <Text style={styles.tabLabel}>{tab.label}</Text>
+                )}
+              </Pressable>
             );
           })}
         </View>
@@ -54,93 +69,76 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      screenOptions={{ headerShown: false }}
       tabBar={(props) => <FloatingTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ focused, size }) => (
-            <Home size={size} color={focused ? BRAND : MUTED} strokeWidth={focused ? 2.5 : 1.8} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="jobs"
-        options={{
-          title: 'Jobs',
-          tabBarIcon: ({ focused, size }) => (
-            <Briefcase size={size} color={focused ? BRAND : MUTED} strokeWidth={focused ? 2.5 : 1.8} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="quotes"
-        options={{
-          title: 'Quotes',
-          tabBarIcon: ({ focused, size }) => (
-            <FileText size={size} color={focused ? BRAND : MUTED} strokeWidth={focused ? 2.5 : 1.8} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="customers"
-        options={{
-          title: 'Customers',
-          tabBarIcon: ({ focused, size }) => (
-            <Users size={size} color={focused ? BRAND : MUTED} strokeWidth={focused ? 2.5 : 1.8} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="invoices"
-        options={{
-          title: 'Invoices',
-          tabBarIcon: ({ focused, size }) => (
-            <Receipt size={size} color={focused ? BRAND : MUTED} strokeWidth={focused ? 2.5 : 1.8} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="quotes" />
+      <Tabs.Screen name="invoices" />
+      <Tabs.Screen name="calendar" />
+      <Tabs.Screen name="profile" />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-  tabBarOuter: {
+  outer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 32 : 20,
-    left: 24,
-    right: 24,
+    left: 0,
+    right: 0,
     alignItems: 'center',
+    zIndex: 100,
   },
   blur: {
-    borderRadius: 32,
+    width: 340,
+    borderRadius: 30,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.6)',
+    borderColor: 'rgba(255,255,255,0.7)',
+    shadowColor: INK,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.18,
+    shadowRadius: 40,
+    elevation: 20,
   },
-  tabBarInner: {
+  specular: {
+    position: 'absolute',
+    top: 1,
+    left: 10,
+    right: 10,
+    height: 12,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    zIndex: 1,
+  },
+  inner: {
     flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    padding: 5,
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
-  tab: {
+  tabItem: {
     flex: 1,
-    borderRadius: 22,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
+    paddingTop: 8,
+    paddingBottom: 7,
+    paddingHorizontal: 4,
+    borderRadius: 24,
+    gap: 2,
   },
-  tabActive: {
-    backgroundColor: 'rgba(234,88,12,0.10)',
+  tabItemActive: {
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    shadowColor: INK,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.9)',
   },
-  tabPressable: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 44,
-    height: 30,
+  tabLabel: {
+    fontSize: 9,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: ORANGE,
+    letterSpacing: 0.3,
   },
 });

@@ -5,47 +5,49 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
+  TextInput,
   StyleSheet,
 } from 'react-native';
 import { useState, useCallback, useMemo } from 'react';
+import { router } from 'expo-router';
 import { format } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { queryClient } from '@/lib/queryClient';
-import { useQuotes, useUpdateQuote, useDeleteQuote } from '@/hooks/use-quotes';
-import { FileText, User, ChevronRight, Trash2 } from 'lucide-react-native';
+import { useQuotes } from '@/hooks/use-quotes';
+import { Plus, Search, Filter } from 'lucide-react-native';
 import type { Quote } from '@shared/schema';
 
 type QuoteWithJoins = Quote & { customerName?: string };
 
-const BRAND      = '#ea580c';
-const INK        = '#1c1917';
-const MUTED      = '#78716c';
-const PAPER      = '#faf9f7';
-const PAPER_DEEP = '#f0ece4';
-const CARD       = '#ffffff';
-const LINE       = '#e7e5e4';
+const ORANGE      = '#f26a2a';
+const ORANGE_DEEP = '#d94d0e';
+const ORANGE_SOFT = '#ffe6d3';
+const INK         = '#141310';
+const PAPER       = '#f7f4ee';
+const PAPER_DEEP  = '#efe9dd';
+const CARD        = '#ffffff';
+const BLACK       = '#0f0e0b';
+const BLUE        = '#1f6feb';
+const BLUE_SOFT   = '#eaf2ff';
+const BLUE_BORDER = '#c8dcff';
+const GREEN       = '#2a9d4c';
+const GREEN_SOFT  = '#e5f6eb';
+const GREEN_BORDER = '#bde2c9';
+const MUTED       = 'rgba(20,19,16,0.55)';
+const MUTED_HI    = 'rgba(20,19,16,0.72)';
+const LINE_SOFT   = 'rgba(20,19,16,0.08)';
+const LINE_MID    = 'rgba(20,19,16,0.14)';
 
 type Filter = 'all' | 'draft' | 'sent' | 'accepted' | 'overdue';
 
-const STATUS_META: Record<string, { label: string; dot: string; bg: string; fg: string }> = {
-  draft:    { label: 'Draft',    dot: '#a8a29e', bg: PAPER_DEEP, fg: '#57534e' },
-  sent:     { label: 'Sent',     dot: '#2563eb', bg: '#dbeafe',  fg: '#1d4ed8' },
-  accepted: { label: 'Accepted', dot: '#16a34a', bg: '#dcfce7',  fg: '#15803d' },
-  rejected: { label: 'Declined', dot: '#dc2626', bg: '#fee2e2',  fg: '#b91c1c' },
-  invoiced: { label: 'Invoiced', dot: '#7c3aed', bg: '#ede9fe',  fg: '#6d28d9' },
-};
-
-const NEXT_STATUSES: Record<string, { label: string; value: string }[]> = {
-  draft:    [{ label: 'Mark as Sent', value: 'sent' }],
-  sent:     [
-    { label: 'Mark as Accepted', value: 'accepted' },
-    { label: 'Mark as Declined', value: 'rejected' },
-    { label: 'Revert to Draft',  value: 'draft' },
-  ],
-  rejected: [{ label: 'Re-send Quote', value: 'sent' }],
-  accepted: [],
-  invoiced: [],
+const STATUS_PILL: Record<string, { bg: string; fg: string; bd: string; label: string }> = {
+  draft:    { bg: PAPER_DEEP, fg: MUTED_HI,    bd: LINE_MID,    label: 'Draft' },
+  sent:     { bg: BLUE_SOFT,  fg: BLUE,         bd: BLUE_BORDER, label: 'Sent' },
+  viewed:   { bg: BLUE_SOFT,  fg: BLUE,         bd: BLUE_BORDER, label: 'Viewed' },
+  accepted: { bg: GREEN_SOFT, fg: GREEN,        bd: GREEN_BORDER, label: 'Accepted' },
+  overdue:  { bg: ORANGE_SOFT, fg: ORANGE_DEEP, bd: 'rgba(242,106,42,0.3)', label: 'Overdue' },
+  rejected: { bg: '#fde5e5', fg: '#d23b3b',    bd: 'rgba(210,59,59,0.3)', label: 'Declined' },
+  invoiced: { bg: GREEN_SOFT, fg: GREEN,        bd: GREEN_BORDER, label: 'Invoiced' },
 };
 
 function parseTitle(quote: QuoteWithJoins): string {
@@ -59,10 +61,9 @@ function parseTitle(quote: QuoteWithJoins): string {
 
 export default function QuotesScreen() {
   const { data: quotes, isLoading, isError } = useQuotes();
-  const { mutate: updateQuote } = useUpdateQuote();
-  const { mutate: deleteQuote } = useDeleteQuote();
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
+  const [search, setSearch] = useState('');
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -77,168 +78,144 @@ export default function QuotesScreen() {
     [allQuotes]
   );
 
+  const overdueQuotes = sorted.filter((q) => q.status === 'sent' && q.expiresAt && new Date(q.expiresAt) < new Date());
+
   const filtered = useMemo(() => {
-    if (filter === 'all') return sorted;
-    if (filter === 'overdue') {
-      return sorted.filter((q) => q.status === 'sent' && q.expiresAt && new Date(q.expiresAt) < new Date());
-    }
-    return sorted.filter((q) => q.status === filter);
-  }, [sorted, filter]);
+    let list = sorted;
+    if (filter === 'overdue') list = overdueQuotes;
+    else if (filter !== 'all') list = sorted.filter((q) => q.status === filter);
+    if (search) list = list.filter((q) => parseTitle(q).toLowerCase().includes(search.toLowerCase()) || (q.customerName || '').toLowerCase().includes(search.toLowerCase()));
+    return list;
+  }, [sorted, filter, search]);
 
   const counts = useMemo(() => ({
     all:      sorted.length,
     draft:    sorted.filter((q) => q.status === 'draft').length,
-    sent:     sorted.filter((q) => q.status === 'sent').length,
+    sent:     sorted.filter((q) => q.status === 'sent' || q.status === 'viewed').length,
     accepted: sorted.filter((q) => q.status === 'accepted').length,
-    overdue:  sorted.filter((q) => q.status === 'sent' && q.expiresAt && new Date(q.expiresAt) < new Date()).length,
+    overdue:  overdueQuotes.length,
   }), [sorted]);
 
-  const totalValue = useMemo(
-    () => sorted.filter((q) => q.status === 'accepted').reduce((s, q) => s + parseFloat(String(q.totalAmount || '0')), 0),
-    [sorted]
-  );
+  const totalPipeline = sorted
+    .filter((q) => ['sent', 'viewed', 'accepted'].includes(q.status || ''))
+    .reduce((s, q) => s + parseFloat(String(q.totalAmount || '0')), 0);
 
-  const handleStatusPress = (quote: QuoteWithJoins) => {
-    const options = NEXT_STATUSES[quote.status ?? 'draft'] ?? [];
-    if (options.length === 0) return;
-    const buttons = options.map((opt) => ({
-      text: opt.label,
-      onPress: () => updateQuote({ id: quote.id, status: opt.value }),
-    }));
-    buttons.push({ text: 'Cancel', onPress: () => {} });
-    Alert.alert('Change Status', parseTitle(quote), buttons as any);
-  };
-
-  const handleDeletePress = (quote: QuoteWithJoins) => {
-    Alert.alert('Delete Quote', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteQuote(quote.id) },
-    ]);
-  };
+  const overdueTotal = overdueQuotes.reduce((s, q) => s + parseFloat(String(q.totalAmount || '0')), 0);
 
   if (isLoading) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: PAPER }}>
-        <ActivityIndicator size="large" color={BRAND} />
-      </View>
-    );
+    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: PAPER }}><ActivityIndicator size="large" color={ORANGE} /></View>;
   }
 
   if (isError) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: PAPER }}>
-        <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: INK }}>Couldn't load quotes</Text>
-      </View>
-    );
+    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: PAPER }}><Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: INK }}>Couldn't load quotes</Text></View>;
   }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
-      {/* Dark summary ribbon */}
-      <View style={s.heroCard}>
-        <Text style={s.heroEyebrow}>QUOTES</Text>
-        <View style={{ flexDirection: 'row', gap: 24, marginTop: 4 }}>
-          <HeroStat label="Total" value={String(counts.all)} />
-          <HeroStat label="Pending" value={String(counts.sent)} />
-          <HeroStat label="Won" value={`$${(totalValue / 1000).toFixed(1)}k`} />
+      {/* Header */}
+      <View style={s.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.eyebrow}>Quotes</Text>
+          <Text style={s.title}>All quotes</Text>
+        </View>
+        <TouchableOpacity style={s.addBtn} onPress={() => router.push('/quotes/create')} activeOpacity={0.8}>
+          <Plus size={20} color="#fff" strokeWidth={2.5} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Pipeline hero */}
+      <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+        <View style={s.heroCard}>
+          <View style={s.heroGlow} />
+          <Text style={s.heroEyebrow}>Outstanding pipeline</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+            <Text style={s.heroAmt}>${totalPipeline.toLocaleString()}</Text>
+            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontFamily: 'Manrope_700Bold' }}>/ {counts.all} quotes</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 16, marginTop: 14 }}>
+            <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: '#fff' }}>
+              <Text style={{ color: ORANGE }}>● </Text>${overdueTotal.toLocaleString()} overdue
+            </Text>
+            <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: 'rgba(255,255,255,0.55)' }}>
+              ●  ${(totalPipeline - overdueTotal).toLocaleString()} awaiting
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Filter chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.chipsRow}
-        style={{ maxHeight: 48 }}
-      >
-        {(['all', 'draft', 'sent', 'accepted', 'overdue'] as Filter[]).map((f) => (
-          <TouchableOpacity
-            key={f}
-            style={[s.chip, filter === f && s.chipActive]}
-            onPress={() => setFilter(f)}
-            activeOpacity={0.7}
-          >
-            <Text style={[s.chipText, filter === f && s.chipTextActive]}>
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </Text>
-            <Text style={[s.chipCount, filter === f && { color: 'rgba(255,255,255,0.65)' }]}>
-              {counts[f]}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      {/* Search */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+        <View style={s.searchRow}>
+          <Search size={16} color={MUTED} strokeWidth={2} />
+          <TextInput
+            style={s.searchInput}
+            placeholder="Search quotes, customers…"
+            placeholderTextColor={MUTED}
+            value={search}
+            onChangeText={setSearch}
+          />
+          <Filter size={16} color={MUTED} strokeWidth={2} />
+        </View>
+      </View>
+
+      {/* Tabs */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow} style={{ maxHeight: 48 }}>
+        {([
+          { id: 'all', l: 'All', n: counts.all },
+          { id: 'draft', l: 'Draft', n: counts.draft },
+          { id: 'sent', l: 'Sent', n: counts.sent },
+          { id: 'accepted', l: 'Accepted', n: counts.accepted },
+          { id: 'overdue', l: 'Overdue', n: counts.overdue },
+        ] as { id: Filter; l: string; n: number }[]).map((t) => {
+          const active = filter === t.id;
+          return (
+            <TouchableOpacity key={t.id} onPress={() => setFilter(t.id)} activeOpacity={0.7}
+              style={[s.tab, active && s.tabActive]}>
+              <Text style={[s.tabText, active && s.tabTextActive]}>{t.l}</Text>
+              <View style={[s.tabBadge, active && { backgroundColor: ORANGE }]}>
+                <Text style={[s.tabBadgeText, active && { color: '#fff' }]}>{t.n}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 16, paddingBottom: 120, gap: 10 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND} />}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 130, gap: 10 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} />}
       >
         {filtered.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 48 }}>
-            <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: PAPER_DEEP, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-              <FileText size={24} color={MUTED} />
-            </View>
             <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: INK }}>No quotes here</Text>
           </View>
         ) : (
           filtered.map((quote) => {
-            const meta = STATUS_META[quote.status ?? 'draft'] ?? STATUS_META.draft;
+            const pill = STATUS_PILL[quote.status ?? 'draft'] ?? STATUS_PILL.draft;
             const title = parseTitle(quote);
             const amount = parseFloat(String(quote.totalAmount || '0'));
-            const canAct = (NEXT_STATUSES[quote.status ?? 'draft'] ?? []).length > 0;
-            const canDelete = quote.status === 'draft' || quote.status === 'rejected';
-
             return (
-              <View key={quote.id} style={s.quoteCard}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-                  {/* Quote # avatar */}
-                  <View style={s.quoteAvatar}>
-                    <Text style={s.quoteAvatarNum}>Q{quote.id}</Text>
+              <TouchableOpacity key={quote.id} onPress={() => router.push(`/quotes/${quote.id}`)} activeOpacity={0.7}
+                style={s.quoteCard}>
+                <View style={s.quoteAvatarWrap}>
+                  <Text style={s.quoteAvatarText}>{String(quote.id).slice(-4)}</Text>
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                    <Text style={s.quoteTitle} numberOfLines={1}>{title}</Text>
                   </View>
-
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                      <Text style={s.quoteTitle} numberOfLines={2}>{title}</Text>
-                      <View style={[s.badge, { backgroundColor: meta.bg }]}>
-                        <Text style={[s.badgeText, { color: meta.fg }]}>{meta.label}</Text>
-                      </View>
+                  <Text style={s.quoteMeta}>{quote.customerName || 'Customer'} · {quote.createdAt ? format(new Date(quote.createdAt), 'd MMM') : '—'}</Text>
+                  <View style={{ marginTop: 6 }}>
+                    <View style={[s.statusPill, { backgroundColor: pill.bg, borderColor: pill.bd }]}>
+                      <Text style={[s.statusPillText, { color: pill.fg }]}>{pill.label}</Text>
                     </View>
-
-                    {quote.customerName && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 }}>
-                        <User size={11} color={MUTED} />
-                        <Text style={s.metaText}>{quote.customerName}</Text>
-                      </View>
-                    )}
-
-                    {amount > 0 && (
-                      <Text style={s.amount}>
-                        ${amount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </Text>
-                    )}
-
-                    {quote.createdAt && (
-                      <Text style={s.date}>{format(new Date(quote.createdAt), 'd MMM yyyy')}</Text>
-                    )}
                   </View>
                 </View>
-
-                {(canAct || canDelete) && (
-                  <View style={s.actRow}>
-                    {canAct && (
-                      <TouchableOpacity style={s.actBtn} onPress={() => handleStatusPress(quote)} activeOpacity={0.7}>
-                        <Text style={s.actBtnText}>Update status</Text>
-                        <ChevronRight size={12} color={BRAND} />
-                      </TouchableOpacity>
-                    )}
-                    {canDelete && (
-                      <TouchableOpacity onPress={() => handleDeletePress(quote)} activeOpacity={0.7} style={s.deleteBtn}>
-                        <Trash2 size={14} color="#dc2626" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-              </View>
+                <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
+                  <Text style={s.quoteAmt}>${amount > 0 ? amount.toLocaleString() : '—'}</Text>
+                  <Text style={{ fontSize: 14, color: MUTED, fontFamily: 'Manrope_600SemiBold', marginTop: 4 }}>›</Text>
+                </View>
+              </TouchableOpacity>
             );
           })
         )}
@@ -247,142 +224,189 @@ export default function QuotesScreen() {
   );
 }
 
-function HeroStat({ label, value }: { label: string; value: string }) {
-  return (
-    <View>
-      <Text style={{ fontSize: 28, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.8 }}>{value}</Text>
-      <Text style={{ fontSize: 10, fontFamily: 'Manrope_700Bold', color: 'rgba(255,255,255,0.5)', letterSpacing: 0.8, textTransform: 'uppercase' }}>{label}</Text>
-    </View>
-  );
-}
-
 const s = StyleSheet.create({
-  heroCard: {
-    backgroundColor: '#0f0e0b',
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingTop: 0,
+    paddingBottom: 16,
   },
-  heroEyebrow: {
-    fontSize: 9,
+  eyebrow: {
+    fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 1.5,
+    color: MUTED,
+    letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 2,
   },
-  chipsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  title: {
+    fontSize: 22,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.5,
+    marginTop: 2,
   },
-  chip: {
+  addBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: ORANGE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: ORANGE,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.33,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  heroCard: {
+    backgroundColor: BLACK,
+    borderRadius: 22,
+    padding: 18,
+    overflow: 'hidden',
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: `${ORANGE}88`,
+    opacity: 0.35,
+  },
+  heroEyebrow: {
+    fontSize: 10,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  heroAmt: {
+    fontSize: 38,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#fff',
+    letterSpacing: -1.2,
+    lineHeight: 42,
+  },
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 10,
     paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: PAPER_DEEP,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
   },
-  chipActive: {
-    backgroundColor: INK,
-  },
-  chipText: {
+  searchInput: {
+    flex: 1,
     fontSize: 13,
-    fontFamily: 'Manrope_700Bold',
-    color: MUTED,
+    fontFamily: 'Manrope_500Medium',
+    color: INK,
   },
-  chipTextActive: {
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+  },
+  tabActive: {
+    backgroundColor: INK,
+    borderColor: INK,
+  },
+  tabText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: MUTED_HI,
+    whiteSpace: 'nowrap' as any,
+  },
+  tabTextActive: {
     color: '#fff',
   },
-  chipCount: {
-    fontSize: 11,
+  tabBadge: {
+    backgroundColor: PAPER_DEEP,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 999,
+  },
+  tabBadgeText: {
+    fontSize: 10,
     fontFamily: 'Manrope_700Bold',
     color: MUTED,
   },
   quoteCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 16,
+    borderRadius: 18,
     backgroundColor: CARD,
-    borderRadius: 16,
-    padding: 14,
     borderWidth: 1,
-    borderColor: LINE,
+    borderColor: LINE_SOFT,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
   },
-  quoteAvatar: {
+  quoteAvatarWrap: {
     width: 44,
     height: 44,
     borderRadius: 14,
     backgroundColor: PAPER_DEEP,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
-  quoteAvatarNum: {
-    fontSize: 11,
+  quoteAvatarText: {
+    fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -0.3,
+    color: MUTED_HI,
+    letterSpacing: 0.5,
   },
   quoteTitle: {
     fontSize: 14,
-    fontFamily: 'Manrope_700Bold',
-    color: INK,
-    flex: 1,
-    letterSpacing: -0.2,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontFamily: 'Manrope_700Bold',
-  },
-  metaText: {
-    fontSize: 12,
-    fontFamily: 'Manrope_500Medium',
-    color: MUTED,
-  },
-  amount: {
-    fontSize: 16,
     fontFamily: 'Manrope_800ExtraBold',
     color: INK,
-    marginTop: 6,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
+    flex: 1,
   },
-  date: {
+  quoteMeta: {
     fontSize: 11,
     fontFamily: 'Manrope_500Medium',
     color: MUTED,
-    marginTop: 2,
   },
-  actRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: LINE,
-    gap: 8,
+  statusPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
   },
-  actBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flex: 1,
+  statusPillText: {
+    fontSize: 10,
+    fontFamily: 'Manrope_800ExtraBold',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
-  actBtnText: {
-    fontSize: 13,
-    fontFamily: 'Manrope_700Bold',
-    color: BRAND,
-  },
-  deleteBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: '#fee2e2',
-    alignItems: 'center',
-    justifyContent: 'center',
+  quoteAmt: {
+    fontSize: 16,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.3,
   },
 });

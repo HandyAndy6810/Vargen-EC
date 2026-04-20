@@ -41,8 +41,12 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen name="jobs/[id]" />
+          <Stack.Screen name="jobs/timer" />
+          <Stack.Screen name="jobs/complete" />
           <Stack.Screen name="quotes/[id]" />
-          <Stack.Screen name="profile" />
+          <Stack.Screen name="quotes/create" />
+          <Stack.Screen name="invoices/[id]" />
+          <Stack.Screen name="invoices/create" />
         </Stack>
       </QueryClientProvider>
     </GestureHandlerRootView>
