@@ -1,0 +1,185 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Modern Trade Palette: Deep Blue & Safety Orange */
+  --background: 30 20% 96%; /* Warm off-white */
+  --foreground: 0 0% 15%; /* Soft black */
+
+  --card: 0 0% 100%; /* Pure white */
+  --card-foreground: 0 0% 15%;
+  
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 15%;
+  
+  /* Primary: Professional Safety Orange */
+  --primary: 18 90% 55%; 
+  --primary-foreground: 0 0% 100%;
+  
+  /* Secondary: Dark slate/brown for headers */
+  --secondary: 0 0% 18%; 
+  --secondary-foreground: 0 0% 100%;
+  
+  /* Muted: Soft grays */
+  --muted: 0 0% 93%;
+  --muted-foreground: 0 0% 40%;
+  
+  /* Accent: Professional Safety Orange */
+  --accent: 18 90% 55%;
+  --accent-foreground: 0 0% 100%;
+  
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
+  --ring: 18 90% 55%;
+  
+  --radius: 1.5rem; /* Large rounded corners as seen in screenshot */
+}
+
+.dark {
+  --background: 0 0% 10%;
+  --foreground: 0 0% 95%;
+  
+  --card: 0 0% 13%;
+  --card-foreground: 0 0% 95%;
+  
+  --popover: 0 0% 13%;
+  --popover-foreground: 0 0% 95%;
+  
+  --primary: 18 90% 55%;
+  --primary-foreground: 0 0% 100%;
+  
+  --secondary: 0 0% 25%;
+  --secondary-foreground: 0 0% 100%;
+  
+  --muted: 0 0% 20%;
+  --muted-foreground: 0 0% 70%;
+  
+  --accent: 18 90% 55%;
+  --accent-foreground: 0 0% 100%;
+  
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 0 0% 100%;
+  
+  --border: 0 0% 20%;
+  --input: 0 0% 20%;
+  --ring: 18 90% 55%;
+}
+
+@layer base {
+  html, body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Manrope', sans-serif;
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  .dark body {
+    background-image: radial-gradient(ellipse 80% 40% at 50% 110%, rgba(255, 255, 255, 0.035) 0%, transparent 70%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  /* High-contrast header as seen in screenshot */
+  .header-card {
+    @apply rounded-[2rem] p-8 text-white shadow-xl;
+    background: linear-gradient(135deg, hsl(0, 0%, 14%) 0%, hsl(0, 0%, 22%) 60%, hsl(18, 60%, 22%) 100%);
+  }
+  
+  /* Action tile styling */
+  .action-tile {
+    @apply bg-white dark:bg-card rounded-2xl p-4 flex items-center justify-between shadow-sm border border-black/5 hover:bg-primary/5 hover:border-primary transition-all duration-300;
+  }
+
+  .nav-bar {
+    @apply fixed bottom-8 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-card/80 backdrop-blur-xl border border-black/5 rounded-full px-6 py-3 flex items-center gap-8 shadow-2xl z-50;
+  }
+
+  /* Liquid Glass navigation */
+  .liquid-glass-nav {
+    background: rgba(255, 255, 255, 0.58);
+    backdrop-filter: blur(32px) saturate(200%);
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.50);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.10),
+      0 2px 8px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.70),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+  }
+
+  .dark .liquid-glass-nav {
+    background: rgba(18, 18, 22, 0.72);
+    border-color: rgba(255, 255, 255, 0.09);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.50),
+      0 2px 8px rgba(0, 0, 0, 0.30),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  }
+
+  .liquid-glass-pill {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    box-shadow:
+      0 2px 16px rgba(0, 0, 0, 0.08),
+      0 1px 4px rgba(0, 0, 0, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 1);
+  }
+
+  .dark .liquid-glass-pill {
+    background: rgba(255, 255, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow:
+      0 2px 16px rgba(0, 0, 0, 0.40),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+}
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+
+  /* Optimize touch targets for tradespeople */
+  button, a, input, select, textarea {
+    @apply touch-manipulation;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Hide scrollbar for clean horizontal scrolling */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@media print {
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  @page {
+    margin: 0.5in;
+    size: A4;
+  }
+}

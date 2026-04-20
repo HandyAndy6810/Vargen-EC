@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VGN-EC — Home Dashboard Wireframes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; font-family: 'Manrope', -apple-system, system-ui, sans-serif; }
+  body { background: #f0eee9; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="lib/ios-frame.jsx"></script>
+<script type="text/babel" src="lib/design-canvas.jsx"></script>
+<script type="text/babel" src="lib/wireframe-kit.jsx"></script>
+<script type="text/babel" src="lib/variant-a.jsx"></script>
+<script type="text/babel" src="lib/variant-b.jsx"></script>
+<script type="text/babel" src="lib/variant-c.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+function Screen({ variant: Variant }) {
+  return (
+    <IOSDevice width={390} height={844} dark={false}>
+      <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
+        <Variant />
+      </div>
+    </IOSDevice>
+  );
+}
+
+function Intro() {
+  return (
+    <div style={{
+      width: 520, padding: '40px 44px', background: '#fff',
+      border: '1.5px solid #d9d5cc', borderRadius: 4,
+      boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06)',
+      fontFamily: 'Manrope, system-ui', lineHeight: 1.5, color: '#222',
+    }}>
+      <div style={{
+        fontSize: 10.5, fontWeight: 800, letterSpacing: 1.6,
+        textTransform: 'uppercase', color: '#f26a2a',
+      }}>Lo-fi wireframes · v1</div>
+      <div style={{ fontSize: 30, fontWeight: 800, margin: '6px 0 16px', letterSpacing: -0.5 }}>
+        Home dashboard — 3 directions
+      </div>
+      <p style={{ fontSize: 14, color: '#4a463f', margin: '0 0 12px' }}>
+        Three honest attempts at what a tradie sees when they open Vargenezey.
+        All grounded in the real stack I pulled from the repo: Manrope, safety orange
+        <span style={{ color: '#f26a2a', fontWeight: 800 }}> #f26a2a</span>, mobile-first,
+        liquid-glass bottom nav, blade-based home, AU context (AUD/GST).
+      </p>
+      <p style={{ fontSize: 14, color: '#4a463f', margin: '0 0 20px' }}>
+        Grey boxes = content placeholders. Dashed = loose intent. Orange = anchor accent.
+        Each explores a different <b>mental model</b> — not three coats of paint on the same thing.
+      </p>
+      <div style={{
+        borderTop: '1.5px dashed #c9c5bc', paddingTop: 16, fontSize: 13, color: '#4a463f',
+      }}>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>What to look for</div>
+        <ul style={{ margin: 0, paddingLeft: 18 }}>
+          <li><b>A — Today-first:</b> one job, one action. On-site brain.</li>
+          <li><b>B — AI-chat-first:</b> the prompt IS the home screen. Feed below.</li>
+          <li><b>C — Workbench:</b> dense ops board. Start/end of day brain.</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection
+        title="VGN-EC · Home dashboard wireframes"
+        subtitle="Lo-fi, mobile-first. Pick a direction, or cherry-pick elements across all three."
+      >
+        <DCArtboard label="01 · Context & reasoning" width={520} height={420}>
+          <Intro />
+        </DCArtboard>
+
+        <DCArtboard label="A · Today-first — single focus" width={390} height={844}>
+          <Screen variant={VariantA} />
+          <DCPostIt top={80} left={410} rotate={-3} width={200}>
+            Hero = next job only. One CTA ("Start"). Stats compressed. Best when
+            tradie is on-site mid-day.
+          </DCPostIt>
+        </DCArtboard>
+
+        <DCArtboard label="B · AI-chat-first — prompt is the product" width={390} height={844}>
+          <Screen variant={VariantB} />
+          <DCPostIt top={160} left={410} rotate={2} width={200}>
+            The AI prompt takes the fold. Voice-first implied. Everything else
+            becomes a feed. Leans into your tagline.
+          </DCPostIt>
+        </DCArtboard>
+
+        <DCArtboard label="C · Workbench — dense ops board" width={390} height={844}>
+          <Screen variant={VariantC} />
+          <DCPostIt top={240} left={410} rotate={-2} width={200}>
+            Timeline + pipeline + $ + weather all glanceable. AI sits as a FAB.
+            Best for morning/evening planning.
+          </DCPostIt>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection
+        title="Next up (when you pick)"
+        subtitle="I'll take the winner to hi-fi, then fan out to Quotes, Invoices, Jobs, the AI chat flow, and Profile."
+      >
+        <DCArtboard label="placeholder" width={760} height={180} style={{ background: '#fff' }}>
+          <div style={{
+            padding: 28, fontFamily: 'Manrope, system-ui',
+            display: 'flex', gap: 16, flexWrap: 'wrap',
+          }}>
+            {[
+              'Hi-fi Home (chosen direction)',
+              'AI quote chat flow',
+              'Quote detail / customise',
+              'Invoice send + chase',
+              'Calendar + job detail',
+              'Customers / CRM',
+              'Profile + settings',
+              'Light ↔ dark theme',
+            ].map(x => (
+              <div key={x} style={{
+                padding: '10px 14px', border: '1.5px dashed #c9c5bc',
+                borderRadius: 999, fontSize: 13, color: '#6b6760', fontWeight: 600,
+              }}>{x}</div>
+            ))}
+          </div>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
