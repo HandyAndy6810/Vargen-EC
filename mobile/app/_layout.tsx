@@ -40,6 +40,7 @@ export default function RootLayout() {
               animation: 'slide_from_bottom',
             }}
           />
+          <Stack.Screen name="jobs/list" />
           <Stack.Screen name="jobs/[id]" />
           <Stack.Screen name="jobs/timer" />
           <Stack.Screen name="jobs/complete" />

@@ -16,6 +16,7 @@ import { useJobs } from '@/hooks/use-jobs';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useInvoices } from '@/hooks/use-invoices';
 import { queryClient } from '@/lib/queryClient';
+import { Play, Navigation, MessageCircle, Sparkles, Mic } from 'lucide-react-native';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -153,10 +154,17 @@ export default function HomeScreen() {
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
                   <TouchableOpacity style={s.startBtn} onPress={() => router.push(`/jobs/${nextJob.id}`)}>
-                    <Text style={s.startBtnText}>▶  Start job</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Play size={14} color="#fff" strokeWidth={2.5} />
+                      <Text style={s.startBtnText}>Start job</Text>
+                    </View>
                   </TouchableOpacity>
-                  <View style={s.heroIconBtn}><Text style={{ fontSize: 16 }}>📍</Text></View>
-                  <View style={s.heroIconBtn}><Text style={{ fontSize: 16 }}>💬</Text></View>
+                  <TouchableOpacity style={s.heroIconBtn} activeOpacity={0.7}>
+                    <Navigation size={18} color="#fff" strokeWidth={2} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.heroIconBtn} activeOpacity={0.7}>
+                    <MessageCircle size={18} color="#fff" strokeWidth={2} />
+                  </TouchableOpacity>
                 </View>
               </>
             ) : (
@@ -173,13 +181,13 @@ export default function HomeScreen() {
             <View style={s.aiRailGlow} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, position: 'relative' }}>
               <View style={s.aiIcon}>
-                <Text style={{ fontSize: 22 }}>✦</Text>
+                <Sparkles size={22} color="#fff" strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.aiEyebrow}>Quote with a sentence</Text>
                 <Text style={s.aiRailText}>"Swap hot water at Dalton's, $1,840..."</Text>
               </View>
-              <View style={s.micBtn}><Text style={{ fontSize: 18 }}>🎤</Text></View>
+              <View style={s.micBtn}><Mic size={18} color={ORANGE} strokeWidth={2} /></View>
             </View>
           </TouchableOpacity>
         </View>
@@ -249,8 +257,8 @@ export default function HomeScreen() {
               <Text style={s.eyebrow}>Today · {todayJobs.length} stops</Text>
               <Text style={s.sectionTitle}>Out the door by 9.</Text>
             </View>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/calendar')}>
-              <Text style={s.seeAll}>Calendar →</Text>
+            <TouchableOpacity onPress={() => router.push('/jobs/list')}>
+              <Text style={s.seeAll}>See all →</Text>
             </TouchableOpacity>
           </View>
 
