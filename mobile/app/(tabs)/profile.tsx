@@ -5,13 +5,18 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
+import { useXeroStatus, useXeroDisconnect, useXeroSyncAll } from '@/hooks/use-xero';
+import { API_BASE_URL } from '@/lib/api';
 import {
   FileText, Receipt, Calendar, MapPin, Sparkles,
   Bell, MessageSquare, Sun, Settings, LogOut, ChevronRight, Pencil,
+  Link, RefreshCw, Unlink, CheckCircle,
 } from 'lucide-react-native';
 
 const ORANGE      = '#f26a2a';
@@ -23,6 +28,10 @@ const PAPER_DEEP  = '#efe9dd';
 const CARD        = '#ffffff';
 const RED         = '#d23b3b';
 const RED_SOFT    = '#fde5e5';
+const GREEN       = '#2a9d4c';
+const GREEN_SOFT  = '#e5f6eb';
+const TEAL        = '#0f766e';
+const TEAL_SOFT   = '#ccfbf1';
 const MUTED       = 'rgba(20,19,16,0.55)';
 const MUTED_HI    = 'rgba(20,19,16,0.72)';
 const LINE_SOFT   = 'rgba(20,19,16,0.08)';
@@ -65,6 +74,86 @@ function SettingsGroup({ title, items }: { title: string; items: SettingItem[] }
             <ChevronRight size={14} color={MUTED} strokeWidth={2} />
           </TouchableOpacity>
         ))}
+      </View>
+    </View>
+  );
+}
+
+function XeroSection() {
+  const { data: xero, isLoading } = useXeroStatus();
+  const disconnect = useXeroDisconnect();
+  const syncAll = useXeroSyncAll();
+
+  const handleConnect = () => {
+    Linking.openURL(`${API_BASE_URL}/api/xero/connect`);
+  };
+
+  const handleDisconnect = () => {
+    Alert.alert('Disconnect Xero', 'Remove the Xero connection? Customer and invoice sync will stop.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Disconnect', style: 'destructive', onPress: () => disconnect.mutate() },
+    ]);
+  };
+
+  const handleSyncAll = () => {
+    syncAll.mutate(undefined, {
+      onSuccess: (r) => Alert.alert('Sync complete', `${r.synced} customers synced${r.failed > 0 ? `, ${r.failed} failed` : ''}.`),
+      onError: () => Alert.alert('Sync failed', 'Could not reach Xero. Try again.'),
+    });
+  };
+
+  return (
+    <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+      <Text style={s.groupEyebrow}>Integrations</Text>
+      <View style={s.groupCard}>
+        {/* Xero row */}
+        <View style={{ padding: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <View style={[s.groupIcon, { backgroundColor: isLoading ? PAPER_DEEP : xero?.connected ? TEAL_SOFT : PAPER_DEEP }]}>
+              {isLoading
+                ? <ActivityIndicator size="small" color={TEAL} />
+                : <Link size={16} color={xero?.connected ? TEAL : INK} strokeWidth={2.1} />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.groupLabel}>Xero</Text>
+              <Text style={s.groupSub}>
+                {isLoading ? 'Checking…' : xero?.connected ? `Connected · ${xero.tenantName || 'your org'}` : 'Connect your accounting'}
+              </Text>
+            </View>
+            {xero?.connected && (
+              <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: GREEN_SOFT }}>
+                <CheckCircle size={12} color={GREEN} strokeWidth={2.5} />
+              </View>
+            )}
+          </View>
+
+          {xero?.connected ? (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                onPress={handleSyncAll}
+                activeOpacity={0.7}
+                disabled={syncAll.isPending}
+                style={[xs.actionBtn, { flex: 1 }]}
+              >
+                {syncAll.isPending
+                  ? <ActivityIndicator size="small" color={INK} />
+                  : <RefreshCw size={13} color={INK} strokeWidth={2.2} />}
+                <Text style={xs.actionBtnText}>Sync all customers</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleDisconnect}
+                activeOpacity={0.7}
+                style={[xs.actionBtn, { backgroundColor: RED_SOFT, borderColor: 'transparent' }]}
+              >
+                <Unlink size={13} color={RED} strokeWidth={2.2} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity onPress={handleConnect} activeOpacity={0.8} style={xs.connectBtn}>
+              <Text style={xs.connectBtnText}>Connect to Xero</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -133,6 +222,8 @@ export default function ProfileScreen() {
           { icon: Bell,           label: 'Reminders',     sub: 'Overdue nudges, review requests' },
           { icon: MessageSquare,  label: 'SMS templates', sub: '4 templates · 1 draft' },
         ]} />
+
+        <XeroSection />
 
         <SettingsGroup title="Preferences" items={[
           { icon: Sun,  label: 'Appearance',    sub: 'Light · system default' },
@@ -291,5 +382,38 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_500Medium',
     color: MUTED,
     marginTop: 2,
+  },
+});
+
+const xs = StyleSheet.create({
+  connectBtn: {
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: TEAL,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  connectBtnText: {
+    fontSize: 13,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#fff',
+    letterSpacing: 0.2,
+  },
+  actionBtn: {
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: PAPER_DEEP,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+  },
+  actionBtnText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
   },
 });
