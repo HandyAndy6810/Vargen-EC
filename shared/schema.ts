@@ -72,6 +72,8 @@ export const invoices = pgTable("invoices", {
   paidDate: timestamp("paid_date"),
   paidAmount: numeric("paid_amount").default("0"), // tracks cumulative partial payments
   notes: text("notes"),
+  stripePaymentLinkId: text("stripe_payment_link_id"),
+  stripePaymentLinkUrl: text("stripe_payment_link_url"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

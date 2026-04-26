@@ -14,6 +14,7 @@ import { registerImageRoutes } from "./replit_integrations/image";
 import multer from "multer";
 import fs from "fs";
 import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken, upsertXeroContact, createXeroInvoice } from "./xero";
+import { stripe, createPaymentLink } from "./stripe";
 import { getTradeContext } from "./trade-knowledge";
 import crypto from "crypto";
 import { sendCustomerEmail } from "./lib/email";
@@ -1096,6 +1097,33 @@ CRITICAL RULES — follow these exactly:
         schedule[dayIndex].sentAt = new Date().toISOString();
       }
       await storage.updateQuote(quoteId, { followUpSchedule: JSON.stringify(schedule) }, req.userId);
+
+      // Send the actual follow-up message via SMS or email
+      try {
+        const settings = await storage.getUserSettings(req.userId);
+        const customer = quote.customerId ? await storage.getCustomer(quote.customerId) : null;
+        const bizName  = settings?.businessName || 'Your tradie';
+        const portalUrl = quote.shareToken ? `${req.protocol}://${req.get('host')}/portal/${quote.shareToken}` : null;
+        const msgBody = `Hi${customer?.name ? ` ${customer.name.split(' ')[0]}` : ''}, just following up on your quote${portalUrl ? ` — view it here: ${portalUrl}` : ''}. Any questions just reply. – ${bizName}`;
+
+        const channel = settings?.followUpChannel || 'email';
+
+        if (channel === 'sms' && customer?.phone) {
+          const accountSid = process.env.TWILIO_ACCOUNT_SID;
+          const authToken  = process.env.TWILIO_AUTH_TOKEN;
+          const from       = process.env.TWILIO_PHONE_NUMBER;
+          if (accountSid && authToken && from) {
+            const twilio = (await import('twilio')).default;
+            await twilio(accountSid, authToken).messages.create({ body: msgBody, from, to: customer.phone });
+          }
+        } else if (channel === 'email' && customer?.email) {
+          await sendCustomerEmail(customer.email, `Following up on your quote – ${bizName}`, msgBody);
+        }
+      } catch (sendErr) {
+        console.error('Follow-up send error (non-fatal):', sendErr);
+        // Non-fatal — schedule is already marked sent
+      }
+
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to mark follow-up sent" });
@@ -1412,6 +1440,109 @@ CRITICAL RULES — follow these exactly:
       res.json({ ok: true, invoiceId: result.invoiceId, invoiceNumber: result.invoiceNumber });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to create invoice" });
+    }
+  });
+
+  // ── Stripe ────────────────────────────────────────────────────────────────
+
+  // POST /api/stripe/payment-link/:invoiceId
+  // Creates (or returns cached) a Stripe Payment Link for the invoice.
+  app.post("/api/stripe/payment-link/:invoiceId", requireAuth, async (req, res) => {
+    if (!stripe) return res.status(503).json({ message: "Stripe is not configured on this server." });
+
+    const invoiceId = parseInt(req.params.invoiceId);
+    if (isNaN(invoiceId)) return res.status(400).json({ message: "Invalid invoice id" });
+
+    const invoice = await storage.getInvoice(invoiceId, req.userId);
+    if (!invoice || invoice.userId !== req.userId) return res.status(404).json({ message: "Invoice not found" });
+
+    // Return cached link if already created
+    if (invoice.stripePaymentLinkUrl) {
+      return res.json({ url: invoice.stripePaymentLinkUrl, id: invoice.stripePaymentLinkId });
+    }
+
+    const customer = invoice.customerId ? await storage.getCustomer(invoice.customerId) : null;
+    const amountCents = Math.round(parseFloat(String(invoice.totalAmount)) * 100);
+    const description = `Invoice ${invoice.invoiceNumber}`;
+
+    try {
+      const link = await createPaymentLink({
+        invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        description,
+        amountCents,
+        currency: 'aud',
+        customerEmail: customer?.email ?? undefined,
+      });
+
+      await storage.updateInvoice(invoiceId, {
+        stripePaymentLinkId: link.id,
+        stripePaymentLinkUrl: link.url,
+      });
+
+      res.json({ url: link.url, id: link.id });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to create payment link" });
+    }
+  });
+
+  // POST /api/stripe/webhook  — mark invoice paid on checkout.session.completed
+  app.post("/api/stripe/webhook", async (req, res) => {
+    const sig = req.headers['stripe-signature'] as string;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    let event: any;
+    if (webhookSecret && sig) {
+      try {
+        event = stripe!.webhooks.constructEvent(req.body, sig, webhookSecret);
+      } catch (err: any) {
+        return res.status(400).json({ message: `Webhook signature verification failed: ${err.message}` });
+      }
+    } else {
+      // Allow unsigned events in dev (no webhook secret set)
+      try { event = JSON.parse(req.body); } catch { return res.status(400).end(); }
+    }
+
+    if (event?.type === 'checkout.session.completed' || event?.type === 'payment_intent.succeeded') {
+      const invoiceId = parseInt(event.data?.object?.metadata?.invoiceId);
+      if (!isNaN(invoiceId)) {
+        const invoice = await storage.getInvoice(invoiceId);
+        if (invoice && invoice.status !== 'paid') {
+          await storage.updateInvoice(invoiceId, {
+            status: 'paid',
+            paidDate: new Date(),
+            paidAmount: String(invoice.totalAmount),
+          });
+        }
+      }
+    }
+
+    res.json({ received: true });
+  });
+
+  // ── Twilio SMS ─────────────────────────────────────────────────────────────
+
+  // POST /api/sms/send  — send an SMS to a customer phone number
+  app.post("/api/sms/send", requireAuth, async (req, res) => {
+
+    const { to, message } = req.body as { to?: string; message?: string };
+    if (!to || !message) return res.status(400).json({ message: "to and message are required" });
+
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken  = process.env.TWILIO_AUTH_TOKEN;
+    const from       = process.env.TWILIO_PHONE_NUMBER;
+
+    if (!accountSid || !authToken || !from) {
+      return res.status(503).json({ message: "SMS is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to environment." });
+    }
+
+    try {
+      const twilio = (await import('twilio')).default;
+      const client = twilio(accountSid, authToken);
+      const msg = await client.messages.create({ body: message, from, to });
+      res.json({ ok: true, sid: msg.sid });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to send SMS" });
     }
   });
 

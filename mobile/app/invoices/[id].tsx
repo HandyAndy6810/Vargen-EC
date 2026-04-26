@@ -5,11 +5,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useInvoice } from '@/hooks/use-invoices';
-import { ChevronLeft, Download, Eye, Send, Check } from 'lucide-react-native';
+import { useInvoice, useUpdateInvoice } from '@/hooks/use-invoices';
+import { useStripePaymentLink } from '@/hooks/use-stripe';
+import { ChevronLeft, Download, Eye, Send, Check, CreditCard } from 'lucide-react-native';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -42,9 +45,42 @@ const subtotal = LINE_ITEMS.reduce((s, l) => s + l.price * l.qty, 0);
 const gst = Math.round(subtotal * 0.1);
 const total = subtotal + gst;
 
+const GREEN_SOFT  = '#e5f6eb';
+const GREEN_BORDER = '#bde2c9';
+
 export default function InvoiceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: invoice, isLoading } = useInvoice(id ? Number(id) : 0) as any;
+  const updateInvoice = useUpdateInvoice();
+  const stripeLink = useStripePaymentLink();
+
+  const handlePayByCard = () => {
+    const invoiceId = id ? Number(id) : 0;
+    if (!invoiceId) return;
+
+    // If a link already exists on the invoice, open it directly
+    if (invoice?.stripePaymentLinkUrl) {
+      Linking.openURL(invoice.stripePaymentLinkUrl);
+      return;
+    }
+
+    stripeLink.mutate(invoiceId, {
+      onSuccess: (data) => Linking.openURL(data.url),
+      onError: (err: any) => Alert.alert('Card payment unavailable', err.message),
+    });
+  };
+
+  const handleMarkPaid = () => {
+    const invoiceId = id ? Number(id) : 0;
+    if (!invoiceId) return;
+    Alert.alert('Mark as paid?', 'This will update the invoice status to Paid.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Mark paid',
+        onPress: () => updateInvoice.mutate({ id: invoiceId, status: 'paid', paidDate: new Date() as any }),
+      },
+    ]);
+  };
 
   if (isLoading) {
     return (
@@ -160,12 +196,32 @@ export default function InvoiceDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Mark paid CTA */}
+      {/* Action bar */}
       <View style={s.bottomBar}>
-        <TouchableOpacity style={s.markPaidBtn} activeOpacity={0.8}>
-          <Check size={18} color="#fff" strokeWidth={2.5} />
-          <Text style={s.markPaidBtnText}>Mark paid manually</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            onPress={handlePayByCard}
+            activeOpacity={0.8}
+            disabled={stripeLink.isPending}
+            style={s.cardBtn}
+          >
+            {stripeLink.isPending
+              ? <ActivityIndicator size="small" color={INK} />
+              : <CreditCard size={16} color={INK} strokeWidth={2.2} />}
+            <Text style={s.cardBtnText}>Pay by card</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleMarkPaid}
+            activeOpacity={0.8}
+            disabled={updateInvoice.isPending}
+            style={[s.markPaidBtn, { flex: 1 }]}
+          >
+            {updateInvoice.isPending
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Check size={18} color="#fff" strokeWidth={2.5} />}
+            <Text style={s.markPaidBtnText}>Mark paid</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -378,8 +434,29 @@ const s = StyleSheet.create({
     right: 12,
     zIndex: 30,
   },
+  cardBtn: {
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardBtnText: {
+    fontSize: 14,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+  },
   markPaidBtn: {
-    width: '100%',
     height: 54,
     borderRadius: 18,
     backgroundColor: ORANGE,
