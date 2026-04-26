@@ -6,22 +6,38 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "vargen",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#141310"
+    },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.vargen.ec",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Used to capture photos for jobs and invoices.",
-        "NSPhotoLibraryUsageDescription": "Used to attach photos to jobs and invoices."
+        "NSPhotoLibraryUsageDescription": "Used to attach photos to jobs and invoices.",
+        "NSMicrophoneUsageDescription": "Used for AI voice-to-quote dictation."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#f26a2a"
       },
-      "package": "com.vargen.ec"
+      "package": "com.vargen.ec",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECORD_AUDIO",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -34,12 +50,39 @@
       [
         "expo-font",
         {
-          "fonts": []
+          "fonts": [
+            "./node_modules/@expo-google-fonts/manrope/Manrope_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/manrope/Manrope_500Medium.ttf",
+            "./node_modules/@expo-google-fonts/manrope/Manrope_600SemiBold.ttf",
+            "./node_modules/@expo-google-fonts/manrope/Manrope_700Bold.ttf",
+            "./node_modules/@expo-google-fonts/manrope/Manrope_800ExtraBold.ttf"
+          ]
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#f26a2a",
+          "sounds": []
+        }
+      ],
+      "expo-updates"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/vargen"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "vargen"
+      }
     }
   }
 }

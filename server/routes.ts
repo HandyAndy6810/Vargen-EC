@@ -1097,6 +1097,33 @@ CRITICAL RULES — follow these exactly:
         schedule[dayIndex].sentAt = new Date().toISOString();
       }
       await storage.updateQuote(quoteId, { followUpSchedule: JSON.stringify(schedule) }, req.userId);
+
+      // Send the actual follow-up message via SMS or email
+      try {
+        const settings = await storage.getUserSettings(req.userId);
+        const customer = quote.customerId ? await storage.getCustomer(quote.customerId) : null;
+        const bizName  = settings?.businessName || 'Your tradie';
+        const portalUrl = quote.shareToken ? `${req.protocol}://${req.get('host')}/portal/${quote.shareToken}` : null;
+        const msgBody = `Hi${customer?.name ? ` ${customer.name.split(' ')[0]}` : ''}, just following up on your quote${portalUrl ? ` — view it here: ${portalUrl}` : ''}. Any questions just reply. – ${bizName}`;
+
+        const channel = settings?.followUpChannel || 'email';
+
+        if (channel === 'sms' && customer?.phone) {
+          const accountSid = process.env.TWILIO_ACCOUNT_SID;
+          const authToken  = process.env.TWILIO_AUTH_TOKEN;
+          const from       = process.env.TWILIO_PHONE_NUMBER;
+          if (accountSid && authToken && from) {
+            const twilio = (await import('twilio')).default;
+            await twilio(accountSid, authToken).messages.create({ body: msgBody, from, to: customer.phone });
+          }
+        } else if (channel === 'email' && customer?.email) {
+          await sendCustomerEmail(customer.email, `Following up on your quote – ${bizName}`, msgBody);
+        }
+      } catch (sendErr) {
+        console.error('Follow-up send error (non-fatal):', sendErr);
+        // Non-fatal — schedule is already marked sent
+      }
+
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to mark follow-up sent" });
