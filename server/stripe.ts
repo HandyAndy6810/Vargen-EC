@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 const key = process.env.STRIPE_SECRET_KEY;
 
 export const stripe = key
-  ? new Stripe(key, { apiVersion: '2025-03-31.basil' })
+  ? new Stripe(key, { apiVersion: '2026-03-25.dahlia' })
   : null;
 
 export async function createPaymentLink(params: {

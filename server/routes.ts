@@ -1420,14 +1420,13 @@ CRITICAL RULES — follow these exactly:
 
   // POST /api/stripe/payment-link/:invoiceId
   // Creates (or returns cached) a Stripe Payment Link for the invoice.
-  app.post("/api/stripe/payment-link/:invoiceId", async (req, res) => {
-    if (!req.userId) return res.status(401).json({ message: "Unauthorized" });
+  app.post("/api/stripe/payment-link/:invoiceId", requireAuth, async (req, res) => {
     if (!stripe) return res.status(503).json({ message: "Stripe is not configured on this server." });
 
     const invoiceId = parseInt(req.params.invoiceId);
     if (isNaN(invoiceId)) return res.status(400).json({ message: "Invalid invoice id" });
 
-    const invoice = await storage.getInvoice(invoiceId);
+    const invoice = await storage.getInvoice(invoiceId, req.userId);
     if (!invoice || invoice.userId !== req.userId) return res.status(404).json({ message: "Invoice not found" });
 
     // Return cached link if already created
@@ -1497,8 +1496,7 @@ CRITICAL RULES — follow these exactly:
   // ── Twilio SMS ─────────────────────────────────────────────────────────────
 
   // POST /api/sms/send  — send an SMS to a customer phone number
-  app.post("/api/sms/send", async (req, res) => {
-    if (!req.userId) return res.status(401).json({ message: "Unauthorized" });
+  app.post("/api/sms/send", requireAuth, async (req, res) => {
 
     const { to, message } = req.body as { to?: string; message?: string };
     if (!to || !message) return res.status(400).json({ message: "to and message are required" });
