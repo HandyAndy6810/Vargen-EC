@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { storage } from "./storage";
 import { api } from "../shared/routes";
 import { z } from "zod";
@@ -122,7 +122,7 @@ try {
 const aiRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 20,                   // 20 AI generations per user per hour
-  keyGenerator: (req: any) => (req.session as any)?.localUserId || req.ip,
+  keyGenerator: (req: any) => (req.session as any)?.localUserId || ipKeyGenerator(req),
   message: { message: "Too many requests. Please wait before generating another quote." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -139,7 +139,7 @@ const loginRateLimit = rateLimit({
 const emailRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 30,                   // 30 emails per user per hour
-  keyGenerator: (req: any) => (req.session as any)?.localUserId || req.ip,
+  keyGenerator: (req: any) => (req.session as any)?.localUserId || ipKeyGenerator(req),
   message: { message: "Email sending rate limit reached. Try again later." },
   standardHeaders: true,
   legacyHeaders: false,
