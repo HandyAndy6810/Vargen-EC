@@ -5,8 +5,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "npm install && npm run db:push && node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs server/index.ts",
-    "build": "npm install && npm run db:push && node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs script/build.ts",
-    "start": "node --env-file-if-exists=.env dist/index.cjs",
+    "build": "npm install && node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs script/build.ts",
+    "start": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs push && node --env-file-if-exists=.env dist/index.cjs",
     "check": "tsc",
     "db:push": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs push",
     "cap:sync": "npx cap sync",
