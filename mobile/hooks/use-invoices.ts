@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, buildUrl } from '@shared/routes';
-import { type Invoice } from '@shared/schema';
+import { api, buildUrl } from '@shared/mobile-routes';
+import { type Invoice } from '@shared/mobile-types';
 import { useToast } from '@/lib/toast';
 import { apiRequest } from '@/lib/api';
 
