@@ -39,9 +39,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "",
+        "appleId": "andrew.youkhana@hotmail.com",
         "ascAppId": "",
-        "appleTeamId": ""
+        "appleTeamId": "CT7KM7KNYN"
       },
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
