@@ -74,14 +74,14 @@
     },
     "updates": {
       "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/vargen"
+      "url": "https://u.expo.dev/481ac436-4f04-451b-8cf6-48aaaf94e24b"
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "extra": {
       "eas": {
-        "projectId": "vargen"
+        "projectId": "481ac436-4f04-451b-8cf6-48aaaf94e24b"
       }
     }
   }
