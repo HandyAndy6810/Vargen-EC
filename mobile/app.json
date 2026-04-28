@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Vargen",
-    "slug": "vargen",
+    "slug": "vgnec",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -20,7 +20,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Used to capture photos for jobs and invoices.",
         "NSPhotoLibraryUsageDescription": "Used to attach photos to jobs and invoices.",
-        "NSMicrophoneUsageDescription": "Used for AI voice-to-quote dictation."
+        "NSMicrophoneUsageDescription": "Used for AI voice-to-quote dictation.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -83,6 +84,7 @@
       "eas": {
         "projectId": "481ac436-4f04-451b-8cf6-48aaaf94e24b"
       }
-    }
+    },
+    "owner": "handyandy6810"
   }
 }
