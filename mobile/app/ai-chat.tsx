@@ -6,12 +6,18 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { useState } from 'react';
-import { router } from 'expo-router';
+import { useState, useRef } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, MoreHorizontal, Sparkles, Camera, FileText, Mic, Send, Edit2 } from 'lucide-react-native';
+import { ChevronLeft, Sparkles, Send, Edit2, Bookmark } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useMutation } from '@tanstack/react-query';
+import { apiRequest, API_BASE_URL } from '@/lib/api';
+import { queryClient } from '@/lib/queryClient';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -21,23 +27,35 @@ const PAPER       = '#f7f4ee';
 const PAPER_DEEP  = '#efe9dd';
 const CARD        = '#ffffff';
 const BLACK       = '#0f0e0b';
-const GREEN       = '#2a9d4c';
 const MUTED       = 'rgba(20,19,16,0.55)';
 const MUTED_HI    = 'rgba(20,19,16,0.72)';
 const LINE_SOFT   = 'rgba(20,19,16,0.08)';
 const LINE_MID    = 'rgba(20,19,16,0.14)';
+const GREEN       = '#2a9d4c';
+const RED_SOFT    = '#fde5e5';
+const RED         = '#d23b3b';
 
-type Step = 'prompt' | 'clarify' | 'draft' | 'confirm';
+type Step = 'prompt' | 'draft';
 
-const LINES = [
-  { n: 'Rheem 315L Stellar electric HWU', q: 1, p: 1420, sub: 'Supply only' },
-  { n: 'Removal + install labour', q: 2, p: 180, sub: '2 hrs @ $90' },
-  { n: 'Expansion valve + fittings', q: 1, p: 85 },
-  { n: 'Callout fee', q: 1, p: 120 },
-];
-const SUBTOTAL = LINES.reduce((s, l) => s + l.p * l.q, 0);
-const GST = Math.round(SUBTOTAL * 0.1);
-const TOTAL = SUBTOTAL + GST;
+interface AiItem {
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+}
+
+interface AiQuoteResult {
+  jobTitle: string;
+  summary: string;
+  items: AiItem[];
+  notes: string;
+  estimatedHours: number;
+  totalLabour: number;
+  totalMaterials: number;
+  subtotal: number;
+  gstAmount: number;
+  totalAmount: number;
+}
 
 function AiAvatar({ size = 32 }: { size?: number }) {
   return (
@@ -47,330 +65,363 @@ function AiAvatar({ size = 32 }: { size?: number }) {
   );
 }
 
-function AiBubble({ children }: { children: React.ReactNode }) {
-  return (
-    <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-end', marginBottom: 12 }}>
-      <AiAvatar size={28} />
-      <View style={{ backgroundColor: CARD, borderWidth: 1, borderColor: LINE_SOFT, padding: 12, paddingHorizontal: 14, borderRadius: 18, borderBottomLeftRadius: 4, maxWidth: '78%', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8 }}>
-        {children}
-      </View>
-    </View>
-  );
-}
-
-function UserBubble({ children }: { children: React.ReactNode }) {
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 12 }}>
-      <View style={{ backgroundColor: BLACK, padding: 12, paddingHorizontal: 14, borderRadius: 18, borderBottomRightRadius: 4, maxWidth: '82%' }}>
-        <Text style={{ fontSize: 14, color: '#fff', lineHeight: 20, fontFamily: 'Manrope_500Medium' }}>{children}</Text>
-      </View>
-    </View>
-  );
-}
-
-function TopBar({ step, stepLabel, onBack }: { step: Step; stepLabel: string; onBack: () => void }) {
-  const titles: Record<Step, string> = { prompt: 'New quote', clarify: 'New quote', draft: 'Review draft', confirm: 'Send it' };
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: LINE_SOFT }}>
-      <TouchableOpacity onPress={onBack} style={s.navBtn}>
-        <ChevronLeft size={18} color={INK} strokeWidth={2.1} />
-      </TouchableOpacity>
-      <View style={{ flex: 1, alignItems: 'center' }}>
-        <Text style={{ fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 2, textTransform: 'uppercase' }}>{stepLabel}</Text>
-        <Text style={{ fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: INK, letterSpacing: -0.3, marginTop: 2 }}>{titles[step]}</Text>
-      </View>
-      <TouchableOpacity style={s.navBtn}>
-        <MoreHorizontal size={18} color={INK} strokeWidth={2.1} />
-      </TouchableOpacity>
-    </View>
-  );
-}
+const SUGGESTIONS = [
+  'Replace hot water system — same unit, Rheem 315L',
+  'Quote bathroom renovation, tiles + fittings',
+  'Fix burst pipe under kitchen sink, supply parts',
+  'Install split system aircon, 3.5kW Fujitsu',
+];
 
 export default function AiChatScreen() {
+  const params = useLocalSearchParams<{ description?: string }>();
   const [step, setStep] = useState<Step>('prompt');
+  const [description, setDescription] = useState(params.description ?? '');
+  const [customerName, setCustomerName] = useState('');
+  const [aiResult, setAiResult] = useState<AiQuoteResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
-  const goNext = () => {
+  const generateMutation = useMutation({
+    mutationFn: async ({ description, customerName }: { description: string; customerName: string }) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 60_000);
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/quotes/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            description,
+            customerName: customerName.trim() || undefined,
+          }),
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.message || 'AI generation failed');
+        }
+        return res.json() as Promise<AiQuoteResult>;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    onSuccess: (data) => {
+      setAiResult(data);
+      setStep('draft');
+      setError(null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async (status: 'draft' | 'sent') => {
+      if (!aiResult) throw new Error('No quote to save');
+      const res = await apiRequest('POST', '/api/quotes', {
+        totalAmount: String(aiResult.totalAmount),
+        status,
+        content: JSON.stringify({ ...aiResult, customerName: customerName.trim() || undefined }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || 'Failed to save quote');
+      }
+      const quote = await res.json();
+      for (const item of aiResult.items) {
+        await apiRequest('POST', `/api/quotes/${quote.id}/items`, {
+          description: item.description,
+          quantity: item.quantity,
+          price: String(Math.round(item.quantity * item.unitPrice * 100) / 100),
+        });
+      }
+      return quote;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace('/(tabs)/quotes' as any);
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    },
+  });
+
+  const handleSend = (prefill?: string) => {
+    const desc = prefill ?? description;
+    if (!desc.trim()) return;
+    if (prefill) setDescription(prefill);
+    setError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const order: Step[] = ['prompt', 'clarify', 'draft', 'confirm'];
-    const i = order.indexOf(step);
-    if (i < order.length - 1) setStep(order[i + 1]);
+    generateMutation.mutate({ description: desc.trim(), customerName });
   };
 
   const goBack = () => {
-    const order: Step[] = ['prompt', 'clarify', 'draft', 'confirm'];
-    const i = order.indexOf(step);
-    if (i > 0) setStep(order[i - 1]);
-    else router.back();
+    if (step === 'draft') {
+      setStep('prompt');
+      setAiResult(null);
+      setError(null);
+    } else {
+      router.back();
+    }
   };
 
-  const stepLabels: Record<Step, string> = {
-    prompt: 'AI · Step 1 of 4',
-    clarify: 'AI · Step 2 of 4',
-    draft: 'AI · Step 3 of 4',
-    confirm: 'AI · Step 4 of 4',
-  };
+  const stepLabel = step === 'prompt' ? 'AI · Describe the job' : 'AI · Review draft';
+  const stepTitle = step === 'prompt' ? 'New AI quote' : 'Draft quote';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <TopBar step={step} stepLabel={stepLabels[step]} onBack={goBack} />
+        {/* Top bar */}
+        <View style={s.topBar}>
+          <TouchableOpacity onPress={goBack} style={s.navBtn}>
+            <ChevronLeft size={18} color={INK} strokeWidth={2.1} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={s.topBarEyebrow}>{stepLabel}</Text>
+            <Text style={s.topBarTitle}>{stepTitle}</Text>
+          </View>
+          <View style={s.navBtn} />
+        </View>
 
-        {step === 'prompt' && (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 140 }}>
-            <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-              <AiAvatar size={64} />
-              <Text style={{ fontSize: 30, fontFamily: 'Manrope_800ExtraBold', color: INK, letterSpacing: -1, lineHeight: 34, marginTop: 18, textAlign: 'center' }}>
-                {'What did you\n'}<Text style={{ color: ORANGE }}>quote today?</Text>
-              </Text>
-              <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: MUTED_HI, marginTop: 10, lineHeight: 20, textAlign: 'center', maxWidth: 260 }}>
-                Type, talk, or photograph it. I'll turn any of them into a proper quote.
-              </Text>
-            </View>
-
-            <Text style={s.eyebrow}>Try one of these</Text>
-            <View style={{ gap: 8 }}>
-              {[
-                "Swap hot water at Dalton's for $1,840",
-                'Quote bathroom reno for K Ng, Newtown',
-                "Invoice last week's tap fix for J Chen",
-              ].map((sug, i) => (
-                <TouchableOpacity key={i} onPress={goNext} activeOpacity={0.7}
-                  style={{ textAlign: 'left', padding: 14, paddingHorizontal: 16, borderRadius: 16, backgroundColor: CARD, borderWidth: 1, borderColor: LINE_SOFT, flexDirection: 'row', alignItems: 'center', gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 3 }}>
-                  <Sparkles size={16} color={ORANGE} strokeWidth={2} />
-                  <Text style={{ flex: 1, fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: INK }}>{sug}</Text>
-                  <Text style={{ fontSize: 14, color: MUTED }}>›</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
-              <TouchableOpacity style={[s.quickBtn, { flex: 1 }]}>
-                <Camera size={18} color={INK} strokeWidth={2} />
-                <Text style={s.quickBtnText}>Photo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.quickBtn, { flex: 1 }]}>
-                <FileText size={18} color={INK} strokeWidth={2} />
-                <Text style={s.quickBtnText}>Template</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        )}
-
-        {step === 'prompt' && (
-          <View style={s.composerWrap}>
-            <View style={s.composer}>
-              <Text style={{ flex: 1, fontSize: 14, fontFamily: 'Manrope_500Medium', color: MUTED, paddingVertical: 10 }}>Describe a job…</Text>
-              <TouchableOpacity style={s.composerMic}><Mic size={18} color={INK} strokeWidth={2} /></TouchableOpacity>
-              <TouchableOpacity style={s.composerSend} onPress={goNext}>
-                <Send size={16} color="#fff" strokeWidth={2} />
-              </TouchableOpacity>
-            </View>
+        {/* Generating overlay */}
+        {generateMutation.isPending && (
+          <View style={s.generatingOverlay}>
+            <AiAvatar size={72} />
+            <Text style={s.generatingTitle}>Generating your quote…</Text>
+            <Text style={s.generatingSubtitle}>
+              Checking current trade pricing{'\n'}and building your line items
+            </Text>
+            <ActivityIndicator color={ORANGE} style={{ marginTop: 24 }} />
           </View>
         )}
 
-        {step === 'clarify' && (
+        {/* STEP: PROMPT */}
+        {step === 'prompt' && !generateMutation.isPending && (
           <>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingTop: 8, paddingBottom: 140 }}>
-              <UserBubble>Swap the 315L hot water unit at Dalton's place — same brand, new expansion valve.</UserBubble>
-
-              <AiBubble>
-                <Text style={{ fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: INK, lineHeight: 20 }}>
-                  Got it. I'll draft a <Text style={{ fontFamily: 'Manrope_800ExtraBold' }}>hot water replacement</Text> quote for <Text style={{ fontFamily: 'Manrope_800ExtraBold' }}>Dalton</Text>.{'\n'}A couple of quick questions:
+            <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 200 }}>
+              {/* Hero */}
+              <View style={{ alignItems: 'center', paddingVertical: 28 }}>
+                <AiAvatar size={64} />
+                <Text style={s.heroHeading}>
+                  {'What did you\n'}<Text style={{ color: ORANGE }}>quote today?</Text>
                 </Text>
-              </AiBubble>
-
-              <AiBubble>
-                <Text style={{ fontFamily: 'Manrope_800ExtraBold', color: INK, fontSize: 14, marginBottom: 4 }}>Which model?</Text>
-                <Text style={{ fontSize: 12.5, fontFamily: 'Manrope_500Medium', color: MUTED_HI }}>Last invoice shows a Rheem 315L Stellar.</Text>
-              </AiBubble>
-              <UserBubble>Same — Rheem 315L Stellar, electric.</UserBubble>
-
-              <AiBubble>
-                <Text style={{ fontFamily: 'Manrope_800ExtraBold', color: INK, fontSize: 14, marginBottom: 8 }}>Callout fee?</Text>
-                <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-                  {['$0 (waived)', '$120 standard', '$180 after hrs'].map((v) => (
-                    <TouchableOpacity key={v} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, borderColor: v === '$120 standard' ? ORANGE : LINE_MID, backgroundColor: v === '$120 standard' ? ORANGE_SOFT : CARD }}>
-                      <Text style={{ fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: v === '$120 standard' ? ORANGE_DEEP : INK }}>{v}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </AiBubble>
-
-              <AiBubble>
-                <Text style={{ fontFamily: 'Manrope_800ExtraBold', color: INK, fontSize: 14, marginBottom: 4 }}>Schedule?</Text>
-                <Text style={{ fontSize: 12.5, fontFamily: 'Manrope_500Medium', color: MUTED_HI, marginBottom: 10 }}>
-                  I've blocked <Text style={{ fontFamily: 'Manrope_800ExtraBold', color: INK }}>Tue 9:30 am</Text> — your only free 2hr slot.
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 6 }}>
-                  <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: GREEN }}>
-                    <Text style={{ fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>✓ Lock it in</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: CARD, borderWidth: 1, borderColor: LINE_MID }}>
-                    <Text style={{ fontSize: 12, fontFamily: 'Manrope_700Bold', color: INK }}>Pick another</Text>
-                  </TouchableOpacity>
-                </View>
-              </AiBubble>
-
-              {/* Typing indicator */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <AiAvatar size={28} />
-                <View style={{ backgroundColor: CARD, borderWidth: 1, borderColor: LINE_SOFT, padding: 12, paddingHorizontal: 14, borderRadius: 18, flexDirection: 'row', gap: 4 }}>
-                  {[0, 1, 2].map((i) => (
-                    <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: MUTED, opacity: 0.5 }} />
-                  ))}
-                </View>
-              </View>
-            </ScrollView>
-
-            <View style={s.composerWrap}>
-              <TouchableOpacity onPress={goNext} style={s.draftReadyBtn}>
-                <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Sparkles size={18} color="#fff" strokeWidth={2} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={{ fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.8)', letterSpacing: 1.4, textTransform: 'uppercase' }}>Draft ready — tap to review</Text>
-                  <Text style={{ fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.3, marginTop: 2 }}>Hot water swap — Dalton · $1,840</Text>
-                </View>
-                <Text style={{ fontSize: 18, color: '#fff' }}>›</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {step === 'draft' && (
-          <>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 140 }}>
-              {/* Quote paper */}
-              <View style={s.quotePaper}>
-                <View style={s.quotePaperGlow} />
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-                  <View>
-                    <Text style={s.eyebrow}>Quote · Draft</Text>
-                    <Text style={{ fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: INK, letterSpacing: -0.6, marginTop: 2 }}>Hot water swap</Text>
-                    <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: MUTED, marginTop: 2 }}>Q-2048 · Sun 19 Apr</Text>
-                  </View>
-                  <View style={[s.statusPill, { backgroundColor: PAPER_DEEP, borderColor: LINE_MID }]}>
-                    <Text style={[s.statusPillText, { color: MUTED_HI }]}>Draft</Text>
-                  </View>
-                </View>
-
-                <View style={{ paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: PAPER_DEEP, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: ORANGE }}>JD</Text>
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: INK }}>Jack Dalton</Text>
-                    <Text style={{ fontSize: 11, fontFamily: 'Manrope_500Medium', color: MUTED }}>42 Harbour St, Rozelle · 0412 889 221</Text>
-                  </View>
-                </View>
-
-                <View style={{ marginBottom: 12 }}>
-                  {LINES.map((l, i) => (
-                    <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: LINE_SOFT }}>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: INK }}>{l.n}</Text>
-                        {(l as any).sub && <Text style={{ fontSize: 11, fontFamily: 'Manrope_500Medium', color: MUTED, marginTop: 1 }}>{(l as any).sub}</Text>}
-                      </View>
-                      <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: MUTED, width: 30, textAlign: 'right', flexShrink: 0 }}>×{l.q}</Text>
-                      <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: INK, textAlign: 'right', minWidth: 60 }}>${(l.p * l.q).toLocaleString()}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                <TouchableOpacity style={{ width: '100%', padding: 10, borderRadius: 10, backgroundColor: ORANGE_SOFT, borderWidth: 1, borderStyle: 'dashed', borderColor: ORANGE, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 14 }}>
-                  <Text style={{ fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: ORANGE_DEEP }}>+ Add line item</Text>
-                </TouchableOpacity>
-
-                <View style={{ borderTopWidth: 1, borderTopColor: LINE_SOFT, paddingTop: 12 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: MUTED_HI }}>Subtotal</Text>
-                    <Text style={{ fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: MUTED_HI }}>${SUBTOTAL.toLocaleString()}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <Text style={{ fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: MUTED_HI }}>GST (10%)</Text>
-                    <Text style={{ fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: MUTED_HI }}>${GST.toLocaleString()}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: INK, letterSpacing: 0.2 }}>TOTAL</Text>
-                    <Text style={{ fontSize: 30, fontFamily: 'Manrope_800ExtraBold', color: ORANGE, letterSpacing: -0.8, lineHeight: 34 }}>${TOTAL.toLocaleString()}</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* AI meta */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: ORANGE_SOFT, borderWidth: 1, borderColor: 'rgba(242,106,42,0.25)' }}>
-                <Sparkles size={18} color={ORANGE_DEEP} strokeWidth={2} />
-                <Text style={{ flex: 1, fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: ORANGE_DEEP, lineHeight: 18 }}>
-                  Pricing matched to your last 3 similar jobs.{' '}
-                  <Text style={{ fontFamily: 'Manrope_800ExtraBold' }}>Nothing surprising.</Text>
-                </Text>
-              </View>
-            </ScrollView>
-
-            <View style={[s.composerWrap, { flexDirection: 'row', gap: 8 }]}>
-              <TouchableOpacity style={s.tweakBtn}>
-                <Edit2 size={16} color={INK} strokeWidth={2} />
-                <Text style={s.tweakBtnText}>Tweak</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.looksRightBtn} onPress={goNext}>
-                <Text style={s.looksRightBtnText}>Looks right — continue</Text>
-                <Text style={{ fontSize: 16, color: '#fff' }}>›</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {step === 'confirm' && (
-          <>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 140 }}>
-              {/* Hero summary */}
-              <View style={s.confirmHero}>
-                <View style={s.confirmHeroGlow} />
-                <Text style={s.eyebrowWhite}>Quote Q-2048</Text>
-                <Text style={{ fontSize: 28, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.8, marginTop: 4, lineHeight: 32 }}>
-                  ${TOTAL.toLocaleString()}<Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 18, fontFamily: 'Manrope_700Bold' }}> inc GST</Text>
-                </Text>
-                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: 'rgba(255,255,255,0.6)', marginTop: 8 }}>
-                  Hot water swap · Jack Dalton · Tue 9:30 am
+                <Text style={s.heroSub}>
+                  Describe the job in plain English — I'll turn it into a professional quote with real pricing.
                 </Text>
               </View>
 
-              <Text style={[s.eyebrow, { marginTop: 22, marginBottom: 10 }]}>How to send</Text>
+              {error && (
+                <View style={s.errorBox}>
+                  <Text style={s.errorText}>{error}</Text>
+                </View>
+              )}
+
+              {/* Customer name (optional) */}
+              <Text style={s.fieldLabel}>Customer name (optional)</Text>
+              <TextInput
+                style={s.customerInput}
+                placeholder="e.g. Jack Dalton"
+                placeholderTextColor={MUTED}
+                value={customerName}
+                onChangeText={setCustomerName}
+                returnKeyType="next"
+              />
+
+              {/* Suggestions */}
+              <Text style={s.eyebrow}>Try one of these</Text>
               <View style={{ gap: 8 }}>
-                {[
-                  { icon: 'msg',   label: 'SMS with web link',  sub: '0412 889 221', active: true },
-                  { icon: 'email', label: 'Email PDF',           sub: 'jack@dalton.com.au' },
-                  { icon: 'pdf',   label: 'Download PDF',        sub: 'Save for later' },
-                ].map((o) => (
-                  <TouchableOpacity key={o.label} activeOpacity={0.7}
-                    style={[s.deliveryRow, { borderWidth: o.active ? 2 : 1, borderColor: o.active ? ORANGE : LINE_SOFT, shadowColor: o.active ? ORANGE : 'transparent', shadowOpacity: o.active ? 0.2 : 0 }]}>
-                    <View style={[s.deliveryIcon, { backgroundColor: o.active ? ORANGE_SOFT : PAPER_DEEP }]}>
-                      <Text style={{ fontSize: 16 }}>{o.icon === 'msg' ? '💬' : o.icon === 'email' ? '✉️' : '📄'}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: INK }}>{o.label}</Text>
-                      <Text style={{ fontSize: 11, fontFamily: 'Manrope_500Medium', color: MUTED, marginTop: 1 }}>{o.sub}</Text>
-                    </View>
-                    <View style={[s.radioOuter, { borderColor: o.active ? ORANGE : LINE_MID, backgroundColor: o.active ? ORANGE : 'transparent' }]}>
-                      {o.active && <Text style={{ fontSize: 10, color: '#fff' }}>✓</Text>}
-                    </View>
+                {SUGGESTIONS.map((sug, i) => (
+                  <TouchableOpacity key={i} onPress={() => handleSend(sug)} activeOpacity={0.7}
+                    style={s.suggestionRow}>
+                    <Sparkles size={16} color={ORANGE} strokeWidth={2} />
+                    <Text style={s.suggestionText}>{sug}</Text>
+                    <Text style={{ fontSize: 16, color: MUTED }}>›</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+            </ScrollView>
 
-              <Text style={[s.eyebrow, { marginTop: 22, marginBottom: 10 }]}>SMS preview</Text>
-              <View style={{ backgroundColor: PAPER_DEEP, borderRadius: 16, padding: 14 }}>
-                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED_HI, lineHeight: 20 }}>
-                  G'day Jack — quote for the hot water swap: ${TOTAL.toLocaleString()} inc GST. Booked for Tue 9:30 am. Tap to accept:{' '}
-                  <Text style={{ color: ORANGE, fontFamily: 'Manrope_700Bold' }}>vgn.ec/q/2048</Text>
+            {/* Composer */}
+            <View style={s.composerWrap}>
+              <View style={s.composer}>
+                <TextInput
+                  style={s.composerInput}
+                  placeholder="Describe a job…"
+                  placeholderTextColor={MUTED}
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                  returnKeyType="send"
+                  onSubmitEditing={() => handleSend()}
+                />
+                <TouchableOpacity
+                  style={[s.composerSend, (!description.trim()) && { backgroundColor: PAPER_DEEP }]}
+                  onPress={() => handleSend()}
+                  disabled={!description.trim()}
+                >
+                  <Send size={16} color={description.trim() ? '#fff' : MUTED} strokeWidth={2} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </>
+        )}
+
+        {/* STEP: DRAFT */}
+        {step === 'draft' && aiResult && !generateMutation.isPending && (
+          <>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 200 }}>
+              {error && (
+                <View style={s.errorBox}>
+                  <Text style={s.errorText}>{error}</Text>
+                </View>
+              )}
+
+              {/* Quote paper */}
+              <View style={s.quotePaper}>
+                <View style={s.quotePaperGlow} />
+
+                {/* Header */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                  <View style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+                    <Text style={s.eyebrow}>Quote · Draft</Text>
+                    <Text style={s.quoteTitle} numberOfLines={2}>{aiResult.jobTitle}</Text>
+                    {customerName.trim() ? (
+                      <Text style={s.quoteMeta}>For {customerName.trim()}</Text>
+                    ) : null}
+                  </View>
+                  <View style={s.statusPill}>
+                    <Text style={s.statusPillText}>Draft</Text>
+                  </View>
+                </View>
+
+                {/* Summary */}
+                {aiResult.summary ? (
+                  <View style={s.summaryBox}>
+                    <Text style={s.summaryText}>{aiResult.summary}</Text>
+                  </View>
+                ) : null}
+
+                {/* Line items */}
+                <View style={{ marginBottom: 12 }}>
+                  {aiResult.items.map((item, i) => {
+                    const lineTotal = item.quantity * item.unitPrice;
+                    return (
+                      <View key={i} style={[s.lineRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={s.lineDesc}>{item.description}</Text>
+                          <Text style={s.lineMeta}>
+                            {item.quantity} {item.unit || 'ea'} @ ${item.unitPrice.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </Text>
+                        </View>
+                        <Text style={s.lineTotal}>
+                          ${lineTotal.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                {/* Totals */}
+                <View style={{ borderTopWidth: 1, borderTopColor: LINE_SOFT, paddingTop: 12 }}>
+                  <View style={s.totalRow}>
+                    <Text style={s.totalLabel}>Subtotal</Text>
+                    <Text style={s.totalValue}>
+                      ${aiResult.subtotal.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Text>
+                  </View>
+                  {aiResult.gstAmount > 0 && (
+                    <View style={s.totalRow}>
+                      <Text style={s.totalLabel}>GST (10%)</Text>
+                      <Text style={s.totalValue}>
+                        ${aiResult.gstAmount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={[s.totalRow, { marginTop: 6 }]}>
+                    <Text style={s.grandLabel}>TOTAL</Text>
+                    <Text style={s.grandTotal}>
+                      ${aiResult.totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* AI confidence badge */}
+              <View style={s.aiBadge}>
+                <Sparkles size={16} color={ORANGE_DEEP} strokeWidth={2} />
+                <Text style={s.aiBadgeText}>
+                  Priced to current Australian trade rates.{' '}
+                  <Text style={{ fontFamily: 'Manrope_800ExtraBold' }}>Review before sending.</Text>
                 </Text>
+              </View>
+
+              {/* Notes */}
+              {aiResult.notes ? (
+                <View style={s.notesBox}>
+                  <Text style={s.notesLabel}>Inclusions & notes</Text>
+                  <Text style={s.notesText}>{aiResult.notes}</Text>
+                </View>
+              ) : null}
+
+              {/* Labour / materials breakdown */}
+              <View style={s.breakdownRow}>
+                <View style={[s.breakdownCard, { flex: 1 }]}>
+                  <Text style={s.breakdownCardLabel}>Labour</Text>
+                  <Text style={s.breakdownCardValue}>
+                    ${aiResult.totalLabour.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </Text>
+                  {aiResult.estimatedHours > 0 && (
+                    <Text style={s.breakdownCardSub}>{aiResult.estimatedHours}h est.</Text>
+                  )}
+                </View>
+                <View style={[s.breakdownCard, { flex: 1 }]}>
+                  <Text style={s.breakdownCardLabel}>Materials</Text>
+                  <Text style={s.breakdownCardValue}>
+                    ${aiResult.totalMaterials.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </Text>
+                </View>
               </View>
             </ScrollView>
 
-            <View style={s.composerWrap}>
-              <TouchableOpacity style={s.sendQuoteBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.back(); }} activeOpacity={0.88}>
-                <Send size={18} color="#fff" strokeWidth={2} />
-                <Text style={s.sendQuoteBtnText}>Send quote to Jack</Text>
+            {/* Bottom actions */}
+            <View style={[s.composerWrap, { gap: 8 }]}>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity
+                  style={s.tweakBtn}
+                  onPress={() => {
+                    setStep('prompt');
+                    setAiResult(null);
+                    setError(null);
+                  }}
+                >
+                  <Edit2 size={16} color={INK} strokeWidth={2} />
+                  <Text style={s.tweakBtnText}>Redo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.saveBtn, saveMutation.isPending && { opacity: 0.6 }]}
+                  onPress={() => saveMutation.mutate('draft')}
+                  disabled={saveMutation.isPending}
+                  activeOpacity={0.88}
+                >
+                  {saveMutation.isPending
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <>
+                        <Text style={s.saveBtnText}>Save draft</Text>
+                        <Text style={{ fontSize: 16, color: '#fff' }}>›</Text>
+                      </>
+                  }
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={s.templateBtn}
+                onPress={() => Alert.alert('Save as template', 'Quote templates are coming soon.\n\nYou\'ll be able to save any quote as a reusable template.', [{ text: 'Got it' }])}
+              >
+                <Bookmark size={15} color={MUTED_HI} strokeWidth={2} />
+                <Text style={s.templateBtnText}>Save as template</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -381,6 +432,29 @@ export default function AiChatScreen() {
 }
 
 const s = StyleSheet.create({
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: LINE_SOFT,
+  },
+  topBarEyebrow: {
+    fontSize: 10,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: MUTED,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  topBarTitle: {
+    fontSize: 15,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.3,
+    marginTop: 2,
+  },
   navBtn: {
     width: 40,
     height: 40,
@@ -391,6 +465,82 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  generatingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: PAPER,
+    zIndex: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+    gap: 12,
+  },
+  generatingTitle: {
+    fontSize: 22,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.5,
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  generatingSubtitle: {
+    fontSize: 13,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  heroHeading: {
+    fontSize: 30,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -1,
+    lineHeight: 34,
+    marginTop: 18,
+    textAlign: 'center',
+  },
+  heroSub: {
+    fontSize: 13,
+    fontFamily: 'Manrope_600SemiBold',
+    color: MUTED_HI,
+    marginTop: 10,
+    lineHeight: 20,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  errorBox: {
+    backgroundColor: RED_SOFT,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    fontSize: 13,
+    fontFamily: 'Manrope_600SemiBold',
+    color: RED,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED_HI,
+    marginBottom: 6,
+    letterSpacing: 0.2,
+  },
+  customerInput: {
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: LINE_MID,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    fontSize: 15,
+    fontFamily: 'Manrope_500Medium',
+    color: INK,
+    marginBottom: 22,
+  },
   eyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
@@ -399,27 +549,25 @@ const s = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 10,
   },
-  eyebrowWhite: {
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    letterSpacing: 2,
-    color: 'rgba(255,255,255,0.6)',
-    textTransform: 'uppercase',
-  },
-  quickBtn: {
-    height: 56,
+  suggestionRow: {
+    padding: 14,
+    paddingHorizontal: 16,
     borderRadius: 16,
     backgroundColor: CARD,
     borderWidth: 1,
     borderColor: LINE_SOFT,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
   },
-  quickBtnText: {
-    fontSize: 13,
-    fontFamily: 'Manrope_700Bold',
+  suggestionText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'Manrope_600SemiBold',
     color: INK,
   },
   composerWrap: {
@@ -431,7 +579,7 @@ const s = StyleSheet.create({
   },
   composer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     gap: 8,
     backgroundColor: CARD,
     borderWidth: 1,
@@ -446,13 +594,13 @@ const s = StyleSheet.create({
     shadowRadius: 28,
     elevation: 8,
   },
-  composerMic: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: PAPER_DEEP,
-    alignItems: 'center',
-    justifyContent: 'center',
+  composerInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'Manrope_500Medium',
+    color: INK,
+    paddingVertical: 10,
+    maxHeight: 100,
   },
   composerSend: {
     width: 40,
@@ -461,20 +609,6 @@ const s = StyleSheet.create({
     backgroundColor: ORANGE,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  draftReadyBtn: {
-    width: '100%',
-    padding: 14,
-    borderRadius: 22,
-    backgroundColor: ORANGE,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    shadowColor: ORANGE,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.33,
-    shadowRadius: 28,
-    elevation: 10,
   },
   quotePaper: {
     backgroundColor: CARD,
@@ -487,6 +621,7 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.05,
     shadowRadius: 30,
+    marginBottom: 14,
   },
   quotePaperGlow: {
     position: 'absolute',
@@ -497,18 +632,171 @@ const s = StyleSheet.create({
     borderRadius: 80,
     backgroundColor: `${ORANGE}1f`,
   },
+  quoteTitle: {
+    fontSize: 20,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.5,
+    marginTop: 2,
+  },
+  quoteMeta: {
+    fontSize: 12,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+    marginTop: 3,
+  },
   statusPill: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 999,
     borderWidth: 1,
+    borderColor: LINE_MID,
+    backgroundColor: PAPER_DEEP,
     alignSelf: 'flex-start',
   },
   statusPillText: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
+    color: MUTED_HI,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
+  },
+  summaryBox: {
+    backgroundColor: PAPER_DEEP,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  summaryText: {
+    fontSize: 12.5,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED_HI,
+    lineHeight: 19,
+  },
+  lineRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+    gap: 8,
+  },
+  lineDesc: {
+    fontSize: 13,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
+    lineHeight: 18,
+  },
+  lineMeta: {
+    fontSize: 11,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+    marginTop: 2,
+  },
+  lineTotal: {
+    fontSize: 13,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    minWidth: 70,
+    textAlign: 'right',
+    flexShrink: 0,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  totalLabel: {
+    fontSize: 12,
+    fontFamily: 'Manrope_600SemiBold',
+    color: MUTED_HI,
+  },
+  totalValue: {
+    fontSize: 12,
+    fontFamily: 'Manrope_600SemiBold',
+    color: MUTED_HI,
+  },
+  grandLabel: {
+    fontSize: 13,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: 0.2,
+  },
+  grandTotal: {
+    fontSize: 28,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: ORANGE,
+    letterSpacing: -0.8,
+    lineHeight: 32,
+  },
+  aiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: ORANGE_SOFT,
+    borderWidth: 1,
+    borderColor: 'rgba(242,106,42,0.25)',
+    marginBottom: 14,
+  },
+  aiBadgeText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: 'Manrope_600SemiBold',
+    color: ORANGE_DEEP,
+    lineHeight: 18,
+  },
+  notesBox: {
+    backgroundColor: PAPER_DEEP,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+  },
+  notesLabel: {
+    fontSize: 10,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: MUTED,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  notesText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED_HI,
+    lineHeight: 19,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  breakdownCard: {
+    backgroundColor: CARD,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+  },
+  breakdownCardLabel: {
+    fontSize: 10,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: MUTED,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  breakdownCardValue: {
+    fontSize: 18,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.4,
+  },
+  breakdownCardSub: {
+    fontSize: 11,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+    marginTop: 2,
   },
   tweakBtn: {
     flex: 1,
@@ -531,7 +819,7 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_800ExtraBold',
     color: INK,
   },
-  looksRightBtn: {
+  saveBtn: {
     flex: 2,
     height: 54,
     borderRadius: 18,
@@ -546,77 +834,26 @@ const s = StyleSheet.create({
     shadowRadius: 24,
     elevation: 8,
   },
-  looksRightBtnText: {
+  saveBtnText: {
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
     color: '#fff',
     letterSpacing: -0.2,
   },
-  confirmHero: {
-    backgroundColor: BLACK,
-    borderRadius: 24,
-    padding: 22,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.22,
-    shadowRadius: 40,
-  },
-  confirmHeroGlow: {
-    position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: `${ORANGE}70`,
-    opacity: 0.4,
-  },
-  deliveryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 16,
+  templateBtn: {
+    height: 44,
+    borderRadius: 14,
     backgroundColor: CARD,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  deliveryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioOuter: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendQuoteBtn: {
-    width: '100%',
-    height: 58,
-    borderRadius: 22,
-    backgroundColor: ORANGE,
+    borderWidth: 1,
+    borderColor: LINE_MID,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    shadowColor: ORANGE,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.4,
-    shadowRadius: 30,
-    elevation: 10,
+    gap: 7,
   },
-  sendQuoteBtnText: {
-    fontSize: 16,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: '#fff',
-    letterSpacing: -0.3,
+  templateBtnText: {
+    fontSize: 13,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED_HI,
   },
 });
