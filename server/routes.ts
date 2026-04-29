@@ -866,9 +866,11 @@ CRITICAL RULES — follow these exactly:
   // Standalone invoice creation (no quote required)
   app.post("/api/invoices", requireAuth, async (req: any, res) => {
     try {
-      const { customerId, items, dueDate, notes, includeGST } = req.body;
-      if (!customerId) return res.status(400).json({ message: "Customer is required" });
+      const { customerId, customerName, items, dueDate, notes, includeGST } = req.body;
       if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: "At least one line item is required" });
+      const combinedNotes = customerName && !customerId
+        ? `Customer: ${customerName}${notes ? `\n\n${notes}` : ''}`
+        : (notes || null);
 
       const subtotal = items.reduce((s: number, item: any) => s + (Number(item.quantity) * Number(item.unitPrice)), 0);
       const gstAmount = includeGST ? +(subtotal * 0.1).toFixed(2) : 0;
@@ -886,7 +888,7 @@ CRITICAL RULES — follow these exactly:
 
       const invoiceNumber = await storage.getNextInvoiceNumber(req.userId);
       const invoice = await storage.createInvoice({
-        customerId: Number(customerId),
+        customerId: customerId ? Number(customerId) : null,
         invoiceNumber,
         status: "draft",
         items: JSON.stringify(items),
@@ -894,7 +896,7 @@ CRITICAL RULES — follow these exactly:
         gstAmount: gstAmount.toFixed(2),
         totalAmount: totalAmount.toFixed(2),
         dueDate: dueDateValue,
-        notes: notes || null,
+        notes: combinedNotes,
         userId: req.userId,
       });
 

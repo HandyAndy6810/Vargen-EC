@@ -52,3 +52,55 @@ export function useUpdateInvoice() {
     },
   });
 }
+
+export function useCreateInvoice() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (data: {
+      customerName?: string;
+      items: Array<{ description: string; quantity: number; unit?: string; unitPrice: number }>;
+      notes?: string;
+      includeGST?: boolean;
+      dueDate?: string;
+    }) => {
+      const res = await apiRequest('POST', api.invoices.list.path, data);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || 'Failed to create invoice');
+      }
+      return res.json() as Promise<Invoice>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.invoices.list.path] });
+      toast({ title: 'Invoice created' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useConvertQuoteToInvoice() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (quoteId: number) => {
+      const url = buildUrl(api.invoices.createFromQuote.path, { quoteId });
+      const res = await apiRequest('POST', url);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || 'Failed to convert quote to invoice');
+      }
+      return res.json() as Promise<Invoice>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.invoices.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.quotes.list.path] });
+      toast({ title: 'Invoice created from quote' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+}

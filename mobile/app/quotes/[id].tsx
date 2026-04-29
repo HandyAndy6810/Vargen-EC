@@ -5,11 +5,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuote } from '@/hooks/use-quotes';
+import { useQuote, useQuoteItems } from '@/hooks/use-quotes';
 import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Edit2 } from 'lucide-react-native';
+import { format } from 'date-fns';
+import * as Linking from 'expo-linking';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -29,43 +32,26 @@ const LINE_SOFT   = 'rgba(20,19,16,0.08)';
 const LINE_MID    = 'rgba(20,19,16,0.14)';
 
 const STATUS_PILL: Record<string, { bg: string; fg: string; bd: string; label: string }> = {
-  draft:    { bg: PAPER_DEEP, fg: MUTED_HI,    bd: LINE_MID,     label: 'Draft' },
-  sent:     { bg: BLUE_SOFT,  fg: BLUE,         bd: BLUE_BORDER,  label: 'Sent' },
-  viewed:   { bg: BLUE_SOFT,  fg: BLUE,         bd: BLUE_BORDER,  label: 'Viewed' },
-  accepted: { bg: GREEN_SOFT, fg: GREEN,        bd: `${GREEN}44`, label: 'Accepted' },
-  overdue:  { bg: ORANGE_SOFT, fg: ORANGE_DEEP, bd: `${ORANGE}44`, label: 'Overdue' },
+  draft:    { bg: PAPER_DEEP, fg: MUTED_HI,    bd: LINE_MID,          label: 'Draft' },
+  sent:     { bg: BLUE_SOFT,  fg: BLUE,         bd: BLUE_BORDER,       label: 'Sent' },
+  viewed:   { bg: BLUE_SOFT,  fg: BLUE,         bd: BLUE_BORDER,       label: 'Viewed' },
+  accepted: { bg: GREEN_SOFT, fg: GREEN,        bd: `${GREEN}44`,      label: 'Accepted' },
+  overdue:  { bg: ORANGE_SOFT, fg: ORANGE_DEEP, bd: `${ORANGE}44`,    label: 'Overdue' },
+  invoiced: { bg: GREEN_SOFT, fg: GREEN,        bd: `${GREEN}44`,      label: 'Invoiced' },
 };
 
 const PROGRESS_STEPS = ['Drafted', 'Sent', 'Viewed', 'Accepted'];
 
-const LINE_ITEMS = [
-  { name: 'Rheem 315L Stellar HWU',     qty: 1, price: 1420 },
-  { name: 'Removal + install labour',   qty: 2, price: 180  },
-  { name: 'Expansion valve + fittings', qty: 1, price: 85   },
-  { name: 'Callout fee',                qty: 1, price: 120  },
-];
-
-const HISTORY = [
-  { title: 'Viewed on mobile',  ago: '12m', color: BLUE },
-  { title: 'SMS delivered',     ago: '18m', color: GREEN },
-  { title: 'AI drafted quote',  ago: '1h',  color: ORANGE },
-];
-
-const subtotal = LINE_ITEMS.reduce((s, l) => s + l.price * l.qty, 0);
-const gst = Math.round(subtotal * 0.1);
-const total = subtotal + gst;
-
 function getProgressIndex(status: string): number {
-  if (status === 'draft') return 0;
-  if (status === 'sent') return 1;
-  if (status === 'viewed') return 2;
-  if (status === 'accepted') return 3;
-  return 1;
+  const map: Record<string, number> = { draft: 0, sent: 1, viewed: 2, accepted: 3, invoiced: 3 };
+  return map[status] ?? 1;
 }
 
 export default function QuoteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: quote, isLoading } = useQuote(id ? Number(id) : 0) as any;
+  const quoteId = id ? Number(id) : 0;
+  const { data: quote, isLoading } = useQuote(quoteId) as any;
+  const { data: quoteItems = [] } = useQuoteItems(quoteId) as any;
 
   if (isLoading) {
     return (
@@ -75,14 +61,61 @@ export default function QuoteDetailScreen() {
     );
   }
 
-  const title = quote?.title || 'Hot water swap';
-  const customerName = quote?.customerName || 'Jack Dalton';
-  const status = quote?.status || 'sent';
-  const amount = quote?.totalAmount ? parseFloat(quote.totalAmount) : total;
+  // Parse content JSON
+  let content: any = {};
+  try { content = JSON.parse(quote?.content || '{}'); } catch {}
+
+  const title = content.jobTitle || `Quote #${id}`;
+  const customerName = content.customerName || '';
+  const status = quote?.status || 'draft';
+  const totalAmount = quote?.totalAmount ? parseFloat(quote.totalAmount) : 0;
   const pill = STATUS_PILL[status] ?? STATUS_PILL.draft;
   const progressIdx = getProgressIndex(status);
-  const initials = customerName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
-  const num = `Q-${String(id).slice(-4)}`;
+  const initials = customerName
+    ? customerName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+    : '?';
+  const num = `Q-${String(id).padStart(4, '0').slice(-4)}`;
+  const issueDate = quote?.createdAt
+    ? format(new Date(quote.createdAt), 'EEE d MMM')
+    : '';
+
+  // Build display items: prefer saved quoteItems, fallback to content
+  let displayItems: Array<{ name: string; qty: number; total: number }> = [];
+  if ((quoteItems as any[]).length > 0) {
+    displayItems = (quoteItems as any[]).map((item: any) => ({
+      name: item.description,
+      qty: item.quantity,
+      total: parseFloat(item.price),
+    }));
+  } else if (content.items?.length > 0) {
+    displayItems = content.items.map((item: any) => ({
+      name: item.description,
+      qty: item.quantity || 1,
+      total: (item.quantity || 1) * (item.unitPrice || 0),
+    }));
+  } else if (content.lines?.length > 0) {
+    displayItems = content.lines.map((line: any) => ({
+      name: line.name,
+      qty: line.qty || 1,
+      total: (line.qty || 1) * (line.price || 0),
+    }));
+  }
+
+  const subtotal = content.subtotal
+    ? parseFloat(content.subtotal)
+    : displayItems.reduce((s, i) => s + i.total, 0);
+  const gst = content.gstAmount ? parseFloat(content.gstAmount) : 0;
+
+  const customerPhone = content.customerPhone || null;
+  const alreadyInvoiced = status === 'invoiced';
+
+  const handleConvert = () => {
+    if (alreadyInvoiced) {
+      Alert.alert('Already invoiced', 'An invoice has already been created for this quote.');
+      return;
+    }
+    router.push(`/invoices/create?quoteId=${id}` as any);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
@@ -108,7 +141,9 @@ export default function QuoteDetailScreen() {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={s.statusCardTitle} numberOfLines={1}>{title}</Text>
-                <Text style={s.statusCardSub}>For {customerName} · Issued Sun 19 Apr</Text>
+                <Text style={s.statusCardSub}>
+                  {customerName ? `For ${customerName}` : 'No customer'}{issueDate ? ` · ${issueDate}` : ''}
+                </Text>
               </View>
               <View style={[s.statusPill, { backgroundColor: pill.bg, borderColor: pill.bd }]}>
                 <Text style={[s.statusPillText, { color: pill.fg }]}>{pill.label}</Text>
@@ -116,7 +151,9 @@ export default function QuoteDetailScreen() {
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 16 }}>
-              <Text style={s.amountLarge}>${amount.toLocaleString()}</Text>
+              <Text style={s.amountLarge}>
+                ${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
               <Text style={s.amountSub}>inc GST</Text>
             </View>
 
@@ -127,14 +164,10 @@ export default function QuoteDetailScreen() {
                 const cur = i === progressIdx;
                 return (
                   <View key={step} style={{ flex: 1 }}>
-                    <View style={[
-                      s.railBar,
-                      done ? { backgroundColor: ORANGE } : cur ? { backgroundColor: ORANGE_SOFT } : { backgroundColor: PAPER_DEEP },
-                    ]} />
-                    <Text style={[
-                      s.railLabel,
-                      done ? { color: ORANGE_DEEP } : cur ? { color: ORANGE } : { color: MUTED },
-                    ]}>{step}</Text>
+                    <View style={[s.railBar, done ? { backgroundColor: ORANGE } : cur ? { backgroundColor: ORANGE_SOFT } : { backgroundColor: PAPER_DEEP }]} />
+                    <Text style={[s.railLabel, done ? { color: ORANGE_DEEP } : cur ? { color: ORANGE } : { color: MUTED }]}>
+                      {step}
+                    </Text>
                   </View>
                 );
               })}
@@ -142,67 +175,99 @@ export default function QuoteDetailScreen() {
           </View>
 
           {/* Customer */}
-          <Text style={s.sectionEyebrow}>Customer</Text>
-          <View style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
-            <View style={s.custAvatar}>
-              <Text style={s.custAvatarText}>{initials}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.custName}>{customerName}</Text>
-              <Text style={s.custSub}>42 Harbour St, Rozelle · 5 previous jobs</Text>
-            </View>
-            <TouchableOpacity style={s.iconAction} activeOpacity={0.7}>
-              <Phone size={16} color={INK} strokeWidth={2} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.iconAction} activeOpacity={0.7}>
-              <MessageSquare size={16} color={INK} strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
+          {customerName ? (
+            <>
+              <Text style={s.sectionEyebrow}>Customer</Text>
+              <View style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+                <View style={s.custAvatar}>
+                  <Text style={s.custAvatarText}>{initials}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.custName}>{customerName}</Text>
+                </View>
+                {customerPhone ? (
+                  <>
+                    <TouchableOpacity
+                      style={s.iconAction}
+                      activeOpacity={0.7}
+                      onPress={() => Linking.openURL(`tel:${customerPhone}`)}
+                    >
+                      <Phone size={16} color={INK} strokeWidth={2} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={s.iconAction}
+                      activeOpacity={0.7}
+                      onPress={() => Linking.openURL(`sms:${customerPhone}`)}
+                    >
+                      <MessageSquare size={16} color={INK} strokeWidth={2} />
+                    </TouchableOpacity>
+                  </>
+                ) : null}
+              </View>
+            </>
+          ) : null}
 
           {/* Line items */}
-          <Text style={s.sectionEyebrow}>Line items · {LINE_ITEMS.length}</Text>
+          <Text style={s.sectionEyebrow}>
+            Line items{displayItems.length > 0 ? ` · ${displayItems.length}` : ''}
+          </Text>
           <View style={[s.card, { padding: 0 }]}>
-            {LINE_ITEMS.map((item, i) => (
-              <View
-                key={i}
-                style={[s.lineRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}
-              >
-                <Text style={s.lineName}>{item.name}</Text>
-                <Text style={s.lineQty}>×{item.qty}</Text>
-                <Text style={s.lineAmt}>${(item.price * item.qty).toLocaleString()}</Text>
-              </View>
-            ))}
-            <View style={s.totalSection}>
-              {[
-                { label: 'Subtotal', value: subtotal, bold: false },
-                { label: 'GST (10%)', value: gst, bold: false },
-                { label: 'Total', value: total, bold: true },
-              ].map((row) => (
-                <View key={row.label} style={s.totalRow}>
-                  <Text style={[s.totalLabel, row.bold && { color: INK, fontFamily: 'Manrope_800ExtraBold', fontSize: 14 }]}>
-                    {row.label}
-                  </Text>
-                  <Text style={[s.totalValue, row.bold && { fontSize: 14, fontFamily: 'Manrope_800ExtraBold' }]}>
-                    ${row.value.toLocaleString()}
+            {displayItems.length > 0 ? (
+              displayItems.map((item, i) => (
+                <View key={i} style={[s.lineRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                  <Text style={s.lineName}>{item.name}</Text>
+                  <Text style={s.lineQty}>×{item.qty}</Text>
+                  <Text style={s.lineAmt}>
+                    ${item.total.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Text>
                 </View>
-              ))}
+              ))
+            ) : (
+              <View style={{ padding: 16 }}>
+                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED }}>
+                  No line items recorded
+                </Text>
+              </View>
+            )}
+            <View style={s.totalSection}>
+              {subtotal > 0 && (
+                <View style={s.totalRow}>
+                  <Text style={s.totalLabel}>Subtotal</Text>
+                  <Text style={s.totalValue}>
+                    ${subtotal.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              )}
+              {gst > 0 && (
+                <View style={s.totalRow}>
+                  <Text style={s.totalLabel}>GST (10%)</Text>
+                  <Text style={s.totalValue}>
+                    ${gst.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              )}
+              <View style={s.totalRow}>
+                <Text style={[s.totalLabel, { color: INK, fontFamily: 'Manrope_800ExtraBold', fontSize: 14 }]}>
+                  Total
+                </Text>
+                <Text style={[s.totalValue, { fontSize: 14, fontFamily: 'Manrope_800ExtraBold' }]}>
+                  ${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+              </View>
             </View>
           </View>
 
-          {/* History */}
-          <Text style={s.sectionEyebrow}>History</Text>
-          <View style={[s.card, { padding: 0 }]}>
-            {HISTORY.map((h, i) => (
-              <View key={i} style={[s.historyRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                <View style={[s.historyIcon, { backgroundColor: h.color + '22' }]}>
-                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: h.color }} />
-                </View>
-                <Text style={s.historyTitle}>{h.title}</Text>
-                <Text style={s.historyAgo}>{h.ago}</Text>
+          {/* Notes */}
+          {content.notes ? (
+            <>
+              <Text style={s.sectionEyebrow}>Notes</Text>
+              <View style={s.card}>
+                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED_HI, lineHeight: 20 }}>
+                  {content.notes}
+                </Text>
               </View>
-            ))}
-          </View>
+            </>
+          ) : null}
         </View>
       </ScrollView>
 
@@ -213,11 +278,13 @@ export default function QuoteDetailScreen() {
           <Text style={s.tweakBtnText}>Tweak</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={s.convertBtn}
+          style={[s.convertBtn, alreadyInvoiced && { backgroundColor: PAPER_DEEP }]}
           activeOpacity={0.8}
-          onPress={() => router.push('/invoices/create')}
+          onPress={handleConvert}
         >
-          <Text style={s.convertBtnText}>Convert to invoice ›</Text>
+          <Text style={[s.convertBtnText, alreadyInvoiced && { color: MUTED_HI }]}>
+            {alreadyInvoiced ? 'Already invoiced' : 'Convert to invoice ›'}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -348,12 +415,6 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_800ExtraBold',
     color: INK,
   },
-  custSub: {
-    fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
-    color: MUTED,
-    marginTop: 1,
-  },
   iconAction: {
     width: 36,
     height: 36,
@@ -386,7 +447,7 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
     color: INK,
-    minWidth: 60,
+    minWidth: 70,
     textAlign: 'right',
   },
   totalSection: {
@@ -408,31 +469,6 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Manrope_700Bold',
     color: INK,
-  },
-  historyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  historyIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  historyTitle: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'Manrope_600SemiBold',
-    color: INK,
-  },
-  historyAgo: {
-    fontSize: 11,
-    fontFamily: 'Manrope_700Bold',
-    color: MUTED,
   },
   bottomBar: {
     position: 'absolute',

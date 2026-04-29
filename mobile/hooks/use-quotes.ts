@@ -52,6 +52,24 @@ export function useUpdateQuote() {
   });
 }
 
+export function useQuoteItems(quoteId: number) {
+  return useQuery({
+    queryKey: [`/api/quotes/${quoteId}/items`],
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/quotes/${quoteId}/items`);
+      if (!res.ok) throw new Error('Failed to fetch quote items');
+      return res.json() as Promise<Array<{
+        id: number;
+        quoteId: number;
+        description: string;
+        quantity: number;
+        price: string;
+      }>>;
+    },
+    enabled: !!quoteId,
+  });
+}
+
 export function useDeleteQuote() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
