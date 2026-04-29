@@ -7,6 +7,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
@@ -14,6 +15,22 @@ import { useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
+import { Sparkles } from "lucide-react-native";
+
+const ORANGE      = '#f26a2a';
+const ORANGE_DEEP = '#d94d0e';
+const ORANGE_SOFT = '#ffe6d3';
+const INK         = '#141310';
+const BLACK       = '#0f0e0b';
+const PAPER       = '#f7f4ee';
+const PAPER_DEEP  = '#efe9dd';
+const CARD        = '#ffffff';
+const MUTED       = 'rgba(20,19,16,0.55)';
+const MUTED_HI    = 'rgba(20,19,16,0.72)';
+const LINE_SOFT   = 'rgba(20,19,16,0.08)';
+const LINE_MID    = 'rgba(20,19,16,0.18)';
+const RED_SOFT    = '#fde5e5';
+const RED         = '#d23b3b';
 
 export default function LoginScreen() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -22,9 +39,7 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.replace("/(tabs)");
-    }
+    if (isAuthenticated) router.replace("/(tabs)");
   }, [isAuthenticated]);
 
   const loginMutation = useMutation({
@@ -40,135 +55,121 @@ export default function LoginScreen() {
       queryClient.setQueryData(["/api/auth/user"], user);
       router.replace("/(tabs)");
     },
-    onError: (err: Error) => {
-      setError(err.message);
-    },
+    onError: (err: Error) => setError(err.message),
   });
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#2563eb" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: PAPER }}>
+        <ActivityIndicator size="large" color={ORANGE} />
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-white"
-    >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Hero Section */}
-        <View className="flex-1 bg-blue-50 px-8 pt-20 pb-12 justify-between">
-          <View>
-            {/* Logo */}
-            <View className="flex-row items-center gap-2 mb-10">
-              <View className="w-10 h-10 bg-primary rounded-xl items-center justify-center">
-                <Text className="text-white text-lg">🔧</Text>
-              </View>
-              <Text className="text-xl font-bold text-gray-900 ml-2">Vargenezey</Text>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1, backgroundColor: BLACK }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+
+        {/* Hero */}
+        <View style={s.hero}>
+          <View style={s.heroGlow} />
+          <View style={s.logoRow}>
+            <View style={s.logoIcon}>
+              <Text style={{ fontSize: 20 }}>🔧</Text>
             </View>
-
-            <Text className="text-4xl font-bold text-gray-900 leading-tight mb-4">
-              Admin for{"\n"}
-              <Text className="text-blue-600">Tradespeople</Text>
-              {"\n"}Who Hate Admin.
-            </Text>
-
-            <Text className="text-base text-gray-500 mb-8">
-              Create quotes, schedule jobs, and message customers in seconds.
-            </Text>
-
-            {/* Feature list */}
-            <Feature emoji="✨" text="AI Quote Generation" />
-            <Feature emoji="✅" text="Simple Job Scheduling" />
-            <Feature emoji="💬" text="Instant Customer Messaging" />
+            <Text style={s.logoText}>Vargen</Text>
           </View>
 
-          <Text className="text-xs text-gray-400 mt-8">
-            © {new Date().getFullYear()} Vargenezey App
+          <Text style={s.heroHeading}>
+            {"Admin for\n"}
+            <Text style={{ color: ORANGE }}>Tradies</Text>
+            {"\nWho Hate Admin."}
           </Text>
+
+          <Text style={s.heroSub}>
+            Quotes, jobs, and customer messages — done in seconds.
+          </Text>
+
+          <View style={{ marginTop: 28, gap: 12 }}>
+            <Feature emoji="✨" text="AI Quote Generation" />
+            <Feature emoji="📅" text="Simple Job Scheduling" />
+            <Feature emoji="💬" text="Instant Customer Messaging" />
+          </View>
         </View>
 
-        {/* Login Form */}
-        <View className="px-8 pt-8 pb-12 bg-white">
-          <Text className="text-2xl font-bold text-gray-900 mb-1">Welcome Back</Text>
-          <Text className="text-gray-500 mb-8">Sign in to manage your business.</Text>
+        {/* Form card */}
+        <View style={s.formCard}>
+          <Text style={s.formTitle}>Welcome back</Text>
+          <Text style={s.formSub}>Sign in to manage your business.</Text>
 
           {error && (
-            <View className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-              <Text className="text-red-600 text-sm">{error}</Text>
+            <View style={s.errorBox}>
+              <Text style={s.errorText}>{error}</Text>
             </View>
           )}
 
-          <View className="space-y-4 mb-6">
-            <View>
-              <Text className="text-sm font-medium text-gray-700 mb-1.5">Email</Text>
-              <TextInput
-                className="border border-gray-200 rounded-xl px-4 py-3.5 text-gray-900 bg-gray-50 text-base"
-                placeholder="you@example.com"
-                placeholderTextColor="#9ca3af"
-                value={username}
-                onChangeText={(v) => { setUsername(v); setError(null); }}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-              />
-            </View>
+          <View style={s.fieldWrap}>
+            <Text style={s.label}>Email</Text>
+            <TextInput
+              style={s.input}
+              placeholder="you@example.com"
+              placeholderTextColor={MUTED}
+              value={username}
+              onChangeText={(v) => { setUsername(v); setError(null); }}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+            />
+          </View>
 
-            <View className="mt-4">
-              <Text className="text-sm font-medium text-gray-700 mb-1.5">Password</Text>
-              <TextInput
-                className="border border-gray-200 rounded-xl px-4 py-3.5 text-gray-900 bg-gray-50 text-base"
-                placeholder="Enter your password"
-                placeholderTextColor="#9ca3af"
-                value={password}
-                onChangeText={(v) => { setPassword(v); setError(null); }}
-                secureTextEntry
-              />
-            </View>
+          <View style={[s.fieldWrap, { marginBottom: 24 }]}>
+            <Text style={s.label}>Password</Text>
+            <TextInput
+              style={s.input}
+              placeholder="Enter your password"
+              placeholderTextColor={MUTED}
+              value={password}
+              onChangeText={(v) => { setPassword(v); setError(null); }}
+              secureTextEntry
+            />
           </View>
 
           <TouchableOpacity
-            className="bg-blue-600 rounded-xl py-4 items-center mt-2"
+            style={[s.primaryBtn, (!username || !password || loginMutation.isPending) && { opacity: 0.6 }]}
             onPress={() => loginMutation.mutate({ username, password })}
             disabled={loginMutation.isPending || !username || !password}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            {loginMutation.isPending ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text className="text-white font-bold text-base">Sign In</Text>
-            )}
+            {loginMutation.isPending
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={s.primaryBtnText}>Sign In</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => router.push("/(auth)/forgot-password")}
-            className="mt-4 items-center py-2"
+            style={{ alignItems: 'center', paddingVertical: 14 }}
             activeOpacity={0.7}
           >
-            <Text className="text-blue-600 text-sm font-medium">Forgot your password?</Text>
+            <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: ORANGE }}>
+              Forgot your password?
+            </Text>
           </TouchableOpacity>
 
-          <View className="flex-row items-center my-4">
-            <View className="flex-1 h-px bg-gray-200" />
-            <Text className="text-gray-400 text-xs mx-3">or</Text>
-            <View className="flex-1 h-px bg-gray-200" />
+          <View style={s.divider}>
+            <View style={s.dividerLine} />
+            <Text style={s.dividerText}>or</Text>
+            <View style={s.dividerLine} />
           </View>
 
           <TouchableOpacity
             onPress={() => router.push("/(auth)/register")}
-            className="border border-blue-600 rounded-xl py-4 items-center"
-            activeOpacity={0.8}
+            style={s.secondaryBtn}
+            activeOpacity={0.85}
           >
-            <Text className="text-blue-600 font-bold text-base">Create Account</Text>
+            <Text style={s.secondaryBtnText}>Create Account</Text>
           </TouchableOpacity>
 
-          <Text className="text-xs text-gray-400 text-center mt-6">
+          <Text style={s.legal}>
             By continuing, you agree to our Terms of Service and Privacy Policy.
           </Text>
 
@@ -181,10 +182,10 @@ export default function LoginScreen() {
                   loginMutation.mutate({ username: devEmail, password: devPass });
                 }
               }}
-              className="mt-4 items-center py-3 border border-dashed border-yellow-400 rounded-xl bg-yellow-50"
+              style={s.devBtn}
               activeOpacity={0.7}
             >
-              <Text className="text-yellow-700 text-xs font-bold">⚡ DEV BYPASS — skip login</Text>
+              <Text style={s.devBtnText}>⚡ DEV BYPASS — skip login</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -195,11 +196,192 @@ export default function LoginScreen() {
 
 function Feature({ emoji, text }: { emoji: string; text: string }) {
   return (
-    <View className="flex-row items-center mb-3">
-      <View className="w-8 h-8 rounded-full bg-white shadow-sm border border-gray-100 items-center justify-center mr-3">
-        <Text>{emoji}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 16 }}>{emoji}</Text>
       </View>
-      <Text className="font-medium text-gray-900">{text}</Text>
+      <Text style={{ fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: 'rgba(255,255,255,0.8)' }}>{text}</Text>
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  hero: {
+    backgroundColor: BLACK,
+    paddingHorizontal: 28,
+    paddingTop: 72,
+    paddingBottom: 48,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -80,
+    right: -80,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: `${ORANGE}40`,
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 32,
+  },
+  logoIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: ORANGE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoText: {
+    fontSize: 22,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#fff',
+    letterSpacing: -0.5,
+  },
+  heroHeading: {
+    fontSize: 40,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#fff',
+    lineHeight: 44,
+    letterSpacing: -1.2,
+  },
+  heroSub: {
+    fontSize: 14,
+    fontFamily: 'Manrope_500Medium',
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 14,
+    lineHeight: 20,
+  },
+  formCard: {
+    backgroundColor: PAPER,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 28,
+    paddingTop: 32,
+    paddingBottom: 48,
+    marginTop: -24,
+  },
+  formTitle: {
+    fontSize: 26,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.6,
+    marginBottom: 4,
+  },
+  formSub: {
+    fontSize: 13,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+    marginBottom: 24,
+  },
+  errorBox: {
+    backgroundColor: RED_SOFT,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    fontSize: 13,
+    fontFamily: 'Manrope_600SemiBold',
+    color: RED,
+  },
+  fieldWrap: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 12,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED_HI,
+    marginBottom: 6,
+    letterSpacing: 0.2,
+  },
+  input: {
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: LINE_MID,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    fontFamily: 'Manrope_500Medium',
+    color: INK,
+  },
+  primaryBtn: {
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: ORANGE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: ORANGE,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  primaryBtnText: {
+    fontSize: 16,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#fff',
+    letterSpacing: -0.2,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: LINE_MID,
+  },
+  dividerText: {
+    fontSize: 11,
+    fontFamily: 'Manrope_600SemiBold',
+    color: MUTED,
+  },
+  secondaryBtn: {
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: ORANGE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryBtnText: {
+    fontSize: 15,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: ORANGE,
+    letterSpacing: -0.2,
+  },
+  legal: {
+    fontSize: 11,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+    textAlign: 'center',
+    marginTop: 20,
+    lineHeight: 16,
+  },
+  devBtn: {
+    marginTop: 16,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#d97706',
+    borderRadius: 12,
+    backgroundColor: '#fffbeb',
+  },
+  devBtnText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_700Bold',
+    color: '#92400e',
+  },
+});
+
+const MUTED_HI = 'rgba(20,19,16,0.72)';
