@@ -576,9 +576,9 @@ CRITICAL RULES — follow these exactly:
       messages.push({ role: "user", content: userContent });
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL?.includes("groq") ? "llama-3.3-70b-versatile" : "gpt-4o",
         messages,
-        max_completion_tokens: 4096,
+        max_tokens: 4096,
         response_format: { type: "json_object" },
       });
 
