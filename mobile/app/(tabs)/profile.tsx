@@ -13,10 +13,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useXeroStatus, useXeroDisconnect, useXeroSyncAll } from '@/hooks/use-xero';
 import { API_BASE_URL } from '@/lib/api';
+import { useCustomers } from '@/hooks/use-customers';
 import {
   FileText, Receipt, Calendar, MapPin, Sparkles,
   Bell, MessageSquare, Sun, Settings, LogOut, ChevronRight, Pencil,
-  Link, RefreshCw, Unlink, CheckCircle,
+  Link, RefreshCw, Unlink, CheckCircle, Users,
 } from 'lucide-react-native';
 
 const ORANGE      = '#f26a2a';
@@ -161,6 +162,7 @@ function XeroSection() {
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth() as any;
+  const { data: customers } = useCustomers();
   const firstName = user?.firstName || 'Andy';
   const lastName = user?.lastName || 'Hollister';
   const initials = ((firstName[0] || '') + (lastName[0] || '')).toUpperCase() || 'AH';
@@ -209,6 +211,15 @@ export default function ProfileScreen() {
             </View>
           ))}
         </View>
+
+        <SettingsGroup title="Customers" items={[
+          {
+            icon: Users,
+            label: 'Manage customers',
+            sub: `${(customers as any[])?.length ?? 0} on file`,
+            onPress: () => router.push('/customers' as any),
+          },
+        ]} />
 
         <SettingsGroup title="Business" items={[
           { icon: FileText,  label: 'Business details',       sub: 'ABN, logo, invoice footer' },
