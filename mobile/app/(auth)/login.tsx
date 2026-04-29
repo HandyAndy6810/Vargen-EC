@@ -383,5 +383,3 @@ const s = StyleSheet.create({
     color: '#92400e',
   },
 });
-
-const MUTED_HI = 'rgba(20,19,16,0.72)';
