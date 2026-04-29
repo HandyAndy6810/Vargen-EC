@@ -18,6 +18,7 @@ export default function RegisterScreen() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export default function RegisterScreen() {
         firstName: firstName.trim(),
         lastName: lastName.trim() || null,
         email: email.trim(),
+        phone: phone.trim() || null,
         password,
       });
       if (!res.ok) {
@@ -116,6 +118,20 @@ export default function RegisterScreen() {
               autoCorrect={false}
               keyboardType="email-address"
             />
+          </View>
+
+          <View className="mb-4">
+            <Text className="text-sm font-medium text-gray-700 mb-1.5">Mobile number <Text className="text-gray-400 font-normal">(optional)</Text></Text>
+            <TextInput
+              className="border border-gray-200 rounded-xl px-4 py-3.5 text-gray-900 bg-gray-50 text-base"
+              placeholder="+61 4XX XXX XXX"
+              placeholderTextColor="#9ca3af"
+              value={phone}
+              onChangeText={(v) => { setPhone(v); setError(null); }}
+              keyboardType="phone-pad"
+              autoCorrect={false}
+            />
+            <Text className="text-xs text-gray-400 mt-1">Used for SMS password reset</Text>
           </View>
 
           <View className="mb-4">

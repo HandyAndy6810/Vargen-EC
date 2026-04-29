@@ -171,6 +171,22 @@ export default function LoginScreen() {
           <Text className="text-xs text-gray-400 text-center mt-6">
             By continuing, you agree to our Terms of Service and Privacy Policy.
           </Text>
+
+          {__DEV__ && (
+            <TouchableOpacity
+              onPress={() => {
+                const devEmail = process.env.EXPO_PUBLIC_DEV_EMAIL;
+                const devPass = process.env.EXPO_PUBLIC_DEV_PASSWORD;
+                if (devEmail && devPass) {
+                  loginMutation.mutate({ username: devEmail, password: devPass });
+                }
+              }}
+              className="mt-4 items-center py-3 border border-dashed border-yellow-400 rounded-xl bg-yellow-50"
+              activeOpacity={0.7}
+            >
+              <Text className="text-yellow-700 text-xs font-bold">⚡ DEV BYPASS — skip login</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
