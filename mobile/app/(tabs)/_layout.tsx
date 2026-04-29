@@ -23,7 +23,7 @@ function FloatingTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.outer, { bottom: 22 + (insets.bottom > 20 ? insets.bottom - 20 : 0) }]} pointerEvents="box-none">
-      <BlurView intensity={60} tint="light" style={styles.blur}>
+      <BlurView intensity={90} tint="light" style={styles.blur}>
         <View style={styles.specular} pointerEvents="none" />
         <View style={styles.inner}>
           {TABS.map((tab, i) => {
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   inner: {
     flexDirection: 'row',
     padding: 5,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.6)',
   },
   tabItem: {
     flex: 1,

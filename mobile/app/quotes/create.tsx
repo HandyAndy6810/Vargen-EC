@@ -10,6 +10,9 @@ import {
 } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
+import { useMutation } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/api';
+import { queryClient } from '@/lib/queryClient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Sparkles, FileText, Plus, Trash2, Camera, Send } from 'lucide-react-native';
 
@@ -61,6 +64,22 @@ export default function QuoteCreateScreen() {
   const removeLine = (i: number) => setLines(prev => prev.filter((_, idx) => idx !== i));
   const updateLine = (i: number, key: keyof LineItem, val: string) =>
     setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [key]: val } : l));
+
+  const saveMutation = useMutation({
+    mutationFn: async (status: 'draft' | 'sent') => {
+      const res = await apiRequest('POST', '/api/quotes', {
+        totalAmount: String(total),
+        status,
+        content: JSON.stringify({ customerName: customer, jobTitle, schedDate, notes, lines }),
+      });
+      if (!res.ok) throw new Error('Failed to save quote');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+      router.back();
+    },
+  });
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
@@ -294,10 +313,10 @@ export default function QuoteCreateScreen() {
           </View>
         ) : (
           <View style={[s.bottomBar, { flexDirection: 'row', gap: 10 }]}>
-            <TouchableOpacity style={s.secondaryBtn} activeOpacity={0.7} onPress={() => router.back()}>
+            <TouchableOpacity style={s.secondaryBtn} activeOpacity={0.7} onPress={() => saveMutation.mutate('draft')} disabled={saveMutation.isPending}>
               <Text style={s.secondaryBtnText}>Save draft</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[s.primaryBtn, { flex: 2 }]} activeOpacity={0.8}>
+            <TouchableOpacity style={[s.primaryBtn, { flex: 2 }]} activeOpacity={0.8} onPress={() => saveMutation.mutate('sent')} disabled={saveMutation.isPending}>
               <Send size={16} color="#fff" strokeWidth={2} />
               <Text style={s.primaryBtnText}>Send to customer</Text>
             </TouchableOpacity>

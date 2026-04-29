@@ -138,7 +138,7 @@ export default function CalendarScreen() {
       </View>
 
       {/* Hour grid */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
         <View style={{ paddingLeft: 20, paddingRight: 8, position: 'relative' }}>
           <View style={{ paddingLeft: 44, position: 'relative' }}>
             {/* Hour lines */}

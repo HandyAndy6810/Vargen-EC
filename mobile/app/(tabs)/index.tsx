@@ -59,6 +59,12 @@ export default function HomeScreen() {
   const allQuotes = (quotes as any[]) || [];
   const allInvoices = (invoices as any[]) || [];
 
+  const weeklyGoal = 5000;
+  const weeklyRevenue = allInvoices
+    .filter((i: any) => i.status === 'paid')
+    .reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
+  const revenuePct = Math.min(100, Math.round((weeklyRevenue / weeklyGoal) * 100));
+
   const todayJobs = useMemo(() => {
     return allJobs.filter((j: any) => j.scheduledDate && isToday(new Date(j.scheduledDate)));
   }, [allJobs]);
@@ -111,9 +117,7 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
           <View style={s.weatherPill}>
-            <View style={s.weatherIcon}><Text style={{ fontSize: 14 }}>☀</Text></View>
-            <Text style={s.weatherTemp}>24°</Text>
-            <Text style={s.weatherCity}>· Sydney</Text>
+            <Text style={s.weatherTemp}>{dayName}</Text>
           </View>
         </View>
 
@@ -139,11 +143,15 @@ export default function HomeScreen() {
                   {nextJob ? `Up next · ${nextJob.scheduledDate ? format(new Date(nextJob.scheduledDate), 'h:mm a') : 'Soon'}` : 'No upcoming jobs'}
                 </Text>
               </View>
-              {nextJob?.scheduledDate && (
+              {nextJob?.estimatedDuration ? (
                 <View style={s.durationBadge}>
-                  <Text style={s.durationText}>1H 45M</Text>
+                  <Text style={s.durationText}>
+                    {nextJob.estimatedDuration >= 60
+                      ? `${Math.floor(nextJob.estimatedDuration / 60)}H${nextJob.estimatedDuration % 60 ? ` ${nextJob.estimatedDuration % 60}M` : ''}`
+                      : `${nextJob.estimatedDuration}M`}
+                  </Text>
                 </View>
-              )}
+              ) : null}
             </View>
 
             {nextJob ? (
@@ -198,19 +206,19 @@ export default function HomeScreen() {
             <Text style={s.eyebrow}>Week revenue</Text>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 8, marginBottom: 14 }}>
               <Text style={s.goalAmount}>
-                ${(allInvoices.filter((i: any) => i.status === 'paid').reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0) / 1000).toFixed(1)}k
+                ${weeklyRevenue >= 1000 ? (weeklyRevenue / 1000).toFixed(1) + 'k' : weeklyRevenue.toLocaleString()}
               </Text>
               <Text style={{ fontSize: 14, color: MUTED, fontFamily: 'Manrope_600SemiBold', marginBottom: 6 }}>/ $5,000 goal</Text>
             </View>
             <View style={s.progressBg}>
-              <View style={[s.progressFill, { width: '62%' }]} />
+              <View style={[s.progressFill, { width: `${revenuePct}%` as any }]} />
               {[25, 50, 75].map(m => (
                 <View key={m} style={[s.progressTick, { left: `${m}%` as DimensionValue }]} />
               ))}
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
               <Text style={{ fontSize: 11, color: MUTED_HI, fontFamily: 'Manrope_600SemiBold' }}>
-                <Text style={{ color: ORANGE, fontFamily: 'Manrope_700Bold' }}>62%</Text> there
+                <Text style={{ color: ORANGE, fontFamily: 'Manrope_700Bold' }}>{revenuePct}%</Text> there
               </Text>
               <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_600SemiBold' }}>
                 {todayJobs.length} jobs today
