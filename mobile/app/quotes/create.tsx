@@ -93,6 +93,7 @@ export default function QuoteCreateScreen() {
     }
   };
 
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

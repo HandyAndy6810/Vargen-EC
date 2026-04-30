@@ -18,6 +18,9 @@
       },
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://789c18da-bd62-484b-aa0c-9ad268e4fd86-00-396rx0taup16d.riker.replit.dev"
       }
     },
     "production": {
@@ -29,16 +32,16 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://vargen.replit.app"
+        "EXPO_PUBLIC_API_URL": "https://789c18da-bd62-484b-aa0c-9ad268e4fd86-00-396rx0taup16d.riker.replit.dev"
       }
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleId": "",
-        "ascAppId": "",
-        "appleTeamId": ""
+        "appleId": "andrew.youkhana@hotmail.com",
+        "ascAppId": "6764274442",
+        "appleTeamId": "CT7KM7KNYN"
       },
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",

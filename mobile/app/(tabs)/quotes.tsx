@@ -15,9 +15,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { queryClient } from '@/lib/queryClient';
 import { useQuotes } from '@/hooks/use-quotes';
 import { Plus, Search, Filter } from 'lucide-react-native';
-import type { Quote } from '@shared/schema';
+type Quote = {
+  id: number;
+  userId: string | null;
+  jobId: number | null;
+  customerId: number | null;
+  totalAmount: string;
+  status: string | null;
+  content: string | null;
+  xeroInvoiceId: string | null;
+  xeroInvoiceNumber: string | null;
+  shareToken: string | null;
+  followUpSchedule: string | null;
+  sentAt: Date | null;
+  createdAt: Date | null;
+};
 
-type QuoteWithJoins = Quote & { customerName?: string };
+type QuoteWithJoins = Quote & { customerName?: string; expiresAt?: Date | null };
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';

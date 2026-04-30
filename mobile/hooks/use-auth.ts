@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import type { User } from "@shared/models/auth";
+import type { User } from "@shared/mobile-types";
 import { apiRequest } from "@/lib/api";
 
 async function fetchUser(): Promise<User | null> {
