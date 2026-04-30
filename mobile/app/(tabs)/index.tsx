@@ -16,7 +16,7 @@ import { useJobs } from '@/hooks/use-jobs';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useInvoices } from '@/hooks/use-invoices';
 import { queryClient } from '@/lib/queryClient';
-import { Play, Navigation, MessageCircle, Sparkles, Mic } from 'lucide-react-native';
+import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users } from 'lucide-react-native';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -241,6 +241,30 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* W1: Quick Actions */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
+          <Text style={s.eyebrow}>Quick Actions</Text>
+          <View style={s.qaRow}>
+            {([
+              { Icon: Sparkles, label: 'New Quote',     color: ORANGE, bg: ORANGE_SOFT, route: '/ai-chat' },
+              { Icon: Briefcase, label: 'New Job',      color: BLUE,   bg: '#eaf2ff',  route: '/jobs/create' },
+              { Icon: Users,    label: 'Add Customer',  color: GREEN,  bg: GREEN_SOFT, route: '/customers/create' },
+            ] as const).map(({ Icon, label, color, bg, route }) => (
+              <TouchableOpacity
+                key={label}
+                style={[s.qaBtn, { backgroundColor: bg }]}
+                onPress={() => router.push(route as any)}
+                activeOpacity={0.75}
+              >
+                <View style={[s.qaIcon, { backgroundColor: color }]}>
+                  <Icon size={18} color="#fff" strokeWidth={2} />
+                </View>
+                <Text style={[s.qaLabel, { color }]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         {/* Goal Block */}
         <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
           <View style={s.goalCard}>
@@ -299,48 +323,36 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
-        {/* Today's Schedule */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+        {/* W2: Schedule Strip */}
+        <View style={{ paddingTop: 18 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginBottom: 12 }}>
             <View>
-              <Text style={s.eyebrow}>Today · {todayJobs.length} stops</Text>
-              <Text style={s.sectionTitle}>Out the door by 9.</Text>
+              <Text style={s.eyebrow}>Today's Schedule</Text>
+              <Text style={s.sectionTitle}>{todayJobs.length} {todayJobs.length === 1 ? 'stop' : 'stops'} today</Text>
             </View>
             <TouchableOpacity onPress={() => router.push('/jobs/list')}>
               <Text style={s.seeAll}>See all →</Text>
             </TouchableOpacity>
           </View>
-
           {todayJobs.length === 0 ? (
-            <View style={s.emptyTimeline}>
-              <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED }}>Nothing scheduled today</Text>
+            <View style={{ paddingHorizontal: 20 }}>
+              <View style={s.emptyCard}>
+                <Text style={s.emptyText}>Nothing on the books today</Text>
+              </View>
             </View>
           ) : (
-            todayJobs.map((job: any, i: number) => {
-              const isLast = i === todayJobs.length - 1;
-              const dotC = i === 0 ? ORANGE : BLUE;
-              return (
-                <TouchableOpacity key={job.id} onPress={() => router.push(`/jobs/${job.id}`)} activeOpacity={0.7}>
-                  <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 12 }}>
-                    <View style={[s.timeGutter, { width: 54 }]}>
-                      <Text style={s.timeMain}>{job.scheduledDate ? format(new Date(job.scheduledDate), 'h:mm') : '--'}</Text>
-                      <Text style={s.timeAmPm}>{job.scheduledDate ? format(new Date(job.scheduledDate), 'a') : ''}</Text>
-                      <View style={[s.timeRail, { backgroundColor: dotC, bottom: isLast ? 'auto' : -14, height: isLast ? 20 : undefined }]} />
-                      <View style={[s.timeDot, { backgroundColor: dotC, borderColor: PAPER }]} />
-                    </View>
-                    <View style={[s.timelineCard, { marginBottom: isLast ? 0 : 14 }]}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                        <Text style={s.timelineTitle}>{job.title}</Text>
-                        <Text style={s.timelineDur}>90m</Text>
-                      </View>
-                      <Text style={s.timelineSub}>
-                        {(job as any).customerName || 'Customer'}{(job as any).address ? ` · ${(job as any).address}` : ''}
-                      </Text>
-                    </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10, paddingBottom: 4 }}>
+              {todayJobs.map((job: any, i: number) => (
+                <TouchableOpacity key={job.id} style={s.scheduleCard} onPress={() => router.push(`/jobs/${job.id}`)} activeOpacity={0.75}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <View style={[s.scheduleDot, { backgroundColor: i === 0 ? ORANGE : BLUE }]} />
+                    <Text style={s.scheduleTime}>{job.scheduledDate ? format(new Date(job.scheduledDate), 'h:mm a') : 'TBC'}</Text>
                   </View>
+                  <Text style={s.scheduleTitle} numberOfLines={2}>{job.title}</Text>
+                  <Text style={s.scheduleSub} numberOfLines={1}>{(job as any).customerName || 'Customer'}</Text>
                 </TouchableOpacity>
-              );
-            })
+              ))}
+            </ScrollView>
           )}
         </View>
 
@@ -783,6 +795,78 @@ const s = StyleSheet.create({
   activityTime: {
     fontSize: 10,
     fontFamily: 'Manrope_600SemiBold',
+    color: MUTED,
+  },
+  qaRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  qaBtn: {
+    flex: 1,
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    gap: 8,
+  },
+  qaIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qaLabel: {
+    fontSize: 11,
+    fontFamily: 'Manrope_700Bold',
+    textAlign: 'center',
+  },
+  scheduleCard: {
+    width: 148,
+    backgroundColor: CARD,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+  },
+  scheduleDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  scheduleTime: {
+    fontSize: 11,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED_HI,
+  },
+  scheduleTitle: {
+    fontSize: 13,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.2,
+    lineHeight: 17,
+    marginBottom: 4,
+  },
+  scheduleSub: {
+    fontSize: 11,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+  },
+  emptyCard: {
+    backgroundColor: CARD,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+    paddingVertical: 18,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 13,
+    fontFamily: 'Manrope_500Medium',
     color: MUTED,
   },
 });
