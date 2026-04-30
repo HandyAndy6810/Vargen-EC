@@ -104,6 +104,10 @@ export default function AiChatScreen() {
           body: JSON.stringify({
             description,
             customerName: customerName.trim() || undefined,
+            tradeType: tradeType.trim() || undefined,
+            labourRate: labourRate ? parseFloat(labourRate) : undefined,
+            callOutFee: calloutFeeEnabled && calloutFeeAmount ? parseFloat(calloutFeeAmount) : 0,
+            includeGST: true,
           }),
           signal: controller.signal,
         });
@@ -167,12 +171,10 @@ export default function AiChatScreen() {
     if (prefill) setDescription(prefill);
     setError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    let fullDesc = baseDesc.trim();
-    if (tradeType) fullDesc += `\nTrade: ${tradeType}`;
-    if (labourRate) fullDesc += `\nLabour rate: $${labourRate}/hr`;
-    if (labourHours) fullDesc += `\nEstimated labour: ${labourHours} hours`;
-    if (calloutFeeEnabled && calloutFeeAmount) fullDesc += `\nCallout fee: $${calloutFeeAmount}`;
-    generateMutation.mutate({ description: fullDesc, customerName });
+    const desc = labourHours.trim()
+      ? `${baseDesc.trim()}\nEstimated labour: ${labourHours} hours`
+      : baseDesc.trim();
+    generateMutation.mutate({ description: desc, customerName });
   };
 
   const goBack = () => {

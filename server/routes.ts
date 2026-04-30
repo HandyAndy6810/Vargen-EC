@@ -108,6 +108,8 @@ async function syncCustomerToXero(
 }
 
 let openai: OpenAI;
+const isGroq = (process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || '').includes('groq');
+const AI_MODEL = isGroq ? 'llama-3.3-70b-versatile' : 'gpt-4o';
 try {
   openai = new OpenAI({
     apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -474,7 +476,19 @@ export async function registerRoutes(
       const tradeContext = tradeType && tradeType !== "general" ? `\nThe tradesperson is a ${tradeType}. Use pricing, terminology, units of measure, and compliance requirements specific to this trade.` : "";
       const tradeKnowledge = getTradeContext(tradeType || "general");
 
-      const systemPrompt = `You are a senior Australian trade contractor with 15+ years of experience writing detailed, professional quotes. Your quotes win jobs because they are specific, thorough, and priced correctly for the Australian market.${tradeContext}
+      const businessProfile = [
+        tradeType && tradeType !== "general" ? `Trade: ${tradeType}` : null,
+        labourRateNum ? `Labour rate: $${labourRateNum}/hr` : null,
+        callOutNum > 0 ? `Callout fee: $${callOutNum}` : null,
+        gstEnabled ? `GST: 10% included in totals` : `GST: all prices GST-exclusive`,
+        markupNum > 0 ? `Materials markup: ${markupNum}%` : null,
+      ].filter(Boolean).join('\n');
+
+      const systemPrompt = `You are Trade Pal — an AI quoting assistant built specifically for Australian tradespeople. Your job is to generate fast, accurate, professional quotes that help tradies win work and get paid what they're worth.
+
+You understand Australian trade work deeply: realistic 2025 pricing, AS/NZS compliance requirements, how clients think, and the small line items that most people forget (consumables, disposal, compliance paperwork, cleanup time). You write quotes that are specific enough to be legally defensible, yet clear enough that a client with no trade knowledge can understand exactly what they're getting.
+
+${businessProfile ? `BUSINESS PROFILE — apply these settings to every quote:\n${businessProfile}\n` : ''}
 
 You MUST respond with valid JSON in this exact format:
 {
@@ -576,9 +590,9 @@ CRITICAL RULES — follow these exactly:
       messages.push({ role: "user", content: userContent });
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: AI_MODEL,
         messages,
-        max_completion_tokens: 4096,
+        max_tokens: 4096,
         response_format: { type: "json_object" },
       });
 
