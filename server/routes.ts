@@ -591,7 +591,11 @@ CRITICAL RULES — follow these exactly:
         text: `Generate a quote for this job:\n\n${description}${customerName ? `\n\nClient: ${customerName}` : ""}`,
       });
 
-      if (imageBase64) {
+      const imagePayload = typeof imageBase64 === 'string'
+        ? (imageBase64.includes(';base64,') ? imageBase64.split(';base64,')[1] : imageBase64)
+        : null;
+
+      if (imagePayload && imagePayload.length > 128) {
         userContent.push({
           type: "image_url",
           image_url: {
@@ -634,7 +638,13 @@ CRITICAL RULES — follow these exactly:
       res.json(parsed);
     } catch (error: any) {
       console.error("Quote generation error:", error);
-      res.status(500).json({ message: error?.message || "Failed to generate quote" });
+      const msg: string = error?.message || "";
+      const isImageError = /image|invalid.*url|unsupported.*media/i.test(msg) || error?.status === 400;
+      res.status(isImageError ? 400 : 500).json({
+        message: isImageError
+          ? "The attached image couldn't be read — try a clearer photo or remove it and describe the job instead."
+          : (msg || "Failed to generate quote"),
+      });
     }
   });
 

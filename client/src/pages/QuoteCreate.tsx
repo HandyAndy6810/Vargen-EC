@@ -432,7 +432,16 @@ export default function QuoteCreate() {
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => { const r = reader.result as string; setPhotoPreview(r); setPhotoBase64(r); };
+    reader.onload = () => {
+      const r = reader.result as string;
+      const payload = r?.split(';base64,')[1] ?? '';
+      if (!payload || payload.length < 128) {
+        toast({ title: "Blank image", description: "That image appears to be empty. Try a different photo.", variant: "destructive" });
+        return;
+      }
+      setPhotoPreview(r);
+      setPhotoBase64(r);
+    };
     reader.readAsDataURL(file);
   };
 
