@@ -1,7 +1,7 @@
 import { db } from "./db";
 import {
   customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
-  invoices, jobTimerEntries, portalFeedback, jobTemplates,
+  invoices, jobTimerEntries, portalFeedback, jobTemplates, priceBook,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem,
@@ -9,7 +9,8 @@ import {
   type Invoice, type InsertInvoice,
   type JobTimerEntry, type InsertJobTimerEntry,
   type PortalFeedback, type InsertPortalFeedback,
-  type JobTemplate, type InsertJobTemplate
+  type JobTemplate, type InsertJobTemplate,
+  type PriceBookItem, type InsertPriceBookItem,
 } from "../shared/schema";
 import { eq, desc, isNull, and, sql } from "drizzle-orm";
 
@@ -82,6 +83,12 @@ export interface IStorage {
   getXeroToken(userId: string): Promise<XeroToken | undefined>;
   upsertXeroToken(userId: string, token: Omit<InsertXeroToken, "userId">): Promise<XeroToken>;
   deleteXeroToken(userId: string): Promise<void>;
+
+  // Price Book
+  getPriceBook(userId: string): Promise<PriceBookItem[]>;
+  createPriceBookItem(item: InsertPriceBookItem): Promise<PriceBookItem>;
+  updatePriceBookItem(id: number, userId: string, updates: Partial<InsertPriceBookItem>): Promise<PriceBookItem>;
+  deletePriceBookItem(id: number, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -394,6 +401,30 @@ export class DatabaseStorage implements IStorage {
 
   async deleteXeroToken(userId: string): Promise<void> {
     await db.delete(xeroTokens).where(eq(xeroTokens.userId, userId));
+  }
+
+  // ── Price Book ───────────────────────────────────────────────────────
+  async getPriceBook(userId: string): Promise<PriceBookItem[]> {
+    return await db.select().from(priceBook)
+      .where(eq(priceBook.userId, userId))
+      .orderBy(priceBook.category, priceBook.description);
+  }
+
+  async createPriceBookItem(item: InsertPriceBookItem): Promise<PriceBookItem> {
+    const [newItem] = await db.insert(priceBook).values(item).returning();
+    return newItem;
+  }
+
+  async updatePriceBookItem(id: number, userId: string, updates: Partial<InsertPriceBookItem>): Promise<PriceBookItem> {
+    const [updated] = await db.update(priceBook)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(priceBook.id, id), eq(priceBook.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deletePriceBookItem(id: number, userId: string): Promise<void> {
+    await db.delete(priceBook).where(and(eq(priceBook.id, id), eq(priceBook.userId, userId)));
   }
 }
 

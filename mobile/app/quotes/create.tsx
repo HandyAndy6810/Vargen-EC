@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
@@ -33,19 +34,21 @@ type Mode = 'ai' | 'form';
 
 type LineItem = { name: string; qty: string; price: string };
 
-const DEFAULT_LINES: LineItem[] = [
-  { name: 'Rheem 315L HWU',     qty: '1', price: '1420' },
-  { name: 'Labour (2hrs @ $90)', qty: '2', price: '90'  },
+// Trade-specific quick suggestions — update when trade type is added to user profile
+const QUICK_SUGGESTIONS = [
+  'Replace hot water system — Rheem 315L, same location',
+  'Fix leaking tap — kitchen mixer, supply new cartridge',
+  'Unblock drain — high pressure water jetting',
+  'Install new toilet suite — supply and fit Caroma',
 ];
 
-const SUGGESTIONS = [
-  "Swap hot water at Dalton's for $1,840",
-  'Quote bathroom reno for K Ng, Newtown',
-  "Invoice last week's tap fix for J Chen",
+const DEFAULT_LINES: LineItem[] = [
+  { name: '', qty: '1', price: '' },
 ];
 
 export default function QuoteCreateScreen() {
   const [mode, setMode] = useState<Mode>('ai');
+  const [aiDescription, setAiDescription] = useState('');
   const [customer, setCustomer]   = useState('');
   const [jobTitle, setJobTitle]   = useState('');
   const [schedDate, setSchedDate] = useState('');
@@ -80,6 +83,16 @@ export default function QuoteCreateScreen() {
       router.back();
     },
   });
+
+  const handleStartWithAI = () => {
+    const desc = aiDescription.trim();
+    if (desc) {
+      router.push(`/ai-chat?description=${encodeURIComponent(desc)}` as any);
+    } else {
+      router.push('/ai-chat');
+    }
+  };
+
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
@@ -137,13 +150,25 @@ export default function QuoteCreateScreen() {
               </Text>
             </View>
 
-            {/* Suggestions */}
-            <Text style={s.sectionEyebrow}>Try one of these</Text>
+            {/* Text input */}
+            <TextInput
+              style={s.descInput}
+              placeholder="e.g. Replace hot water system at Smiths place, Rheem 315L…"
+              placeholderTextColor={MUTED}
+              value={aiDescription}
+              onChangeText={setAiDescription}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+
+            {/* Quick suggestions */}
+            <Text style={s.sectionEyebrow}>Quick suggestions</Text>
             <View style={{ gap: 8, marginBottom: 14 }}>
-              {SUGGESTIONS.map((sug, i) => (
+              {QUICK_SUGGESTIONS.map((sug, i) => (
                 <TouchableOpacity
                   key={i}
-                  onPress={() => router.push('/ai-chat')}
+                  onPress={() => setAiDescription(sug)}
                   activeOpacity={0.7}
                   style={s.sugRow}
                 >
@@ -160,9 +185,13 @@ export default function QuoteCreateScreen() {
                 <Camera size={18} color={INK} strokeWidth={2} />
                 <Text style={s.quickBtnText}>Photo / receipt</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.quickBtn, { flex: 1 }]} activeOpacity={0.7} onPress={() => setMode('form')}>
+              <TouchableOpacity
+                style={[s.quickBtn, { flex: 1 }]}
+                activeOpacity={0.7}
+                onPress={() => Alert.alert('Templates', 'Quote templates are coming soon.\n\nYou\'ll be able to save any quote as a template and reuse it with one tap.', [{ text: 'Got it' }])}
+              >
                 <FileText size={18} color={INK} strokeWidth={2} />
-                <Text style={s.quickBtnText}>Blank form</Text>
+                <Text style={s.quickBtnText}>From template</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -305,7 +334,7 @@ export default function QuoteCreateScreen() {
             <TouchableOpacity
               style={s.primaryBtn}
               activeOpacity={0.8}
-              onPress={() => router.push('/ai-chat')}
+              onPress={handleStartWithAI}
             >
               <Sparkles size={18} color="#fff" strokeWidth={2} />
               <Text style={s.primaryBtnText}>Start with AI</Text>
@@ -437,6 +466,18 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_500Medium',
     color: 'rgba(255,255,255,0.55)',
     lineHeight: 20,
+  },
+  descInput: {
+    backgroundColor: CARD,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: LINE_MID,
+    padding: 14,
+    fontSize: 14,
+    fontFamily: 'Manrope_600SemiBold',
+    color: INK,
+    minHeight: 80,
+    marginBottom: 20,
   },
   sugRow: {
     flexDirection: 'row',

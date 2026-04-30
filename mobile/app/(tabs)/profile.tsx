@@ -17,7 +17,7 @@ import { useCustomers } from '@/hooks/use-customers';
 import {
   FileText, Receipt, Calendar, MapPin, Sparkles,
   Bell, MessageSquare, Sun, Settings, LogOut, ChevronRight, Pencil,
-  Link, RefreshCw, Unlink, CheckCircle, Users,
+  Link, RefreshCw, Unlink, CheckCircle, BookOpen, Users,
 } from 'lucide-react-native';
 
 const ORANGE      = '#f26a2a';
@@ -230,6 +230,7 @@ export default function ProfileScreen() {
 
         <SettingsGroup title="AI & automations" items={[
           { icon: Sparkles,       label: 'AI quoting',    sub: 'Tone, default margins, templates', badge: 'Pro' },
+          { icon: BookOpen,       label: 'Price book',    sub: 'Your material prices for AI quotes', onPress: () => router.push('/price-book' as any) },
           { icon: Bell,           label: 'Reminders',     sub: 'Overdue nudges, review requests' },
           { icon: MessageSquare,  label: 'SMS templates', sub: '4 templates · 1 draft' },
         ]} />

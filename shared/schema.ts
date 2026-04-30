@@ -218,6 +218,22 @@ export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ 
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 
+export const priceBook = pgTable("price_book", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  description: text("description").notNull(),
+  unit: text("unit").notNull().default("each"),
+  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+  supplier: text("supplier"),
+  category: text("category"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPriceBookSchema = createInsertSchema(priceBook).omit({ id: true, createdAt: true, updatedAt: true });
+export type PriceBookItem = typeof priceBook.$inferSelect;
+export type InsertPriceBookItem = z.infer<typeof insertPriceBookSchema>;
+
 // Schemas
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const insertJobSchema = createInsertSchema(jobs).omit({ id: true, createdAt: true });

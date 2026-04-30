@@ -108,6 +108,8 @@ async function syncCustomerToXero(
 }
 
 let openai: OpenAI;
+const isGroq = (process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || '').includes('groq');
+const AI_MODEL = isGroq ? 'llama-3.3-70b-versatile' : 'gpt-4o';
 try {
   openai = new OpenAI({
     apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -474,7 +476,19 @@ export async function registerRoutes(
       const tradeContext = tradeType && tradeType !== "general" ? `\nThe tradesperson is a ${tradeType}. Use pricing, terminology, units of measure, and compliance requirements specific to this trade.` : "";
       const tradeKnowledge = getTradeContext(tradeType || "general");
 
-      const systemPrompt = `You are a senior Australian trade contractor with 15+ years of experience writing detailed, professional quotes. Your quotes win jobs because they are specific, thorough, and priced correctly for the Australian market.${tradeContext}
+      const businessProfile = [
+        tradeType && tradeType !== "general" ? `Trade: ${tradeType}` : null,
+        labourRateNum ? `Labour rate: $${labourRateNum}/hr` : null,
+        callOutNum > 0 ? `Callout fee: $${callOutNum}` : null,
+        gstEnabled ? `GST: 10% included in totals` : `GST: all prices GST-exclusive`,
+        markupNum > 0 ? `Materials markup: ${markupNum}%` : null,
+      ].filter(Boolean).join('\n');
+
+      const systemPrompt = `You are Trade Pal — an AI quoting assistant built specifically for Australian tradespeople. Your job is to generate fast, accurate, professional quotes that help tradies win work and get paid what they're worth.
+
+You understand Australian trade work deeply: realistic 2025 pricing, AS/NZS compliance requirements, how clients think, and the small line items that most people forget (consumables, disposal, compliance paperwork, cleanup time). You write quotes that are specific enough to be legally defensible, yet clear enough that a client with no trade knowledge can understand exactly what they're getting.
+
+${businessProfile ? `BUSINESS PROFILE — apply these settings to every quote:\n${businessProfile}\n` : ''}
 
 You MUST respond with valid JSON in this exact format:
 {
@@ -556,6 +570,20 @@ CRITICAL RULES — follow these exactly:
         // Non-critical — continue without past quote context
       }
 
+      // Inject user's personal price book
+      try {
+        const priceBookItems = await storage.getPriceBook(req.userId);
+        if (priceBookItems.length > 0) {
+          const priceBookContext = `\n\nTHIS TRADESPERSON'S OWN PRICE BOOK — These are their real negotiated prices with their supplier. Use these EXACT prices when the item matches. Do not substitute a different price from the reference data.\n${priceBookItems.map(item =>
+            `• ${item.description} — $${item.price} / ${item.unit}${item.supplier ? ` (${item.supplier})` : ''}${item.category ? ` [${item.category}]` : ''}`
+          ).join('\n')}`;
+          messages.push({ role: "system", content: priceBookContext });
+        }
+      } catch (err) {
+        console.error("Failed to load price book for AI context:", err);
+        // Non-critical — continue without price book context
+      }
+
       const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
 
       userContent.push({
@@ -576,7 +604,7 @@ CRITICAL RULES — follow these exactly:
       messages.push({ role: "user", content: userContent });
 
       const response = await openai.chat.completions.create({
-        model: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL?.includes("groq") ? "llama-3.3-70b-versatile" : "gpt-4o",
+        model: AI_MODEL,
         messages,
         max_tokens: 4096,
         response_format: { type: "json_object" },
@@ -1205,6 +1233,61 @@ CRITICAL RULES — follow these exactly:
     } catch (err) {
       console.error("Activity fetch error:", err);
       res.status(500).json({ message: "Failed to fetch activity" });
+    }
+  });
+
+  // ─── Price Book ───
+
+  app.get("/api/price-book", requireAuth, async (req: any, res) => {
+    try {
+      const items = await storage.getPriceBook(req.userId);
+      res.json(items);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch price book" });
+    }
+  });
+
+  app.post("/api/price-book", requireAuth, async (req: any, res) => {
+    try {
+      const { description, unit, price, supplier, category } = req.body;
+      if (!description || price == null) return res.status(400).json({ message: "description and price are required" });
+      const item = await storage.createPriceBookItem({
+        userId: req.userId,
+        description: String(description),
+        unit: unit || "each",
+        price: String(price),
+        supplier: supplier || null,
+        category: category || null,
+      });
+      res.status(201).json(item);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to create price book item" });
+    }
+  });
+
+  app.patch("/api/price-book/:id", requireAuth, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { description, unit, price, supplier, category } = req.body;
+      const updates: Record<string, any> = {};
+      if (description !== undefined) updates.description = String(description);
+      if (unit !== undefined) updates.unit = unit;
+      if (price !== undefined) updates.price = String(price);
+      if (supplier !== undefined) updates.supplier = supplier;
+      if (category !== undefined) updates.category = category;
+      const item = await storage.updatePriceBookItem(id, req.userId, updates);
+      res.json(item);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update price book item" });
+    }
+  });
+
+  app.delete("/api/price-book/:id", requireAuth, async (req: any, res) => {
+    try {
+      await storage.deletePriceBookItem(Number(req.params.id), req.userId);
+      res.status(204).end();
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete price book item" });
     }
   });
 
