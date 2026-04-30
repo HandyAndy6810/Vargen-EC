@@ -8,7 +8,7 @@ import {
   type DimensionValue,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { format, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
@@ -34,6 +34,49 @@ const MUTED       = 'rgba(20,19,16,0.55)';
 const MUTED_HI    = 'rgba(20,19,16,0.72)';
 const LINE_SOFT   = 'rgba(20,19,16,0.08)';
 const LINE_MID    = 'rgba(20,19,16,0.14)';
+
+const PILL_STATES = 4;
+
+function CyclingPill({ nextJob, pipelineAmt }: { nextJob: any; pipelineAmt: number }) {
+  const [idx, setIdx] = useState(0);
+  const [locked, setLocked] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (locked) return;
+    timerRef.current = setInterval(() => setIdx(i => (i + 1) % PILL_STATES), 4000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [locked]);
+
+  const now = new Date();
+  const states = [
+    { icon: '☀️', label: 'Fine · --°' },
+    { icon: '🕐', label: format(now, "EEE d · h:mm a") },
+    { icon: '📍', label: nextJob ? nextJob.title.slice(0, 22) : 'No jobs' },
+    { icon: '💰', label: pipelineAmt >= 1000 ? `$${(pipelineAmt / 1000).toFixed(1)}k out` : `$${pipelineAmt} out` },
+  ];
+
+  const advance = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setIdx(i => (i + 1) % PILL_STATES);
+    if (!locked) {
+      timerRef.current = setInterval(() => setIdx(i => (i + 1) % PILL_STATES), 4000);
+    }
+  };
+
+  const { icon, label } = states[idx];
+
+  return (
+    <TouchableOpacity
+      style={s.cyclingPill}
+      onPress={advance}
+      onLongPress={() => setLocked(l => !l)}
+      activeOpacity={0.8}
+    >
+      <Text style={s.cyclingPillText}>{icon}  {label}{locked ? '  🔒' : ''}</Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -116,9 +159,7 @@ export default function HomeScreen() {
               <Text style={s.avatarText}>{initials}</Text>
             </View>
           </TouchableOpacity>
-          <View style={s.weatherPill}>
-            <Text style={s.weatherTemp}>{dayName}</Text>
-          </View>
+          <CyclingPill nextJob={nextJob} pipelineAmt={pipelineAmt} />
         </View>
 
         {/* Hero greeting */}
@@ -360,17 +401,18 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_800ExtraBold',
     letterSpacing: -0.2,
   },
-  weatherPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 6,
-    paddingLeft: 6,
-    paddingRight: 12,
+  cyclingPill: {
+    paddingVertical: 7,
+    paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: 'rgba(255,255,255,0.75)',
     borderWidth: 1,
     borderColor: LINE_SOFT,
+  },
+  cyclingPillText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
   },
   weatherIcon: {
     width: 26,
