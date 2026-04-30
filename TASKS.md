@@ -2,6 +2,10 @@
 
 Items the user asked to address later. Check here when unsure what to work on next.
 
+## Before Next EAS Build
+
+- [ ] **Re-enable new arch** — Set `"newArchEnabled": true` in `mobile/app.json` before running `eas build`. Currently disabled so Expo Go works in dev. New arch = better production performance.
+
 ## Pending
 
 - [ ] **Trade type on sign-up** — Add trade type selector to registration screen. Pre-fill quick suggestions and AI context from this value. Also expose it in user profile settings so it can be changed later.
