@@ -35,6 +35,15 @@ const MUTED_HI    = 'rgba(20,19,16,0.72)';
 const LINE_SOFT   = 'rgba(20,19,16,0.08)';
 const LINE_MID    = 'rgba(20,19,16,0.14)';
 
+const QUOTE_STATUS: Record<string, { bg: string; text: string }> = {
+  draft:    { bg: '#f0f0ee', text: '#6b6b60' },
+  sent:     { bg: '#e8f0fe', text: '#1a56db' },
+  viewed:   { bg: '#fef3c7', text: '#92400e' },
+  accepted: { bg: '#d1fae5', text: '#065f46' },
+  declined: { bg: '#fde5e5', text: '#b91c1c' },
+  expired:  { bg: '#f3f4f6', text: '#9ca3af' },
+};
+
 const PILL_STATES = 4;
 
 function CyclingPill({ nextJob, pipelineAmt }: { nextJob: any; pipelineAmt: number }) {
@@ -130,6 +139,12 @@ export default function HomeScreen() {
   const pipelineAmt = allQuotes
     .filter((q: any) => ['sent', 'viewed', 'accepted'].includes(q.status))
     .reduce((s: number, q: any) => s + (Number(q.totalAmount) || 0), 0);
+
+  const totalPaid    = allInvoices.filter((i: any) => i.status === 'paid').reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0);
+  const totalPending = allInvoices.filter((i: any) => ['sent', 'pending', 'unpaid'].includes(i.status)).reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0);
+  const totalOverdue = allInvoices.filter((i: any) => i.status === 'overdue').reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0);
+
+  const recentQuotes = useMemo(() => allQuotes.slice(0, 5), [allQuotes]);
 
   const activityItems = useMemo(() => {
     const items: any[] = [];
@@ -265,30 +280,23 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Goal Block */}
+        {/* W4: Revenue Snapshot */}
         <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
-          <View style={s.goalCard}>
-            <Text style={s.eyebrow}>Week revenue</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 8, marginBottom: 14 }}>
-              <Text style={s.goalAmount}>
-                ${weeklyRevenue >= 1000 ? (weeklyRevenue / 1000).toFixed(1) + 'k' : weeklyRevenue.toLocaleString()}
-              </Text>
-              <Text style={{ fontSize: 14, color: MUTED, fontFamily: 'Manrope_600SemiBold', marginBottom: 6 }}>/ $5,000 goal</Text>
-            </View>
-            <View style={s.progressBg}>
-              <View style={[s.progressFill, { width: `${revenuePct}%` as any }]} />
-              {[25, 50, 75].map(m => (
-                <View key={m} style={[s.progressTick, { left: `${m}%` as DimensionValue }]} />
-              ))}
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-              <Text style={{ fontSize: 11, color: MUTED_HI, fontFamily: 'Manrope_600SemiBold' }}>
-                <Text style={{ color: ORANGE, fontFamily: 'Manrope_700Bold' }}>{revenuePct}%</Text> there
-              </Text>
-              <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_600SemiBold' }}>
-                {todayJobs.length} jobs today
-              </Text>
-            </View>
+          <Text style={[s.eyebrow, { marginBottom: 10 }]}>Revenue Snapshot</Text>
+          <View style={s.rvCard}>
+            {([
+              { label: 'Paid',    amount: totalPaid,    color: GREEN,  bg: GREEN_SOFT },
+              { label: 'Pending', amount: totalPending, color: BLUE,   bg: '#eaf2ff'  },
+              { label: 'Overdue', amount: totalOverdue, color: ORANGE, bg: ORANGE_SOFT },
+            ] as const).map((col, i) => (
+              <View key={col.label} style={[s.rvCol, i > 0 && { borderLeftWidth: 1, borderLeftColor: LINE_SOFT }]}>
+                <Text style={[s.rvAmt, { color: col.color }]}>
+                  {col.amount >= 1000 ? `$${(col.amount / 1000).toFixed(1)}k` : `$${col.amount}`}
+                </Text>
+                <View style={[s.rvDot, { backgroundColor: col.bg }]} />
+                <Text style={s.rvLabel}>{col.label}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -321,6 +329,44 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+        </View>
+
+        {/* W5: Recent Quotes */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+            <View>
+              <Text style={s.eyebrow}>Recent Quotes</Text>
+              <Text style={s.sectionTitle}>Last {recentQuotes.length}</Text>
+            </View>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}>
+              <Text style={s.seeAll}>See all →</Text>
+            </TouchableOpacity>
+          </View>
+          {recentQuotes.length === 0 ? (
+            <View style={s.emptyCard}><Text style={s.emptyText}>No quotes yet — start one above</Text></View>
+          ) : (
+            <View style={s.card}>
+              {recentQuotes.map((q: any, i: number) => {
+                const sc = QUOTE_STATUS[q.status] ?? QUOTE_STATUS.draft;
+                return (
+                  <TouchableOpacity key={q.id} activeOpacity={0.7}>
+                    <View style={[s.rqRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={s.rqTitle} numberOfLines={1}>{q.title || q.jobTitle || 'Quote'}</Text>
+                        <Text style={s.rqSub} numberOfLines={1}>{q.customerName || '—'}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end', gap: 5 }}>
+                        <Text style={s.rqAmt}>${Number(q.totalAmount || 0).toLocaleString()}</Text>
+                        <View style={[s.rqBadge, { backgroundColor: sc.bg }]}>
+                          <Text style={[s.rqBadgeText, { color: sc.text }]}>{q.status}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         {/* W2: Schedule Strip */}
@@ -868,5 +914,69 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Manrope_500Medium',
     color: MUTED,
+  },
+  rvCard: {
+    flexDirection: 'row',
+    backgroundColor: CARD,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+    overflow: 'hidden',
+  },
+  rvCol: {
+    flex: 1,
+    paddingVertical: 18,
+    alignItems: 'center',
+    gap: 6,
+  },
+  rvAmt: {
+    fontSize: 22,
+    fontFamily: 'Manrope_800ExtraBold',
+    letterSpacing: -0.6,
+  },
+  rvDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  rvLabel: {
+    fontSize: 10,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  rqRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  rqTitle: {
+    fontSize: 14,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
+    letterSpacing: -0.2,
+  },
+  rqSub: {
+    fontSize: 11,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+  },
+  rqAmt: {
+    fontSize: 13,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+  },
+  rqBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  rqBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Manrope_700Bold',
+    textTransform: 'capitalize',
   },
 });
