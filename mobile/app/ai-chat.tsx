@@ -14,11 +14,13 @@ import {
 import { useState, useRef } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Sparkles, Send, Edit2, Bookmark } from 'lucide-react-native';
+import { ChevronLeft, Sparkles, Send, Edit2, Bookmark, Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, API_BASE_URL } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
+import { useCustomers } from '@/hooks/use-customers';
+import type { Customer } from '@shared/mobile-types';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -81,8 +83,27 @@ export default function AiChatScreen() {
   const params = useLocalSearchParams<{ description?: string }>();
   const [step, setStep] = useState<Step>('prompt');
   const [description, setDescription] = useState(params.description ?? '');
-  const [customerName, setCustomerName] = useState('');
   const [customerType, setCustomerType] = useState<'new' | 'existing'>('new');
+
+  // New customer fields
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [siteAddress, setSiteAddress] = useState('');
+  const [billingSameAsSite, setBillingSameAsSite] = useState(true);
+  const [billingAddress, setBillingAddress] = useState('');
+  const [custNotes, setCustNotes] = useState('');
+
+  // Existing customer search
+  const [custSearch, setCustSearch] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [overridePhone, setOverridePhone] = useState('');
+  const [overrideEmail, setOverrideEmail] = useState('');
+  const [overrideAddress, setOverrideAddress] = useState('');
+
   const [tradeType, setTradeType] = useState('Plumbing');
   const [labourRate, setLabourRate] = useState('90');
   const [labourHours, setLabourHours] = useState('');
@@ -91,6 +112,24 @@ export default function AiChatScreen() {
   const [aiResult, setAiResult] = useState<AiQuoteResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+
+  const { data: allCustomers = [] } = useCustomers();
+  const customers = allCustomers as Customer[];
+  const filteredCustomers = custSearch.trim().length > 0
+    ? customers.filter(c =>
+        c.name.toLowerCase().includes(custSearch.toLowerCase()) ||
+        (c.phone ?? '').includes(custSearch) ||
+        (c.email ?? '').toLowerCase().includes(custSearch.toLowerCase())
+      )
+    : [];
+
+  const customerName = customerType === 'new'
+    ? [firstName.trim(), lastName.trim()].filter(Boolean).join(' ')
+    : selectedCustomer?.name ?? custSearch.trim();
+
+  const customerAddress = customerType === 'new'
+    ? siteAddress.trim()
+    : overrideAddress || selectedCustomer?.address || '';
 
   const generateMutation = useMutation({
     mutationFn: async ({ description, customerName }: { description: string; customerName: string }) => {
@@ -171,10 +210,11 @@ export default function AiChatScreen() {
     if (prefill) setDescription(prefill);
     setError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const desc = labourHours.trim()
-      ? `${baseDesc.trim()}\nEstimated labour: ${labourHours} hours`
-      : baseDesc.trim();
-    generateMutation.mutate({ description: desc, customerName });
+    const addressContext = customerAddress ? `\nSite address: ${customerAddress}` : '';
+    const businessContext = customerType === 'new' && businessName.trim() ? ` (${businessName.trim()})` : '';
+    const labourContext = labourHours.trim() ? `\nEstimated labour: ${labourHours} hours` : '';
+    const desc = `${baseDesc.trim()}${addressContext}${labourContext}`;
+    generateMutation.mutate({ description: desc, customerName: customerName + businessContext });
   };
 
   const goBack = () => {
@@ -239,17 +279,13 @@ export default function AiChatScreen() {
               {/* Customer */}
               <Text style={s.formLabel}>Customer</Text>
               <View style={s.formCard}>
+
+                {/* Toggle */}
                 <View style={s.customerToggleRow}>
                   {(['new', 'existing'] as const).map((t) => (
                     <TouchableOpacity
                       key={t}
-                      onPress={() => {
-                        if (t === 'existing') {
-                          Alert.alert('Existing customer', 'Customer lookup is coming soon.\n\nYou\'ll be able to search and select from your customer list.', [{ text: 'OK' }]);
-                        } else {
-                          setCustomerType(t);
-                        }
-                      }}
+                      onPress={() => { setCustomerType(t); setShowDropdown(false); }}
                       activeOpacity={0.7}
                       style={[s.custTypeBtn, customerType === t && s.custTypeBtnActive]}
                     >
@@ -259,14 +295,208 @@ export default function AiChatScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
-                <TextInput
-                  style={s.formInput}
-                  placeholder="Customer name"
-                  placeholderTextColor={MUTED}
-                  value={customerName}
-                  onChangeText={setCustomerName}
-                  returnKeyType="next"
-                />
+
+                {customerType === 'new' ? (
+                  <>
+                    {/* First + last name */}
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                      <TextInput
+                        style={[s.formInput, { flex: 1 }]}
+                        placeholder="First name"
+                        placeholderTextColor={MUTED}
+                        value={firstName}
+                        onChangeText={setFirstName}
+                        returnKeyType="next"
+                      />
+                      <View style={{ width: 1, backgroundColor: LINE_SOFT, alignSelf: 'stretch' }} />
+                      <TextInput
+                        style={[s.formInput, { flex: 1 }]}
+                        placeholder="Last name"
+                        placeholderTextColor={MUTED}
+                        value={lastName}
+                        onChangeText={setLastName}
+                        returnKeyType="next"
+                      />
+                    </View>
+                    {/* Business name */}
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                      <TextInput
+                        style={[s.formInput, { flex: 1 }]}
+                        placeholder="Business name (optional)"
+                        placeholderTextColor={MUTED}
+                        value={businessName}
+                        onChangeText={setBusinessName}
+                        returnKeyType="next"
+                      />
+                    </View>
+                    {/* Phone */}
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                      <Text style={s.formRowLabel}>Phone</Text>
+                      <TextInput
+                        style={[s.formInput, { flex: 1, textAlign: 'right' }]}
+                        placeholder="04xx xxx xxx"
+                        placeholderTextColor={MUTED}
+                        value={phone}
+                        onChangeText={setPhone}
+                        keyboardType="phone-pad"
+                        returnKeyType="next"
+                      />
+                    </View>
+                    {/* Email */}
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                      <Text style={s.formRowLabel}>Email</Text>
+                      <TextInput
+                        style={[s.formInput, { flex: 1, textAlign: 'right' }]}
+                        placeholder="email@example.com"
+                        placeholderTextColor={MUTED}
+                        value={email}
+                        onChangeText={setEmail}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        returnKeyType="next"
+                      />
+                    </View>
+                    {/* Site address */}
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, alignItems: 'flex-start', paddingTop: 12 }]}>
+                      <Text style={[s.formRowLabel, { paddingTop: 2 }]}>Site address</Text>
+                      <TextInput
+                        style={[s.formInput, { flex: 1, textAlign: 'right' }]}
+                        placeholder="Job site address"
+                        placeholderTextColor={MUTED}
+                        value={siteAddress}
+                        onChangeText={setSiteAddress}
+                        multiline
+                        numberOfLines={2}
+                        textAlignVertical="top"
+                      />
+                    </View>
+                    {/* Billing same as site toggle */}
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                      <Text style={s.formRowLabel}>Billing same as site</Text>
+                      <Switch
+                        value={billingSameAsSite}
+                        onValueChange={setBillingSameAsSite}
+                        trackColor={{ false: LINE_MID, true: ORANGE }}
+                        thumbColor="#fff"
+                      />
+                    </View>
+                    {!billingSameAsSite && (
+                      <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, alignItems: 'flex-start', paddingTop: 12 }]}>
+                        <Text style={[s.formRowLabel, { paddingTop: 2 }]}>Billing address</Text>
+                        <TextInput
+                          style={[s.formInput, { flex: 1, textAlign: 'right' }]}
+                          placeholder="Billing address"
+                          placeholderTextColor={MUTED}
+                          value={billingAddress}
+                          onChangeText={setBillingAddress}
+                          multiline
+                          numberOfLines={2}
+                          textAlignVertical="top"
+                        />
+                      </View>
+                    )}
+                    {/* Notes */}
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, alignItems: 'flex-start', paddingTop: 12 }]}>
+                      <Text style={[s.formRowLabel, { paddingTop: 2 }]}>Notes</Text>
+                      <TextInput
+                        style={[s.formInput, { flex: 1, textAlign: 'right' }]}
+                        placeholder="Access notes, special instructions…"
+                        placeholderTextColor={MUTED}
+                        value={custNotes}
+                        onChangeText={setCustNotes}
+                        multiline
+                        numberOfLines={2}
+                        textAlignVertical="top"
+                      />
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    {/* Search */}
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, gap: 8 }]}>
+                      <Search size={16} color={MUTED} strokeWidth={2} />
+                      <TextInput
+                        style={[s.formInput, { flex: 1 }]}
+                        placeholder="Search by name, phone or email…"
+                        placeholderTextColor={MUTED}
+                        value={custSearch}
+                        onChangeText={(v) => {
+                          setCustSearch(v);
+                          setSelectedCustomer(null);
+                          setShowDropdown(true);
+                        }}
+                        autoCapitalize="none"
+                        returnKeyType="search"
+                      />
+                    </View>
+                    {/* Dropdown results */}
+                    {showDropdown && filteredCustomers.length > 0 && (
+                      <View style={{ borderTopWidth: 1, borderTopColor: LINE_SOFT }}>
+                        {filteredCustomers.slice(0, 5).map((c, i) => (
+                          <TouchableOpacity
+                            key={c.id}
+                            activeOpacity={0.7}
+                            style={[s.dropdownRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}
+                            onPress={() => {
+                              setSelectedCustomer(c);
+                              setCustSearch(c.name);
+                              setOverridePhone(c.phone ?? '');
+                              setOverrideEmail(c.email ?? '');
+                              setOverrideAddress(c.address ?? '');
+                              setShowDropdown(false);
+                            }}
+                          >
+                            <Text style={s.dropdownName}>{c.name}</Text>
+                            {(c.phone || c.email) && (
+                              <Text style={s.dropdownSub}>{[c.phone, c.email].filter(Boolean).join(' · ')}</Text>
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                    {/* Selected customer — editable fields */}
+                    {selectedCustomer && !showDropdown && (
+                      <>
+                        <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                          <Text style={s.formRowLabel}>Phone</Text>
+                          <TextInput
+                            style={[s.formInput, { flex: 1, textAlign: 'right' }]}
+                            value={overridePhone}
+                            onChangeText={setOverridePhone}
+                            placeholder="—"
+                            placeholderTextColor={MUTED}
+                            keyboardType="phone-pad"
+                          />
+                        </View>
+                        <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                          <Text style={s.formRowLabel}>Email</Text>
+                          <TextInput
+                            style={[s.formInput, { flex: 1, textAlign: 'right' }]}
+                            value={overrideEmail}
+                            onChangeText={setOverrideEmail}
+                            placeholder="—"
+                            placeholderTextColor={MUTED}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                          />
+                        </View>
+                        <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, alignItems: 'flex-start', paddingTop: 12 }]}>
+                          <Text style={[s.formRowLabel, { paddingTop: 2 }]}>Address</Text>
+                          <TextInput
+                            style={[s.formInput, { flex: 1, textAlign: 'right' }]}
+                            value={overrideAddress}
+                            onChangeText={setOverrideAddress}
+                            placeholder="—"
+                            placeholderTextColor={MUTED}
+                            multiline
+                            numberOfLines={2}
+                            textAlignVertical="top"
+                          />
+                        </View>
+                      </>
+                    )}
+                  </>
+                )}
               </View>
 
               {/* Job description */}
@@ -1062,6 +1292,22 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_800ExtraBold',
     color: '#fff',
     letterSpacing: -0.2,
+  },
+  dropdownRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    backgroundColor: PAPER_DEEP,
+  },
+  dropdownName: {
+    fontSize: 14,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
+  },
+  dropdownSub: {
+    fontSize: 11,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+    marginTop: 2,
   },
   templateBtn: {
     height: 44,
