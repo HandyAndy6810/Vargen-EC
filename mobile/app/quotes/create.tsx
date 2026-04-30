@@ -134,37 +134,36 @@ export default function QuoteCreateScreen() {
 
         {mode === 'ai' ? (
           /* ── AI mode ── */
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 140 }}>
-            {/* Hero */}
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
+            {/* Hero card — headline + input unified */}
             <View style={s.aiHero}>
               <View style={s.aiHeroGlow} />
-              <View style={s.aiAvatar}>
-                <Sparkles size={30} color="#fff" strokeWidth={2} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                <View style={s.aiAvatar}>
+                  <Sparkles size={24} color="#fff" strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.aiHeadline}>
+                    What are you <Text style={{ color: ORANGE }}>quoting today?</Text>
+                  </Text>
+                  <Text style={s.aiSubtitle}>Describe the job — I'll price and build it.</Text>
+                </View>
               </View>
-              <Text style={s.aiHeadline}>
-                What are you{'\n'}
-                <Text style={{ color: ORANGE }}>quoting today?</Text>
-              </Text>
-              <Text style={s.aiSubtitle}>
-                Describe a job in plain language — I'll price it, build the quote and schedule the booking.
-              </Text>
+              <TextInput
+                style={s.descInput}
+                placeholder="e.g. Replace hot water system at Smiths place, Rheem 315L…"
+                placeholderTextColor={'rgba(255,255,255,0.35)'}
+                value={aiDescription}
+                onChangeText={setAiDescription}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
             </View>
-
-            {/* Text input */}
-            <TextInput
-              style={s.descInput}
-              placeholder="e.g. Replace hot water system at Smiths place, Rheem 315L…"
-              placeholderTextColor={MUTED}
-              value={aiDescription}
-              onChangeText={setAiDescription}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
 
             {/* Quick suggestions */}
             <Text style={s.sectionEyebrow}>Quick suggestions</Text>
-            <View style={{ gap: 8, marginBottom: 14 }}>
+            <View style={{ gap: 8, marginBottom: 16 }}>
               {QUICK_SUGGESTIONS.map((sug, i) => (
                 <TouchableOpacity
                   key={i}
@@ -180,7 +179,7 @@ export default function QuoteCreateScreen() {
             </View>
 
             {/* Quick actions */}
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
               <TouchableOpacity style={[s.quickBtn, { flex: 1 }]} activeOpacity={0.7}>
                 <Camera size={18} color={INK} strokeWidth={2} />
                 <Text style={s.quickBtnText}>Photo / receipt</Text>
@@ -194,6 +193,16 @@ export default function QuoteCreateScreen() {
                 <Text style={s.quickBtnText}>From template</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Start with AI — in flow, never overlaps */}
+            <TouchableOpacity
+              style={s.primaryBtn}
+              activeOpacity={0.8}
+              onPress={handleStartWithAI}
+            >
+              <Sparkles size={18} color="#fff" strokeWidth={2} />
+              <Text style={s.primaryBtnText}>Start with AI</Text>
+            </TouchableOpacity>
           </ScrollView>
         ) : (
           /* ── Form mode ── */
@@ -328,19 +337,8 @@ export default function QuoteCreateScreen() {
           </ScrollView>
         )}
 
-        {/* Bottom CTAs */}
-        {mode === 'ai' ? (
-          <View style={s.bottomBar}>
-            <TouchableOpacity
-              style={s.primaryBtn}
-              activeOpacity={0.8}
-              onPress={handleStartWithAI}
-            >
-              <Sparkles size={18} color="#fff" strokeWidth={2} />
-              <Text style={s.primaryBtnText}>Start with AI</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
+        {/* Bottom CTAs — form mode only */}
+        {mode === 'form' && (
           <View style={[s.bottomBar, { flexDirection: 'row', gap: 10 }]}>
             <TouchableOpacity style={s.secondaryBtn} activeOpacity={0.7} onPress={() => saveMutation.mutate('draft')} disabled={saveMutation.isPending}>
               <Text style={s.secondaryBtnText}>Save draft</Text>
@@ -440,13 +438,13 @@ const s = StyleSheet.create({
     opacity: 0.4,
   },
   aiAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: ORANGE,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    flexShrink: 0,
     shadowColor: ORANGE,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
@@ -454,30 +452,29 @@ const s = StyleSheet.create({
     elevation: 6,
   },
   aiHeadline: {
-    fontSize: 28,
+    fontSize: 18,
     fontFamily: 'Manrope_800ExtraBold',
     color: '#fff',
-    letterSpacing: -0.8,
-    lineHeight: 32,
-    marginBottom: 10,
+    letterSpacing: -0.4,
+    lineHeight: 22,
+    marginBottom: 4,
   },
   aiSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Manrope_500Medium',
     color: 'rgba(255,255,255,0.55)',
-    lineHeight: 20,
+    lineHeight: 17,
   },
   descInput: {
-    backgroundColor: CARD,
-    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: 'rgba(255,255,255,0.15)',
     padding: 14,
     fontSize: 14,
     fontFamily: 'Manrope_600SemiBold',
-    color: INK,
-    minHeight: 80,
-    marginBottom: 20,
+    color: '#fff',
+    minHeight: 88,
   },
   sugRow: {
     flexDirection: 'row',
