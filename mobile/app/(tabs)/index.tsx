@@ -16,7 +16,7 @@ import { useJobs } from '@/hooks/use-jobs';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useInvoices } from '@/hooks/use-invoices';
 import { queryClient } from '@/lib/queryClient';
-import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users } from 'lucide-react-native';
+import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap, Package } from 'lucide-react-native';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -145,6 +145,20 @@ export default function HomeScreen() {
   const totalOverdue = allInvoices.filter((i: any) => i.status === 'overdue').reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0);
 
   const recentQuotes = useMemo(() => allQuotes.slice(0, 5), [allQuotes]);
+
+  const overdueInvoices  = useMemo(() => allInvoices.filter((i: any) => i.status === 'overdue'), [allInvoices]);
+  const pendingInvoices  = useMemo(() => allInvoices.filter((i: any) => ['sent', 'pending', 'unpaid'].includes(i.status)), [allInvoices]);
+
+  const aiNudge = useMemo(() => {
+    if (overdueInvoices.length > 0) {
+      const total = overdueInvoices.reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0);
+      return `${overdueInvoices.length} overdue invoice${overdueInvoices.length > 1 ? 's' : ''} totalling $${total.toLocaleString()} — worth a follow-up today.`;
+    }
+    if (pipeline.draft > 2) return `${pipeline.draft} quotes sitting in draft — send them before they go cold.`;
+    if (pipeline.accepted > 0) return `${pipeline.accepted} quote${pipeline.accepted > 1 ? 's' : ''} accepted — time to raise an invoice.`;
+    if (todayJobs.length > 0) return `${todayJobs.length} job${todayJobs.length > 1 ? 's' : ''} on today — have a good one out there.`;
+    return 'Tap the AI rail above to quote a new job in seconds.';
+  }, [overdueInvoices, pipeline, todayJobs]);
 
   const activityItems = useMemo(() => {
     const items: any[] = [];
@@ -422,6 +436,64 @@ export default function HomeScreen() {
             </View>
           </View>
         )}
+
+        {/* W6: Outstanding Invoices */}
+        {(overdueInvoices.length > 0 || pendingInvoices.length > 0) && (
+          <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+              <View>
+                <Text style={s.eyebrow}>Outstanding Invoices</Text>
+                <Text style={s.sectionTitle}>
+                  {overdueInvoices.length > 0
+                    ? <Text style={{ color: ORANGE }}>{overdueInvoices.length} overdue</Text>
+                    : null}
+                  {overdueInvoices.length > 0 && pendingInvoices.length > 0 ? <Text style={{ color: MUTED }}> · </Text> : null}
+                  {pendingInvoices.length > 0 ? <Text>{pendingInvoices.length} pending</Text> : null}
+                </Text>
+              </View>
+            </View>
+            <View style={s.card}>
+              {[...overdueInvoices.slice(0, 2), ...pendingInvoices.slice(0, 1)].map((inv: any, i: number) => {
+                const isOverdue = inv.status === 'overdue';
+                return (
+                  <View key={inv.id ?? i} style={[s.invRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                    <View style={[s.invIcon, { backgroundColor: isOverdue ? ORANGE_SOFT : '#eaf2ff' }]}>
+                      <AlertTriangle size={14} color={isOverdue ? ORANGE : BLUE} strokeWidth={2.5} />
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={s.rqTitle} numberOfLines={1}>{inv.customerName || 'Customer'}</Text>
+                      <Text style={[s.rqSub, isOverdue && { color: ORANGE }]}>{isOverdue ? 'Overdue' : 'Pending'}</Text>
+                    </View>
+                    <Text style={[s.rqAmt, { color: isOverdue ? ORANGE : INK }]}>
+                      ${Number(inv.totalAmount || 0).toLocaleString()}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* W7: AI Nudge */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+          <View style={s.nudgeCard}>
+            <View style={s.nudgeIcon}>
+              <Zap size={16} color={ORANGE} strokeWidth={2.5} />
+            </View>
+            <Text style={s.nudgeText}>{aiNudge}</Text>
+          </View>
+        </View>
+
+        {/* W8: Materials & Cost Tracker */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+          <View style={s.placeholderCard}>
+            <Package size={20} color={MUTED} strokeWidth={1.5} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.placeholderTitle}>Materials & Cost Tracker</Text>
+              <Text style={s.placeholderSub}>Track spending vs estimate per job — coming soon.</Text>
+            </View>
+          </View>
+        </View>
 
         {/* Sig */}
         <View style={{ paddingTop: 26, alignItems: 'center' }}>
@@ -978,5 +1050,69 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'Manrope_700Bold',
     textTransform: 'capitalize',
+  },
+  invRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  invIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nudgeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: ORANGE_SOFT,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#f8c59f',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  nudgeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  nudgeText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Manrope_600SemiBold',
+    color: '#92400e',
+    lineHeight: 18,
+  },
+  placeholderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: CARD,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+    borderStyle: 'dashed',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  placeholderTitle: {
+    fontSize: 13,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED_HI,
+  },
+  placeholderSub: {
+    fontSize: 11,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED,
+    marginTop: 2,
   },
 });
