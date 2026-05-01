@@ -126,12 +126,6 @@ export default function HomeScreen() {
   const allQuotes = (quotes as any[]) || [];
   const allInvoices = (invoices as any[]) || [];
 
-  const weeklyGoal = 5000;
-  const weeklyRevenue = allInvoices
-    .filter((i: any) => i.status === 'paid')
-    .reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
-  const revenuePct = Math.min(100, Math.round((weeklyRevenue / weeklyGoal) * 100));
-
   const todayJobs = useMemo(() => {
     return allJobs.filter((j: any) => j.scheduledDate && isToday(new Date(j.scheduledDate)));
   }, [allJobs]);
@@ -205,17 +199,6 @@ export default function HomeScreen() {
       else { rows.push([w]); wi++; }
     }
   }
-
-  const activityItems = useMemo(() => {
-    const items: any[] = [];
-    allInvoices.slice(0, 2).forEach((inv: any) => {
-      if (inv.status === 'paid') items.push({ type: 'paid', title: `${inv.customerName || 'Customer'} paid`, amt: `+$${Number(inv.totalAmount || 0).toLocaleString()}`, t: '2h', c: GREEN, bg: GREEN_SOFT, ic: '✓' });
-    });
-    allInvoices.filter((i: any) => i.status === 'overdue').slice(0, 1).forEach((inv: any) => {
-      items.push({ type: 'overdue', title: `INV now overdue`, amt: `$${Number(inv.totalAmount || 0).toLocaleString()}`, t: '2d', c: ORANGE, bg: ORANGE_SOFT, ic: '!' });
-    });
-    return items.slice(0, 3);
-  }, [allInvoices]);
 
   const renderWidget = (id: string, half: boolean) => {
     switch (id) {
@@ -598,24 +581,6 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_700Bold',
     color: INK,
   },
-  weatherIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#d9ecff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weatherTemp: {
-    fontSize: 12,
-    fontFamily: 'Manrope_700Bold',
-    color: INK,
-  },
-  weatherCity: {
-    fontSize: 11,
-    color: MUTED,
-    fontFamily: 'Manrope_500Medium',
-  },
   eyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
@@ -788,44 +753,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  goalCard: {
-    backgroundColor: CREAM,
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 22,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-    overflow: 'hidden',
-  },
-  goalAmount: {
-    fontSize: 44,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -1.5,
-    lineHeight: 48,
-  },
-  progressBg: {
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: PAPER_DEEP,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  progressFill: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    backgroundColor: ORANGE,
-    borderRadius: 999,
-  },
-  progressTick: {
-    position: 'absolute',
-    top: 2,
-    bottom: 2,
-    width: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-  },
   sectionTitle: {
     fontSize: 18,
     fontFamily: 'Manrope_800ExtraBold',
@@ -852,122 +779,12 @@ const s = StyleSheet.create({
     letterSpacing: -0.8,
     lineHeight: 32,
   },
-  emptyTimeline: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-    alignItems: 'center',
-  },
-  timeGutter: {
-    flexShrink: 0,
-    position: 'relative',
-    alignItems: 'flex-end',
-    paddingTop: 6,
-    paddingRight: 14,
-  },
-  timeMain: {
-    fontSize: 12,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: 0.2,
-    lineHeight: 14,
-  },
-  timeAmPm: {
-    fontSize: 9.5,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
-    letterSpacing: 0.6,
-    marginTop: 2,
-    textTransform: 'uppercase',
-  },
-  timeRail: {
-    position: 'absolute',
-    right: 5,
-    top: 22,
-    width: 2,
-    opacity: 0.3,
-  },
-  timeDot: {
-    position: 'absolute',
-    right: -1,
-    top: 6,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 3,
-  },
-  timelineCard: {
-    flex: 1,
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-    borderRadius: 18,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-  },
-  timelineTitle: {
-    fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -0.2,
-    flex: 1,
-  },
-  timelineDur: {
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
-    letterSpacing: 0.3,
-    flexShrink: 0,
-  },
-  timelineSub: {
-    fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
-    color: MUTED,
-    marginTop: 2,
-  },
   card: {
     backgroundColor: CARD,
     borderWidth: 1,
     borderColor: LINE_SOFT,
     borderRadius: 22,
     overflow: 'hidden',
-  },
-  activityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  activityRowBorder: {
-    borderTopWidth: 1,
-    borderTopColor: LINE_SOFT,
-  },
-  activityIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activityText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'Manrope_600SemiBold',
-    color: INK,
-  },
-  activityAmt: {
-    fontSize: 12,
-    fontFamily: 'Manrope_800ExtraBold',
-  },
-  activityTime: {
-    fontSize: 10,
-    fontFamily: 'Manrope_600SemiBold',
-    color: MUTED,
   },
   qaRow: {
     flexDirection: 'row',
@@ -1189,28 +1006,5 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
     letterSpacing: -0.3,
-  },
-  placeholderCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: CARD,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-    borderStyle: 'dashed',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  placeholderTitle: {
-    fontSize: 13,
-    fontFamily: 'Manrope_700Bold',
-    color: MUTED_HI,
-  },
-  placeholderSub: {
-    fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
-    color: MUTED,
-    marginTop: 2,
   },
 });
