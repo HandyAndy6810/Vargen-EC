@@ -5,8 +5,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  type DimensionValue,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { format, isToday } from 'date-fns';
@@ -16,16 +16,13 @@ import { useJobs } from '@/hooks/use-jobs';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useInvoices } from '@/hooks/use-invoices';
 import { queryClient } from '@/lib/queryClient';
-import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap, Package } from 'lucide-react-native';
+import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap } from 'lucide-react-native';
 
 const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
 const ORANGE_SOFT = '#ffe6d3';
 const INK         = '#141310';
 const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
 const CARD        = '#ffffff';
-const CREAM       = '#fff8ef';
 const BLACK       = '#0f0e0b';
 const BLUE        = '#1f6feb';
 const GREEN       = '#2a9d4c';
@@ -45,6 +42,24 @@ const QUOTE_STATUS: Record<string, { bg: string; text: string }> = {
 };
 
 const PILL_STATES = 4;
+
+function AnimatedNumber({ value, prefix = '$', style }: { value: number; prefix?: string; style?: any }) {
+  const [displayed, setDisplayed] = useState(0);
+  useEffect(() => {
+    if (value === 0) { setDisplayed(0); return; }
+    const steps = 28;
+    const ms = 800 / steps;
+    let step = 0;
+    const t = setInterval(() => {
+      step++;
+      setDisplayed(Math.round((value * step) / steps));
+      if (step >= steps) clearInterval(t);
+    }, ms);
+    return () => clearInterval(t);
+  }, [value]);
+  const fmt = displayed >= 1000 ? `${(displayed / 1000).toFixed(1)}k` : displayed.toLocaleString();
+  return <Text style={style}>{prefix}{fmt}</Text>;
+}
 
 function CyclingPill({ nextJob, pipelineAmt }: { nextJob: any; pipelineAmt: number }) {
   const [idx, setIdx] = useState(0);
