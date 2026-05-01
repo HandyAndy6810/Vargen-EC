@@ -532,230 +532,22 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* W1: Quick Actions */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
-          <Text style={s.eyebrow}>Quick Actions</Text>
-          <View style={s.qaRow}>
-            {([
-              { Icon: Sparkles, label: 'New Quote',     color: ORANGE, bg: ORANGE_SOFT, route: '/ai-chat' },
-              { Icon: Briefcase, label: 'New Job',      color: BLUE,   bg: '#eaf2ff',  route: '/jobs/create' },
-              { Icon: Users,    label: 'Add Customer',  color: GREEN,  bg: GREEN_SOFT, route: '/customers/create' },
-            ] as const).map(({ Icon, label, color, bg, route }) => (
-              <TouchableOpacity
-                key={label}
-                style={[s.qaBtn, { backgroundColor: bg }]}
-                onPress={() => router.push(route as any)}
-                activeOpacity={0.75}
-              >
-                <View style={[s.qaIcon, { backgroundColor: color }]}>
-                  <Icon size={18} color="#fff" strokeWidth={2} />
-                </View>
-                <Text style={[s.qaLabel, { color }]}>{label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* W4: Revenue Snapshot */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
-          <Text style={[s.eyebrow, { marginBottom: 10 }]}>Revenue Snapshot</Text>
-          <View style={s.rvCard}>
-            {([
-              { label: 'Paid',    amount: totalPaid,    color: GREEN,  bg: GREEN_SOFT },
-              { label: 'Pending', amount: totalPending, color: BLUE,   bg: '#eaf2ff'  },
-              { label: 'Overdue', amount: totalOverdue, color: ORANGE, bg: ORANGE_SOFT },
-            ] as const).map((col, i) => (
-              <View key={col.label} style={[s.rvCol, i > 0 && { borderLeftWidth: 1, borderLeftColor: LINE_SOFT }]}>
-                <Text style={[s.rvAmt, { color: col.color }]}>
-                  {col.amount >= 1000 ? `$${(col.amount / 1000).toFixed(1)}k` : `$${col.amount}`}
-                </Text>
-                <View style={[s.rvDot, { backgroundColor: col.bg }]} />
-                <Text style={s.rvLabel}>{col.label}</Text>
+        {/* Dynamic bento widgets */}
+        {rows.map((row, rowIdx) => (
+          <Animated.View
+            key={row.map(w => w.id).join('-')}
+            entering={FadeInDown.delay(rowIdx * 70).duration(420).springify()}
+            style={row.length === 2
+              ? { flexDirection: 'row', paddingHorizontal: 20, gap: 10, paddingTop: 18 }
+              : { paddingTop: 18 }}
+          >
+            {row.map(w => (
+              <View key={w.id} style={row.length === 2 ? { flex: 1 } : {}}>
+                {renderWidget(w.id, row.length === 2)}
               </View>
             ))}
-          </View>
-        </View>
-
-        {/* Pipeline */}
-        <View style={{ paddingTop: 14 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginBottom: 12 }}>
-            <View>
-              <Text style={s.eyebrow}>Quote pipeline</Text>
-              <Text style={s.sectionTitle}>
-                {pipelineTotal} on the go ·{' '}
-                <Text style={{ color: ORANGE }}>${pipelineAmt.toLocaleString()} out</Text>
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}>
-              <Text style={s.seeAll}>See all →</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
-            {[
-              { n: pipeline.draft, l: 'Draft', c: MUTED, bg: CARD, ring: LINE_MID },
-              { n: pipeline.sent, l: 'Sent', c: BLUE, bg: '#eaf2ff', ring: '#c8dcff' },
-              { n: pipeline.accepted, l: 'Accepted', c: GREEN, bg: GREEN_SOFT, ring: '#bde2c9' },
-              { n: pipeline.overdue, l: 'Overdue', c: ORANGE, bg: ORANGE_SOFT, ring: '#f8c59f' },
-            ].map(stage => (
-              <TouchableOpacity key={stage.l} onPress={() => router.push('/(tabs)/quotes')} activeOpacity={0.7}>
-                <View style={[s.pipelineChip, { backgroundColor: stage.bg, borderColor: stage.ring }]}>
-                  <Text style={[s.pipelineNum, { color: stage.c }]}>{stage.n}</Text>
-                  <Text style={[s.eyebrow, { color: stage.c, marginBottom: 0 }]}>{stage.l}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* W5: Recent Quotes */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-            <View>
-              <Text style={s.eyebrow}>Recent Quotes</Text>
-              <Text style={s.sectionTitle}>Last {recentQuotes.length}</Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}>
-              <Text style={s.seeAll}>See all →</Text>
-            </TouchableOpacity>
-          </View>
-          {recentQuotes.length === 0 ? (
-            <View style={s.emptyCard}><Text style={s.emptyText}>No quotes yet — start one above</Text></View>
-          ) : (
-            <View style={s.card}>
-              {recentQuotes.map((q: any, i: number) => {
-                const sc = QUOTE_STATUS[q.status] ?? QUOTE_STATUS.draft;
-                return (
-                  <TouchableOpacity key={q.id} activeOpacity={0.7}>
-                    <View style={[s.rqRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                      <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={s.rqTitle} numberOfLines={1}>{q.title || q.jobTitle || 'Quote'}</Text>
-                        <Text style={s.rqSub} numberOfLines={1}>{q.customerName || '—'}</Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end', gap: 5 }}>
-                        <Text style={s.rqAmt}>${Number(q.totalAmount || 0).toLocaleString()}</Text>
-                        <View style={[s.rqBadge, { backgroundColor: sc.bg }]}>
-                          <Text style={[s.rqBadgeText, { color: sc.text }]}>{q.status}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-        </View>
-
-        {/* W2: Schedule Strip */}
-        <View style={{ paddingTop: 18 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginBottom: 12 }}>
-            <View>
-              <Text style={s.eyebrow}>Today's Schedule</Text>
-              <Text style={s.sectionTitle}>{todayJobs.length} {todayJobs.length === 1 ? 'stop' : 'stops'} today</Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push('/jobs/list')}>
-              <Text style={s.seeAll}>See all →</Text>
-            </TouchableOpacity>
-          </View>
-          {todayJobs.length === 0 ? (
-            <View style={{ paddingHorizontal: 20 }}>
-              <View style={s.emptyCard}>
-                <Text style={s.emptyText}>Nothing on the books today</Text>
-              </View>
-            </View>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10, paddingBottom: 4 }}>
-              {todayJobs.map((job: any, i: number) => (
-                <TouchableOpacity key={job.id} style={s.scheduleCard} onPress={() => router.push(`/jobs/${job.id}`)} activeOpacity={0.75}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <View style={[s.scheduleDot, { backgroundColor: i === 0 ? ORANGE : BLUE }]} />
-                    <Text style={s.scheduleTime}>{job.scheduledDate ? format(new Date(job.scheduledDate), 'h:mm a') : 'TBC'}</Text>
-                  </View>
-                  <Text style={s.scheduleTitle} numberOfLines={2}>{job.title}</Text>
-                  <Text style={s.scheduleSub} numberOfLines={1}>{(job as any).customerName || 'Customer'}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
-        </View>
-
-        {/* Activity */}
-        {activityItems.length > 0 && (
-          <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-            <Text style={[s.eyebrow, { marginBottom: 12 }]}>Activity · Last 24h</Text>
-            <View style={[s.card, { padding: 0 }]}>
-              {activityItems.map((a: any, i: number) => (
-                <View key={i} style={[s.activityRow, i > 0 && s.activityRowBorder]}>
-                  <View style={[s.activityIcon, { backgroundColor: a.bg }]}>
-                    <Text style={{ color: a.c, fontSize: 14, fontFamily: 'Manrope_800ExtraBold' }}>{a.ic}</Text>
-                  </View>
-                  <Text style={s.activityText}>{a.title}</Text>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[s.activityAmt, { color: a.c }]}>{a.amt}</Text>
-                    <Text style={s.activityTime}>{a.t} ago</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* W6: Outstanding Invoices */}
-        {(overdueInvoices.length > 0 || pendingInvoices.length > 0) && (
-          <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-              <View>
-                <Text style={s.eyebrow}>Outstanding Invoices</Text>
-                <Text style={s.sectionTitle}>
-                  {overdueInvoices.length > 0
-                    ? <Text style={{ color: ORANGE }}>{overdueInvoices.length} overdue</Text>
-                    : null}
-                  {overdueInvoices.length > 0 && pendingInvoices.length > 0 ? <Text style={{ color: MUTED }}> · </Text> : null}
-                  {pendingInvoices.length > 0 ? <Text>{pendingInvoices.length} pending</Text> : null}
-                </Text>
-              </View>
-            </View>
-            <View style={s.card}>
-              {[...overdueInvoices.slice(0, 2), ...pendingInvoices.slice(0, 1)].map((inv: any, i: number) => {
-                const isOverdue = inv.status === 'overdue';
-                return (
-                  <View key={inv.id ?? i} style={[s.invRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                    <View style={[s.invIcon, { backgroundColor: isOverdue ? ORANGE_SOFT : '#eaf2ff' }]}>
-                      <AlertTriangle size={14} color={isOverdue ? ORANGE : BLUE} strokeWidth={2.5} />
-                    </View>
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={s.rqTitle} numberOfLines={1}>{inv.customerName || 'Customer'}</Text>
-                      <Text style={[s.rqSub, isOverdue && { color: ORANGE }]}>{isOverdue ? 'Overdue' : 'Pending'}</Text>
-                    </View>
-                    <Text style={[s.rqAmt, { color: isOverdue ? ORANGE : INK }]}>
-                      ${Number(inv.totalAmount || 0).toLocaleString()}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* W7: AI Nudge */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
-          <View style={s.nudgeCard}>
-            <View style={s.nudgeIcon}>
-              <Zap size={16} color={ORANGE} strokeWidth={2.5} />
-            </View>
-            <Text style={s.nudgeText}>{aiNudge}</Text>
-          </View>
-        </View>
-
-        {/* W8: Materials & Cost Tracker */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
-          <View style={s.placeholderCard}>
-            <Package size={20} color={MUTED} strokeWidth={1.5} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.placeholderTitle}>Materials & Cost Tracker</Text>
-              <Text style={s.placeholderSub}>Track spending vs estimate per job — coming soon.</Text>
-            </View>
-          </View>
-        </View>
+          </Animated.View>
+        ))}
 
         {/* Sig */}
         <View style={{ paddingTop: 26, alignItems: 'center' }}>
@@ -1353,6 +1145,50 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_600SemiBold',
     color: '#92400e',
     lineHeight: 18,
+  },
+  pipelineHalfGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+  },
+  pipelineHalfCell: {
+    width: '47%',
+    backgroundColor: CARD,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+    padding: 10,
+    gap: 2,
+  },
+  pipelineHalfNum: {
+    fontSize: 22,
+    fontFamily: 'Manrope_800ExtraBold',
+    letterSpacing: -0.5,
+  },
+  pipelineHalfLabel: {
+    fontSize: 9,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  rvHalfRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  rvHalfLabel: {
+    fontSize: 11,
+    fontFamily: 'Manrope_600SemiBold',
+    color: MUTED,
+  },
+  rvHalfAmt: {
+    fontSize: 13,
+    fontFamily: 'Manrope_800ExtraBold',
+    letterSpacing: -0.3,
   },
   placeholderCard: {
     flexDirection: 'row',
