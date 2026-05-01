@@ -175,6 +175,37 @@ export default function HomeScreen() {
     return 'Tap the AI rail above to quote a new job in seconds.';
   }, [overdueInvoices, pipeline, todayJobs]);
 
+  const outstandingScore  = (overdueInvoices.length + pendingInvoices.length) > 0
+    ? 90 + overdueInvoices.length * 5 + (totalOverdue > 2000 ? 20 : 0) : 0;
+  const scheduleScore     = todayJobs.length > 0 ? 80 : 20;
+  const recentQuotesScore = 45 + pipeline.accepted * 15 + pipeline.sent * 8;
+  const pipelineScore     = 40 + (pipeline.sent + pipeline.accepted) * 5;
+
+  type WDef = { id: string; score: number; fullWidth: boolean };
+  const widgetDefs: WDef[] = ([
+    { id: 'outstanding',  score: outstandingScore,   fullWidth: false },
+    { id: 'schedule',     score: scheduleScore,      fullWidth: true  },
+    { id: 'quickactions', score: 70,                 fullWidth: true  },
+    { id: 'recentquotes', score: recentQuotesScore,  fullWidth: true  },
+    { id: 'pipeline',     score: pipelineScore,      fullWidth: false },
+    { id: 'revenue',      score: 35,                 fullWidth: false },
+    { id: 'nudge',        score: 30,                 fullWidth: false },
+  ] as WDef[]).filter(w => w.score > 0).sort((a, b) => b.score - a.score);
+
+  const rows: WDef[][] = [];
+  let wi = 0;
+  while (wi < widgetDefs.length) {
+    const w = widgetDefs[wi];
+    const isFull = w.fullWidth || w.score >= 80;
+    if (isFull) { rows.push([w]); wi++; }
+    else if (wi === widgetDefs.length - 1) { rows.push([w]); wi++; }
+    else {
+      const nxt = widgetDefs[wi + 1];
+      if (!nxt.fullWidth && nxt.score < 80) { rows.push([w, nxt]); wi += 2; }
+      else { rows.push([w]); wi++; }
+    }
+  }
+
   const activityItems = useMemo(() => {
     const items: any[] = [];
     allInvoices.slice(0, 2).forEach((inv: any) => {
@@ -185,6 +216,222 @@ export default function HomeScreen() {
     });
     return items.slice(0, 3);
   }, [allInvoices]);
+
+  const renderWidget = (id: string, half: boolean) => {
+    switch (id) {
+      case 'quickactions':
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <Text style={s.eyebrow}>Quick Actions</Text>
+            <View style={s.qaRow}>
+              {([
+                { Icon: Sparkles,  label: 'New Quote',    color: ORANGE, bg: ORANGE_SOFT, route: '/ai-chat' },
+                { Icon: Briefcase, label: 'New Job',      color: BLUE,   bg: '#eaf2ff',  route: '/jobs/create' },
+                { Icon: Users,     label: 'Add Customer', color: GREEN,  bg: GREEN_SOFT, route: '/customers/create' },
+              ] as const).map(({ Icon, label, color, bg, route }) => (
+                <TouchableOpacity key={label} style={[s.qaBtn, { backgroundColor: bg }]} onPress={() => router.push(route as any)} activeOpacity={0.75}>
+                  <View style={[s.qaIcon, { backgroundColor: color }]}><Icon size={18} color="#fff" strokeWidth={2} /></View>
+                  <Text style={[s.qaLabel, { color }]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        );
+
+      case 'schedule':
+        return (
+          <View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginBottom: 12 }}>
+              <View>
+                <Text style={s.eyebrow}>Today's Schedule</Text>
+                <Text style={s.sectionTitle}>{todayJobs.length} {todayJobs.length === 1 ? 'stop' : 'stops'} today</Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/jobs/list')}><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
+            </View>
+            {todayJobs.length === 0 ? (
+              <View style={{ paddingHorizontal: 20 }}><View style={s.emptyCard}><Text style={s.emptyText}>Nothing on the books today</Text></View></View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10, paddingBottom: 4 }}>
+                {todayJobs.map((job: any, i: number) => (
+                  <TouchableOpacity key={job.id} style={s.scheduleCard} onPress={() => router.push(`/jobs/${job.id}`)} activeOpacity={0.75}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      <View style={[s.scheduleDot, { backgroundColor: i === 0 ? ORANGE : BLUE }]} />
+                      <Text style={s.scheduleTime}>{job.scheduledDate ? format(new Date(job.scheduledDate), 'h:mm a') : 'TBC'}</Text>
+                    </View>
+                    <Text style={s.scheduleTitle} numberOfLines={2}>{job.title}</Text>
+                    <Text style={s.scheduleSub} numberOfLines={1}>{(job as any).customerName || 'Customer'}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        );
+
+      case 'pipeline':
+        return half ? (
+          <View>
+            <Text style={s.eyebrow}>Pipeline</Text>
+            <View style={s.pipelineHalfGrid}>
+              {[
+                { n: pipeline.draft,    l: 'Draft',    c: MUTED_HI },
+                { n: pipeline.sent,     l: 'Sent',     c: BLUE     },
+                { n: pipeline.accepted, l: 'Accepted', c: GREEN    },
+                { n: pipeline.overdue,  l: 'Overdue',  c: ORANGE   },
+              ].map(item => (
+                <TouchableOpacity key={item.l} style={s.pipelineHalfCell} onPress={() => router.push('/(tabs)/quotes')} activeOpacity={0.7}>
+                  <Text style={[s.pipelineHalfNum, { color: item.c }]}>{item.n}</Text>
+                  <Text style={s.pipelineHalfLabel}>{item.l}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ) : (
+          <View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginBottom: 12 }}>
+              <View>
+                <Text style={s.eyebrow}>Quote Pipeline</Text>
+                <Text style={s.sectionTitle}>{pipelineTotal} on the go · <Text style={{ color: ORANGE }}>${pipelineAmt.toLocaleString()}</Text></Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+              {[
+                { n: pipeline.draft,    l: 'Draft',    c: MUTED,  bg: CARD,        ring: LINE_MID  },
+                { n: pipeline.sent,     l: 'Sent',     c: BLUE,   bg: '#eaf2ff',   ring: '#c8dcff' },
+                { n: pipeline.accepted, l: 'Accepted', c: GREEN,  bg: GREEN_SOFT,  ring: '#bde2c9' },
+                { n: pipeline.overdue,  l: 'Overdue',  c: ORANGE, bg: ORANGE_SOFT, ring: '#f8c59f' },
+              ].map(st => (
+                <TouchableOpacity key={st.l} onPress={() => router.push('/(tabs)/quotes')} activeOpacity={0.7}>
+                  <View style={[s.pipelineChip, { backgroundColor: st.bg, borderColor: st.ring }]}>
+                    <Text style={[s.pipelineNum, { color: st.c }]}>{st.n}</Text>
+                    <Text style={[s.eyebrow, { color: st.c, marginBottom: 0 }]}>{st.l}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        );
+
+      case 'revenue':
+        return half ? (
+          <View>
+            <Text style={s.eyebrow}>Revenue</Text>
+            <View style={[s.card, { marginTop: 10 }]}>
+              {([
+                { label: 'Paid',    amount: totalPaid,    color: GREEN  },
+                { label: 'Pending', amount: totalPending, color: BLUE   },
+                { label: 'Overdue', amount: totalOverdue, color: ORANGE },
+              ] as const).map((row, i) => (
+                <View key={row.label} style={[s.rvHalfRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                  <Text style={s.rvHalfLabel}>{row.label}</Text>
+                  <AnimatedNumber value={row.amount} style={[s.rvHalfAmt, { color: row.color }]} />
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : (
+          <View style={{ paddingHorizontal: 20 }}>
+            <Text style={[s.eyebrow, { marginBottom: 10 }]}>Revenue Snapshot</Text>
+            <View style={s.rvCard}>
+              {([
+                { label: 'Paid',    amount: totalPaid,    color: GREEN,  bg: GREEN_SOFT  },
+                { label: 'Pending', amount: totalPending, color: BLUE,   bg: '#eaf2ff'   },
+                { label: 'Overdue', amount: totalOverdue, color: ORANGE, bg: ORANGE_SOFT },
+              ] as const).map((col, i) => (
+                <View key={col.label} style={[s.rvCol, i > 0 && { borderLeftWidth: 1, borderLeftColor: LINE_SOFT }]}>
+                  <AnimatedNumber value={col.amount} style={[s.rvAmt, { color: col.color }]} />
+                  <View style={[s.rvDot, { backgroundColor: col.bg }]} />
+                  <Text style={s.rvLabel}>{col.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        );
+
+      case 'recentquotes':
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+              <View>
+                <Text style={s.eyebrow}>Recent Quotes</Text>
+                <Text style={s.sectionTitle}>Last {recentQuotes.length}</Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
+            </View>
+            {recentQuotes.length === 0 ? (
+              <View style={s.emptyCard}><Text style={s.emptyText}>No quotes yet — start one above</Text></View>
+            ) : (
+              <View style={s.card}>
+                {recentQuotes.map((q: any, i: number) => {
+                  const sc = QUOTE_STATUS[q.status] ?? QUOTE_STATUS.draft;
+                  return (
+                    <TouchableOpacity key={q.id} activeOpacity={0.7}>
+                      <View style={[s.rqRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={s.rqTitle} numberOfLines={1}>{q.title || q.jobTitle || 'Quote'}</Text>
+                          <Text style={s.rqSub} numberOfLines={1}>{q.customerName || '—'}</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end', gap: 5 }}>
+                          <Text style={s.rqAmt}>${Number(q.totalAmount || 0).toLocaleString()}</Text>
+                          <View style={[s.rqBadge, { backgroundColor: sc.bg }]}>
+                            <Text style={[s.rqBadgeText, { color: sc.text }]}>{q.status}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        );
+
+      case 'outstanding':
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+              <View>
+                <Text style={s.eyebrow}>Outstanding Invoices</Text>
+                <Text style={s.sectionTitle}>
+                  {overdueInvoices.length > 0 ? <Text style={{ color: ORANGE }}>{overdueInvoices.length} overdue</Text> : null}
+                  {overdueInvoices.length > 0 && pendingInvoices.length > 0 ? <Text style={{ color: MUTED }}> · </Text> : null}
+                  {pendingInvoices.length > 0 ? <Text>{pendingInvoices.length} pending</Text> : null}
+                </Text>
+              </View>
+            </View>
+            <View style={s.card}>
+              {[...overdueInvoices.slice(0, 2), ...pendingInvoices.slice(0, 1)].map((inv: any, i: number) => {
+                const isOverdue = inv.status === 'overdue';
+                return (
+                  <View key={inv.id ?? i} style={[s.invRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                    <View style={[s.invIcon, { backgroundColor: isOverdue ? ORANGE_SOFT : '#eaf2ff' }]}>
+                      <AlertTriangle size={14} color={isOverdue ? ORANGE : BLUE} strokeWidth={2.5} />
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={s.rqTitle} numberOfLines={1}>{inv.customerName || 'Customer'}</Text>
+                      <Text style={[s.rqSub, isOverdue && { color: ORANGE }]}>{isOverdue ? 'Overdue' : 'Pending'}</Text>
+                    </View>
+                    <Text style={[s.rqAmt, { color: isOverdue ? ORANGE : INK }]}>${Number(inv.totalAmount || 0).toLocaleString()}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        );
+
+      case 'nudge':
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <View style={s.nudgeCard}>
+              <View style={s.nudgeIcon}><Zap size={16} color={ORANGE} strokeWidth={2.5} /></View>
+              <Text style={s.nudgeText}>{aiNudge}</Text>
+            </View>
+          </View>
+        );
+
+      default: return null;
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
