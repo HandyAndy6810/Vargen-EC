@@ -172,6 +172,7 @@ export default function QuoteCreate() {
   const [presetItems, setPresetItems] = useState<Set<string>>(new Set());
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -432,12 +433,22 @@ export default function QuoteCreate() {
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => { const r = reader.result as string; setPhotoPreview(r); setPhotoBase64(r); };
+    reader.onload = () => {
+      const r = reader.result as string;
+      const payload = r?.split(';base64,')[1] ?? '';
+      if (!payload || payload.length < 128) {
+        setPhotoError("That image appears to be blank. Try a different photo.");
+        return;
+      }
+      setPhotoError(null);
+      setPhotoPreview(r);
+      setPhotoBase64(r);
+    };
     reader.readAsDataURL(file);
   };
 
   const removePhoto = () => {
-    setPhotoPreview(null); setPhotoBase64(null);
+    setPhotoPreview(null); setPhotoBase64(null); setPhotoError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
@@ -640,6 +651,7 @@ export default function QuoteCreate() {
                 )}
                 <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhoto} />
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+                {photoError && <p className="text-sm text-destructive">{photoError}</p>}
               </div>
 
               <div className="space-y-3">
