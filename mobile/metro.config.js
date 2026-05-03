@@ -11,4 +11,11 @@ config.resolver.nodeModulesPaths = [
 ];
 config.resolver.disableHierarchicalLookup = true;
 
+// Polyfill missing NativeReactNativeFeatureFlags methods for Expo Go SDK 54
+const existingGetPolyfills = config.serializer.getPolyfills ?? (() => []);
+config.serializer.getPolyfills = (...args) => [
+  ...existingGetPolyfills(...args),
+  path.resolve(__dirname, 'polyfills/rn-feature-flags-compat.js'),
+];
+
 module.exports = withNativeWind(config, { input: "./global.css" });
