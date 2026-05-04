@@ -11,13 +11,18 @@ config.resolver.nodeModulesPaths = [
 ];
 config.resolver.disableHierarchicalLookup = true;
 
-// Expo Go SDK 54: redirect NativeReactNativeFeatureFlags to a stub so missing
-// TurboModule methods never reach logUnavailableNativeModuleError.
-config.resolver.resolveRequest = (context, moduleName, _platform) => {
+const finalConfig = withNativeWind(config, { input: "./global.css" });
+
+// Apply AFTER withNativeWind so it doesn't overwrite us
+const nativeWindResolver = finalConfig.resolver.resolveRequest;
+finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName.includes('NativeReactNativeFeatureFlags')) {
     return { type: 'sourceFile', filePath: path.resolve(__dirname, 'mocks/NativeReactNativeFeatureFlags.js') };
   }
-  return context.resolveRequest(context, moduleName, _platform);
+  if (nativeWindResolver) {
+    return nativeWindResolver(context, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
 };
 
-module.exports = withNativeWind(config, { input: "./global.css" });
+module.exports = finalConfig;
