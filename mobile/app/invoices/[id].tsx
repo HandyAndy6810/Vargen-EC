@@ -96,7 +96,11 @@ export default function InvoiceDetailScreen() {
   const dueDays = dueDate ? differenceInCalendarDays(dueDate, new Date()) : null;
   const dueDateStr = dueDate ? format(dueDate, 'EEE d MMM') : null;
   const dueLine = dueDateStr
-    ? `${dueDateStr} · ${dueDays !== null && dueDays >= 0 ? `${dueDays} days` : 'overdue'}`
+    ? dueDays === 0
+      ? `${dueDateStr} · due today`
+      : dueDays !== null && dueDays > 0
+      ? `${dueDateStr} · ${dueDays} day${dueDays === 1 ? '' : 's'}`
+      : `${dueDateStr} · overdue`
     : null;
 
   // Status display
@@ -126,7 +130,6 @@ export default function InvoiceDetailScreen() {
           <Text style={s.eyebrow}>{num}</Text>
           <Text style={s.title} numberOfLines={1}>{title}</Text>
         </View>
-        <View style={s.iconBtn} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>

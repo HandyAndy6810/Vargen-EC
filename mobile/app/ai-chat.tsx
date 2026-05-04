@@ -207,6 +207,10 @@ export default function AiChatScreen() {
           expiryDate,
           internalNotes,
           customerName: customerName.trim() || undefined,
+          customerPhone: customerType === 'new' ? phone.trim() || undefined : overridePhone || selectedCustomer?.phone || undefined,
+          customerEmail: customerType === 'new' ? email.trim() || undefined : overrideEmail || selectedCustomer?.email || undefined,
+          customerAddress: customerAddress || undefined,
+          customerNotes: customerType === 'new' ? custNotes.trim() || undefined : undefined,
         }),
       });
       if (!res.ok) {
@@ -250,10 +254,20 @@ export default function AiChatScreen() {
   };
 
   const goBack = () => {
-    if (step === 'draft') {
+    if (step === 'draft' && !savedQuoteId) {
+      Alert.alert('Discard draft?', 'Your generated quote will be lost.', [
+        { text: 'Keep editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => { setStep('prompt'); setAiResult(null); setError(null); } },
+      ]);
+    } else if (step === 'draft') {
       setStep('prompt');
       setAiResult(null);
       setError(null);
+    } else if (description.trim() && !savedQuoteId) {
+      Alert.alert('Leave without saving?', 'Your description will be lost.', [
+        { text: 'Stay', style: 'cancel' },
+        { text: 'Leave', style: 'destructive', onPress: () => router.back() },
+      ]);
     } else {
       router.back();
     }
@@ -669,7 +683,7 @@ export default function AiChatScreen() {
               <Text style={s.formLabel}>Quick suggestions</Text>
               <View style={{ gap: 8 }}>
                 {QUICK_SUGGESTIONS.map((sug, i) => (
-                  <TouchableOpacity key={i} onPress={() => setDescription(sug)} activeOpacity={0.7}
+                  <TouchableOpacity key={i} onPress={() => handleSend(sug)} activeOpacity={0.7}
                     style={s.suggestionRow}>
                     <Sparkles size={15} color={ORANGE} strokeWidth={2} />
                     <Text style={s.suggestionText}>{sug}</Text>

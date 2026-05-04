@@ -132,7 +132,14 @@ export default function CalendarScreen() {
         </Text>
         {dayJobs.length > 0 && (
           <Text style={s.daySubhead}>
-            {format(new Date(dayJobs[0].scheduledDate), 'h:mm a')} → {format(new Date(dayJobs[dayJobs.length - 1].scheduledDate), 'h:mm a')} · {dayJobs.length * 90}m booked
+            {format(new Date(dayJobs[0].scheduledDate), 'h:mm a')} → {format(new Date(dayJobs[dayJobs.length - 1].scheduledDate), 'h:mm a')} · {
+              (() => {
+                const total = dayJobs.reduce((s: number, j: any) => s + (j.estimatedDuration || 60), 0);
+                const h = Math.floor(total / 60);
+                const m = total % 60;
+                return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`;
+              })()
+            } booked
           </Text>
         )}
       </View>
@@ -160,9 +167,10 @@ export default function CalendarScreen() {
             {/* Events */}
             {dayJobs.map((job: any, i: number) => {
               const startH = getJobHour(job.scheduledDate);
-              const endH_ = startH + 1.5;
+              const durationHrs = (job.estimatedDuration || 60) / 60;
+              const endH_ = startH + durationHrs;
               const top = (startH - START_H) * HOUR_H;
-              const height = (endH_ - startH) * HOUR_H;
+              const height = Math.max(durationHrs * HOUR_H, 36);
               const isNext = i === 0 && job.status !== 'completed';
               const tone = isNext ? 'next' : 'normal';
               const bg = tone === 'next' ? BLACK : CARD;
