@@ -144,8 +144,25 @@ export default function InvoicesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} />}
       >
         {filtered.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: 48 }}>
-            <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: INK }}>No invoices here</Text>
+          <View style={{ alignItems: 'center', paddingVertical: 56, paddingHorizontal: 24 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: PAPER_DEEP, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 28 }}>🧾</Text>
+            </View>
+            <Text style={{ fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: INK, textAlign: 'center' }}>
+              {filter !== 'all' ? `No ${filter} invoices` : 'No invoices yet'}
+            </Text>
+            <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+              {filter === 'all' ? 'Convert an accepted quote to an invoice, or create a standalone invoice.' : 'Try a different filter.'}
+            </Text>
+            {filter === 'all' && (
+              <TouchableOpacity
+                style={{ marginTop: 20, backgroundColor: ORANGE, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12 }}
+                activeOpacity={0.85}
+                onPress={() => router.push('/invoices/create' as any)}
+              >
+                <Text style={{ fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>Create invoice</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           filtered.map((inv: any) => {

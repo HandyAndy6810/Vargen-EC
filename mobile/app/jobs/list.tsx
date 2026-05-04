@@ -150,8 +150,25 @@ export default function JobsListScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 130, gap: 10 }}
       >
         {filtered.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: 48 }}>
-            <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: MUTED }}>No jobs here</Text>
+          <View style={{ alignItems: 'center', paddingVertical: 56, paddingHorizontal: 24 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: PAPER_DEEP, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 28 }}>{filter === 'past' ? '📦' : '🔧'}</Text>
+            </View>
+            <Text style={{ fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: INK, textAlign: 'center' }}>
+              {filter === 'today' ? 'Nothing on today' : filter === 'upcoming' ? 'No upcoming jobs' : filter === 'past' ? 'No past jobs' : 'No jobs yet'}
+            </Text>
+            <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+              {filter === 'past' ? 'Completed jobs will appear here.' : 'Schedule a job to see it on the calendar and get directions.'}
+            </Text>
+            {filter !== 'past' && (
+              <TouchableOpacity
+                style={{ marginTop: 20, backgroundColor: ORANGE, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12 }}
+                activeOpacity={0.85}
+                onPress={() => router.push('/jobs/create' as any)}
+              >
+                <Text style={{ fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>Schedule a job</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           filtered.map((job: any, i: number) => {

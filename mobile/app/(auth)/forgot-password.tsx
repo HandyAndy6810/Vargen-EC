@@ -7,23 +7,38 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-} from "react-native";
-import { useState } from "react";
-import { router } from "expo-router";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/api";
+  StyleSheet,
+} from 'react-native';
+import { useState } from 'react';
+import { router } from 'expo-router';
+import { useMutation } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/api';
+import { ChevronLeft, Mail } from 'lucide-react-native';
+
+const ORANGE     = '#f26a2a';
+const ORANGE_SOFT = '#ffe6d3';
+const INK        = '#141310';
+const PAPER      = '#f7f4ee';
+const CARD       = '#ffffff';
+const GREEN      = '#2a9d4c';
+const GREEN_SOFT = '#e5f6eb';
+const MUTED      = 'rgba(20,19,16,0.55)';
+const MUTED_HI   = 'rgba(20,19,16,0.72)';
+const LINE_MID   = 'rgba(20,19,16,0.18)';
+const RED        = '#d23b3b';
+const RED_SOFT   = '#fde5e5';
 
 export default function ForgotPasswordScreen() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
+  const [sent, setSent]   = useState(false);
 
   const forgotMutation = useMutation({
-    mutationFn: async (email: string) => {
-      const res = await apiRequest("POST", "/api/auth/forgot-password", { email });
+    mutationFn: async (addr: string) => {
+      const res = await apiRequest('POST', '/api/auth/forgot-password', { email: addr });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.message || "Failed to send reset email");
+        throw new Error(body?.message || 'Failed to send reset email');
       }
     },
     onSuccess: () => setSent(true),
@@ -31,71 +46,66 @@ export default function ForgotPasswordScreen() {
   });
 
   const handleSubmit = () => {
-    if (!email.trim()) {
-      setError("Please enter your email");
-      return;
-    }
+    if (!email.trim()) { setError('Please enter your email'); return; }
     setError(null);
     forgotMutation.mutate(email.trim());
   };
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 bg-white"
+      style={{ flex: 1, backgroundColor: PAPER }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View className="flex-1 px-8 pt-20 pb-12 justify-center">
-          {/* Back button */}
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="mb-8 flex-row items-center"
-            activeOpacity={0.7}
-          >
-            <Text className="text-blue-600 text-base">← Back to sign in</Text>
+        <View style={s.container}>
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+            <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
           </TouchableOpacity>
 
           {sent ? (
-            <View className="items-center py-8">
-              <Text className="text-5xl mb-6">📬</Text>
-              <Text className="text-2xl font-bold text-gray-900 text-center mb-2">
-                Check your email
-              </Text>
-              <Text className="text-gray-500 text-sm text-center leading-relaxed mb-8">
-                If that address is registered, we've sent a password reset link. It expires in 1 hour.
+            /* ── Success state ── */
+            <View style={s.successContainer}>
+              <View style={s.successIcon}>
+                <Mail size={32} color={GREEN} strokeWidth={1.8} />
+              </View>
+              <Text style={s.title}>Check your email</Text>
+              <Text style={s.successSub}>
+                If that address is registered, we sent a password reset link. It expires in 1 hour.
               </Text>
               <TouchableOpacity
-                onPress={() => router.replace("/(auth)/login")}
-                className="bg-blue-600 rounded-xl py-4 px-8 items-center w-full"
-                activeOpacity={0.8}
+                style={s.submitBtn}
+                onPress={() => router.replace('/(auth)/login')}
+                activeOpacity={0.85}
               >
-                <Text className="text-white font-bold text-base">Back to sign in</Text>
+                <Text style={s.submitBtnText}>Back to sign in</Text>
               </TouchableOpacity>
             </View>
           ) : (
+            /* ── Form state ── */
             <>
-              <Text className="text-3xl font-bold text-gray-900 mb-2">Forgot password?</Text>
-              <Text className="text-gray-500 mb-8">
-                Enter your email and we'll send you a reset link.
-              </Text>
+              <View style={s.heading}>
+                <Text style={s.title}>Forgot password?</Text>
+                <Text style={s.sub}>Enter your email and we'll send a reset link.</Text>
+              </View>
 
               {error && (
-                <View className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-                  <Text className="text-red-600 text-sm">{error}</Text>
+                <View style={s.errorBox}>
+                  <Text style={s.errorText}>{error}</Text>
                 </View>
               )}
 
-              <View className="mb-6">
-                <Text className="text-sm font-medium text-gray-700 mb-1.5">Email</Text>
+              <View style={[s.fieldGroup, { marginBottom: 28 }]}>
+                <Text style={s.fieldLabel}>Email</Text>
                 <TextInput
-                  className="border border-gray-200 rounded-xl px-4 py-3.5 text-gray-900 bg-gray-50 text-base"
+                  style={s.input}
                   placeholder="you@example.com"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={MUTED}
                   value={email}
-                  onChangeText={(v) => { setEmail(v); setError(null); }}
+                  onChangeText={v => { setEmail(v); setError(null); }}
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="email-address"
@@ -103,16 +113,14 @@ export default function ForgotPasswordScreen() {
               </View>
 
               <TouchableOpacity
-                className="bg-blue-600 rounded-xl py-4 items-center"
+                style={[s.submitBtn, !email && s.submitBtnDisabled]}
                 onPress={handleSubmit}
                 disabled={forgotMutation.isPending || !email}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
-                {forgotMutation.isPending ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text className="text-white font-bold text-base">Send reset link</Text>
-                )}
+                {forgotMutation.isPending
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={s.submitBtnText}>Send reset link</Text>}
               </TouchableOpacity>
             </>
           )}
@@ -121,3 +129,47 @@ export default function ForgotPasswordScreen() {
     </KeyboardAvoidingView>
   );
 }
+
+const s = StyleSheet.create({
+  container: { paddingHorizontal: 28, paddingTop: 64, paddingBottom: 40 },
+  backBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: CARD, borderWidth: 1, borderColor: LINE_MID,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 28,
+  },
+  heading: { marginBottom: 28 },
+  title: { fontSize: 30, fontFamily: 'Manrope_800ExtraBold', color: INK, letterSpacing: -1 },
+  sub: { fontSize: 14, fontFamily: 'Manrope_500Medium', color: MUTED, marginTop: 6 },
+  errorBox: {
+    backgroundColor: RED_SOFT, borderRadius: 12, padding: 14, marginBottom: 16,
+  },
+  errorText: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: RED },
+  fieldGroup: { marginBottom: 14 },
+  fieldLabel: {
+    fontSize: 11, fontFamily: 'Manrope_800ExtraBold',
+    color: MUTED_HI, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8,
+  },
+  input: {
+    backgroundColor: CARD, borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 14, fontFamily: 'Manrope_500Medium',
+    color: INK, borderWidth: 1, borderColor: LINE_MID,
+  },
+  submitBtn: {
+    backgroundColor: ORANGE, borderRadius: 18, height: 56,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: ORANGE, shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35, shadowRadius: 20, elevation: 6,
+  },
+  submitBtnDisabled: { opacity: 0.5, shadowOpacity: 0 },
+  submitBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  successContainer: { alignItems: 'center', paddingTop: 40 },
+  successIcon: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: GREEN_SOFT, alignItems: 'center', justifyContent: 'center', marginBottom: 22,
+  },
+  successSub: {
+    fontSize: 14, fontFamily: 'Manrope_500Medium',
+    color: MUTED, textAlign: 'center', lineHeight: 22, marginTop: 10, marginBottom: 36, paddingHorizontal: 8,
+  },
+});

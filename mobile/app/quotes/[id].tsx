@@ -273,7 +273,14 @@ export default function QuoteDetailScreen() {
 
       {/* Bottom CTAs */}
       <View style={s.bottomBar}>
-        <TouchableOpacity style={s.tweakBtn} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={s.tweakBtn}
+          activeOpacity={0.7}
+          onPress={() => {
+            const desc = content.jobTitle || title;
+            router.push(`/ai-chat?description=${encodeURIComponent(desc)}` as any);
+          }}
+        >
           <Edit2 size={15} color={INK} strokeWidth={2} />
           <Text style={s.tweakBtnText}>Tweak</Text>
         </TouchableOpacity>
