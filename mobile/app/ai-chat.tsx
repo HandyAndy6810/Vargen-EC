@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   Switch,
+  Linking,
+  Share,
 } from 'react-native';
 import { useState, useRef } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -957,12 +959,35 @@ export default function AiChatScreen() {
                 onPress={() => {
                   const subtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
                   const total = subtotal * 1.1;
+                  const custEmail = customerType === 'existing' ? (overrideEmail || selectedCustomer?.email || '') : email;
+                  const custPhone = customerType === 'existing' ? (overridePhone || selectedCustomer?.phone || '') : phone;
+                  const custName  = customerType === 'existing' ? (selectedCustomer?.name || '') : `${firstName} ${lastName}`.trim();
                   Alert.alert('Send quote', `Total: $${total.toFixed(2)}`, [
                     { text: 'Cancel', style: 'cancel' },
-                    { text: '📧 Email customer', onPress: () => saveMutation.mutate('sent') },
-                    { text: '📱 Send SMS', onPress: () => saveMutation.mutate('sent') },
-                    { text: '🔗 Copy link', onPress: () => saveMutation.mutate('sent') },
-                    { text: '📄 Create PDF', onPress: () => saveMutation.mutate('sent') },
+                    {
+                      text: '📧 Email customer',
+                      onPress: () => {
+                        saveMutation.mutate('sent');
+                        if (custEmail) Linking.openURL(`mailto:${custEmail}?subject=Your quote&body=Hi ${custName || 'there'},\n\nPlease find your quote attached.\n\nTotal: $${total.toFixed(2)}\n\nThanks`);
+                        else Alert.alert('No email on file', 'Add an email address for this customer first.');
+                      },
+                    },
+                    {
+                      text: '📱 Send SMS',
+                      onPress: () => {
+                        saveMutation.mutate('sent');
+                        if (custPhone) Linking.openURL(`sms:${custPhone}`);
+                        else Alert.alert('No phone on file', 'Add a phone number for this customer first.');
+                      },
+                    },
+                    {
+                      text: '🔗 Share link',
+                      onPress: () => {
+                        saveMutation.mutate('sent', {
+                          onSuccess: () => Share.share({ message: `Quote — $${total.toFixed(2)} (inc. GST)` }),
+                        });
+                      },
+                    },
                   ]);
                 }}
                 disabled={saveMutation.isPending}

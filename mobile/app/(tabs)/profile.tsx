@@ -14,6 +14,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { useXeroStatus, useXeroDisconnect, useXeroSyncAll } from '@/hooks/use-xero';
 import { API_BASE_URL } from '@/lib/api';
 import { useCustomers } from '@/hooks/use-customers';
+import { useJobs } from '@/hooks/use-jobs';
+import { useInvoices } from '@/hooks/use-invoices';
+import { isThisMonth } from 'date-fns';
 import {
   FileText, Receipt, Calendar, MapPin, Sparkles,
   Bell, MessageSquare, Sun, Settings, LogOut, ChevronRight, Pencil,
@@ -163,10 +166,28 @@ function XeroSection() {
 export default function ProfileScreen() {
   const { user, logout } = useAuth() as any;
   const { data: customers } = useCustomers();
-  const firstName = user?.firstName || 'Andy';
-  const lastName = user?.lastName || 'Hollister';
-  const initials = ((firstName[0] || '') + (lastName[0] || '')).toUpperCase() || 'AH';
-  const fullName = `${firstName} ${lastName}`.trim() || 'Andy Hollister';
+  const { data: jobs } = useJobs() as any;
+  const { data: invoices } = useInvoices() as any;
+
+  const firstName = user?.firstName || user?.email?.split('@')[0] || '';
+  const lastName = user?.lastName || '';
+  const initials = ((firstName[0] || '') + (lastName[0] || '')).toUpperCase() || user?.email?.[0]?.toUpperCase() || '?';
+  const fullName = `${firstName} ${lastName}`.trim() || user?.email || 'Your account';
+
+  const allJobs = (jobs as any[]) || [];
+  const allInvoices = (invoices as any[]) || [];
+
+  const jobsThisMonth = allJobs.filter((j: any) =>
+    j.createdAt && isThisMonth(new Date(j.createdAt))
+  ).length;
+
+  const revenue = allInvoices
+    .filter((i: any) => i.status === 'paid' && i.createdAt && isThisMonth(new Date(i.createdAt)))
+    .reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0);
+
+  const revenueLabel = revenue === 0 ? '$0'
+    : revenue >= 1000 ? `$${(revenue / 1000).toFixed(revenue % 1000 === 0 ? 0 : 1)}k`
+    : `$${revenue.toFixed(0)}`;
 
   const handleLogout = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -187,7 +208,7 @@ export default function ProfileScreen() {
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={s.name}>{fullName}</Text>
-              <Text style={s.biz}>Vargenezey Electrical · ABN 52 889 221 143</Text>
+              <Text style={s.biz}>{user?.email || ''}</Text>
               <View style={s.proBadge}>
                 <Text style={s.proBadgeText}>✦ Pro plan</Text>
               </View>
@@ -201,9 +222,9 @@ export default function ProfileScreen() {
         {/* Stats */}
         <View style={{ paddingHorizontal: 20, flexDirection: 'row', gap: 8 }}>
           {[
-            { l: 'Jobs this month', v: '42' },
-            { l: 'Revenue',         v: '$14.2k' },
-            { l: 'On-time',         v: '96%' },
+            { l: 'Jobs this month', v: String(jobsThisMonth) },
+            { l: 'Revenue this mo', v: revenueLabel },
+            { l: 'Customers',       v: String((customers as any[])?.length ?? 0) },
           ].map(stat => (
             <View key={stat.l} style={s.statCard}>
               <Text style={s.statVal}>{stat.v}</Text>

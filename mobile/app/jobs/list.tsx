@@ -94,7 +94,7 @@ export default function JobsListScreen() {
           <Text style={s.eyebrow}>Jobs</Text>
           <Text style={s.title}>Your rounds</Text>
         </View>
-        <TouchableOpacity style={s.addBtn} activeOpacity={0.8}>
+        <TouchableOpacity style={s.addBtn} activeOpacity={0.8} onPress={() => router.push('/jobs/create' as any)}>
           <Plus size={20} color="#fff" strokeWidth={2.5} />
         </TouchableOpacity>
       </View>

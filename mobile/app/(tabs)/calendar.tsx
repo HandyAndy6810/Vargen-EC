@@ -93,7 +93,7 @@ export default function CalendarScreen() {
         <TouchableOpacity style={s.iconBtn} activeOpacity={0.7}>
           <Search size={18} color={INK} strokeWidth={2.1} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.addBtn} activeOpacity={0.8}>
+        <TouchableOpacity style={s.addBtn} activeOpacity={0.8} onPress={() => router.push('/jobs/create' as any)}>
           <Plus size={20} color="#fff" strokeWidth={2.5} />
         </TouchableOpacity>
       </View>

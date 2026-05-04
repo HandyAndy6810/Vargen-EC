@@ -103,6 +103,7 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen name="jobs/list" />
+            <Stack.Screen name="jobs/create" />
             <Stack.Screen name="jobs/[id]" />
             <Stack.Screen name="jobs/timer" />
             <Stack.Screen name="jobs/complete" />
@@ -110,6 +111,10 @@ export default function RootLayout() {
             <Stack.Screen name="quotes/create" />
             <Stack.Screen name="invoices/[id]" />
             <Stack.Screen name="invoices/create" />
+            <Stack.Screen name="customers/index" />
+            <Stack.Screen name="customers/new" />
+            <Stack.Screen name="customers/[id]" />
+            <Stack.Screen name="price-book" />
           </Stack>
         </QueryClientProvider>
       </GestureHandlerRootView>

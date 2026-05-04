@@ -5,12 +5,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJob } from '@/hooks/use-jobs';
+import { useCustomer } from '@/hooks/use-customers';
 import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Navigation, Play } from 'lucide-react-native';
 import Svg, { Path, Circle, Polygon } from 'react-native-svg';
+import { format } from 'date-fns';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -29,6 +33,7 @@ const LINE_MID    = 'rgba(20,19,16,0.14)';
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: job, isLoading } = useJob(id ? Number(id) : 0) as any;
+  const { data: customer } = useCustomer(job?.customerId || 0) as any;
 
   if (isLoading) {
     return (
@@ -38,12 +43,42 @@ export default function JobDetailScreen() {
     );
   }
 
-  const title = job?.title || 'Hot water swap';
-  const customerName = job?.customerName || 'Jack Dalton';
-  const address = job?.address || '42 Harbour St, Rozelle';
-  const notes = job?.notes || 'Back gate code is 4821#. Old HWU in the garage — Jack can help shift it to kerb. Bring expansion valve + teflon tape.';
+  const title = job?.title || 'Untitled job';
+  const customerName = customer?.name || job?.customerName || null;
+  const address = job?.address || customer?.address || null;
+  const notes = job?.description || null;
 
-  const initials = customerName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+  const initials = customerName ? customerName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : '?';
+
+  const scheduledDate = job?.scheduledDate ? new Date(job.scheduledDate) : null;
+  const estimatedMins = job?.estimatedDuration || 0;
+  const estimatedHrs  = estimatedMins / 60;
+  const durationLabel = estimatedMins
+    ? estimatedMins < 60
+      ? `${estimatedMins}m estimated`
+      : `${estimatedHrs % 1 === 0 ? estimatedHrs : estimatedHrs.toFixed(1)}h estimated`
+    : null;
+
+  const handlePhone = () => {
+    const phone = customer?.phone;
+    if (!phone) { Alert.alert('No phone number', 'This customer has no phone number on file.'); return; }
+    Linking.openURL(`tel:${phone}`);
+  };
+
+  const handleMessage = () => {
+    const phone = customer?.phone;
+    if (!phone) { Alert.alert('No phone number', 'This customer has no phone number on file.'); return; }
+    Linking.openURL(`sms:${phone}`);
+  };
+
+  const handleNavigate = () => {
+    const dest = address;
+    if (!dest) { Alert.alert('No address', 'This job has no address on file.'); return; }
+    const encoded = encodeURIComponent(dest);
+    Linking.openURL(`maps://?q=${encoded}`).catch(() =>
+      Linking.openURL(`https://maps.google.com/?q=${encoded}`)
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
@@ -67,68 +102,69 @@ export default function JobDetailScreen() {
           {/* Map placeholder */}
           <View style={s.mapCard}>
             <Svg width="100%" height="150" viewBox="0 0 400 150" style={StyleSheet.absoluteFillObject}>
-              <Path
-                d="M0 80 Q 100 60, 200 90 T 400 100"
-                stroke="#b4c4c8"
-                strokeWidth="28"
-                fill="none"
-              />
-              <Path
-                d="M0 80 Q 100 60, 200 90 T 400 100"
-                stroke="white"
-                strokeWidth="3"
-                fill="none"
-                strokeDasharray="8,6"
-              />
+              <Path d="M0 80 Q 100 60, 200 90 T 400 100" stroke="#b4c4c8" strokeWidth="28" fill="none" />
+              <Path d="M0 80 Q 100 60, 200 90 T 400 100" stroke="white" strokeWidth="3" fill="none" strokeDasharray="8,6" />
               <Circle cx="60" cy="95" r="10" fill={ORANGE} />
               <Circle cx="60" cy="95" r="10" fill="none" stroke="white" strokeWidth="2" />
               <Polygon points="330,60 340,90 350,60" fill={INK} />
             </Svg>
-            <View style={s.mapPlaceholderPill}>
-              <Text style={s.mapPlaceholderText}>[map placeholder]</Text>
-            </View>
-            <View style={s.mapDistPill}>
-              <Text style={s.mapDistText}>12 min · 6.2 km</Text>
-            </View>
+            {address && (
+              <View style={s.mapDistPill}>
+                <Text style={s.mapDistText} numberOfLines={1}>{address}</Text>
+              </View>
+            )}
           </View>
 
           {/* Schedule card */}
-          <View style={[s.card, { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
-            <View style={s.calIcon}>
-              <Text style={s.calDay}>TUE</Text>
-              <Text style={s.calNum}>21</Text>
+          {scheduledDate ? (
+            <View style={[s.card, { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+              <View style={s.calIcon}>
+                <Text style={s.calDay}>{format(scheduledDate, 'EEE').toUpperCase()}</Text>
+                <Text style={s.calNum}>{format(scheduledDate, 'd')}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.schedTime}>{format(scheduledDate, 'h:mm a')}</Text>
+                {durationLabel && <Text style={s.schedSub}>{durationLabel}</Text>}
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.schedTime}>9:30 – 11:15 am</Text>
-              <Text style={s.schedSub}>1h 45m estimated</Text>
+          ) : (
+            <View style={[s.card, { marginTop: 14 }]}>
+              <Text style={s.schedSub}>No date scheduled</Text>
             </View>
-            <TouchableOpacity style={s.reschedBtn} activeOpacity={0.7}>
-              <Text style={s.reschedText}>Reschedule</Text>
-            </TouchableOpacity>
-          </View>
+          )}
 
           {/* Customer card */}
-          <View style={[s.card, { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
-            <View style={s.custAvatar}>
-              <Text style={s.custAvatarText}>{initials}</Text>
+          {customerName ? (
+            <View style={[s.card, { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+              <View style={s.custAvatar}>
+                <Text style={s.custAvatarText}>{initials}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.custName}>{customerName}</Text>
+                {address && <Text style={s.custAddr} numberOfLines={1}>{address}</Text>}
+              </View>
+              <TouchableOpacity style={s.iconAction} activeOpacity={0.7} onPress={handlePhone}>
+                <Phone size={16} color={INK} strokeWidth={2} />
+              </TouchableOpacity>
+              <TouchableOpacity style={s.iconAction} activeOpacity={0.7} onPress={handleMessage}>
+                <MessageSquare size={16} color={INK} strokeWidth={2} />
+              </TouchableOpacity>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.custName}>{customerName}</Text>
+          ) : address ? (
+            <View style={[s.card, { marginTop: 10 }]}>
               <Text style={s.custAddr}>{address}</Text>
             </View>
-            <TouchableOpacity style={s.iconAction} activeOpacity={0.7}>
-              <Phone size={16} color={INK} strokeWidth={2} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.iconAction} activeOpacity={0.7}>
-              <MessageSquare size={16} color={INK} strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
+          ) : null}
 
           {/* Notes */}
-          <Text style={s.sectionEyebrow}>Job notes</Text>
-          <View style={s.card}>
-            <Text style={s.notesText}>{notes}</Text>
-          </View>
+          {notes ? (
+            <>
+              <Text style={s.sectionEyebrow}>Job notes</Text>
+              <View style={s.card}>
+                <Text style={s.notesText}>{notes}</Text>
+              </View>
+            </>
+          ) : null}
 
           {/* Parts & photos */}
           <Text style={s.sectionEyebrow}>Parts & photos</Text>
@@ -142,7 +178,7 @@ export default function JobDetailScreen() {
 
       {/* Bottom CTA bar */}
       <View style={s.bottomBar}>
-        <TouchableOpacity style={s.navBtn} activeOpacity={0.7}>
+        <TouchableOpacity style={s.navBtn} activeOpacity={0.7} onPress={handleNavigate}>
           <Navigation size={15} color={INK} strokeWidth={2.2} />
           <Text style={s.navBtnText}>Navigate</Text>
         </TouchableOpacity>
