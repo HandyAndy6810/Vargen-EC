@@ -11,11 +11,13 @@ config.resolver.nodeModulesPaths = [
 ];
 config.resolver.disableHierarchicalLookup = true;
 
-// Polyfill missing NativeReactNativeFeatureFlags methods for Expo Go SDK 54
-const existingGetPolyfills = config.serializer.getPolyfills ?? (() => []);
-config.serializer.getPolyfills = (...args) => [
-  ...existingGetPolyfills(...args),
-  path.resolve(__dirname, 'polyfills/rn-feature-flags-compat.js'),
-];
+// Expo Go SDK 54: redirect NativeReactNativeFeatureFlags to a stub so missing
+// TurboModule methods never reach logUnavailableNativeModuleError.
+config.resolver.resolveRequest = (context, moduleName, _platform) => {
+  if (moduleName.includes('NativeReactNativeFeatureFlags')) {
+    return { type: 'sourceFile', filePath: path.resolve(__dirname, 'mocks/NativeReactNativeFeatureFlags.js') };
+  }
+  return context.resolveRequest(context, moduleName, _platform);
+};
 
 module.exports = withNativeWind(config, { input: "./global.css" });
