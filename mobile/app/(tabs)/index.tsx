@@ -671,7 +671,7 @@ const s = StyleSheet.create({
   startBtn: {
     flex: 1,
     height: 52,
-    borderRadius: 16,
+    borderRadius: 18,
     backgroundColor: ORANGE,
     alignItems: 'center',
     justifyContent: 'center',

@@ -211,7 +211,7 @@ function Feature({ emoji, text }: { emoji: string; text: string }) {
 const s = StyleSheet.create({
   hero: {
     backgroundColor: BLACK,
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
     paddingTop: 72,
     paddingBottom: 48,
     overflow: 'hidden',
@@ -264,7 +264,7 @@ const s = StyleSheet.create({
     backgroundColor: PAPER,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
     paddingTop: 32,
     paddingBottom: 48,
     marginTop: -24,
@@ -316,7 +316,7 @@ const s = StyleSheet.create({
   },
   primaryBtn: {
     height: 56,
-    borderRadius: 16,
+    borderRadius: 18,
     backgroundColor: ORANGE,
     alignItems: 'center',
     justifyContent: 'center',
@@ -350,7 +350,7 @@ const s = StyleSheet.create({
   },
   secondaryBtn: {
     height: 52,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1.5,
     borderColor: ORANGE,
     alignItems: 'center',

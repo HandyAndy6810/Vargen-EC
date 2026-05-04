@@ -1626,12 +1626,12 @@ const s = StyleSheet.create({
     color: ORANGE_DEEP,
   },
   internalNotesBox: {
-    backgroundColor: '#fffbeb',
+    backgroundColor: PAPER_DEEP,
     borderRadius: 14,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#fde68a',
+    borderColor: LINE_MID,
   },
   internalNotesInput: {
     fontSize: 13,

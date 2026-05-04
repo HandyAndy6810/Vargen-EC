@@ -356,7 +356,7 @@ const s = StyleSheet.create({
   statCard: {
     flex: 1,
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 18,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: LINE_SOFT,
@@ -388,7 +388,7 @@ const s = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: LINE_SOFT,
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: 'hidden',
   },
   groupRow: {

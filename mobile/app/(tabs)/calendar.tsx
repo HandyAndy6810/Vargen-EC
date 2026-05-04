@@ -99,7 +99,7 @@ export default function CalendarScreen() {
       </View>
 
       {/* Week strip */}
-      <View style={{ paddingHorizontal: 12, paddingBottom: 0 }}>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 0 }}>
         <View style={{ flexDirection: 'row', gap: 6 }}>
           {days.map((d, i) => {
             const active = dayIdx === i;

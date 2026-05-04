@@ -15,6 +15,7 @@ import { useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { apiRequest } from '@/lib/api';
 import { ChevronLeft } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ORANGE     = '#f26a2a';
 const ORANGE_SOFT = '#ffe6d3';
@@ -65,8 +66,9 @@ export default function RegisterScreen() {
   });
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: PAPER }}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -191,11 +193,12 @@ export default function RegisterScreen() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  container: { paddingHorizontal: 28, paddingTop: 64, paddingBottom: 40 },
+  container: { paddingHorizontal: 24, paddingTop: 64, paddingBottom: 40 },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
     backgroundColor: CARD, borderWidth: 1, borderColor: LINE_MID,

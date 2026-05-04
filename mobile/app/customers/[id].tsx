@@ -104,7 +104,7 @@ export default function CustomerDetailScreen() {
           </View>
           <Text style={s.name}>{customer.name}</Text>
           {customer.address ? (
-            <Text style={s.heroSub}>{customer.address}</Text>
+            <Text style={s.heroSub} numberOfLines={2}>{customer.address}</Text>
           ) : null}
         </View>
 
@@ -289,7 +289,7 @@ const s = StyleSheet.create({
   },
   card: {
     backgroundColor: CARD,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: LINE_SOFT,
     overflow: 'hidden',
