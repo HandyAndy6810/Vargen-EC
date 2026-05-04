@@ -176,16 +176,19 @@ export default function LoginScreen() {
           {__DEV__ && (
             <TouchableOpacity
               onPress={() => {
-                const devEmail = process.env.EXPO_PUBLIC_DEV_EMAIL;
-                const devPass = process.env.EXPO_PUBLIC_DEV_PASSWORD;
-                if (devEmail && devPass) {
-                  loginMutation.mutate({ username: devEmail, password: devPass });
-                }
+                const devEmail = process.env.EXPO_PUBLIC_DEV_EMAIL ?? 'andy';
+                const devPass  = process.env.EXPO_PUBLIC_DEV_PASSWORD ?? 'password';
+                setUsername(devEmail);
+                setPassword(devPass);
+                loginMutation.mutate({ username: devEmail, password: devPass });
               }}
+              disabled={loginMutation.isPending}
               style={s.devBtn}
               activeOpacity={0.7}
             >
-              <Text style={s.devBtnText}>⚡ DEV BYPASS — skip login</Text>
+              {loginMutation.isPending
+                ? <ActivityIndicator color="#92400e" size="small" />
+                : <Text style={s.devBtnText}>⚡ DEV — skip login</Text>}
             </TouchableOpacity>
           )}
         </View>
