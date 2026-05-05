@@ -16,6 +16,10 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useEffect, useRef, Component, ReactNode } from 'react';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
+import * as SystemUI from 'expo-system-ui';
+
+// Set native root view background — fixes white bar behind Dynamic Island on iOS
+SystemUI.setBackgroundColorAsync('#f7f4ee');
 
 // ── Push notification handler config ────────────────────────────────────────
 Notifications.setNotificationHandler({
