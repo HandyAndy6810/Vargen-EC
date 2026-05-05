@@ -550,7 +550,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 0,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   avatar: {
     width: 40,

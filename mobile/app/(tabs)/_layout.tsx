@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import * as Haptics from 'expo-haptics';
 import { Home, FileText, Receipt, Calendar, User } from 'lucide-react-native';
-
 const ORANGE = '#f26a2a';
 const INK = '#141310';
 const MUTED = 'rgba(20,19,16,0.50)';
@@ -68,9 +67,10 @@ export default function TabsLayout() {
   }, [isAuthenticated, isLoading]);
 
   return (
+    <View style={{ flex: 1, backgroundColor: '#f7f4ee' }}>
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: '#f7f4ee' } }}
+      screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="quotes" />
@@ -78,6 +78,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="calendar" />
       <Tabs.Screen name="profile" />
     </Tabs>
+    </View>
   );
 }
 

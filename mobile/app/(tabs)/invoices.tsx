@@ -204,6 +204,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 20,
+    paddingTop: 10,
     paddingBottom: 16,
   },
   eyebrow: {

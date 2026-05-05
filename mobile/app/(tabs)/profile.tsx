@@ -284,7 +284,7 @@ export default function ProfileScreen() {
 const s = StyleSheet.create({
   heroSection: {
     paddingHorizontal: 20,
-    paddingTop: 0,
+    paddingTop: 10,
     paddingBottom: 24,
     overflow: 'hidden',
     position: 'relative',
