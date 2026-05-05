@@ -67,7 +67,6 @@ export default function TabsLayout() {
   }, [isAuthenticated, isLoading]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f7f4ee' }}>
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{ headerShown: false }}
@@ -78,7 +77,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="calendar" />
       <Tabs.Screen name="profile" />
     </Tabs>
-    </View>
   );
 }
 
