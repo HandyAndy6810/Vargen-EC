@@ -70,6 +70,7 @@ export default function TabsLayout() {
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{ headerShown: false }}
+      sceneContainerStyle={{ backgroundColor: '#f7f4ee' }}
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="quotes" />
