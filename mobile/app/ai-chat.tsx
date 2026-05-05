@@ -976,12 +976,26 @@ export default function AiChatScreen() {
                   const custEmail = customerType === 'existing' ? (overrideEmail || selectedCustomer?.email || '') : email;
                   const custPhone = customerType === 'existing' ? (overridePhone || selectedCustomer?.phone || '') : phone;
                   const custName  = customerType === 'existing' ? (selectedCustomer?.name || '') : `${firstName} ${lastName}`.trim();
+
+                  const markAsSent = async (afterSend?: () => void) => {
+                    if (savedQuoteId) {
+                      // Quote already saved — just PATCH it to "sent", don't create a duplicate
+                      await apiRequest('PATCH', `/api/quotes/${savedQuoteId}`, { status: 'sent' });
+                      setQuoteStatus('sent');
+                      queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      afterSend?.();
+                    } else {
+                      saveMutation.mutate('sent', { onSuccess: afterSend ? () => afterSend() : undefined });
+                    }
+                  };
+
                   Alert.alert('Send quote', `Total: $${total.toFixed(2)}`, [
                     { text: 'Cancel', style: 'cancel' },
                     {
                       text: '📧 Email customer',
                       onPress: () => {
-                        saveMutation.mutate('sent');
+                        markAsSent();
                         if (custEmail) Linking.openURL(`mailto:${custEmail}?subject=Your quote&body=Hi ${custName || 'there'},\n\nPlease find your quote attached.\n\nTotal: $${total.toFixed(2)}\n\nThanks`);
                         else Alert.alert('No email on file', 'Add an email address for this customer first.');
                       },
@@ -989,7 +1003,7 @@ export default function AiChatScreen() {
                     {
                       text: '📱 Send SMS',
                       onPress: () => {
-                        saveMutation.mutate('sent');
+                        markAsSent();
                         if (custPhone) Linking.openURL(`sms:${custPhone}`);
                         else Alert.alert('No phone on file', 'Add a phone number for this customer first.');
                       },
@@ -997,9 +1011,7 @@ export default function AiChatScreen() {
                     {
                       text: '🔗 Share link',
                       onPress: () => {
-                        saveMutation.mutate('sent', {
-                          onSuccess: () => Share.share({ message: `Quote — $${total.toFixed(2)} (inc. GST)` }),
-                        });
+                        markAsSent(() => Share.share({ message: `Quote — $${total.toFixed(2)} (inc. GST)` }));
                       },
                     },
                   ]);
