@@ -68,7 +68,8 @@
           "sounds": []
         }
       ],
-      "expo-updates"
+      "expo-updates",
+      "expo-image-picker"
     ],
     "experiments": {
       "typedRoutes": true

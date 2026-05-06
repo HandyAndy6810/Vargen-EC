@@ -1641,5 +1641,99 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
+  // ── Receipts ──────────────────────────────────────────────────────────
+
+  // AI scan a receipt image
+  app.post("/api/receipts/scan", requireAuth, async (req: any, res) => {
+    try {
+      const { imageBase64 } = req.body;
+      if (!imageBase64) return res.status(400).json({ message: "imageBase64 required" });
+
+      const imagePayload = typeof imageBase64 === 'string'
+        ? imageBase64.includes(';base64,') ? imageBase64.split(';base64,')[1] : imageBase64
+        : null;
+
+      if (!imagePayload) return res.status(400).json({ message: "Invalid image data" });
+
+      const messages: any[] = [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
+                detail: "low",
+              },
+            },
+            {
+              type: "text",
+              text: `You are a receipt scanner. Extract the following from this receipt image and return ONLY valid JSON with no markdown:
+{
+  "vendor": "store or supplier name",
+  "date": "YYYY-MM-DD or empty string if not found",
+  "total": 0.00,
+  "category": "one of: Materials, Equipment, Fuel, Subcontractor, Food, Other",
+  "items": [{ "description": "item name", "amount": 0.00 }],
+  "notes": "any useful notes or empty string"
+}
+
+If you cannot read the image clearly, return your best guess. Always return valid JSON.`,
+            },
+          ],
+        },
+      ];
+
+      const response = await openai.chat.completions.create({
+        model: AI_MODEL,
+        messages,
+        max_tokens: 800,
+        temperature: 0,
+      });
+
+      const raw = response.choices[0]?.message?.content || '{}';
+      // Strip markdown code fences if present
+      const cleaned = raw.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+      let parsed: any = {};
+      try { parsed = JSON.parse(cleaned); } catch { parsed = {}; }
+
+      res.json({
+        vendor: parsed.vendor || '',
+        date: parsed.date || '',
+        total: String(parsed.total || '0'),
+        category: parsed.category || 'Other',
+        items: parsed.items || [],
+        notes: parsed.notes || '',
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message || "Scan failed" });
+    }
+  });
+
+  app.get("/api/receipts", requireAuth, async (req: any, res) => {
+    const list = await storage.getReceipts(req.userId);
+    res.json(list);
+  });
+
+  app.post("/api/receipts", requireAuth, async (req: any, res) => {
+    try {
+      const receipt = await storage.createReceipt({ ...req.body, userId: req.userId });
+      res.status(201).json(receipt);
+    } catch (err: any) {
+      res.status(400).json({ message: err?.message || "Failed to create receipt" });
+    }
+  });
+
+  app.get("/api/receipts/:id", requireAuth, async (req: any, res) => {
+    const receipt = await storage.getReceipt(Number(req.params.id), req.userId);
+    if (!receipt) return res.status(404).json({ message: "Not found" });
+    res.json(receipt);
+  });
+
+  app.delete("/api/receipts/:id", requireAuth, async (req: any, res) => {
+    await storage.deleteReceipt(Number(req.params.id), req.userId);
+    res.json({ ok: true });
+  });
+
   return httpServer;
 }

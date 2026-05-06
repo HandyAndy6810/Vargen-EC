@@ -234,6 +234,23 @@ export const insertPriceBookSchema = createInsertSchema(priceBook).omit({ id: tr
 export type PriceBookItem = typeof priceBook.$inferSelect;
 export type InsertPriceBookItem = z.infer<typeof insertPriceBookSchema>;
 
+export const receipts = pgTable("receipts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  vendor: text("vendor"),
+  receiptDate: text("receipt_date"),
+  totalAmount: text("total_amount").notNull().default("0"),
+  category: text("category").default("Other"),
+  notes: text("notes"),
+  items: text("items"), // JSON array of { description, amount }
+  jobId: integer("job_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertReceiptSchema = createInsertSchema(receipts).omit({ id: true, createdAt: true });
+export type Receipt = typeof receipts.$inferSelect;
+export type InsertReceipt = z.infer<typeof insertReceiptSchema>;
+
 // Schemas
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const insertJobSchema = createInsertSchema(jobs).omit({ id: true, createdAt: true });

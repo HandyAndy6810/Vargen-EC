@@ -36,6 +36,13 @@ export const api = {
     get: { path: '/api/settings' },
     update: { path: '/api/settings' },
   },
+  receipts: {
+    list: { path: '/api/receipts' },
+    get: { path: '/api/receipts/:id' },
+    create: { path: '/api/receipts' },
+    delete: { path: '/api/receipts/:id' },
+    scan: { path: '/api/receipts/scan' },
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {
