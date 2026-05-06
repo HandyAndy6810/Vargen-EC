@@ -644,9 +644,20 @@ const s = StyleSheet.create({
   /* Bottom bar */
   bottomBar: {
     position: 'absolute',
-    bottom: 100,
-    left: 12,
-    right: 12,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 12,
+    paddingBottom: 32,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(247,244,238,0.92)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.85)',
+    shadowColor: '#141310',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
+    elevation: 12,
     zIndex: 30,
   },
   primaryBtn: {

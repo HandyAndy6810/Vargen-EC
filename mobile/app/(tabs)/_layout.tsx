@@ -21,10 +21,10 @@ const TABS = [
 function FloatingTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.outer, { bottom: 22 + (insets.bottom > 20 ? insets.bottom - 20 : 0) }]} pointerEvents="box-none">
-      <BlurView intensity={90} tint="light" style={styles.blur}>
+    <View style={styles.outer} pointerEvents="box-none">
+      <BlurView intensity={100} tint="light" style={styles.blur}>
         <View style={styles.specular} pointerEvents="none" />
-        <View style={styles.inner}>
+        <View style={[styles.inner, { paddingBottom: Math.max(insets.bottom, 10) }]}>
           {TABS.map((tab, i) => {
             const isFocused = state.index === i;
             const color = isFocused ? ORANGE : MUTED;
@@ -84,21 +84,19 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   outer: {
     position: 'absolute',
+    bottom: 0,
     left: 0,
     right: 0,
-    alignItems: 'center',
     zIndex: 100,
   },
   blur: {
-    width: 340,
-    borderRadius: 30,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.7)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.85)',
     shadowColor: INK,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.18,
-    shadowRadius: 40,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
     elevation: 20,
   },
   specular: {
@@ -106,15 +104,15 @@ const styles = StyleSheet.create({
     top: 1,
     left: 10,
     right: 10,
-    height: 12,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.6)',
     zIndex: 1,
   },
   inner: {
     flexDirection: 'row',
     padding: 5,
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    paddingTop: 8,
+    backgroundColor: 'rgba(247,244,238,0.72)',
   },
   tabItem: {
     flex: 1,
