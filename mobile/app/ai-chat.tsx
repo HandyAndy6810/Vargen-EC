@@ -13,12 +13,12 @@ import {
   Linking,
   Share,
 } from 'react-native';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Sparkles, Send, Edit2, Bookmark, Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest, API_BASE_URL } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { useCustomers } from '@/hooks/use-customers';
@@ -117,11 +117,34 @@ export default function AiChatScreen() {
 
   const [jobTitleOverride, setJobTitleOverride] = useState('');
   const [jobType, setJobType] = useState(tradeType);
+  const [expiryDays, setExpiryDays] = useState(30);
   const [expiryDate, setExpiryDate] = useState(() => {
     const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     return d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
   });
+  const pickExpiryDays = (days: number) => {
+    setExpiryDays(days);
+    const d = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    setExpiryDate(d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }));
+  };
   const [internalNotes, setInternalNotes] = useState('');
+
+  // Fetch user settings to prefill trade type + labour rate
+  const { data: userSettings } = useQuery({
+    queryKey: ['/api/settings'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/settings');
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    if (userSettings) {
+      if (userSettings.tradeType) setTradeType(userSettings.tradeType);
+      if (userSettings.labourRate) setLabourRate(String(userSettings.labourRate));
+    }
+  }, [userSettings]);
   const [editableItems, setEditableItems] = useState<{ description: string; qty: string; unit: string; rate: string }[]>([]);
   const [savedQuoteId, setSavedQuoteId] = useState<number | null>(null);
   const [quoteStatus, setQuoteStatus] = useState<string>('draft');
@@ -308,11 +331,11 @@ export default function AiChatScreen() {
           <>
             <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 140 }}>
               {/* Mini hero */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 }}>
-                <AiAvatar size={44} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 24 }}>
+                <AiAvatar size={48} />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.heroHeadingSmall}>New AI quote</Text>
-                  <Text style={s.heroSubSmall}>Fill in the details — I'll build the quote.</Text>
+                  <Text style={[s.heroHeadingSmall, { fontSize: 22, letterSpacing: -0.6 }]}>New AI quote</Text>
+                  <Text style={s.heroSubSmall}>Fill in the details below — I'll build the rest.</Text>
                 </View>
               </View>
 
@@ -322,11 +345,24 @@ export default function AiChatScreen() {
                 </View>
               )}
 
+              {/* Describe the job — top of form */}
+              <Text style={s.formLabel}>Describe the job</Text>
+              <TextInput
+                style={s.descInput}
+                placeholder="e.g. Replace hot water system at Smith's place, Rheem 315L same location…"
+                placeholderTextColor={MUTED}
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+
               {/* Customer */}
               <Text style={s.formLabel}>Customer</Text>
               <View style={s.formCard}>
 
-                {/* Toggle */}
+                {/* Toggle — sits flush on top of the card fields */}
                 <View style={s.customerToggleRow}>
                   {(['new', 'existing'] as const).map((t) => (
                     <TouchableOpacity
@@ -336,7 +372,7 @@ export default function AiChatScreen() {
                       style={[s.custTypeBtn, customerType === t && s.custTypeBtnActive]}
                     >
                       <Text style={[s.custTypeBtnText, customerType === t && s.custTypeBtnTextActive]}>
-                        {t === 'new' ? 'New customer' : 'Existing'}
+                        {t === 'new' ? 'New customer' : 'Existing customer'}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -545,62 +581,54 @@ export default function AiChatScreen() {
                 )}
               </View>
 
-              {/* Job description */}
-              <Text style={s.formLabel}>Describe the job</Text>
-              <TextInput
-                style={s.descInput}
-                placeholder="e.g. Replace hot water system at Smith's place, Rheem 315L same location…"
-                placeholderTextColor={MUTED}
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-
               {/* Pricing settings */}
               <Text style={s.formLabel}>Pricing settings</Text>
               <View style={s.formCard}>
-                {/* Trade type */}
-                <View style={s.formRow}>
-                  <Text style={s.formRowLabel}>Trade type</Text>
-                  <TextInput
-                    style={s.formRowInput}
-                    value={tradeType}
-                    onChangeText={setTradeType}
-                    placeholder="e.g. Plumbing"
-                    placeholderTextColor={MUTED}
-                    returnKeyType="next"
-                  />
+                {/* Trade type chips */}
+                <View style={[s.formRow, { flexDirection: 'column', alignItems: 'flex-start', paddingBottom: 12 }]}>
+                  <Text style={[s.formRowLabel, { marginBottom: 10 }]}>Trade type</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -14 }} contentContainerStyle={{ paddingHorizontal: 14, gap: 8, flexDirection: 'row' }}>
+                    {['Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Landscaping', 'HVAC', 'Tiling', 'Roofing', 'Concreting', 'General'].map((t) => (
+                      <TouchableOpacity
+                        key={t}
+                        activeOpacity={0.75}
+                        onPress={() => { setTradeType(t); setJobType(t); Haptics.selectionAsync(); }}
+                        style={[s.tradeChip, tradeType === t && s.tradeChipActive]}
+                      >
+                        <Text style={[s.tradeChipText, tradeType === t && s.tradeChipTextActive]}>{t}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
-                {/* Labour rate + hours side by side */}
-                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                  <Text style={s.formRowLabel}>Labour rate</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={{ fontSize: 13, color: MUTED_HI, fontFamily: 'Manrope_700Bold' }}>$</Text>
-                    <TextInput
-                      style={[s.formRowInput, { width: 60 }]}
-                      value={labourRate}
-                      onChangeText={setLabourRate}
-                      keyboardType="numeric"
-                      selectTextOnFocus
-                      returnKeyType="next"
-                    />
-                    <Text style={{ fontSize: 12, color: MUTED, fontFamily: 'Manrope_600SemiBold' }}>/hr</Text>
+                {/* Labour rate + hours in one row */}
+                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, gap: 0 }]}>
+                  <Text style={s.formRowLabel}>Labour</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={s.labourBubble}>
+                      <Text style={s.labourBubbleLabel}>$/hr</Text>
+                      <TextInput
+                        style={s.labourBubbleInput}
+                        value={labourRate}
+                        onChangeText={setLabourRate}
+                        keyboardType="numeric"
+                        selectTextOnFocus
+                        returnKeyType="next"
+                      />
+                    </View>
+                    <View style={s.labourBubble}>
+                      <Text style={s.labourBubbleLabel}>hrs</Text>
+                      <TextInput
+                        style={s.labourBubbleInput}
+                        value={labourHours}
+                        onChangeText={setLabourHours}
+                        keyboardType="numeric"
+                        placeholder="est."
+                        placeholderTextColor={MUTED}
+                        selectTextOnFocus
+                        returnKeyType="next"
+                      />
+                    </View>
                   </View>
-                </View>
-                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                  <Text style={s.formRowLabel}>Labour hours</Text>
-                  <TextInput
-                    style={[s.formRowInput, { width: 60 }]}
-                    value={labourHours}
-                    onChangeText={setLabourHours}
-                    keyboardType="numeric"
-                    placeholder="est."
-                    placeholderTextColor={MUTED}
-                    selectTextOnFocus
-                    returnKeyType="next"
-                  />
                 </View>
                 {/* Callout fee */}
                 <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
@@ -635,34 +663,30 @@ export default function AiChatScreen() {
                   <Text style={s.formRowLabel}>Job title</Text>
                   <TextInput
                     style={[s.formInput, { flex: 1, textAlign: 'right' }]}
-                    placeholder="AI will fill this in"
+                    placeholder="AI can fill this in"
                     placeholderTextColor={MUTED}
                     value={jobTitleOverride}
                     onChangeText={setJobTitleOverride}
                     returnKeyType="next"
                   />
                 </View>
-                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                  <Text style={s.formRowLabel}>Job type</Text>
-                  <TextInput
-                    style={[s.formInput, { flex: 1, textAlign: 'right' }]}
-                    placeholder="e.g. Plumbing"
-                    placeholderTextColor={MUTED}
-                    value={jobType}
-                    onChangeText={setJobType}
-                    returnKeyType="next"
-                  />
-                </View>
-                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                  <Text style={s.formRowLabel}>Expiry</Text>
-                  <TextInput
-                    style={[s.formInput, { flex: 1, textAlign: 'right' }]}
-                    value={expiryDate}
-                    onChangeText={setExpiryDate}
-                    placeholder="30 days"
-                    placeholderTextColor={MUTED}
-                    returnKeyType="next"
-                  />
+                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, flexDirection: 'column', alignItems: 'flex-start', paddingBottom: 12 }]}>
+                  <Text style={[s.formRowLabel, { marginBottom: 10 }]}>Expiry</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                    {[7, 14, 30, 60, 90].map((days) => (
+                      <TouchableOpacity
+                        key={days}
+                        activeOpacity={0.75}
+                        onPress={() => { pickExpiryDays(days); Haptics.selectionAsync(); }}
+                        style={[s.expiryChip, expiryDays === days && s.expiryChipActive]}
+                      >
+                        <Text style={[s.expiryChipText, expiryDays === days && s.expiryChipTextActive]}>{days} days</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_600SemiBold', marginTop: 8 }}>
+                    Expires {expiryDate}
+                  </Text>
                 </View>
                 <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, alignItems: 'flex-start', paddingTop: 12 }]}>
                   <Text style={[s.formRowLabel, { paddingTop: 2 }]}>Internal notes</Text>
@@ -1156,23 +1180,28 @@ const s = StyleSheet.create({
   },
   customerToggleRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
     padding: 10,
-    paddingBottom: 0,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: LINE_SOFT,
   },
   custTypeBtn: {
     flex: 1,
-    height: 34,
-    borderRadius: 10,
+    height: 42,
+    borderRadius: 12,
     backgroundColor: PAPER_DEEP,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   custTypeBtnActive: {
     backgroundColor: ORANGE,
+    borderColor: ORANGE_DEEP,
   },
   custTypeBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Manrope_700Bold',
     color: MUTED_HI,
   },
@@ -1688,6 +1717,69 @@ const s = StyleSheet.create({
   sendBtnText: {
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
+    color: '#fff',
+  },
+  tradeChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: PAPER_DEEP,
+    borderWidth: 1,
+    borderColor: LINE_MID,
+  },
+  tradeChipActive: {
+    backgroundColor: INK,
+    borderColor: INK,
+  },
+  tradeChipText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED_HI,
+  },
+  tradeChipTextActive: {
+    color: '#fff',
+  },
+  labourBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: PAPER_DEEP,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: LINE_MID,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  labourBubbleLabel: {
+    fontSize: 11,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED,
+  },
+  labourBubbleInput: {
+    fontSize: 14,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
+    minWidth: 44,
+    textAlign: 'center',
+  },
+  expiryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: PAPER_DEEP,
+    borderWidth: 1,
+    borderColor: LINE_MID,
+  },
+  expiryChipActive: {
+    backgroundColor: ORANGE,
+    borderColor: ORANGE_DEEP,
+  },
+  expiryChipText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED_HI,
+  },
+  expiryChipTextActive: {
     color: '#fff',
   },
 });
