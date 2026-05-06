@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useJobs } from '@/hooks/use-jobs';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useInvoices } from '@/hooks/use-invoices';
+import { useWeather } from '@/hooks/use-weather';
 import { queryClient } from '@/lib/queryClient';
 import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap, ScanLine } from 'lucide-react-native';
 
@@ -60,7 +61,7 @@ function AnimatedNumber({ value, prefix = '$', style }: { value: number; prefix?
   return <Text style={style}>{prefix}{fmt}</Text>;
 }
 
-function CyclingPill({ nextJob, pipelineAmt }: { nextJob: any; pipelineAmt: number }) {
+function CyclingPill({ nextJob, pipelineAmt, weather }: { nextJob: any; pipelineAmt: number; weather: any }) {
   const [idx, setIdx] = useState(0);
   const [locked, setLocked] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -72,8 +73,9 @@ function CyclingPill({ nextJob, pipelineAmt }: { nextJob: any; pipelineAmt: numb
   }, [locked]);
 
   const now = new Date();
+  const weatherLabel = weather?.current ? `${weather.current.icon} ${Math.round(weather.current.temp)}°` : 'Loading weather...';
   const states = [
-    { icon: '☀️', label: 'Fine · --°' },
+    { icon: weather?.current?.icon || '☀️', label: weatherLabel },
     { icon: '🕐', label: format(now, "EEE d · h:mm a") },
     { icon: '📍', label: nextJob ? nextJob.title.slice(0, 22) : 'No jobs' },
     { icon: '💰', label: pipelineAmt >= 1000 ? `$${(pipelineAmt / 1000).toFixed(1)}k out` : `$${pipelineAmt} out` },
@@ -106,6 +108,7 @@ export default function HomeScreen() {
   const { data: jobs, isLoading: jobsLoading } = useJobs();
   const { data: quotes } = useQuotes();
   const { data: invoices } = useInvoices();
+  const { data: weather } = useWeather();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -433,7 +436,7 @@ export default function HomeScreen() {
               <Text style={s.avatarText}>{initials}</Text>
             </View>
           </TouchableOpacity>
-          <CyclingPill nextJob={nextJob} pipelineAmt={pipelineAmt} />
+          <CyclingPill nextJob={nextJob} pipelineAmt={pipelineAmt} weather={weather} />
         </View>
 
         {/* Hero greeting */}

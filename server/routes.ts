@@ -1735,5 +1735,82 @@ If you cannot read the image clearly, return your best guess. Always return vali
     res.json({ ok: true });
   });
 
+  app.get("/api/weather", requireAuth, async (req: any, res) => {
+    try {
+      const { latitude, longitude } = req.query;
+      if (!latitude || !longitude) {
+        return res.status(400).json({ message: "latitude and longitude required" });
+      }
+      const lat = parseFloat(latitude);
+      const lon = parseFloat(longitude);
+      if (isNaN(lat) || isNaN(lon)) {
+        return res.status(400).json({ message: "Invalid coordinates" });
+      }
+
+      const response = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&temperature_unit=celsius&timezone=auto`
+      );
+      const data = await response.json();
+
+      // Map WMO weather codes to descriptions
+      const weatherCodeMap: Record<number, { icon: string; desc: string }> = {
+        0: { icon: '☀️', desc: 'Clear' },
+        1: { icon: '🌤️', desc: 'Mostly Clear' },
+        2: { icon: '⛅', desc: 'Partly Cloudy' },
+        3: { icon: '☁️', desc: 'Overcast' },
+        45: { icon: '🌫️', desc: 'Foggy' },
+        48: { icon: '🌫️', desc: 'Foggy' },
+        51: { icon: '🌦️', desc: 'Light Drizzle' },
+        53: { icon: '🌧️', desc: 'Drizzle' },
+        55: { icon: '🌧️', desc: 'Heavy Drizzle' },
+        61: { icon: '🌧️', desc: 'Light Rain' },
+        63: { icon: '🌧️', desc: 'Rain' },
+        65: { icon: '⛈️', desc: 'Heavy Rain' },
+        71: { icon: '🌨️', desc: 'Light Snow' },
+        73: { icon: '🌨️', desc: 'Snow' },
+        75: { icon: '🌨️', desc: 'Heavy Snow' },
+        77: { icon: '🌨️', desc: 'Snow Grains' },
+        80: { icon: '🌧️', desc: 'Light Showers' },
+        81: { icon: '🌧️', desc: 'Showers' },
+        82: { icon: '⛈️', desc: 'Heavy Showers' },
+        85: { icon: '🌨️', desc: 'Light Snow Showers' },
+        86: { icon: '🌨️', desc: 'Snow Showers' },
+        95: { icon: '⛈️', desc: 'Thunderstorm' },
+        96: { icon: '⛈️', desc: 'Thunderstorm with Hail' },
+        99: { icon: '⛈️', desc: 'Thunderstorm with Hail' },
+      };
+
+      const daily = data.daily || {};
+      const forecast = (daily.time || []).slice(0, 7).map((date: string, i: number) => {
+        const code = daily.weather_code?.[i] || 0;
+        const weather = weatherCodeMap[code] || { icon: '❓', desc: 'Unknown' };
+        return {
+          date,
+          temp_max: daily.temperature_2m_max?.[i],
+          temp_min: daily.temperature_2m_min?.[i],
+          precipitation: daily.precipitation_sum?.[i] || 0,
+          weather_code: code,
+          weather_icon: weather.icon,
+          weather_desc: weather.desc,
+        };
+      });
+
+      const today = forecast[0];
+      res.json({
+        location: data.timezone,
+        current: {
+          temp: today?.temp_max,
+          icon: today?.weather_icon,
+          desc: today?.weather_desc,
+          precipitation_chance: today?.precipitation || 0,
+        },
+        forecast,
+      });
+    } catch (err: any) {
+      console.error("Weather fetch failed:", err);
+      res.status(500).json({ message: "Failed to fetch weather" });
+    }
+  });
+
   return httpServer;
 }

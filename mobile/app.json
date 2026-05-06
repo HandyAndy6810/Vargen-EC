@@ -21,7 +21,9 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Used to capture photos for jobs and invoices.",
         "NSPhotoLibraryUsageDescription": "Used to attach photos to jobs and invoices.",
-        "NSMicrophoneUsageDescription": "Used for AI voice-to-quote dictation."
+        "NSMicrophoneUsageDescription": "Used for AI voice-to-quote dictation.",
+        "NSLocationWhenInUseUsageDescription": "Used to show weather conditions for your location.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Used to show weather conditions for your location."
       }
     },
     "android": {
@@ -37,7 +39,9 @@
         "WRITE_EXTERNAL_STORAGE",
         "RECORD_AUDIO",
         "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE"
+        "VIBRATE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -69,7 +73,8 @@
         }
       ],
       "expo-updates",
-      "expo-image-picker"
+      "expo-image-picker",
+      "expo-location"
     ],
     "experiments": {
       "typedRoutes": true
