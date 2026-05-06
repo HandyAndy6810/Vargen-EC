@@ -15,7 +15,7 @@ import { useJobs } from '@/hooks/use-jobs';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useInvoices } from '@/hooks/use-invoices';
 import { queryClient } from '@/lib/queryClient';
-import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap } from 'lucide-react-native';
+import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap, ScanLine } from 'lucide-react-native';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_SOFT = '#ffe6d3';
@@ -207,9 +207,10 @@ export default function HomeScreen() {
             <Text style={s.eyebrow}>Quick Actions</Text>
             <View style={s.qaRow}>
               {([
-                { Icon: Sparkles,  label: 'New Quote',    color: ORANGE, bg: ORANGE_SOFT, route: '/ai-chat' },
-                { Icon: Briefcase, label: 'New Job',      color: BLUE,   bg: '#eaf2ff',  route: '/jobs/create' },
-                { Icon: Users,     label: 'Add Customer', color: GREEN,  bg: GREEN_SOFT, route: '/customers/new' },
+                { Icon: Sparkles,  label: 'New Quote',    color: ORANGE,    bg: ORANGE_SOFT, route: '/ai-chat' },
+                { Icon: Briefcase, label: 'New Job',      color: BLUE,      bg: '#eaf2ff',   route: '/jobs/create' },
+                { Icon: Users,     label: 'Add Customer', color: GREEN,      bg: GREEN_SOFT,  route: '/customers/new' },
+                { Icon: ScanLine,  label: 'Receipts',     color: '#7c3aed', bg: '#ede9fe',   route: '/receipts/index' },
               ] as const).map(({ Icon, label, color, bg, route }) => (
                 <TouchableOpacity key={label} style={[s.qaBtn, { backgroundColor: bg }]} onPress={() => router.push(route as any)} activeOpacity={0.75}>
                   <View style={[s.qaIcon, { backgroundColor: color }]}><Icon size={18} color="#fff" strokeWidth={2} /></View>

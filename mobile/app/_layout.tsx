@@ -119,6 +119,8 @@ export default function RootLayout() {
             <Stack.Screen name="customers/new" />
             <Stack.Screen name="customers/[id]" />
             <Stack.Screen name="price-book" />
+            <Stack.Screen name="receipts/index" />
+            <Stack.Screen name="receipts/scan" />
           </Stack>
         </QueryClientProvider>
       </GestureHandlerRootView>
