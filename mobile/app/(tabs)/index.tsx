@@ -15,6 +15,7 @@ import { useJobs } from '@/hooks/use-jobs';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useInvoices } from '@/hooks/use-invoices';
 import { useWeather } from '@/hooks/use-weather';
+import { useSettings } from '@/hooks/use-settings';
 import { queryClient } from '@/lib/queryClient';
 import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap, ScanLine } from 'lucide-react-native';
 
@@ -109,6 +110,7 @@ export default function HomeScreen() {
   const { data: quotes } = useQuotes();
   const { data: invoices } = useInvoices();
   const { data: weather } = useWeather();
+  const { data: settings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -178,7 +180,7 @@ export default function HomeScreen() {
   const pipelineScore     = 40 + (pipeline.sent + pipeline.accepted) * 5;
 
   type WDef = { id: string; score: number; fullWidth: boolean };
-  const widgetDefs: WDef[] = ([
+  const ALL_WIDGETS: WDef[] = [
     { id: 'outstanding',  score: outstandingScore,   fullWidth: false },
     { id: 'weather',      score: 60,                 fullWidth: true  },
     { id: 'schedule',     score: scheduleScore,      fullWidth: true  },
@@ -187,7 +189,31 @@ export default function HomeScreen() {
     { id: 'pipeline',     score: pipelineScore,      fullWidth: false },
     { id: 'revenue',      score: 35,                 fullWidth: false },
     { id: 'nudge',        score: 30,                 fullWidth: false },
-  ] as WDef[]).filter(w => w.score > 0).sort((a, b) => b.score - a.score);
+  ];
+  const widgetMap = Object.fromEntries(ALL_WIDGETS.map(w => [w.id, w]));
+
+  // Use saved order from settings.bladeOrder if available, else sort by score
+  const savedOrder: string[] = useMemo(() => {
+    try {
+      const raw = settings?.bladeOrder;
+      const parsed = raw ? JSON.parse(raw) : [];
+      // Only use if it contains widget IDs (not old format like 'hero','activity')
+      if (parsed.length > 0 && ALL_WIDGETS.some(w => parsed.includes(w.id) || parsed.includes(`-${w.id}`))) {
+        return parsed;
+      }
+    } catch {}
+    return [];
+  }, [settings?.bladeOrder]);
+
+  const widgetDefs: WDef[] = useMemo(() => {
+    if (savedOrder.length > 0) {
+      return savedOrder
+        .filter((id: string) => !id.startsWith('-')) // '-id' = hidden
+        .map((id: string) => widgetMap[id])
+        .filter(Boolean);
+    }
+    return ALL_WIDGETS.filter(w => w.score > 0).sort((a, b) => b.score - a.score);
+  }, [savedOrder, outstandingScore, scheduleScore, recentQuotesScore, pipelineScore]);
 
   const rows: WDef[][] = [];
   let wi = 0;

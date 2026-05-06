@@ -279,3 +279,20 @@ export type JobTimerEntry = typeof jobTimerEntries.$inferSelect;
 export type InsertJobTimerEntry = z.infer<typeof insertJobTimerEntrySchema>;
 export type PortalFeedback = typeof portalFeedback.$inferSelect;
 export type InsertPortalFeedback = z.infer<typeof insertPortalFeedbackSchema>;
+
+export const customerMessages = pgTable("customer_messages", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  customerId: integer("customer_id").references(() => customers.id),
+  jobId: integer("job_id"),
+  quoteId: integer("quote_id"),
+  direction: text("direction").notNull().default("out"), // 'out' = sent by tradesperson, 'in' = from customer
+  channel: text("channel").notNull().default("note"),   // 'sms' | 'email' | 'note'
+  body: text("body").notNull(),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCustomerMessageSchema = createInsertSchema(customerMessages).omit({ id: true, createdAt: true });
+export type CustomerMessage = typeof customerMessages.$inferSelect;
+export type InsertCustomerMessage = z.infer<typeof insertCustomerMessageSchema>;

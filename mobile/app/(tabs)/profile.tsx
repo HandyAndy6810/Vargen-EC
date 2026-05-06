@@ -20,7 +20,7 @@ import { isThisMonth } from 'date-fns';
 import {
   FileText, Receipt, Calendar, MapPin, Sparkles,
   Bell, MessageSquare, Sun, Settings, LogOut, ChevronRight, Pencil,
-  Link, RefreshCw, Unlink, CheckCircle, BookOpen, Users, Building2,
+  Link, RefreshCw, Unlink, CheckCircle, BookOpen, Users, Building2, LayoutGrid,
 } from 'lucide-react-native';
 
 const ORANGE      = '#f26a2a';
@@ -260,8 +260,9 @@ export default function ProfileScreen() {
         <XeroSection />
 
         <SettingsGroup title="Preferences" items={[
-          { icon: Sun,  label: 'Appearance',    sub: 'Light · system default' },
-          { icon: Bell, label: 'Notifications', sub: 'Quotes, invoices, reviews' },
+          { icon: LayoutGrid, label: 'Customise widgets', sub: 'Reorder and show/hide home screen widgets', onPress: () => router.push('/settings/widgets' as any) },
+          { icon: Sun,        label: 'Appearance',        sub: 'Light · system default' },
+          { icon: Bell,       label: 'Notifications',     sub: 'Quotes, invoices, reviews' },
         ]} />
 
         <SettingsGroup title="Account" items={[

@@ -1189,6 +1189,56 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
+  // ─── Customer Messages ───
+
+  app.get("/api/customers/:customerId/messages", requireAuth, async (req: any, res) => {
+    const customerId = parseInt(req.params.customerId);
+    if (isNaN(customerId)) return res.status(400).json({ message: "Invalid customer id" });
+    const msgs = await storage.getCustomerMessages(req.userId, customerId);
+    res.json(msgs);
+  });
+
+  app.post("/api/customers/:customerId/messages", requireAuth, async (req: any, res) => {
+    const customerId = parseInt(req.params.customerId);
+    if (isNaN(customerId)) return res.status(400).json({ message: "Invalid customer id" });
+    const { body, direction = "out", channel = "note", jobId, quoteId } = req.body || {};
+    if (!body?.trim()) return res.status(400).json({ message: "body is required" });
+    const msg = await storage.createCustomerMessage({
+      userId: req.userId,
+      customerId,
+      body: body.trim(),
+      direction,
+      channel,
+      jobId: jobId ?? null,
+      quoteId: quoteId ?? null,
+    });
+
+    // If channel is 'sms' and Twilio is configured, try to send
+    if (channel === "sms" && direction === "out") {
+      const customer = await storage.getCustomer(customerId);
+      const phone = customer?.phone;
+      const accountSid = process.env.TWILIO_ACCOUNT_SID;
+      const authToken  = process.env.TWILIO_AUTH_TOKEN;
+      const from       = process.env.TWILIO_PHONE_NUMBER;
+      if (phone && accountSid && authToken && from) {
+        try {
+          const twilio = (await import('twilio')).default;
+          await twilio(accountSid, authToken).messages.create({ body: body.trim(), from, to: phone });
+        } catch (smsErr) {
+          console.error("SMS send failed:", smsErr);
+          // Don't fail the request — message is still saved
+        }
+      }
+    }
+
+    res.status(201).json(msg);
+  });
+
+  app.delete("/api/customers/:customerId/messages/:id", requireAuth, async (req: any, res) => {
+    await storage.deleteCustomerMessage(parseInt(req.params.id), req.userId);
+    res.json({ ok: true });
+  });
+
   // ─── Customer Email ───
 
   app.post("/api/messages/email", requireAuth, emailRateLimit, async (req: any, res) => {

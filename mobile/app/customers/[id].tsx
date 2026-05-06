@@ -135,6 +135,13 @@ export default function CustomerDetailScreen() {
             <FileText size={20} color={INK} strokeWidth={2} />
             <Text style={[s.actionLabel, { color: INK }]}>Quote</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.actionBtn, { backgroundColor: '#f3e8ff' }]}
+            onPress={() => router.push(`/customers/messages?id=${id}` as any)}
+          >
+            <MessageSquare size={20} color="#7c3aed" strokeWidth={2} />
+            <Text style={[s.actionLabel, { color: '#7c3aed' }]}>History</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Contact details */}
