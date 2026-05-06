@@ -8,9 +8,10 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useState, useRef } from 'react';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useState, useRef, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Sparkles, Send, Plus, Trash2 } from 'lucide-react-native';
 import { useQuote } from '@/hooks/use-quotes';
@@ -197,6 +198,20 @@ export default function InvoiceCreateScreen() {
   };
 
   const isPending = convertMutation.isPending || createMutation.isPending;
+
+  const navigation = useNavigation();
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove' as any, (e: any) => {
+      const hasWork = jobTitle.trim() || customerName.trim() || notes.trim() || labourRate.trim() || labourHours.trim() || lines.some(l => l.description.trim() || l.qty !== '1' || l.unitPrice.trim());
+      if (!hasWork) return;
+      e.preventDefault();
+      Alert.alert('Leave without saving?', 'Your invoice details will be lost.', [
+        { text: 'Stay', style: 'cancel' },
+        { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+      ]);
+    });
+    return unsub;
+  }, [navigation, jobTitle, customerName, notes, labourRate, labourHours, lines]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>

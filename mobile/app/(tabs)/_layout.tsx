@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { Home, FileText, Receipt, Calendar, User } from 'lucide-react-native';
 const ORANGE = '#f26a2a';
 const INK = '#141310';
-const MUTED = 'rgba(20,19,16,0.50)';
+const MUTED = 'rgba(20,19,16,0.62)';
 
 const TABS = [
   { name: 'index',    label: 'Home',     Icon: Home },
@@ -44,7 +44,7 @@ function FloatingTabBar({ state, navigation }: any) {
                   }
                 }}
               >
-                <tab.Icon size={20} color={color} strokeWidth={2.1} />
+                <tab.Icon size={22} color={color} strokeWidth={2.1} />
                 {isFocused && (
                   <Text style={styles.tabLabel}>{tab.label}</Text>
                 )}
@@ -91,13 +91,13 @@ const styles = StyleSheet.create({
   },
   blur: {
     overflow: 'hidden',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.85)',
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(255,255,255,0.9)',
     shadowColor: INK,
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 20,
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 20,
+    elevation: 24,
   },
   specular: {
     position: 'absolute',
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 5,
     paddingTop: 8,
-    backgroundColor: 'rgba(247,244,238,0.72)',
+    backgroundColor: 'rgba(247,244,238,0.96)',
   },
   tabItem: {
     flex: 1,

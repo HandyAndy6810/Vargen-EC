@@ -9,8 +9,8 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { useState } from 'react';
-import { router } from 'expo-router';
+import { useState, useEffect } from 'react';
+import { router, useNavigation } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
@@ -93,6 +93,19 @@ export default function QuoteCreateScreen() {
     }
   };
 
+  const navigation = useNavigation();
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove' as any, (e: any) => {
+      const hasWork = aiDescription.trim() || customer.trim() || jobTitle.trim() || schedDate.trim() || notes.trim() || lines.some(l => l.name.trim() || l.qty !== '1' || l.price.trim());
+      if (!hasWork) return;
+      e.preventDefault();
+      Alert.alert('Leave without saving?', 'Your quote details will be lost.', [
+        { text: 'Stay', style: 'cancel' },
+        { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+      ]);
+    });
+    return unsub;
+  }, [navigation, aiDescription, customer, jobTitle, schedDate, notes, lines]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
