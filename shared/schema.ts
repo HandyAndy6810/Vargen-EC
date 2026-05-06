@@ -74,6 +74,8 @@ export const invoices = pgTable("invoices", {
   notes: text("notes"),
   stripePaymentLinkId: text("stripe_payment_link_id"),
   stripePaymentLinkUrl: text("stripe_payment_link_url"),
+  squarePaymentLinkId: text("square_payment_link_id"),
+  squarePaymentLinkUrl: text("square_payment_link_url"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -176,6 +178,8 @@ export const userSettings = pgTable("user_settings", {
   accountNumber: text("account_number").default(""),
   accountName: text("account_name").default(""),
   paymentTermsDays: integer("payment_terms_days").default(14),
+  stripeEnabled: boolean("stripe_enabled").default(false),
+  squareEnabled: boolean("square_enabled").default(false),
   followUpEnabled: boolean("follow_up_enabled").default(false),
   followUpDays: text("follow_up_days").default("[3,7,14]"),
   followUpChannel: text("follow_up_channel").default("sms"),

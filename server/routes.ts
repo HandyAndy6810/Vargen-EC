@@ -15,6 +15,7 @@ import multer from "multer";
 import fs from "fs";
 import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken, upsertXeroContact, createXeroInvoice } from "./xero";
 import { stripe, createPaymentLink } from "./stripe";
+import { squareClient, createSquarePaymentLink } from "./square";
 import { getTradeContext } from "./trade-knowledge";
 import crypto from "crypto";
 import { sendCustomerEmail } from "./lib/email";
@@ -1612,6 +1613,70 @@ CRITICAL RULES — follow these exactly:
       }
     }
 
+    res.json({ received: true });
+  });
+
+  // ── Square ────────────────────────────────────────────────────────────────
+
+  // POST /api/square/payment-link/:invoiceId
+  app.post("/api/square/payment-link/:invoiceId", requireAuth, async (req: any, res) => {
+    if (!squareClient) return res.status(503).json({ message: "Square is not configured on this server." });
+
+    const invoiceId = parseInt(req.params.invoiceId);
+    if (isNaN(invoiceId)) return res.status(400).json({ message: "Invalid invoice id" });
+
+    const invoice = await storage.getInvoice(invoiceId, req.userId);
+    if (!invoice || invoice.userId !== req.userId) return res.status(404).json({ message: "Invoice not found" });
+
+    if (invoice.squarePaymentLinkUrl) {
+      return res.json({ url: invoice.squarePaymentLinkUrl, id: invoice.squarePaymentLinkId });
+    }
+
+    const amountCents = BigInt(Math.round(parseFloat(String(invoice.totalAmount)) * 100));
+
+    try {
+      const link = await createSquarePaymentLink({
+        invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        description: `Invoice ${invoice.invoiceNumber}`,
+        amountCents,
+        currency: 'AUD',
+      });
+
+      await storage.updateInvoice(invoiceId, {
+        squarePaymentLinkId: link.id,
+        squarePaymentLinkUrl: link.url,
+      });
+
+      res.json({ url: link.url, id: link.id });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to create Square payment link" });
+    }
+  });
+
+  // POST /api/square/webhook — mark invoice paid on payment.completed
+  app.post("/api/square/webhook", async (req, res) => {
+    const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+    try {
+      const event = req.body;
+      if (event?.type === 'payment.completed' || event?.type === 'payment_link.completed') {
+        const metadata = event?.data?.object?.payment?.note || event?.data?.object?.metadata || '';
+        const match = String(metadata).match(/invoiceId[=:](\d+)/i);
+        if (match) {
+          const invoiceId = parseInt(match[1]);
+          const invoice = await storage.getInvoice(invoiceId);
+          if (invoice && invoice.status !== 'paid') {
+            await storage.updateInvoice(invoiceId, {
+              status: 'paid',
+              paidDate: new Date(),
+              paidAmount: String(invoice.totalAmount),
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Square webhook error:', err);
+    }
     res.json({ received: true });
   });
 

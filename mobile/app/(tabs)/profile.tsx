@@ -20,7 +20,7 @@ import { isThisMonth } from 'date-fns';
 import {
   FileText, Receipt, Calendar, MapPin, Sparkles,
   Bell, MessageSquare, Sun, Settings, LogOut, ChevronRight, Pencil,
-  Link, RefreshCw, Unlink, CheckCircle, BookOpen, Users,
+  Link, RefreshCw, Unlink, CheckCircle, BookOpen, Users, Building2,
 } from 'lucide-react-native';
 
 const ORANGE      = '#f26a2a';
@@ -244,7 +244,8 @@ export default function ProfileScreen() {
 
         <SettingsGroup title="Business" items={[
           { icon: FileText,  label: 'Business details',       sub: 'ABN, logo, invoice footer' },
-          { icon: Receipt,   label: 'Invoice & quote settings', sub: 'Numbering, GST, payment terms' },
+          { icon: Receipt,   label: 'Invoice & payment',      sub: 'Terms, GST, Stripe, Square', onPress: () => router.push('/settings/payment-terms' as any) },
+          { icon: Building2, label: 'Bank details',           sub: 'BSB & account for EFT payments', onPress: () => router.push('/settings/bank' as any) },
           { icon: Calendar,  label: 'Working hours',          sub: 'Mon–Fri · 7:30 am – 4:00 pm' },
           { icon: MapPin,    label: 'Service area',           sub: 'Inner West Sydney · 15 km' },
         ]} />
