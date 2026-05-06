@@ -9,7 +9,7 @@ config.watchFolders = [path.resolve(__dirname, "../shared")];
 config.resolver.nodeModulesPaths = [
   path.resolve(__dirname, "node_modules"),
 ];
-config.resolver.disableHierarchicalLookup = true;
+config.resolver.disableHierarchicalLookup = false;
 
 const finalConfig = withNativeWind(config, { input: "./global.css" });
 
