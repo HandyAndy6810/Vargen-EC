@@ -348,7 +348,7 @@ export default function AiChatScreen() {
                     <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
                       <TextInput
                         style={[s.formInput, { flex: 1 }]}
-                        placeholder="First name"
+                        placeholder="First name *"
                         placeholderTextColor={MUTED}
                         value={firstName}
                         onChangeText={setFirstName}
@@ -377,7 +377,7 @@ export default function AiChatScreen() {
                     </View>
                     {/* Phone */}
                     <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                      <Text style={s.formRowLabel}>Phone</Text>
+                      <Text style={s.formRowLabel}>Phone <Text style={{ color: ORANGE }}>*</Text></Text>
                       <TextInput
                         style={[s.formInput, { flex: 1, textAlign: 'right' }]}
                         placeholder="04xx xxx xxx"
