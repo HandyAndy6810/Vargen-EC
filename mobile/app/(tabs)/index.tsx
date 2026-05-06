@@ -180,6 +180,7 @@ export default function HomeScreen() {
   type WDef = { id: string; score: number; fullWidth: boolean };
   const widgetDefs: WDef[] = ([
     { id: 'outstanding',  score: outstandingScore,   fullWidth: false },
+    { id: 'weather',      score: 60,                 fullWidth: true  },
     { id: 'schedule',     score: scheduleScore,      fullWidth: true  },
     { id: 'quickactions', score: 70,                 fullWidth: true  },
     { id: 'recentquotes', score: recentQuotesScore,  fullWidth: true  },
@@ -404,6 +405,75 @@ export default function HomeScreen() {
             </View>
           </View>
         );
+
+      case 'weather': {
+        if (!weather) {
+          return (
+            <View style={{ paddingHorizontal: 20 }}>
+              <View style={[s.card, { padding: 18, alignItems: 'center' }]}>
+                <Text style={{ fontSize: 13, color: MUTED, fontFamily: 'Manrope_500Medium' }}>
+                  Fetching weather…
+                </Text>
+              </View>
+            </View>
+          );
+        }
+        const rainyDays = weather.forecast.filter((d: any) => d.precipitation > 1);
+        const hasRainWarning = rainyDays.length > 0;
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <Text style={s.eyebrow}>Weather</Text>
+            <View style={s.weatherCard}>
+              {/* Current conditions */}
+              <View style={s.weatherTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.weatherTemp}>{Math.round(weather.current.temp)}°</Text>
+                  <Text style={s.weatherDesc}>{weather.current.desc}</Text>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                    <Text style={s.weatherHiLo}>↑ {Math.round(weather.forecast[0]?.temp_max)}°</Text>
+                    <Text style={s.weatherHiLo}>↓ {Math.round(weather.forecast[0]?.temp_min)}°</Text>
+                    {weather.forecast[0]?.precipitation > 0 && (
+                      <Text style={[s.weatherHiLo, { color: BLUE }]}>💧 {weather.forecast[0].precipitation.toFixed(1)}mm</Text>
+                    )}
+                  </View>
+                </View>
+                <Text style={s.weatherBigIcon}>{weather.current.icon}</Text>
+              </View>
+
+              {/* Rain warning */}
+              {hasRainWarning && (
+                <View style={s.rainWarning}>
+                  <Text style={s.rainWarningText}>
+                    🌧️ Rain expected {rainyDays.map((d: any) => format(new Date(d.date + 'T00:00:00'), 'EEE')).join(', ')} — plan your outdoor jobs around it.
+                  </Text>
+                </View>
+              )}
+
+              {/* 7-day forecast strip */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }} contentContainerStyle={{ gap: 6 }}>
+                {weather.forecast.map((day: any, i: number) => {
+                  const isRainy = day.precipitation > 1;
+                  const isToday_ = i === 0;
+                  return (
+                    <View key={day.date} style={[s.weatherDayCell, isToday_ && s.weatherDayCellActive, isRainy && s.weatherDayCellRainy]}>
+                      <Text style={[s.weatherDayLabel, isToday_ && { color: '#fff' }]}>
+                        {isToday_ ? 'Today' : format(new Date(day.date + 'T00:00:00'), 'EEE')}
+                      </Text>
+                      <Text style={s.weatherDayIcon}>{day.weather_icon}</Text>
+                      <Text style={[s.weatherDayTemp, isToday_ && { color: '#fff' }]}>
+                        {Math.round(day.temp_max)}°
+                      </Text>
+                      {isRainy && (
+                        <Text style={s.weatherDayRain}>{day.precipitation.toFixed(0)}mm</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        );
+      }
 
       case 'nudge':
         return (
@@ -1009,5 +1079,96 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
     letterSpacing: -0.3,
+  },
+
+  /* Weather widget */
+  weatherCard: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+    shadowColor: INK,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  weatherTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  weatherBigIcon: {
+    fontSize: 52,
+    lineHeight: 60,
+  },
+  weatherTemp: {
+    fontSize: 46,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -2,
+    lineHeight: 52,
+  },
+  weatherDesc: {
+    fontSize: 14,
+    fontFamily: 'Manrope_600SemiBold',
+    color: MUTED_HI,
+    marginTop: 2,
+  },
+  weatherHiLo: {
+    fontSize: 12,
+    fontFamily: 'Manrope_600SemiBold',
+    color: MUTED,
+  },
+  rainWarning: {
+    marginTop: 12,
+    backgroundColor: '#eaf2ff',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  rainWarningText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_600SemiBold',
+    color: BLUE,
+    lineHeight: 17,
+  },
+  weatherDayCell: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: PAPER,
+    minWidth: 60,
+    gap: 2,
+  },
+  weatherDayCellActive: {
+    backgroundColor: INK,
+  },
+  weatherDayCellRainy: {
+    borderWidth: 1,
+    borderColor: '#c8dcff',
+  },
+  weatherDayLabel: {
+    fontSize: 9,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  weatherDayIcon: {
+    fontSize: 20,
+    lineHeight: 26,
+  },
+  weatherDayTemp: {
+    fontSize: 13,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+  },
+  weatherDayRain: {
+    fontSize: 9,
+    fontFamily: 'Manrope_600SemiBold',
+    color: BLUE,
+    marginTop: 1,
   },
 });

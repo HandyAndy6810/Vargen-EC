@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 import { format, startOfWeek, addDays, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
+import { useWeather } from '@/hooks/use-weather';
 import { Plus, Search } from 'lucide-react-native';
 
 const ORANGE      = '#f26a2a';
@@ -56,7 +57,15 @@ export default function CalendarScreen() {
   });
 
   const { data: jobs } = useJobs();
+  const { data: weather } = useWeather();
   const allJobs = (jobs as any[]) || [];
+
+  // Map weather forecast by date string (YYYY-MM-DD)
+  const weatherByDate = useMemo(() => {
+    const map: Record<string, any> = {};
+    (weather?.forecast || []).forEach((d: any) => { map[d.date] = d; });
+    return map;
+  }, [weather]);
 
   const selectedDay = days[dayIdx];
 
@@ -104,15 +113,23 @@ export default function CalendarScreen() {
           {days.map((d, i) => {
             const active = dayIdx === i;
             const count = jobCountPerDay[i];
+            const dateKey = format(d, 'yyyy-MM-dd');
+            const dayWeather = weatherByDate[dateKey];
+            const isRainy = dayWeather && dayWeather.precipitation > 1;
             return (
               <TouchableOpacity key={i} onPress={() => setDayIdx(i)} activeOpacity={0.7}
-                style={[s.dayCell, active && s.dayCellActive]}>
-                <Text style={[s.dayLabel, active && { opacity: 0.6 }]}>{format(d, 'EEE').toUpperCase()}</Text>
+                style={[s.dayCell, active && s.dayCellActive, isRainy && !active && s.dayCellRainy]}>
+                <Text style={[s.dayLabel, active && { color: 'rgba(255,255,255,0.7)' }]}>{format(d, 'EEE').toUpperCase()}</Text>
                 <Text style={[s.dayNum, active && { color: '#fff' }]}>{format(d, 'd')}</Text>
+                {dayWeather ? (
+                  <Text style={{ fontSize: 11, lineHeight: 14, marginTop: 1 }}>{dayWeather.weather_icon}</Text>
+                ) : (
+                  <View style={{ height: 14 }} />
+                )}
                 {count > 0 ? (
                   <View style={{ flexDirection: 'row', gap: 2, marginTop: 2 }}>
                     {Array.from({ length: Math.min(count, 3) }).map((_, k) => (
-                      <View key={k} style={[s.daydot, { backgroundColor: ORANGE }]} />
+                      <View key={k} style={[s.daydot, { backgroundColor: active ? '#fff' : ORANGE }]} />
                     ))}
                   </View>
                 ) : (
@@ -126,10 +143,32 @@ export default function CalendarScreen() {
 
       {/* Day headline */}
       <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 6 }}>
-        <Text style={s.dayHeadline}>
-          {format(selectedDay, 'EEEE d MMM')} ·{' '}
-          <Text style={{ color: ORANGE }}>{dayJobs.length} {dayJobs.length === 1 ? 'job' : 'jobs'}</Text>
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={s.dayHeadline}>
+            {format(selectedDay, 'EEEE d MMM')} ·{' '}
+            <Text style={{ color: ORANGE }}>{dayJobs.length} {dayJobs.length === 1 ? 'job' : 'jobs'}</Text>
+          </Text>
+          {(() => {
+            const dk = format(selectedDay, 'yyyy-MM-dd');
+            const dw = weatherByDate[dk];
+            return dw ? (
+              <Text style={{ fontSize: 11, color: MUTED }}>{dw.weather_icon} {Math.round(dw.temp_max)}°</Text>
+            ) : null;
+          })()}
+        </View>
+        {/* Rain warning banner */}
+        {(() => {
+          const dk = format(selectedDay, 'yyyy-MM-dd');
+          const dw = weatherByDate[dk];
+          if (!dw || dw.precipitation <= 1) return null;
+          return (
+            <View style={s.rainBanner}>
+              <Text style={s.rainBannerText}>
+                🌧️ Rain forecast ({dw.precipitation.toFixed(1)}mm) — check outdoor job conditions
+              </Text>
+            </View>
+          );
+        })()}
         {dayJobs.length > 0 && (
           <Text style={s.daySubhead}>
             {format(new Date(dayJobs[0].scheduledDate), 'h:mm a')} → {format(new Date(dayJobs[dayJobs.length - 1].scheduledDate), 'h:mm a')} · {
@@ -270,6 +309,10 @@ const s = StyleSheet.create({
     backgroundColor: INK,
     borderColor: INK,
   },
+  dayCellRainy: {
+    borderColor: BLUE_BORDER,
+    backgroundColor: BLUE_SOFT,
+  },
   dayLabel: {
     fontSize: 9,
     fontFamily: 'Manrope_800ExtraBold',
@@ -401,5 +444,20 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_500Medium',
     marginTop: 1,
     opacity: 0.6,
+  },
+  rainBanner: {
+    marginTop: 8,
+    backgroundColor: BLUE_SOFT,
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: BLUE_BORDER,
+  },
+  rainBannerText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_600SemiBold',
+    color: BLUE,
+    lineHeight: 17,
   },
 });
