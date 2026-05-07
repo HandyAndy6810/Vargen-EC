@@ -407,7 +407,7 @@ export default function ProfileScreen() {
                 <Text style={s.proBadgeText}>✦ Pro plan</Text>
               </View>
             </View>
-            <TouchableOpacity style={s.editBtn} activeOpacity={0.7}>
+            <TouchableOpacity style={s.editBtn} activeOpacity={0.7} onPress={() => router.push('/settings/edit-profile' as any)}>
               <Pencil size={18} color={c.ink} strokeWidth={2.1} />
             </TouchableOpacity>
           </View>
@@ -437,29 +437,29 @@ export default function ProfileScreen() {
         ]} />
 
         <SettingsGroup title="Business" items={[
-          { icon: FileText,  label: 'Business details',         sub: 'ABN, logo, invoice footer' },
-          { icon: Receipt,   label: 'Invoice & quote settings', sub: 'Numbering, GST, payment terms' },
-          { icon: Calendar,  label: 'Working hours',            sub: 'Mon–Fri · 7:30 am – 4:00 pm' },
-          { icon: MapPin,    label: 'Service area',             sub: 'Inner West Sydney · 15 km' },
+          { icon: FileText,  label: 'Business details',         sub: 'ABN, logo, invoice footer',       onPress: () => router.push('/settings/business-details' as any) },
+          { icon: Receipt,   label: 'Invoice & quote settings', sub: 'Numbering, GST, payment terms',   onPress: () => router.push('/settings/invoice-settings' as any) },
+          { icon: Calendar,  label: 'Working hours',            sub: 'Mon–Fri · 7:30 am – 4:00 pm',    onPress: () => router.push('/settings/working-hours' as any) },
+          { icon: MapPin,    label: 'Service area',             sub: 'Inner West Sydney · 15 km',       onPress: () => router.push('/settings/service-area' as any) },
         ]} />
 
         <SettingsGroup title="AI & automations" items={[
-          { icon: Sparkles,      label: 'AI quoting',    sub: 'Tone, default margins, templates', badge: 'Pro' },
-          { icon: BookOpen,      label: 'Price book',    sub: 'Your material prices for AI quotes', onPress: () => router.push('/price-book' as any) },
-          { icon: Bell,          label: 'Reminders',     sub: 'Overdue nudges, review requests' },
-          { icon: MessageSquare, label: 'SMS templates', sub: '4 templates · 1 draft' },
+          { icon: Sparkles,      label: 'AI quoting',    sub: 'Tone, default margins, templates', badge: 'Pro', onPress: () => router.push('/settings/ai-quoting' as any) },
+          { icon: BookOpen,      label: 'Price book',    sub: 'Your material prices for AI quotes',             onPress: () => router.push('/price-book' as any) },
+          { icon: Bell,          label: 'Reminders',     sub: 'Overdue nudges, review requests',                onPress: () => router.push('/settings/reminders' as any) },
+          { icon: MessageSquare, label: 'SMS templates', sub: '3 default templates',                            onPress: () => router.push('/settings/sms-templates' as any) },
         ]} />
 
         <XeroSection />
 
         <SettingsGroup title="Preferences" items={[
-          { icon: Sun,  label: 'Appearance',    sub: appearanceSub, onPress: () => setShowAppearance(true) },
-          { icon: Bell, label: 'Notifications', sub: 'Quotes, invoices, reviews' },
+          { icon: Sun,  label: 'Appearance',    sub: appearanceSub,            onPress: () => setShowAppearance(true) },
+          { icon: Bell, label: 'Notifications', sub: 'Quotes, invoices, reviews', onPress: () => router.push('/settings/notifications' as any) },
         ]} />
 
         <SettingsGroup title="Account" items={[
-          { icon: Settings, label: 'Subscription', sub: 'Pro · $39/mo · next renewal 14 May' },
-          { icon: LogOut,   label: 'Sign out',     danger: true, onPress: handleLogout },
+          { icon: Settings, label: 'Subscription', sub: 'Pro · $39/mo · next renewal 14 May', onPress: () => router.push('/settings/subscription' as any) },
+          { icon: LogOut,   label: 'Sign out',     danger: true,                               onPress: handleLogout },
         ]} />
 
         <View style={{ paddingTop: 28, alignItems: 'center' }}>

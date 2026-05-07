@@ -116,6 +116,16 @@ export default function RootLayout() {
               <Stack.Screen name="quotes/create" />
               <Stack.Screen name="invoices/[id]" />
               <Stack.Screen name="invoices/create" />
+              <Stack.Screen name="settings/edit-profile" />
+              <Stack.Screen name="settings/business-details" />
+              <Stack.Screen name="settings/invoice-settings" />
+              <Stack.Screen name="settings/working-hours" />
+              <Stack.Screen name="settings/service-area" />
+              <Stack.Screen name="settings/ai-quoting" />
+              <Stack.Screen name="settings/reminders" />
+              <Stack.Screen name="settings/notifications" />
+              <Stack.Screen name="settings/sms-templates" />
+              <Stack.Screen name="settings/subscription" />
             </Stack>
           </QueryClientProvider>
         </GestureHandlerRootView>
