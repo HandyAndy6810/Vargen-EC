@@ -13,10 +13,11 @@ import {
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useEffect, useRef, Component, type ReactNode } from 'react';
+import { useEffect, useRef, useState, Component, type ReactNode } from 'react';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { ThemeProvider, useTheme } from '@/hooks/use-theme';
+import { loadCachedUser } from '@/lib/auth-cache';
 
 // ── Push notification handler config ────────────────────────────────────────
 Notifications.setNotificationHandler({
@@ -62,11 +63,23 @@ function ThemedStatusBar() {
   return <StatusBar style={colors.statusBar} />;
 }
 
-// ── Inner app (gates on fonts + theme ready) ─────────────────────────────────
+// ── Inner app (gates on fonts + theme ready + auth cache) ────────────────────
 function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
-  const { ready } = useTheme();
+  const { ready: themeReady } = useTheme();
+  const [authReady, setAuthReady] = useState(false);
   const notifListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
+
+  // Pre-populate auth cache before any screen renders so previously-logged-in
+  // users bypass the login screen instantly, even when the server is unreachable.
+  useEffect(() => {
+    loadCachedUser()
+      .then((user) => {
+        if (user) queryClient.setQueryData(['/api/auth/user'], user);
+      })
+      .catch(() => {})
+      .finally(() => setAuthReady(true));
+  }, []);
 
   useEffect(() => {
     registerForPushNotifications();
@@ -82,7 +95,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
     };
   }, []);
 
-  if (!fontsLoaded || !ready) return <View style={{ flex: 1, backgroundColor: '#0F0905' }} />;
+  if (!fontsLoaded || !themeReady || !authReady) return <View style={{ flex: 1, backgroundColor: '#0F0905' }} />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
