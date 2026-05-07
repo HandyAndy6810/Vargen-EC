@@ -13,9 +13,10 @@ import {
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useEffect, useRef, Component, ReactNode } from 'react';
+import { useEffect, useRef, Component, type ReactNode } from 'react';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
+import { ThemeProvider, useTheme } from '@/hooks/use-theme';
 
 // ── Push notification handler config ────────────────────────────────────────
 Notifications.setNotificationHandler({
@@ -55,6 +56,12 @@ const eb = StyleSheet.create({
   btnText:   { fontSize: 14, fontWeight: '800', color: '#fff' },
 });
 
+// ── Themed status bar (reads from ThemeContext) ───────────────────────────────
+function ThemedStatusBar() {
+  const { colors } = useTheme();
+  return <StatusBar style={colors.statusBar} />;
+}
+
 // ── Root layout ───────────────────────────────────────────────────────────────
 export default function RootLayout() {
   const notifListener = useRef<Notifications.Subscription | null>(null);
@@ -69,10 +76,8 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    // Register for push notifications
     registerForPushNotifications();
 
-    // Navigate on notification tap
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as any;
       if (data?.screen) router.push(data.screen);
@@ -88,31 +93,33 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <QueryClientProvider client={queryClient}>
-          <StatusBar style="dark" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="ai-chat"
-              options={{
-                presentation: 'modal',
-                headerShown: false,
-                animation: 'slide_from_bottom',
-              }}
-            />
-            <Stack.Screen name="jobs/list" />
-            <Stack.Screen name="jobs/[id]" />
-            <Stack.Screen name="jobs/timer" />
-            <Stack.Screen name="jobs/complete" />
-            <Stack.Screen name="quotes/[id]" />
-            <Stack.Screen name="quotes/create" />
-            <Stack.Screen name="invoices/[id]" />
-            <Stack.Screen name="invoices/create" />
-          </Stack>
-        </QueryClientProvider>
-      </GestureHandlerRootView>
+      <ThemeProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <QueryClientProvider client={queryClient}>
+            <ThemedStatusBar />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen
+                name="ai-chat"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                  animation: 'slide_from_bottom',
+                }}
+              />
+              <Stack.Screen name="jobs/list" />
+              <Stack.Screen name="jobs/[id]" />
+              <Stack.Screen name="jobs/timer" />
+              <Stack.Screen name="jobs/complete" />
+              <Stack.Screen name="quotes/[id]" />
+              <Stack.Screen name="quotes/create" />
+              <Stack.Screen name="invoices/[id]" />
+              <Stack.Screen name="invoices/create" />
+            </Stack>
+          </QueryClientProvider>
+        </GestureHandlerRootView>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }
