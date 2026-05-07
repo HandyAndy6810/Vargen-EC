@@ -73,6 +73,7 @@ interface ThemeCtx {
   mode: ThemeMode;
   colors: Colors;
   isDark: boolean;
+  ready: boolean;
   setMode: (m: ThemeMode) => void;
 }
 
@@ -80,19 +81,22 @@ const ThemeContext = createContext<ThemeCtx>({
   mode: 'system',
   colors: lightColors,
   isDark: false,
+  ready: false,
   setMode: () => {},
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
   const [mode, setModeState] = useState<ThemeMode>('system');
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((val) => {
       if (val === 'light' || val === 'dark' || val === 'system') {
         setModeState(val);
       }
-    });
+      setReady(true);
+    }).catch(() => setReady(true));
   }, []);
 
   function setMode(m: ThemeMode) {
@@ -105,7 +109,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return React.createElement(
     ThemeContext.Provider,
-    { value: { mode, colors, isDark, setMode } },
+    { value: { mode, colors, isDark, ready, setMode } },
     children,
   );
 }

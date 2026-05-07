@@ -62,18 +62,11 @@ function ThemedStatusBar() {
   return <StatusBar style={colors.statusBar} />;
 }
 
-// ── Root layout ───────────────────────────────────────────────────────────────
-export default function RootLayout() {
+// ── Inner app (gates on fonts + theme ready) ─────────────────────────────────
+function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
+  const { ready } = useTheme();
   const notifListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
-
-  const [fontsLoaded] = useFonts({
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
-  });
 
   useEffect(() => {
     registerForPushNotifications();
@@ -89,46 +82,61 @@ export default function RootLayout() {
     };
   }, []);
 
-  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: '#0F0905' }} />;
+  if (!fontsLoaded || !ready) return <View style={{ flex: 1, backgroundColor: '#0F0905' }} />;
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <ThemedStatusBar />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="ai-chat"
+            options={{
+              presentation: 'modal',
+              headerShown: false,
+              animation: 'slide_from_bottom',
+            }}
+          />
+          <Stack.Screen name="jobs/list" />
+          <Stack.Screen name="jobs/[id]" />
+          <Stack.Screen name="jobs/timer" />
+          <Stack.Screen name="jobs/complete" />
+          <Stack.Screen name="quotes/[id]" />
+          <Stack.Screen name="quotes/create" />
+          <Stack.Screen name="invoices/[id]" />
+          <Stack.Screen name="invoices/create" />
+          <Stack.Screen name="settings/edit-profile" />
+          <Stack.Screen name="settings/business-details" />
+          <Stack.Screen name="settings/invoice-settings" />
+          <Stack.Screen name="settings/working-hours" />
+          <Stack.Screen name="settings/service-area" />
+          <Stack.Screen name="settings/ai-quoting" />
+          <Stack.Screen name="settings/reminders" />
+          <Stack.Screen name="settings/notifications" />
+          <Stack.Screen name="settings/sms-templates" />
+          <Stack.Screen name="settings/subscription" />
+        </Stack>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+// ── Root layout ───────────────────────────────────────────────────────────────
+export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+  });
 
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <QueryClientProvider client={queryClient}>
-            <ThemedStatusBar />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen
-                name="ai-chat"
-                options={{
-                  presentation: 'modal',
-                  headerShown: false,
-                  animation: 'slide_from_bottom',
-                }}
-              />
-              <Stack.Screen name="jobs/list" />
-              <Stack.Screen name="jobs/[id]" />
-              <Stack.Screen name="jobs/timer" />
-              <Stack.Screen name="jobs/complete" />
-              <Stack.Screen name="quotes/[id]" />
-              <Stack.Screen name="quotes/create" />
-              <Stack.Screen name="invoices/[id]" />
-              <Stack.Screen name="invoices/create" />
-              <Stack.Screen name="settings/edit-profile" />
-              <Stack.Screen name="settings/business-details" />
-              <Stack.Screen name="settings/invoice-settings" />
-              <Stack.Screen name="settings/working-hours" />
-              <Stack.Screen name="settings/service-area" />
-              <Stack.Screen name="settings/ai-quoting" />
-              <Stack.Screen name="settings/reminders" />
-              <Stack.Screen name="settings/notifications" />
-              <Stack.Screen name="settings/sms-templates" />
-              <Stack.Screen name="settings/subscription" />
-            </Stack>
-          </QueryClientProvider>
-        </GestureHandlerRootView>
+        <AppContent fontsLoaded={fontsLoaded ?? false} />
       </ThemeProvider>
     </ErrorBoundary>
   );
