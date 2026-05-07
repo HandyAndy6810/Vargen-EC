@@ -49,10 +49,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 }
 
 const eb = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f7f4ee', alignItems: 'center', justifyContent: 'center', padding: 32 },
-  title:     { fontSize: 20, fontWeight: '800', color: '#141310', marginBottom: 10 },
-  sub:       { fontSize: 13, color: 'rgba(20,19,16,0.55)', textAlign: 'center', marginBottom: 28 },
-  btn:       { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, backgroundColor: '#f26a2a' },
+  container: { flex: 1, backgroundColor: '#FFFBF8', alignItems: 'center', justifyContent: 'center', padding: 32 },
+  title:     { fontSize: 20, fontWeight: '800', color: '#1A0E06', marginBottom: 10 },
+  sub:       { fontSize: 13, color: 'rgba(26,14,6,0.55)', textAlign: 'center', marginBottom: 28 },
+  btn:       { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, backgroundColor: '#FF5C00' },
   btnText:   { fontSize: 14, fontWeight: '800', color: '#fff' },
 });
 
@@ -89,7 +89,7 @@ export default function RootLayout() {
     };
   }, []);
 
-  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: '#141310' }} />;
+  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: '#0F0905' }} />;
 
   return (
     <ErrorBoundary>
