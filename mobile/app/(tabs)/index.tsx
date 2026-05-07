@@ -6,7 +6,6 @@ import {
   StyleSheet,
   RefreshControl,
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { format, isToday } from 'date-fns';
@@ -556,9 +555,8 @@ export default function HomeScreen() {
         </View>
 
         {rows.map((row, rowIdx) => (
-          <Animated.View
+          <View
             key={row.map(w => w.id).join('-')}
-            entering={FadeInDown.delay(rowIdx * 70).duration(420).springify()}
             style={row.length === 2
               ? { flexDirection: 'row', paddingHorizontal: 20, gap: 10, paddingTop: 18 }
               : { paddingTop: 18 }}
@@ -568,7 +566,7 @@ export default function HomeScreen() {
                 {renderWidget(w.id, row.length === 2)}
               </View>
             ))}
-          </Animated.View>
+          </View>
         ))}
 
         <View style={{ paddingTop: 26, alignItems: 'center' }}>
