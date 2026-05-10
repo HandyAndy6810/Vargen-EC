@@ -8,14 +8,16 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useState, useRef, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Sparkles, Send, Plus, Trash2 } from 'lucide-react-native';
 import { useQuote } from '@/hooks/use-quotes';
 import { useCreateInvoice, useConvertQuoteToInvoice } from '@/hooks/use-invoices';
 import * as Haptics from 'expo-haptics';
+import { apiRequest } from '@/lib/api';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -38,6 +40,12 @@ interface LineItem {
   unitPrice: string;
 }
 
+interface AiSuggestion {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export default function InvoiceCreateScreen() {
   const { quoteId } = useLocalSearchParams<{ quoteId?: string }>();
   const quoteIdNum = quoteId ? Number(quoteId) : 0;
@@ -55,22 +63,35 @@ export default function InvoiceCreateScreen() {
   const quoteTotal = quote?.totalAmount ? parseFloat(quote.totalAmount) : 0;
 
   // Standalone form state
+  const [jobTitle, setJobTitle] = useState('');
   const [customerName, setCustomerName] = useState('');
+  const [labourRate, setLabourRate] = useState('');
+  const [labourHours, setLabourHours] = useState('');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineItem[]>([
     { description: '', qty: '1', unitPrice: '' },
   ]);
   const [error, setError] = useState<string | null>(null);
 
+  // AI suggestions
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [suggestedForTitle, setSuggestedForTitle] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const convertMutation = useConvertQuoteToInvoice();
   const createMutation = useCreateInvoice();
 
-  // Live total for standalone form
-  const standaloneTotal = lines.reduce((s, l) => {
+  // Labour line value
+  const labourTotal = (parseFloat(labourRate) || 0) * (parseFloat(labourHours) || 0);
+
+  // Live total for standalone form (line items + labour)
+  const lineItemsTotal = lines.reduce((s, l) => {
     const q = parseFloat(l.qty) || 0;
     const p = parseFloat(l.unitPrice) || 0;
     return s + q * p;
   }, 0);
+  const standaloneTotal = lineItemsTotal + labourTotal;
   const standaloneGST = Math.round(standaloneTotal * 0.1 * 100) / 100;
   const standaloneFinal = standaloneTotal + standaloneGST;
 
@@ -78,6 +99,55 @@ export default function InvoiceCreateScreen() {
   const removeLine = (i: number) => setLines(prev => prev.filter((_, idx) => idx !== i));
   const updateLine = (i: number, field: keyof LineItem, value: string) => {
     setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: value } : l));
+  };
+
+  const fetchAiSuggestions = async (title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed || trimmed.length < 3 || trimmed === suggestedForTitle) return;
+    setSuggestedForTitle(trimmed);
+    setLoadingSuggestions(true);
+    setAiSuggestions([]);
+    try {
+      const res = await apiRequest('POST', '/api/quotes/generate', {
+        description: trimmed,
+        labourRate: labourRate ? parseFloat(labourRate) : undefined,
+        includeGST: true,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const items: AiSuggestion[] = (data.items || []).map((it: any) => ({
+          description: it.description,
+          quantity: it.quantity || 1,
+          unitPrice: it.unitPrice || 0,
+        }));
+        setAiSuggestions(items);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch {
+      // Silent — suggestions are non-critical
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const onJobTitleBlur = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchAiSuggestions(jobTitle), 300);
+  };
+
+  const addSuggestion = (sug: AiSuggestion) => {
+    Haptics.selectionAsync();
+    // Replace the first empty line or append
+    setLines(prev => {
+      const emptyIdx = prev.findIndex(l => !l.description.trim() && !l.unitPrice.trim());
+      const newLine = { description: sug.description, qty: String(sug.quantity), unitPrice: String(sug.unitPrice) };
+      if (emptyIdx !== -1) {
+        return prev.map((l, i) => i === emptyIdx ? newLine : l);
+      }
+      return [...prev, newLine];
+    });
+    // Remove from suggestions
+    setAiSuggestions(prev => prev.filter(s => s.description !== sug.description));
   };
 
   const handleConvertFromQuote = () => {
@@ -94,6 +164,14 @@ export default function InvoiceCreateScreen() {
 
   const handleCreateStandalone = (status: 'draft' | 'sent') => {
     const validLines = lines.filter(l => l.description.trim() && parseFloat(l.unitPrice) > 0);
+    // Auto-add labour line if filled
+    if (labourTotal > 0) {
+      validLines.push({
+        description: `Labour${labourHours ? ` — ${labourHours} hrs` : ''}`,
+        qty: labourHours || '1',
+        unitPrice: labourRate || '0',
+      });
+    }
     if (validLines.length === 0) {
       setError('Add at least one line item with a description and price.');
       return;
@@ -108,7 +186,7 @@ export default function InvoiceCreateScreen() {
         unit: 'each',
         unitPrice: parseFloat(l.unitPrice) || 0,
       })),
-      notes: notes.trim() || undefined,
+      notes: [jobTitle.trim() ? `Job: ${jobTitle.trim()}` : '', notes.trim()].filter(Boolean).join('\n') || undefined,
       includeGST: true,
     }, {
       onSuccess: (invoice: any) => {
@@ -120,6 +198,20 @@ export default function InvoiceCreateScreen() {
   };
 
   const isPending = convertMutation.isPending || createMutation.isPending;
+
+  const navigation = useNavigation();
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove' as any, (e: any) => {
+      const hasWork = jobTitle.trim() || customerName.trim() || notes.trim() || labourRate.trim() || labourHours.trim() || lines.some(l => l.description.trim() || l.qty !== '1' || l.unitPrice.trim());
+      if (!hasWork) return;
+      e.preventDefault();
+      Alert.alert('Leave without saving?', 'Your invoice details will be lost.', [
+        { text: 'Stay', style: 'cancel' },
+        { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+      ]);
+    });
+    return unsub;
+  }, [navigation, jobTitle, customerName, notes, labourRate, labourHours, lines]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
@@ -135,7 +227,12 @@ export default function InvoiceCreateScreen() {
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 160 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+        >
 
           {error ? (
             <View style={s.errorBox}>
@@ -190,6 +287,18 @@ export default function InvoiceCreateScreen() {
           {/* ── STANDALONE FLOW ── */}
           {!isFromQuote && (
             <>
+              {/* Job title — triggers AI suggestions on blur */}
+              <Text style={s.sectionEyebrow}>Job title</Text>
+              <TextInput
+                style={s.input}
+                placeholder="e.g. Bathroom renovation — supply & install"
+                placeholderTextColor={MUTED}
+                value={jobTitle}
+                onChangeText={v => { setJobTitle(v); setSuggestedForTitle(''); }}
+                onBlur={onJobTitleBlur}
+                returnKeyType="next"
+              />
+
               <Text style={s.sectionEyebrow}>Customer</Text>
               <TextInput
                 style={s.input}
@@ -199,6 +308,51 @@ export default function InvoiceCreateScreen() {
                 onChangeText={setCustomerName}
                 returnKeyType="next"
               />
+
+              {/* Labour */}
+              <Text style={s.sectionEyebrow}>Labour</Text>
+              <View style={s.card}>
+                <View style={s.labourRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.labourLabel}>Rate</Text>
+                    <View style={s.labourInputWrap}>
+                      <Text style={s.labourUnit}>$/hr</Text>
+                      <TextInput
+                        style={s.labourInput}
+                        value={labourRate}
+                        onChangeText={setLabourRate}
+                        placeholder="0"
+                        placeholderTextColor={MUTED}
+                        keyboardType="decimal-pad"
+                        selectTextOnFocus
+                      />
+                    </View>
+                  </View>
+                  <View style={s.labourDivider} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.labourLabel}>Hours</Text>
+                    <View style={s.labourInputWrap}>
+                      <Text style={s.labourUnit}>hrs</Text>
+                      <TextInput
+                        style={s.labourInput}
+                        value={labourHours}
+                        onChangeText={setLabourHours}
+                        placeholder="0"
+                        placeholderTextColor={MUTED}
+                        keyboardType="decimal-pad"
+                        selectTextOnFocus
+                      />
+                    </View>
+                  </View>
+                  <View style={s.labourDivider} />
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <Text style={s.labourLabel}>Total</Text>
+                    <Text style={s.labourTotal}>
+                      ${labourTotal > 0 ? labourTotal.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
 
               <Text style={s.sectionEyebrow}>Line items</Text>
               <View style={[s.card, { padding: 0 }]}>
@@ -243,15 +397,47 @@ export default function InvoiceCreateScreen() {
                     ) : null}
                   </View>
                 ))}
-                <TouchableOpacity
-                  style={s.addLineBtn}
-                  onPress={addLine}
-                  activeOpacity={0.7}
-                >
+                <TouchableOpacity style={s.addLineBtn} onPress={addLine} activeOpacity={0.7}>
                   <Plus size={14} color={ORANGE_DEEP} strokeWidth={2.5} />
                   <Text style={s.addLineBtnText}>Add line item</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* AI suggestions */}
+              {loadingSuggestions && (
+                <View style={s.suggestionsLoading}>
+                  <ActivityIndicator size="small" color={ORANGE} />
+                  <Text style={s.suggestionsLoadingText}>AI is generating line item suggestions…</Text>
+                </View>
+              )}
+              {!loadingSuggestions && aiSuggestions.length > 0 && (
+                <View style={{ marginTop: 12 }}>
+                  <View style={s.suggestionsHeader}>
+                    <Sparkles size={13} color={ORANGE} strokeWidth={2} />
+                    <Text style={s.suggestionsTitle}>AI suggestions — tap to add</Text>
+                  </View>
+                  <View style={s.suggestionsCard}>
+                    {aiSuggestions.map((sug, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        activeOpacity={0.7}
+                        style={[s.suggestionRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}
+                        onPress={() => addSuggestion(sug)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.suggestionDesc}>{sug.description}</Text>
+                          <Text style={s.suggestionMeta}>
+                            Qty {sug.quantity} · ${sug.unitPrice.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </Text>
+                        </View>
+                        <View style={s.suggestionAddBtn}>
+                          <Plus size={12} color={ORANGE_DEEP} strokeWidth={2.5} />
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
 
               {/* Live total */}
               <View style={s.totalBand}>
@@ -308,7 +494,7 @@ export default function InvoiceCreateScreen() {
               <TouchableOpacity
                 style={[s.sendBtn, isPending && { opacity: 0.6 }]}
                 activeOpacity={0.8}
-                onPress={() => handleCreateStandalone('draft')}
+                onPress={() => handleCreateStandalone('sent')}
                 disabled={isPending}
               >
                 {isPending
@@ -459,6 +645,49 @@ const s = StyleSheet.create({
     borderColor: LINE_SOFT,
     overflow: 'hidden',
   },
+  labourRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    paddingVertical: 16,
+  },
+  labourDivider: {
+    width: 1,
+    backgroundColor: LINE_SOFT,
+    marginVertical: 4,
+  },
+  labourLabel: {
+    fontSize: 10,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: MUTED,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  labourInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  labourUnit: {
+    fontSize: 11,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED,
+  },
+  labourInput: {
+    fontSize: 20,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    textAlign: 'center',
+    minWidth: 50,
+  },
+  labourTotal: {
+    fontSize: 17,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: ORANGE,
+    marginTop: 2,
+  },
   lineEditRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -513,6 +742,68 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_800ExtraBold',
     color: ORANGE_DEEP,
   },
+  suggestionsLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+    paddingHorizontal: 4,
+  },
+  suggestionsLoadingText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_600SemiBold',
+    color: MUTED,
+  },
+  suggestionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  suggestionsTitle: {
+    fontSize: 11,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: ORANGE_DEEP,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  suggestionsCard: {
+    backgroundColor: ORANGE_SOFT,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(242,106,42,0.2)',
+    overflow: 'hidden',
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  suggestionDesc: {
+    fontSize: 13,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
+    marginBottom: 2,
+  },
+  suggestionMeta: {
+    fontSize: 11,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED_HI,
+  },
+  suggestionAddBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: ORANGE_SOFT,
+    borderWidth: 1,
+    borderColor: 'rgba(242,106,42,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
   totalBand: {
     marginTop: 14,
     paddingHorizontal: 18,
@@ -543,13 +834,19 @@ const s = StyleSheet.create({
     letterSpacing: -1,
   },
   bottomBar: {
-    position: 'absolute',
-    bottom: 100,
-    left: 12,
-    right: 12,
     flexDirection: 'row',
     gap: 8,
-    zIndex: 30,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 28,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: 'rgba(247,244,238,0.92)',
+    shadowColor: '#141310',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
+    elevation: 12,
   },
   draftBtn: {
     flex: 1,

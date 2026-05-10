@@ -11,8 +11,8 @@ import {
 } from "react-native";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
-import { useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryClient as globalQueryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Sparkles } from "lucide-react-native";
@@ -34,6 +34,7 @@ const RED         = '#d23b3b';
 
 export default function LoginScreen() {
   const { isAuthenticated, isLoading } = useAuth();
+  const queryClient = useQueryClient();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -176,21 +177,26 @@ export default function LoginScreen() {
           {__DEV__ && (
             <TouchableOpacity
               onPress={() => {
-                const devEmail = process.env.EXPO_PUBLIC_DEV_EMAIL ?? 'andy';
-                const devPass  = process.env.EXPO_PUBLIC_DEV_PASSWORD ?? 'password';
-                setUsername(devEmail);
-                setPassword(devPass);
-                loginMutation.mutate({ username: devEmail, password: devPass });
+                queryClient.setQueryData(["/api/auth/user"], {
+                  id: 'dev-user-001',
+                  email: 'dev@vargen.app',
+                  firstName: 'Dev',
+                  lastName: 'User',
+                  profileImageUrl: null,
+                  phone: null,
+                  password: null,
+                  resetToken: null,
+                  resetTokenExpiry: null,
+                });
+                router.replace('/(tabs)');
               }}
-              disabled={loginMutation.isPending}
               style={s.devBtn}
               activeOpacity={0.7}
             >
-              {loginMutation.isPending
-                ? <ActivityIndicator color="#92400e" size="small" />
-                : <Text style={s.devBtnText}>⚡ DEV — skip login</Text>}
+              <Text style={s.devBtnText}>⚡ DEV — skip login</Text>
             </TouchableOpacity>
           )}
+
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

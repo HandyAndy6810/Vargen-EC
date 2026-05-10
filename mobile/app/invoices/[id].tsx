@@ -7,12 +7,15 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  Clipboard,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInvoice, useUpdateInvoice } from '@/hooks/use-invoices';
 import { useStripePaymentLink } from '@/hooks/use-stripe';
-import { ChevronLeft, Check, CreditCard, Building2 } from 'lucide-react-native';
+import { useSquarePaymentLink } from '@/hooks/use-square';
+import { useSettings } from '@/hooks/use-settings';
+import { ChevronLeft, Check, CreditCard, Building2, Copy } from 'lucide-react-native';
 import { format, differenceInCalendarDays } from 'date-fns';
 
 const ORANGE      = '#f26a2a';
@@ -39,6 +42,8 @@ export default function InvoiceDetailScreen() {
   const { data: invoice, isLoading } = useInvoice(invoiceId) as any;
   const updateInvoice = useUpdateInvoice();
   const stripeLink = useStripePaymentLink();
+  const squareLink = useSquarePaymentLink();
+  const { data: settings } = useSettings();
 
   const handlePayByCard = () => {
     if (!invoiceId) return;
@@ -50,6 +55,23 @@ export default function InvoiceDetailScreen() {
       onSuccess: (data: any) => Linking.openURL(data.url),
       onError: (err: any) => Alert.alert('Card payment unavailable', err.message),
     });
+  };
+
+  const handlePayBySquare = () => {
+    if (!invoiceId) return;
+    if (invoice?.squarePaymentLinkUrl) {
+      Linking.openURL(invoice.squarePaymentLinkUrl);
+      return;
+    }
+    squareLink.mutate(invoiceId, {
+      onSuccess: (data: any) => Linking.openURL(data.url),
+      onError: (err: any) => Alert.alert('Square payment unavailable', err.message),
+    });
+  };
+
+  const copyToClipboard = (value: string, label: string) => {
+    Clipboard.setString(value);
+    Alert.alert('Copied', `${label} copied to clipboard`);
   };
 
   const handleMarkPaid = () => {
@@ -96,7 +118,11 @@ export default function InvoiceDetailScreen() {
   const dueDays = dueDate ? differenceInCalendarDays(dueDate, new Date()) : null;
   const dueDateStr = dueDate ? format(dueDate, 'EEE d MMM') : null;
   const dueLine = dueDateStr
-    ? `${dueDateStr} · ${dueDays !== null && dueDays >= 0 ? `${dueDays} days` : 'overdue'}`
+    ? dueDays === 0
+      ? `${dueDateStr} · due today`
+      : dueDays !== null && dueDays > 0
+      ? `${dueDateStr} · ${dueDays} day${dueDays === 1 ? '' : 's'}`
+      : `${dueDateStr} · overdue`
     : null;
 
   // Status display
@@ -126,7 +152,6 @@ export default function InvoiceDetailScreen() {
           <Text style={s.eyebrow}>{num}</Text>
           <Text style={s.title} numberOfLines={1}>{title}</Text>
         </View>
-        <View style={s.iconBtn} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
@@ -216,26 +241,68 @@ export default function InvoiceDetailScreen() {
           {/* Payment methods */}
           <Text style={s.sectionEyebrow}>Payment methods</Text>
           <View style={[s.card, { padding: 0 }]}>
-            <View style={s.pmRow}>
-              <View style={s.pmIcon}>
-                <Building2 size={16} color={MUTED_HI} strokeWidth={2} />
+            {/* Bank transfer */}
+            {settings?.bsb || settings?.accountNumber ? (
+              <View style={s.pmRow}>
+                <View style={s.pmIcon}>
+                  <Building2 size={16} color={MUTED_HI} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={s.pmLabel}>Bank transfer / EFT</Text>
+                  {settings.accountName ? <Text style={s.pmDetail}>{settings.accountName}</Text> : null}
+                  {settings.bankName ? <Text style={s.pmDetail}>{settings.bankName}</Text> : null}
+                  {settings.bsb ? (
+                    <TouchableOpacity style={s.copyRow} onPress={() => copyToClipboard(settings.bsb, 'BSB')} activeOpacity={0.7}>
+                      <Text style={s.pmDetail}>BSB: <Text style={s.pmDetailBold}>{settings.bsb}</Text></Text>
+                      <Copy size={12} color={MUTED} strokeWidth={2} />
+                    </TouchableOpacity>
+                  ) : null}
+                  {settings.accountNumber ? (
+                    <TouchableOpacity style={s.copyRow} onPress={() => copyToClipboard(settings.accountNumber, 'Account number')} activeOpacity={0.7}>
+                      <Text style={s.pmDetail}>Account: <Text style={s.pmDetailBold}>{settings.accountNumber}</Text></Text>
+                      <Copy size={12} color={MUTED} strokeWidth={2} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                <Check size={14} color={GREEN} strokeWidth={2.5} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.pmLabel}>Bank transfer / EFT</Text>
-                <Text style={s.pmDetail}>BSB & account on request</Text>
+            ) : (
+              <TouchableOpacity style={s.pmRow} onPress={() => router.push('/settings/bank' as any)} activeOpacity={0.7}>
+                <View style={s.pmIcon}>
+                  <Building2 size={16} color={MUTED_HI} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.pmLabel}>Bank transfer / EFT</Text>
+                  <Text style={[s.pmDetail, { color: ORANGE }]}>Tap to add bank details →</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {/* Card payment rows */}
+            {settings?.stripeEnabled && (
+              <View style={[s.pmRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                <View style={s.pmIcon}>
+                  <CreditCard size={16} color={MUTED_HI} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.pmLabel}>Pay by card (Stripe)</Text>
+                  <Text style={s.pmDetail}>1.7% + 30¢ · Cards, Apple Pay, Google Pay</Text>
+                </View>
+                <Check size={14} color={GREEN} strokeWidth={2.5} />
               </View>
-              <Check size={14} color={GREEN} strokeWidth={2.5} />
-            </View>
-            <View style={[s.pmRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-              <View style={s.pmIcon}>
-                <CreditCard size={16} color={MUTED_HI} strokeWidth={2} />
+            )}
+            {settings?.squareEnabled && (
+              <View style={[s.pmRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                <View style={s.pmIcon}>
+                  <CreditCard size={16} color={MUTED_HI} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.pmLabel}>Pay by Square</Text>
+                  <Text style={s.pmDetail}>1.6% · Cards, Apple Pay, Google Pay</Text>
+                </View>
+                <Check size={14} color={GREEN} strokeWidth={2.5} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.pmLabel}>Credit / debit card</Text>
-                <Text style={s.pmDetail}>Via Stripe · 1.9% + 30¢</Text>
-              </View>
-              <Check size={14} color={GREEN} strokeWidth={2.5} />
-            </View>
+            )}
           </View>
 
           {/* Notes */}
@@ -255,18 +322,33 @@ export default function InvoiceDetailScreen() {
       {/* Action bar */}
       {!isPaid ? (
         <View style={s.bottomBar}>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity
-              onPress={handlePayByCard}
-              activeOpacity={0.8}
-              disabled={stripeLink.isPending}
-              style={s.cardBtn}
-            >
-              {stripeLink.isPending
-                ? <ActivityIndicator size="small" color={INK} />
-                : <CreditCard size={16} color={INK} strokeWidth={2.2} />}
-              <Text style={s.cardBtnText}>Pay by card</Text>
-            </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+            {settings?.stripeEnabled && (
+              <TouchableOpacity
+                onPress={handlePayByCard}
+                activeOpacity={0.8}
+                disabled={stripeLink.isPending}
+                style={s.cardBtn}
+              >
+                {stripeLink.isPending
+                  ? <ActivityIndicator size="small" color={INK} />
+                  : <CreditCard size={16} color={INK} strokeWidth={2.2} />}
+                <Text style={s.cardBtnText}>Stripe</Text>
+              </TouchableOpacity>
+            )}
+            {settings?.squareEnabled && (
+              <TouchableOpacity
+                onPress={handlePayBySquare}
+                activeOpacity={0.8}
+                disabled={squareLink.isPending}
+                style={s.cardBtn}
+              >
+                {squareLink.isPending
+                  ? <ActivityIndicator size="small" color={INK} />
+                  : <CreditCard size={16} color={INK} strokeWidth={2.2} />}
+                <Text style={s.cardBtnText}>Square</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={handleMarkPaid}
               activeOpacity={0.8}
@@ -466,11 +548,32 @@ const s = StyleSheet.create({
     color: MUTED,
     marginTop: 1,
   },
+  pmDetailBold: {
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
+  },
+  copyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 1,
+  },
   bottomBar: {
     position: 'absolute',
-    bottom: 100,
-    left: 12,
-    right: 12,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 12,
+    paddingBottom: 32,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(247,244,238,0.92)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.85)',
+    shadowColor: '#141310',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
+    elevation: 12,
     zIndex: 30,
   },
   cardBtn: {

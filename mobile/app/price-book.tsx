@@ -10,6 +10,7 @@ import { usePriceBook, useCreatePriceBookItem, useUpdatePriceBookItem, useDelete
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
+const ORANGE_SOFT = '#ffe6d3';
 const INK         = '#141310';
 const PAPER       = '#f7f4ee';
 const PAPER_DEEP  = '#efe9dd';
@@ -354,8 +355,8 @@ const s = StyleSheet.create({
   },
   infoBanner: {
     flexDirection: 'row', gap: 10, alignItems: 'flex-start',
-    backgroundColor: '#fff5ef', borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: 'rgba(242,106,42,0.2)', marginBottom: 20,
+    backgroundColor: ORANGE_SOFT, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: 'rgba(242,106,42,0.35)', marginBottom: 20,
   },
   infoText: {
     flex: 1, fontSize: 12.5, fontFamily: 'Manrope_500Medium',
@@ -367,7 +368,7 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   itemsCard: {
-    backgroundColor: CARD, borderRadius: 16,
+    backgroundColor: CARD, borderRadius: 18,
     borderWidth: 1, borderColor: LINE_SOFT, overflow: 'hidden',
   },
   itemRow: {

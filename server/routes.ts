@@ -15,6 +15,7 @@ import multer from "multer";
 import fs from "fs";
 import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken, upsertXeroContact, createXeroInvoice } from "./xero";
 import { stripe, createPaymentLink } from "./stripe";
+import { squareClient, createSquarePaymentLink } from "./square";
 import { getTradeContext } from "./trade-knowledge";
 import crypto from "crypto";
 import { sendCustomerEmail } from "./lib/email";
@@ -592,7 +593,7 @@ CRITICAL RULES — follow these exactly:
       });
 
       const imagePayload = typeof imageBase64 === 'string'
-        ? (imageBase64.includes(';base64,') ? imageBase64.split(';base64,')[1] : imageBase64)
+        ? imageBase64.includes(';base64,') ? imageBase64.split(';base64,')[1] : imageBase64
         : null;
 
       if (imagePayload && imagePayload.length > 128) {
@@ -639,7 +640,7 @@ CRITICAL RULES — follow these exactly:
     } catch (error: any) {
       console.error("Quote generation error:", error);
       const msg: string = error?.message || "";
-      const isImageError = /image|invalid.*url|unsupported.*media/i.test(msg) || error?.status === 400;
+      const isImageError = /image|invalid.*url|unsupported.*media|400/i.test(msg);
       res.status(isImageError ? 400 : 500).json({
         message: isImageError
           ? "The attached image couldn't be read — try a clearer photo or remove it and describe the job instead."
@@ -1188,6 +1189,56 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
+  // ─── Customer Messages ───
+
+  app.get("/api/customers/:customerId/messages", requireAuth, async (req: any, res) => {
+    const customerId = parseInt(req.params.customerId);
+    if (isNaN(customerId)) return res.status(400).json({ message: "Invalid customer id" });
+    const msgs = await storage.getCustomerMessages(req.userId, customerId);
+    res.json(msgs);
+  });
+
+  app.post("/api/customers/:customerId/messages", requireAuth, async (req: any, res) => {
+    const customerId = parseInt(req.params.customerId);
+    if (isNaN(customerId)) return res.status(400).json({ message: "Invalid customer id" });
+    const { body, direction = "out", channel = "note", jobId, quoteId } = req.body || {};
+    if (!body?.trim()) return res.status(400).json({ message: "body is required" });
+    const msg = await storage.createCustomerMessage({
+      userId: req.userId,
+      customerId,
+      body: body.trim(),
+      direction,
+      channel,
+      jobId: jobId ?? null,
+      quoteId: quoteId ?? null,
+    });
+
+    // If channel is 'sms' and Twilio is configured, try to send
+    if (channel === "sms" && direction === "out") {
+      const customer = await storage.getCustomer(customerId);
+      const phone = customer?.phone;
+      const accountSid = process.env.TWILIO_ACCOUNT_SID;
+      const authToken  = process.env.TWILIO_AUTH_TOKEN;
+      const from       = process.env.TWILIO_PHONE_NUMBER;
+      if (phone && accountSid && authToken && from) {
+        try {
+          const twilio = (await import('twilio')).default;
+          await twilio(accountSid, authToken).messages.create({ body: body.trim(), from, to: phone });
+        } catch (smsErr) {
+          console.error("SMS send failed:", smsErr);
+          // Don't fail the request — message is still saved
+        }
+      }
+    }
+
+    res.status(201).json(msg);
+  });
+
+  app.delete("/api/customers/:customerId/messages/:id", requireAuth, async (req: any, res) => {
+    await storage.deleteCustomerMessage(parseInt(req.params.id), req.userId);
+    res.json({ ok: true });
+  });
+
   // ─── Customer Email ───
 
   app.post("/api/messages/email", requireAuth, emailRateLimit, async (req: any, res) => {
@@ -1615,6 +1666,70 @@ CRITICAL RULES — follow these exactly:
     res.json({ received: true });
   });
 
+  // ── Square ────────────────────────────────────────────────────────────────
+
+  // POST /api/square/payment-link/:invoiceId
+  app.post("/api/square/payment-link/:invoiceId", requireAuth, async (req: any, res) => {
+    if (!squareClient) return res.status(503).json({ message: "Square is not configured on this server." });
+
+    const invoiceId = parseInt(req.params.invoiceId);
+    if (isNaN(invoiceId)) return res.status(400).json({ message: "Invalid invoice id" });
+
+    const invoice = await storage.getInvoice(invoiceId, req.userId);
+    if (!invoice || invoice.userId !== req.userId) return res.status(404).json({ message: "Invoice not found" });
+
+    if (invoice.squarePaymentLinkUrl) {
+      return res.json({ url: invoice.squarePaymentLinkUrl, id: invoice.squarePaymentLinkId });
+    }
+
+    const amountCents = BigInt(Math.round(parseFloat(String(invoice.totalAmount)) * 100));
+
+    try {
+      const link = await createSquarePaymentLink({
+        invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        description: `Invoice ${invoice.invoiceNumber}`,
+        amountCents,
+        currency: 'AUD',
+      });
+
+      await storage.updateInvoice(invoiceId, {
+        squarePaymentLinkId: link.id,
+        squarePaymentLinkUrl: link.url,
+      });
+
+      res.json({ url: link.url, id: link.id });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to create Square payment link" });
+    }
+  });
+
+  // POST /api/square/webhook — mark invoice paid on payment.completed
+  app.post("/api/square/webhook", async (req, res) => {
+    const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+    try {
+      const event = req.body;
+      if (event?.type === 'payment.completed' || event?.type === 'payment_link.completed') {
+        const metadata = event?.data?.object?.payment?.note || event?.data?.object?.metadata || '';
+        const match = String(metadata).match(/invoiceId[=:](\d+)/i);
+        if (match) {
+          const invoiceId = parseInt(match[1]);
+          const invoice = await storage.getInvoice(invoiceId);
+          if (invoice && invoice.status !== 'paid') {
+            await storage.updateInvoice(invoiceId, {
+              status: 'paid',
+              paidDate: new Date(),
+              paidAmount: String(invoice.totalAmount),
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Square webhook error:', err);
+    }
+    res.json({ received: true });
+  });
+
   // ── Twilio SMS ─────────────────────────────────────────────────────────────
 
   // POST /api/sms/send  — send an SMS to a customer phone number
@@ -1638,6 +1753,177 @@ CRITICAL RULES — follow these exactly:
       res.json({ ok: true, sid: msg.sid });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to send SMS" });
+    }
+  });
+
+  // ── Receipts ──────────────────────────────────────────────────────────
+
+  // AI scan a receipt image
+  app.post("/api/receipts/scan", requireAuth, async (req: any, res) => {
+    try {
+      const { imageBase64 } = req.body;
+      if (!imageBase64) return res.status(400).json({ message: "imageBase64 required" });
+
+      const imagePayload = typeof imageBase64 === 'string'
+        ? imageBase64.includes(';base64,') ? imageBase64.split(';base64,')[1] : imageBase64
+        : null;
+
+      if (!imagePayload) return res.status(400).json({ message: "Invalid image data" });
+
+      const messages: any[] = [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
+                detail: "low",
+              },
+            },
+            {
+              type: "text",
+              text: `You are a receipt scanner. Extract the following from this receipt image and return ONLY valid JSON with no markdown:
+{
+  "vendor": "store or supplier name",
+  "date": "YYYY-MM-DD or empty string if not found",
+  "total": 0.00,
+  "category": "one of: Materials, Equipment, Fuel, Subcontractor, Food, Other",
+  "items": [{ "description": "item name", "amount": 0.00 }],
+  "notes": "any useful notes or empty string"
+}
+
+If you cannot read the image clearly, return your best guess. Always return valid JSON.`,
+            },
+          ],
+        },
+      ];
+
+      const response = await openai.chat.completions.create({
+        model: AI_MODEL,
+        messages,
+        max_tokens: 800,
+        temperature: 0,
+      });
+
+      const raw = response.choices[0]?.message?.content || '{}';
+      // Strip markdown code fences if present
+      const cleaned = raw.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+      let parsed: any = {};
+      try { parsed = JSON.parse(cleaned); } catch { parsed = {}; }
+
+      res.json({
+        vendor: parsed.vendor || '',
+        date: parsed.date || '',
+        total: String(parsed.total || '0'),
+        category: parsed.category || 'Other',
+        items: parsed.items || [],
+        notes: parsed.notes || '',
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message || "Scan failed" });
+    }
+  });
+
+  app.get("/api/receipts", requireAuth, async (req: any, res) => {
+    const list = await storage.getReceipts(req.userId);
+    res.json(list);
+  });
+
+  app.post("/api/receipts", requireAuth, async (req: any, res) => {
+    try {
+      const receipt = await storage.createReceipt({ ...req.body, userId: req.userId });
+      res.status(201).json(receipt);
+    } catch (err: any) {
+      res.status(400).json({ message: err?.message || "Failed to create receipt" });
+    }
+  });
+
+  app.get("/api/receipts/:id", requireAuth, async (req: any, res) => {
+    const receipt = await storage.getReceipt(Number(req.params.id), req.userId);
+    if (!receipt) return res.status(404).json({ message: "Not found" });
+    res.json(receipt);
+  });
+
+  app.delete("/api/receipts/:id", requireAuth, async (req: any, res) => {
+    await storage.deleteReceipt(Number(req.params.id), req.userId);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/weather", requireAuth, async (req: any, res) => {
+    try {
+      const { latitude, longitude } = req.query;
+      if (!latitude || !longitude) {
+        return res.status(400).json({ message: "latitude and longitude required" });
+      }
+      const lat = parseFloat(latitude);
+      const lon = parseFloat(longitude);
+      if (isNaN(lat) || isNaN(lon)) {
+        return res.status(400).json({ message: "Invalid coordinates" });
+      }
+
+      const response = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&temperature_unit=celsius&timezone=auto`
+      );
+      const data = await response.json();
+
+      // Map WMO weather codes to descriptions
+      const weatherCodeMap: Record<number, { icon: string; desc: string }> = {
+        0: { icon: '☀️', desc: 'Clear' },
+        1: { icon: '🌤️', desc: 'Mostly Clear' },
+        2: { icon: '⛅', desc: 'Partly Cloudy' },
+        3: { icon: '☁️', desc: 'Overcast' },
+        45: { icon: '🌫️', desc: 'Foggy' },
+        48: { icon: '🌫️', desc: 'Foggy' },
+        51: { icon: '🌦️', desc: 'Light Drizzle' },
+        53: { icon: '🌧️', desc: 'Drizzle' },
+        55: { icon: '🌧️', desc: 'Heavy Drizzle' },
+        61: { icon: '🌧️', desc: 'Light Rain' },
+        63: { icon: '🌧️', desc: 'Rain' },
+        65: { icon: '⛈️', desc: 'Heavy Rain' },
+        71: { icon: '🌨️', desc: 'Light Snow' },
+        73: { icon: '🌨️', desc: 'Snow' },
+        75: { icon: '🌨️', desc: 'Heavy Snow' },
+        77: { icon: '🌨️', desc: 'Snow Grains' },
+        80: { icon: '🌧️', desc: 'Light Showers' },
+        81: { icon: '🌧️', desc: 'Showers' },
+        82: { icon: '⛈️', desc: 'Heavy Showers' },
+        85: { icon: '🌨️', desc: 'Light Snow Showers' },
+        86: { icon: '🌨️', desc: 'Snow Showers' },
+        95: { icon: '⛈️', desc: 'Thunderstorm' },
+        96: { icon: '⛈️', desc: 'Thunderstorm with Hail' },
+        99: { icon: '⛈️', desc: 'Thunderstorm with Hail' },
+      };
+
+      const daily = data.daily || {};
+      const forecast = (daily.time || []).slice(0, 7).map((date: string, i: number) => {
+        const code = daily.weather_code?.[i] || 0;
+        const weather = weatherCodeMap[code] || { icon: '❓', desc: 'Unknown' };
+        return {
+          date,
+          temp_max: daily.temperature_2m_max?.[i],
+          temp_min: daily.temperature_2m_min?.[i],
+          precipitation: daily.precipitation_sum?.[i] || 0,
+          weather_code: code,
+          weather_icon: weather.icon,
+          weather_desc: weather.desc,
+        };
+      });
+
+      const today = forecast[0];
+      res.json({
+        location: data.timezone,
+        current: {
+          temp: today?.temp_max,
+          icon: today?.weather_icon,
+          desc: today?.weather_desc,
+          precipitation_chance: today?.precipitation || 0,
+        },
+        forecast,
+      });
+    } catch (err: any) {
+      console.error("Weather fetch failed:", err);
+      res.status(500).json({ message: "Failed to fetch weather" });
     }
   });
 

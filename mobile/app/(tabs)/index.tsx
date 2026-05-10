@@ -14,6 +14,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { useJobs } from '@/hooks/use-jobs';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useInvoices } from '@/hooks/use-invoices';
+import { useWeather } from '@/hooks/use-weather';
+import { useSettings } from '@/hooks/use-settings';
 import { queryClient } from '@/lib/queryClient';
 import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
@@ -53,8 +55,9 @@ function CyclingPill({ nextJob, pipelineAmt, colors: c }: { nextJob: any; pipeli
   }, [locked]);
 
   const now = new Date();
+  const weatherLabel = weather?.current ? `${weather.current.icon} ${Math.round(weather.current.temp)}°` : 'Loading weather...';
   const states = [
-    { icon: '☀️', label: 'Fine · --°' },
+    { icon: weather?.current?.icon || '☀️', label: weatherLabel },
     { icon: '🕐', label: format(now, "EEE d · h:mm a") },
     { icon: '📍', label: nextJob ? nextJob.title.slice(0, 22) : 'No jobs' },
     { icon: '💰', label: pipelineAmt >= 1000 ? `$${(pipelineAmt / 1000).toFixed(1)}k out` : `$${pipelineAmt} out` },
@@ -163,6 +166,8 @@ export default function HomeScreen() {
   const { data: jobs, isLoading: jobsLoading } = useJobs();
   const { data: quotes } = useQuotes();
   const { data: invoices } = useInvoices();
+  const { data: weather } = useWeather();
+  const { data: settings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -447,6 +452,75 @@ export default function HomeScreen() {
             </View>
           </View>
         );
+
+      case 'weather': {
+        if (!weather) {
+          return (
+            <View style={{ paddingHorizontal: 20 }}>
+              <View style={[s.card, { padding: 18, alignItems: 'center' }]}>
+                <Text style={{ fontSize: 13, color: MUTED, fontFamily: 'Manrope_500Medium' }}>
+                  Fetching weather…
+                </Text>
+              </View>
+            </View>
+          );
+        }
+        const rainyDays = weather.forecast.filter((d: any) => d.precipitation > 1);
+        const hasRainWarning = rainyDays.length > 0;
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <Text style={s.eyebrow}>Weather</Text>
+            <View style={s.weatherCard}>
+              {/* Current conditions */}
+              <View style={s.weatherTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.weatherTemp}>{Math.round(weather.current.temp)}°</Text>
+                  <Text style={s.weatherDesc}>{weather.current.desc}</Text>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                    <Text style={s.weatherHiLo}>↑ {Math.round(weather.forecast[0]?.temp_max)}°</Text>
+                    <Text style={s.weatherHiLo}>↓ {Math.round(weather.forecast[0]?.temp_min)}°</Text>
+                    {weather.forecast[0]?.precipitation > 0 && (
+                      <Text style={[s.weatherHiLo, { color: BLUE }]}>💧 {weather.forecast[0].precipitation.toFixed(1)}mm</Text>
+                    )}
+                  </View>
+                </View>
+                <Text style={s.weatherBigIcon}>{weather.current.icon}</Text>
+              </View>
+
+              {/* Rain warning */}
+              {hasRainWarning && (
+                <View style={s.rainWarning}>
+                  <Text style={s.rainWarningText}>
+                    🌧️ Rain expected {rainyDays.map((d: any) => format(new Date(d.date + 'T00:00:00'), 'EEE')).join(', ')} — plan your outdoor jobs around it.
+                  </Text>
+                </View>
+              )}
+
+              {/* 7-day forecast strip */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }} contentContainerStyle={{ gap: 6 }}>
+                {weather.forecast.map((day: any, i: number) => {
+                  const isRainy = day.precipitation > 1;
+                  const isToday_ = i === 0;
+                  return (
+                    <View key={day.date} style={[s.weatherDayCell, isToday_ && s.weatherDayCellActive, isRainy && s.weatherDayCellRainy]}>
+                      <Text style={[s.weatherDayLabel, isToday_ && { color: '#fff' }]}>
+                        {isToday_ ? 'Today' : format(new Date(day.date + 'T00:00:00'), 'EEE')}
+                      </Text>
+                      <Text style={s.weatherDayIcon}>{day.weather_icon}</Text>
+                      <Text style={[s.weatherDayTemp, isToday_ && { color: '#fff' }]}>
+                        {Math.round(day.temp_max)}°
+                      </Text>
+                      {isRainy && (
+                        <Text style={s.weatherDayRain}>{day.precipitation.toFixed(0)}mm</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        );
+      }
 
       case 'nudge':
         return (

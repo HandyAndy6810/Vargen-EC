@@ -10,6 +10,7 @@ import { router } from 'expo-router';
 import { format, startOfWeek, addDays, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
+import { useWeather } from '@/hooks/use-weather';
 import { Plus, Search } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 
@@ -70,6 +71,7 @@ export default function CalendarScreen() {
   });
 
   const { data: jobs } = useJobs();
+  const { data: weather } = useWeather();
   const allJobs = (jobs as any[]) || [];
   const selectedDay = days[dayIdx];
 
@@ -105,17 +107,20 @@ export default function CalendarScreen() {
         <TouchableOpacity style={s.iconBtn} activeOpacity={0.7}>
           <Search size={18} color={c.ink} strokeWidth={2.1} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.addBtn} activeOpacity={0.8}>
+        <TouchableOpacity style={s.addBtn} activeOpacity={0.8} onPress={() => router.push('/jobs/create' as any)}>
           <Plus size={20} color="#fff" strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
 
       {/* Week strip */}
-      <View style={{ paddingHorizontal: 12, paddingBottom: 0 }}>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 0 }}>
         <View style={{ flexDirection: 'row', gap: 6 }}>
           {days.map((d, i) => {
             const active = dayIdx === i;
             const count = jobCountPerDay[i];
+            const dateKey = format(d, 'yyyy-MM-dd');
+            const dayWeather = weatherByDate[dateKey];
+            const isRainy = dayWeather && dayWeather.precipitation > 1;
             return (
               <TouchableOpacity key={i} onPress={() => setDayIdx(i)} activeOpacity={0.7}
                 style={[s.dayCell, active && s.dayCellActive]}>
@@ -123,6 +128,11 @@ export default function CalendarScreen() {
                   {format(d, 'EEE').toUpperCase()}
                 </Text>
                 <Text style={[s.dayNum, active && { color: '#fff' }]}>{format(d, 'd')}</Text>
+                {dayWeather ? (
+                  <Text style={{ fontSize: 11, lineHeight: 14, marginTop: 1 }}>{dayWeather.weather_icon}</Text>
+                ) : (
+                  <View style={{ height: 14 }} />
+                )}
                 {count > 0 ? (
                   <View style={{ flexDirection: 'row', gap: 2, marginTop: 2 }}>
                     {Array.from({ length: Math.min(count, 3) }).map((_, k) => (
@@ -146,7 +156,14 @@ export default function CalendarScreen() {
         </Text>
         {dayJobs.length > 0 && (
           <Text style={s.daySubhead}>
-            {format(new Date(dayJobs[0].scheduledDate), 'h:mm a')} → {format(new Date(dayJobs[dayJobs.length - 1].scheduledDate), 'h:mm a')} · {dayJobs.length * 90}m booked
+            {format(new Date(dayJobs[0].scheduledDate), 'h:mm a')} → {format(new Date(dayJobs[dayJobs.length - 1].scheduledDate), 'h:mm a')} · {
+              (() => {
+                const total = dayJobs.reduce((s: number, j: any) => s + (j.estimatedDuration || 60), 0);
+                const h = Math.floor(total / 60);
+                const m = total % 60;
+                return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`;
+              })()
+            } booked
           </Text>
         )}
       </View>
@@ -171,9 +188,10 @@ export default function CalendarScreen() {
 
             {dayJobs.map((job: any, i: number) => {
               const startH = getJobHour(job.scheduledDate);
-              const endH_ = startH + 1.5;
+              const durationHrs = (job.estimatedDuration || 60) / 60;
+              const endH_ = startH + durationHrs;
               const top = (startH - START_H) * HOUR_H;
-              const height = (endH_ - startH) * HOUR_H;
+              const height = Math.max(durationHrs * HOUR_H, 36);
               const isNext = i === 0 && job.status !== 'completed';
               const bg = isNext ? (isDark ? c.card : '#0f0e0b') : c.card;
               const fg = isNext ? (isDark ? c.ink : '#fff') : c.ink;

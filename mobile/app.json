@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "vargen",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
@@ -16,11 +16,14 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.vargen.ec",
+      "backgroundColor": "#f7f4ee",
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Used to capture photos for jobs and invoices.",
         "NSPhotoLibraryUsageDescription": "Used to attach photos to jobs and invoices.",
         "NSMicrophoneUsageDescription": "Used for AI voice-to-quote dictation.",
+        "NSLocationWhenInUseUsageDescription": "Used to show weather conditions for your location.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Used to show weather conditions for your location.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -32,12 +35,15 @@
       "package": "com.vargen.ec",
       "versionCode": 1,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "RECORD_AUDIO",
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.FOREGROUND_SERVICE"
       ]
     },
     "web": {
@@ -68,7 +74,9 @@
           "sounds": []
         }
       ],
-      "expo-updates"
+      "expo-updates",
+      "expo-image-picker",
+      "expo-location"
     ],
     "experiments": {
       "typedRoutes": true

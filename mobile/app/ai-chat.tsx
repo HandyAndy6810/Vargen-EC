@@ -10,13 +10,18 @@ import {
   ActivityIndicator,
   Alert,
   Switch,
+  Linking,
+  Share,
+  Modal,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
-import { useState, useRef } from 'react';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useState, useRef, useEffect } from 'react';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Sparkles, Send, Edit2, Bookmark, Search } from 'lucide-react-native';
+import { ChevronLeft, Sparkles, Send, Edit2, Bookmark, Search, ChevronDown, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest, API_BASE_URL } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { useCustomers } from '@/hooks/use-customers';
@@ -68,19 +73,15 @@ function AiAvatar({ size = 32 }: { size?: number }) {
   );
 }
 
-const QUICK_SUGGESTIONS = [
-  'Replace hot water system — Rheem 315L, same location',
-  'Fix leaking tap — kitchen mixer, supply new cartridge',
-  'Clear blocked drain — high pressure water jetting',
-  'Install new toilet suite — supply and fit Caroma',
-  'Replace bathroom basin tap — supply Caroma Liano, fit',
-  'Fix burst pipe — cut section, rejoin, pressure test',
-  'Install outdoor tap — tee off mains, 15m max',
-  'Service gas hot water unit — annual service + report',
+const TRADE_TYPES = [
+  'Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Landscaping',
+  'HVAC', 'Tiling', 'Roofing', 'Concreting', 'Bricklaying',
+  'Plastering', 'Glazing', 'Flooring', 'Cabinet Making', 'General',
 ];
 
 export default function AiChatScreen() {
   const params = useLocalSearchParams<{ description?: string }>();
+  const navigation = useNavigation();
   const [step, setStep] = useState<Step>('prompt');
   const [description, setDescription] = useState(params.description ?? '');
   const [customerType, setCustomerType] = useState<'new' | 'existing'>('new');
@@ -113,13 +114,52 @@ export default function AiChatScreen() {
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
+  const [showTradeDropdown, setShowTradeDropdown] = useState(false);
+  const [priceEstimate, setPriceEstimate] = useState('');
   const [jobTitleOverride, setJobTitleOverride] = useState('');
   const [jobType, setJobType] = useState(tradeType);
+  const [expiryDays, setExpiryDays] = useState(30);
   const [expiryDate, setExpiryDate] = useState(() => {
     const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     return d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
   });
+  const pickExpiryDays = (days: number) => {
+    setExpiryDays(days);
+    const d = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    setExpiryDate(d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }));
+  };
   const [internalNotes, setInternalNotes] = useState('');
+
+  // Fetch user settings to prefill trade type + labour rate
+  const { data: userSettings } = useQuery({
+    queryKey: ['/api/settings'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/settings');
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    if (userSettings) {
+      if (userSettings.tradeType) setTradeType(userSettings.tradeType);
+      if (userSettings.labourRate) setLabourRate(String(userSettings.labourRate));
+    }
+  }, [userSettings]);
+
+  // Intercept swipe-down dismiss on modal — show "Leave without saving?" when there's unsaved work
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove' as any, (e: any) => {
+      const hasWork = description.trim() || firstName.trim() || phone.trim();
+      if (!hasWork || savedQuoteId) return;
+      e.preventDefault();
+      Alert.alert('Leave without saving?', 'Your quote details will be lost.', [
+        { text: 'Stay', style: 'cancel' },
+        { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+      ]);
+    });
+    return unsub;
+  }, [navigation, description, firstName, phone, savedQuoteId]);
   const [editableItems, setEditableItems] = useState<{ description: string; qty: string; unit: string; rate: string }[]>([]);
   const [savedQuoteId, setSavedQuoteId] = useState<number | null>(null);
   const [quoteStatus, setQuoteStatus] = useState<string>('draft');
@@ -157,6 +197,7 @@ export default function AiChatScreen() {
             tradeType: tradeType.trim() || undefined,
             labourRate: labourRate ? parseFloat(labourRate) : undefined,
             callOutFee: calloutFeeEnabled && calloutFeeAmount ? parseFloat(calloutFeeAmount) : 0,
+            priceEstimate: priceEstimate ? parseFloat(priceEstimate) : undefined,
             includeGST: true,
           }),
           signal: controller.signal,
@@ -205,6 +246,10 @@ export default function AiChatScreen() {
           expiryDate,
           internalNotes,
           customerName: customerName.trim() || undefined,
+          customerPhone: customerType === 'new' ? phone.trim() || undefined : overridePhone || selectedCustomer?.phone || undefined,
+          customerEmail: customerType === 'new' ? email.trim() || undefined : overrideEmail || selectedCustomer?.email || undefined,
+          customerAddress: customerAddress || undefined,
+          customerNotes: customerType === 'new' ? custNotes.trim() || undefined : undefined,
         }),
       });
       if (!res.ok) {
@@ -248,7 +293,12 @@ export default function AiChatScreen() {
   };
 
   const goBack = () => {
-    if (step === 'draft') {
+    if (step === 'draft' && !savedQuoteId) {
+      Alert.alert('Discard draft?', 'Your generated quote will be lost.', [
+        { text: 'Keep editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => { setStep('prompt'); setAiResult(null); setError(null); } },
+      ]);
+    } else if (step === 'draft') {
       setStep('prompt');
       setAiResult(null);
       setError(null);
@@ -290,13 +340,19 @@ export default function AiChatScreen() {
         {/* STEP: PROMPT */}
         {step === 'prompt' && !generateMutation.isPending && (
           <>
-            <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 140 }}>
+            <ScrollView
+              ref={scrollRef}
+              showsVerticalScrollIndicator={false}
+              keyboardDismissMode="on-drag"
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ padding: 20, paddingBottom: 180 }}
+            >
               {/* Mini hero */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 }}>
-                <AiAvatar size={44} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 24 }}>
+                <AiAvatar size={48} />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.heroHeadingSmall}>New AI quote</Text>
-                  <Text style={s.heroSubSmall}>Fill in the details — I'll build the quote.</Text>
+                  <Text style={[s.heroHeadingSmall, { fontSize: 22, letterSpacing: -0.6 }]}>New AI quote</Text>
+                  <Text style={s.heroSubSmall}>Fill in the details below — I'll build the rest.</Text>
                 </View>
               </View>
 
@@ -306,11 +362,24 @@ export default function AiChatScreen() {
                 </View>
               )}
 
+              {/* Describe the job — top of form */}
+              <Text style={s.formLabel}>Describe the job</Text>
+              <TextInput
+                style={s.descInput}
+                placeholder="e.g. Replace hot water system at Smith's place, Rheem 315L same location…"
+                placeholderTextColor={MUTED}
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+
               {/* Customer */}
               <Text style={s.formLabel}>Customer</Text>
               <View style={s.formCard}>
 
-                {/* Toggle */}
+                {/* Toggle — sits flush on top of the card fields */}
                 <View style={s.customerToggleRow}>
                   {(['new', 'existing'] as const).map((t) => (
                     <TouchableOpacity
@@ -320,7 +389,7 @@ export default function AiChatScreen() {
                       style={[s.custTypeBtn, customerType === t && s.custTypeBtnActive]}
                     >
                       <Text style={[s.custTypeBtnText, customerType === t && s.custTypeBtnTextActive]}>
-                        {t === 'new' ? 'New customer' : 'Existing'}
+                        {t === 'new' ? 'New customer' : 'Existing customer'}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -332,7 +401,7 @@ export default function AiChatScreen() {
                     <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
                       <TextInput
                         style={[s.formInput, { flex: 1 }]}
-                        placeholder="First name"
+                        placeholder="First name *"
                         placeholderTextColor={MUTED}
                         value={firstName}
                         onChangeText={setFirstName}
@@ -361,7 +430,7 @@ export default function AiChatScreen() {
                     </View>
                     {/* Phone */}
                     <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                      <Text style={s.formRowLabel}>Phone</Text>
+                      <Text style={s.formRowLabel}>Phone <Text style={{ color: ORANGE }}>*</Text></Text>
                       <TextInput
                         style={[s.formInput, { flex: 1, textAlign: 'right' }]}
                         placeholder="04xx xxx xxx"
@@ -529,62 +598,50 @@ export default function AiChatScreen() {
                 )}
               </View>
 
-              {/* Job description */}
-              <Text style={s.formLabel}>Describe the job</Text>
-              <TextInput
-                style={s.descInput}
-                placeholder="e.g. Replace hot water system at Smith's place, Rheem 315L same location…"
-                placeholderTextColor={MUTED}
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-
               {/* Pricing settings */}
               <Text style={s.formLabel}>Pricing settings</Text>
               <View style={s.formCard}>
-                {/* Trade type */}
-                <View style={s.formRow}>
+                {/* Trade type dropdown */}
+                <TouchableOpacity
+                  style={s.formRow}
+                  activeOpacity={0.7}
+                  onPress={() => { Keyboard.dismiss(); setShowTradeDropdown(true); }}
+                >
                   <Text style={s.formRowLabel}>Trade type</Text>
-                  <TextInput
-                    style={s.formRowInput}
-                    value={tradeType}
-                    onChangeText={setTradeType}
-                    placeholder="e.g. Plumbing"
-                    placeholderTextColor={MUTED}
-                    returnKeyType="next"
-                  />
-                </View>
-                {/* Labour rate + hours side by side */}
-                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                  <Text style={s.formRowLabel}>Labour rate</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={{ fontSize: 13, color: MUTED_HI, fontFamily: 'Manrope_700Bold' }}>$</Text>
-                    <TextInput
-                      style={[s.formRowInput, { width: 60 }]}
-                      value={labourRate}
-                      onChangeText={setLabourRate}
-                      keyboardType="numeric"
-                      selectTextOnFocus
-                      returnKeyType="next"
-                    />
-                    <Text style={{ fontSize: 12, color: MUTED, fontFamily: 'Manrope_600SemiBold' }}>/hr</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: INK }}>{tradeType}</Text>
+                    <ChevronDown size={14} color={MUTED} strokeWidth={2.2} />
                   </View>
-                </View>
-                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                  <Text style={s.formRowLabel}>Labour hours</Text>
-                  <TextInput
-                    style={[s.formRowInput, { width: 60 }]}
-                    value={labourHours}
-                    onChangeText={setLabourHours}
-                    keyboardType="numeric"
-                    placeholder="est."
-                    placeholderTextColor={MUTED}
-                    selectTextOnFocus
-                    returnKeyType="next"
-                  />
+                </TouchableOpacity>
+                {/* Labour rate + hours in one row */}
+                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, gap: 0 }]}>
+                  <Text style={s.formRowLabel}>Labour</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={s.labourBubble}>
+                      <Text style={s.labourBubbleLabel}>$/hr</Text>
+                      <TextInput
+                        style={s.labourBubbleInput}
+                        value={labourRate}
+                        onChangeText={setLabourRate}
+                        keyboardType="numeric"
+                        selectTextOnFocus
+                        returnKeyType="next"
+                      />
+                    </View>
+                    <View style={s.labourBubble}>
+                      <Text style={s.labourBubbleLabel}>hrs</Text>
+                      <TextInput
+                        style={s.labourBubbleInput}
+                        value={labourHours}
+                        onChangeText={setLabourHours}
+                        keyboardType="numeric"
+                        placeholder="est."
+                        placeholderTextColor={MUTED}
+                        selectTextOnFocus
+                        returnKeyType="next"
+                      />
+                    </View>
+                  </View>
                 </View>
                 {/* Callout fee */}
                 <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
@@ -619,34 +676,49 @@ export default function AiChatScreen() {
                   <Text style={s.formRowLabel}>Job title</Text>
                   <TextInput
                     style={[s.formInput, { flex: 1, textAlign: 'right' }]}
-                    placeholder="AI will fill this in"
+                    placeholder="AI can fill this in"
                     placeholderTextColor={MUTED}
                     value={jobTitleOverride}
                     onChangeText={setJobTitleOverride}
                     returnKeyType="next"
                   />
                 </View>
-                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                  <Text style={s.formRowLabel}>Job type</Text>
-                  <TextInput
-                    style={[s.formInput, { flex: 1, textAlign: 'right' }]}
-                    placeholder="e.g. Plumbing"
-                    placeholderTextColor={MUTED}
-                    value={jobType}
-                    onChangeText={setJobType}
-                    returnKeyType="next"
-                  />
+                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, flexDirection: 'column', alignItems: 'flex-start', paddingBottom: 12 }]}>
+                  <Text style={[s.formRowLabel, { marginBottom: 10 }]}>Expiry</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                    {[7, 14, 30, 60, 90].map((days) => (
+                      <TouchableOpacity
+                        key={days}
+                        activeOpacity={0.75}
+                        onPress={() => { pickExpiryDays(days); Haptics.selectionAsync(); }}
+                        style={[s.expiryChip, expiryDays === days && s.expiryChipActive]}
+                      >
+                        <Text style={[s.expiryChipText, expiryDays === days && s.expiryChipTextActive]}>{days} days</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_600SemiBold', marginTop: 8 }}>
+                    Expires {expiryDate}
+                  </Text>
                 </View>
                 <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                  <Text style={s.formRowLabel}>Expiry</Text>
-                  <TextInput
-                    style={[s.formInput, { flex: 1, textAlign: 'right' }]}
-                    value={expiryDate}
-                    onChangeText={setExpiryDate}
-                    placeholder="30 days"
-                    placeholderTextColor={MUTED}
-                    returnKeyType="next"
-                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.formRowLabel}>Price estimate</Text>
+                    <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_500Medium', marginTop: 2 }}>Optional — helps AI target the right figure</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={{ fontSize: 13, color: MUTED_HI, fontFamily: 'Manrope_700Bold' }}>$</Text>
+                    <TextInput
+                      style={[s.formRowInput, { width: 90, textAlign: 'right' }]}
+                      value={priceEstimate}
+                      onChangeText={setPriceEstimate}
+                      keyboardType="numeric"
+                      placeholder="e.g. 1500"
+                      placeholderTextColor={MUTED}
+                      selectTextOnFocus
+                      returnKeyType="done"
+                    />
+                  </View>
                 </View>
                 <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, alignItems: 'flex-start', paddingTop: 12 }]}>
                   <Text style={[s.formRowLabel, { paddingTop: 2 }]}>Internal notes</Text>
@@ -662,25 +734,23 @@ export default function AiChatScreen() {
                   />
                 </View>
               </View>
-
-              {/* Quick suggestions */}
-              <Text style={s.formLabel}>Quick suggestions</Text>
-              <View style={{ gap: 8 }}>
-                {QUICK_SUGGESTIONS.map((sug, i) => (
-                  <TouchableOpacity key={i} onPress={() => setDescription(sug)} activeOpacity={0.7}
-                    style={s.suggestionRow}>
-                    <Sparkles size={15} color={ORANGE} strokeWidth={2} />
-                    <Text style={s.suggestionText}>{sug}</Text>
-                    <Text style={{ fontSize: 14, color: MUTED }}>›</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
             </ScrollView>
 
-            {/* Generate button */}
-            <View style={s.composerWrap}>
+            {/* Bottom action bar — pinned to safe area */}
+            <View style={s.promptFooter}>
               <TouchableOpacity
-                style={[s.generateBtn, !description.trim() && { opacity: 0.5 }]}
+                style={[s.saveDraftBtn, saveMutation.isPending && { opacity: 0.6 }]}
+                onPress={() => saveMutation.mutate('draft')}
+                disabled={saveMutation.isPending || !description.trim()}
+                activeOpacity={0.82}
+              >
+                {saveMutation.isPending
+                  ? <ActivityIndicator color={ORANGE} size="small" />
+                  : <Text style={s.saveDraftBtnText}>Save draft</Text>
+                }
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.generateBtn, { flex: 1 }, !description.trim() && { opacity: 0.5 }]}
                 onPress={() => handleSend()}
                 disabled={!description.trim()}
                 activeOpacity={0.85}
@@ -695,7 +765,7 @@ export default function AiChatScreen() {
         {/* STEP: DRAFT */}
         {step === 'draft' && aiResult && !generateMutation.isPending && (
           <>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 220 }}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 220 }}>
               {error && (
                 <View style={s.errorBox}>
                   <Text style={s.errorText}>{error}</Text>
@@ -957,12 +1027,47 @@ export default function AiChatScreen() {
                 onPress={() => {
                   const subtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
                   const total = subtotal * 1.1;
+                  const custEmail = customerType === 'existing' ? (overrideEmail || selectedCustomer?.email || '') : email;
+                  const custPhone = customerType === 'existing' ? (overridePhone || selectedCustomer?.phone || '') : phone;
+                  const custName  = customerType === 'existing' ? (selectedCustomer?.name || '') : `${firstName} ${lastName}`.trim();
+
+                  const markAsSent = async (afterSend?: () => void) => {
+                    if (savedQuoteId) {
+                      // Quote already saved — just PATCH it to "sent", don't create a duplicate
+                      await apiRequest('PATCH', `/api/quotes/${savedQuoteId}`, { status: 'sent' });
+                      setQuoteStatus('sent');
+                      queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      afterSend?.();
+                    } else {
+                      saveMutation.mutate('sent', { onSuccess: afterSend ? () => afterSend() : undefined });
+                    }
+                  };
+
                   Alert.alert('Send quote', `Total: $${total.toFixed(2)}`, [
                     { text: 'Cancel', style: 'cancel' },
-                    { text: '📧 Email customer', onPress: () => saveMutation.mutate('sent') },
-                    { text: '📱 Send SMS', onPress: () => saveMutation.mutate('sent') },
-                    { text: '🔗 Copy link', onPress: () => saveMutation.mutate('sent') },
-                    { text: '📄 Create PDF', onPress: () => saveMutation.mutate('sent') },
+                    {
+                      text: '📧 Email customer',
+                      onPress: () => {
+                        markAsSent();
+                        if (custEmail) Linking.openURL(`mailto:${custEmail}?subject=Your quote&body=Hi ${custName || 'there'},\n\nPlease find your quote attached.\n\nTotal: $${total.toFixed(2)}\n\nThanks`);
+                        else Alert.alert('No email on file', 'Add an email address for this customer first.');
+                      },
+                    },
+                    {
+                      text: '📱 Send SMS',
+                      onPress: () => {
+                        markAsSent();
+                        if (custPhone) Linking.openURL(`sms:${custPhone}`);
+                        else Alert.alert('No phone on file', 'Add a phone number for this customer first.');
+                      },
+                    },
+                    {
+                      text: '🔗 Share link',
+                      onPress: () => {
+                        markAsSent(() => Share.share({ message: `Quote — $${total.toFixed(2)} (inc. GST)` }));
+                      },
+                    },
                   ]);
                 }}
                 disabled={saveMutation.isPending}
@@ -981,6 +1086,40 @@ export default function AiChatScreen() {
           </>
         )}
       </KeyboardAvoidingView>
+
+      {/* Trade type dropdown modal */}
+      <Modal visible={showTradeDropdown} transparent animationType="slide" onRequestClose={() => setShowTradeDropdown(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowTradeDropdown(false)}>
+          <View style={s.modalBackdrop} />
+        </TouchableWithoutFeedback>
+        <View style={s.modalSheet}>
+          <View style={s.modalHandle} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16 }}>
+            <Text style={{ fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: INK }}>Trade type</Text>
+            <TouchableOpacity onPress={() => setShowTradeDropdown(false)}>
+              <X size={20} color={MUTED_HI} strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 32 }}>
+            {TRADE_TYPES.map((t) => (
+              <TouchableOpacity
+                key={t}
+                activeOpacity={0.7}
+                style={[s.modalOption, tradeType === t && s.modalOptionActive]}
+                onPress={() => {
+                  setTradeType(t);
+                  setJobType(t);
+                  setShowTradeDropdown(false);
+                  Haptics.selectionAsync();
+                }}
+              >
+                <Text style={[s.modalOptionText, tradeType === t && s.modalOptionTextActive]}>{t}</Text>
+                {tradeType === t && <View style={s.modalOptionTick} />}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1105,23 +1244,28 @@ const s = StyleSheet.create({
   },
   customerToggleRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
     padding: 10,
-    paddingBottom: 0,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: LINE_SOFT,
   },
   custTypeBtn: {
     flex: 1,
-    height: 34,
-    borderRadius: 10,
+    height: 42,
+    borderRadius: 12,
     backgroundColor: PAPER_DEEP,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   custTypeBtnActive: {
     backgroundColor: ORANGE,
+    borderColor: ORANGE_DEEP,
   },
   custTypeBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Manrope_700Bold',
     color: MUTED_HI,
   },
@@ -1245,12 +1389,49 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_600SemiBold',
     color: INK,
   },
+  promptFooter: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 28,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: 'rgba(247,244,238,0.92)',
+    shadowColor: '#141310',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  saveDraftBtn: {
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: LINE_MID,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  saveDraftBtnText: {
+    fontSize: 14,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
+  },
   composerWrap: {
-    position: 'absolute',
-    bottom: 100,
-    left: 12,
-    right: 12,
-    zIndex: 30,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 28,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: 'rgba(247,244,238,0.92)',
+    shadowColor: '#141310',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
+    elevation: 12,
+    gap: 8,
   },
   composer: {
     flexDirection: 'row',
@@ -1587,12 +1768,12 @@ const s = StyleSheet.create({
     color: ORANGE_DEEP,
   },
   internalNotesBox: {
-    backgroundColor: '#fffbeb',
+    backgroundColor: PAPER_DEEP,
     borderRadius: 14,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#fde68a',
+    borderColor: LINE_MID,
   },
   internalNotesInput: {
     fontSize: 13,
@@ -1637,6 +1818,95 @@ const s = StyleSheet.create({
   sendBtnText: {
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
+    color: '#fff',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  modalSheet: {
+    backgroundColor: CARD,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 16,
+    maxHeight: '70%',
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: LINE_MID,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginBottom: 2,
+  },
+  modalOptionActive: {
+    backgroundColor: ORANGE_SOFT,
+  },
+  modalOptionText: {
+    fontSize: 15,
+    fontFamily: 'Manrope_600SemiBold',
+    color: INK,
+  },
+  modalOptionTextActive: {
+    fontFamily: 'Manrope_800ExtraBold',
+    color: ORANGE_DEEP,
+  },
+  modalOptionTick: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: ORANGE,
+  },
+  labourBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: PAPER_DEEP,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: LINE_MID,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  labourBubbleLabel: {
+    fontSize: 11,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED,
+  },
+  labourBubbleInput: {
+    fontSize: 14,
+    fontFamily: 'Manrope_700Bold',
+    color: INK,
+    minWidth: 44,
+    textAlign: 'center',
+  },
+  expiryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: PAPER_DEEP,
+    borderWidth: 1,
+    borderColor: LINE_MID,
+  },
+  expiryChipActive: {
+    backgroundColor: ORANGE,
+    borderColor: ORANGE_DEEP,
+  },
+  expiryChipText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_700Bold',
+    color: MUTED_HI,
+  },
+  expiryChipTextActive: {
     color: '#fff',
   },
 });
