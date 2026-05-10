@@ -17,8 +17,8 @@ import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Sparkles } from "lucide-react-native";
 
-const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
+const ORANGE      = '#FF5C00';
+const ORANGE_DEEP = '#E64500';
 const ORANGE_SOFT = '#ffe6d3';
 const INK         = '#141310';
 const BLACK       = '#0f0e0b';

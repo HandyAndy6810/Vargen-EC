@@ -188,6 +188,9 @@ export const userSettings = pgTable("user_settings", {
   quoteFontFamily: text("quote_font_family").default("inter"),
   logoUrl: text("logo_url").default(""),
   quoteHeaderStyle: text("quote_header_style").default("gradient"),
+  workingHours: text("working_hours").default('{"mon":{"on":true,"start":"07:30","end":"16:00"},"tue":{"on":true,"start":"07:30","end":"16:00"},"wed":{"on":true,"start":"07:30","end":"16:00"},"thu":{"on":true,"start":"07:30","end":"16:00"},"fri":{"on":true,"start":"07:30","end":"16:00"},"sat":{"on":false,"start":"08:00","end":"12:00"},"sun":{"on":false,"start":"08:00","end":"12:00"}}'),
+  serviceArea: text("service_area").default('{"suburb":"","state":"","radius":15}'),
+  notificationPrefs: text("notification_prefs").default('{"quotes":true,"invoices":true,"jobs":true,"reviews":true,"reminders":true}'),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
