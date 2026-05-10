@@ -51,9 +51,20 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "plugins": [
+ "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1",
+            "compilerFlags": [
+              "-DFOLLY_CFG_NO_COROUTINES=1"
+            ]
+          }
+        }
+      ],
       [
         "expo-font",
         {
