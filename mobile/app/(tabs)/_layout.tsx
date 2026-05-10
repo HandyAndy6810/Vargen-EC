@@ -4,12 +4,9 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
+import { useTheme } from '@/hooks/use-theme';
 import * as Haptics from 'expo-haptics';
 import { Home, FileText, Receipt, Calendar, User } from 'lucide-react-native';
-
-const ORANGE = '#f26a2a';
-const INK = '#141310';
-const MUTED = 'rgba(20,19,16,0.50)';
 
 const TABS = [
   { name: 'index',    label: 'Home',     Icon: Home },
@@ -21,18 +18,48 @@ const TABS = [
 
 function FloatingTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
+
   return (
     <View style={[styles.outer, { bottom: 22 + (insets.bottom > 20 ? insets.bottom - 20 : 0) }]} pointerEvents="box-none">
-      <BlurView intensity={60} tint="light" style={styles.blur}>
+      <BlurView
+        intensity={90}
+        tint={colors.blurTint}
+        style={[
+          styles.blur,
+          {
+            borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.7)',
+            shadowColor: colors.ink,
+          },
+        ]}
+      >
         <View style={styles.specular} pointerEvents="none" />
-        <View style={styles.inner}>
+        <View
+          style={[
+            styles.inner,
+            { backgroundColor: isDark ? 'rgba(20,19,16,0.7)' : 'rgba(255,255,255,0.6)' },
+          ]}
+        >
           {TABS.map((tab, i) => {
             const isFocused = state.index === i;
-            const color = isFocused ? ORANGE : MUTED;
+            const color = isFocused ? colors.orange : colors.muted;
             return (
               <Pressable
                 key={tab.name}
-                style={[styles.tabItem, isFocused && styles.tabItemActive]}
+                style={[
+                  styles.tabItem,
+                  isFocused && {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.92)',
+                    shadowColor: colors.ink,
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 8,
+                    elevation: 4,
+                    borderWidth: 0.5,
+                    borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.9)',
+                    borderRadius: 24,
+                  },
+                ]}
                 onPress={() => {
                   Haptics.selectionAsync();
                   const event = navigation.emit({
@@ -45,9 +72,9 @@ function FloatingTabBar({ state, navigation }: any) {
                   }
                 }}
               >
-                <tab.Icon size={20} color={color} strokeWidth={2.1} />
+                <tab.Icon size={22} color={color} strokeWidth={2.1} />
                 {isFocused && (
-                  <Text style={styles.tabLabel}>{tab.label}</Text>
+                  <Text style={[styles.tabLabel, { color: colors.orange }]}>{tab.label}</Text>
                 )}
               </Pressable>
             );
@@ -71,6 +98,7 @@ export default function TabsLayout() {
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{ headerShown: false }}
+      sceneContainerStyle={{ backgroundColor: '#f7f4ee' }}
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="quotes" />
@@ -84,18 +112,14 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   outer: {
     position: 'absolute',
+    bottom: 0,
     left: 0,
     right: 0,
-    alignItems: 'center',
     zIndex: 100,
   },
   blur: {
-    width: 340,
-    borderRadius: 30,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.7)',
-    shadowColor: INK,
     shadowOffset: { width: 0, height: 18 },
     shadowOpacity: 0.18,
     shadowRadius: 40,
@@ -106,15 +130,13 @@ const styles = StyleSheet.create({
     top: 1,
     left: 10,
     right: 10,
-    height: 12,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.6)',
     zIndex: 1,
   },
   inner: {
     flexDirection: 'row',
     padding: 5,
-    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   tabItem: {
     flex: 1,
@@ -125,20 +147,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     gap: 2,
   },
-  tabItemActive: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    shadowColor: INK,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.9)',
-  },
   tabLabel: {
     fontSize: 9,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
     letterSpacing: 0.3,
   },
 });

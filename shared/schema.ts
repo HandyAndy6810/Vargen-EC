@@ -74,6 +74,8 @@ export const invoices = pgTable("invoices", {
   notes: text("notes"),
   stripePaymentLinkId: text("stripe_payment_link_id"),
   stripePaymentLinkUrl: text("stripe_payment_link_url"),
+  squarePaymentLinkId: text("square_payment_link_id"),
+  squarePaymentLinkUrl: text("square_payment_link_url"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -176,6 +178,8 @@ export const userSettings = pgTable("user_settings", {
   accountNumber: text("account_number").default(""),
   accountName: text("account_name").default(""),
   paymentTermsDays: integer("payment_terms_days").default(14),
+  stripeEnabled: boolean("stripe_enabled").default(false),
+  squareEnabled: boolean("square_enabled").default(false),
   followUpEnabled: boolean("follow_up_enabled").default(false),
   followUpDays: text("follow_up_days").default("[3,7,14]"),
   followUpChannel: text("follow_up_channel").default("sms"),
@@ -184,6 +188,9 @@ export const userSettings = pgTable("user_settings", {
   quoteFontFamily: text("quote_font_family").default("inter"),
   logoUrl: text("logo_url").default(""),
   quoteHeaderStyle: text("quote_header_style").default("gradient"),
+  workingHours: text("working_hours").default('{"mon":{"on":true,"start":"07:30","end":"16:00"},"tue":{"on":true,"start":"07:30","end":"16:00"},"wed":{"on":true,"start":"07:30","end":"16:00"},"thu":{"on":true,"start":"07:30","end":"16:00"},"fri":{"on":true,"start":"07:30","end":"16:00"},"sat":{"on":false,"start":"08:00","end":"12:00"},"sun":{"on":false,"start":"08:00","end":"12:00"}}'),
+  serviceArea: text("service_area").default('{"suburb":"","state":"","radius":15}'),
+  notificationPrefs: text("notification_prefs").default('{"quotes":true,"invoices":true,"jobs":true,"reviews":true,"reminders":true}'),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -218,6 +225,39 @@ export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ 
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 
+export const priceBook = pgTable("price_book", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  description: text("description").notNull(),
+  unit: text("unit").notNull().default("each"),
+  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+  supplier: text("supplier"),
+  category: text("category"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPriceBookSchema = createInsertSchema(priceBook).omit({ id: true, createdAt: true, updatedAt: true });
+export type PriceBookItem = typeof priceBook.$inferSelect;
+export type InsertPriceBookItem = z.infer<typeof insertPriceBookSchema>;
+
+export const receipts = pgTable("receipts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  vendor: text("vendor"),
+  receiptDate: text("receipt_date"),
+  totalAmount: text("total_amount").notNull().default("0"),
+  category: text("category").default("Other"),
+  notes: text("notes"),
+  items: text("items"), // JSON array of { description, amount }
+  jobId: integer("job_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertReceiptSchema = createInsertSchema(receipts).omit({ id: true, createdAt: true });
+export type Receipt = typeof receipts.$inferSelect;
+export type InsertReceipt = z.infer<typeof insertReceiptSchema>;
+
 // Schemas
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const insertJobSchema = createInsertSchema(jobs).omit({ id: true, createdAt: true });
@@ -242,3 +282,20 @@ export type JobTimerEntry = typeof jobTimerEntries.$inferSelect;
 export type InsertJobTimerEntry = z.infer<typeof insertJobTimerEntrySchema>;
 export type PortalFeedback = typeof portalFeedback.$inferSelect;
 export type InsertPortalFeedback = z.infer<typeof insertPortalFeedbackSchema>;
+
+export const customerMessages = pgTable("customer_messages", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  customerId: integer("customer_id").references(() => customers.id),
+  jobId: integer("job_id"),
+  quoteId: integer("quote_id"),
+  direction: text("direction").notNull().default("out"), // 'out' = sent by tradesperson, 'in' = from customer
+  channel: text("channel").notNull().default("note"),   // 'sms' | 'email' | 'note'
+  body: text("body").notNull(),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCustomerMessageSchema = createInsertSchema(customerMessages).omit({ id: true, createdAt: true });
+export type CustomerMessage = typeof customerMessages.$inferSelect;
+export type InsertCustomerMessage = z.infer<typeof insertCustomerMessageSchema>;

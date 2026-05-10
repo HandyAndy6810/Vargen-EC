@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { apiRequest } from "./api";
+import { clearCachedUser } from "./auth-cache";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,7 +20,8 @@ export function getQueryFn<T>(options: { on401?: "returnNull" | "throw" } = {}) 
 
     if (res.status === 401) {
       if (options.on401 === "returnNull") return null;
-      // Session expired — clear cache and send user to login
+      // Session expired — clear local cache and send user to login
+      await clearCachedUser();
       queryClient.setQueryData(["/api/auth/user"], null);
       router.replace("/(auth)/login");
       return null;

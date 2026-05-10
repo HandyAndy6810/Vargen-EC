@@ -14,39 +14,60 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { queryClient } from '@/lib/queryClient';
 import { useInvoices } from '@/hooks/use-invoices';
 import { Plus, Sparkles } from 'lucide-react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const GREEN       = '#2a9d4c';
-const GREEN_SOFT  = '#e5f6eb';
-const GREEN_BORDER = '#bde2c9';
 const BLUE        = '#1f6feb';
 const BLUE_SOFT   = '#eaf2ff';
 const BLUE_BORDER = '#c8dcff';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
 
 type Filter = 'all' | 'draft' | 'sent' | 'paid' | 'overdue';
 
-const STATUS_PILL: Record<string, { bg: string; fg: string; bd: string; label: string }> = {
-  draft:   { bg: PAPER_DEEP, fg: MUTED_HI,    bd: LINE_MID,                    label: 'Draft' },
-  sent:    { bg: BLUE_SOFT,  fg: BLUE,         bd: BLUE_BORDER,                 label: 'Sent' },
-  paid:    { bg: GREEN_SOFT, fg: GREEN,        bd: GREEN_BORDER,                label: 'Paid' },
-  overdue: { bg: ORANGE_SOFT, fg: ORANGE_DEEP, bd: 'rgba(242,106,42,0.3)',     label: 'Overdue' },
-  void:    { bg: PAPER_DEEP, fg: MUTED,        bd: LINE_SOFT,                   label: 'Void' },
-};
+function makeStyles(c: Colors) {
+  const GREEN_SOFT   = c.greenSoft;
+  const GREEN_BORDER = 'rgba(52,199,89,0.3)';
+  const ORANGE_BORDER = `${c.orange}44`;
+
+  return StyleSheet.create({
+    header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 16 },
+    eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 },
+    title: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
+    addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', shadowColor: c.orange, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.33, shadowRadius: 14, elevation: 6 },
+    heroCard: { borderRadius: 22, padding: 20, overflow: 'hidden', backgroundColor: c.orange, shadowColor: c.orange, shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.33, shadowRadius: 40, elevation: 10 },
+    heroEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.8)', letterSpacing: 2, textTransform: 'uppercase' },
+    heroAmt: { fontSize: 42, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -1.4, lineHeight: 46, marginTop: 6 },
+    nudgeBtn: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
+    nudgeBtnText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: 0.3 },
+    tabsRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 20, paddingVertical: 6 },
+    tab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
+    tabActive: { backgroundColor: c.orange, borderColor: c.orange },
+    tabText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: c.mutedHi },
+    tabTextActive: { color: '#fff' },
+    invCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 18, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6 },
+    invAvatar: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    invAvatarText: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 0.5 },
+    invTitle: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
+    invMeta: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2 },
+    statusPill: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, borderWidth: 1 },
+    statusPillText: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 1.2, textTransform: 'uppercase' },
+    invAmt: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.3 },
+  });
+}
 
 export default function InvoicesScreen() {
+  const { colors: c } = useTheme();
+  const s = makeStyles(c);
+
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
   const { data: invoices, isLoading, isError } = useInvoices();
+
+  const STATUS_PILL: Record<string, { bg: string; fg: string; bd: string; label: string }> = {
+    draft:   { bg: c.paperDeep, fg: c.mutedHi,    bd: c.lineSoft,                    label: 'Draft' },
+    sent:    { bg: BLUE_SOFT,   fg: BLUE,          bd: BLUE_BORDER,                   label: 'Sent' },
+    paid:    { bg: c.greenSoft, fg: c.green,       bd: `${c.green}44`,               label: 'Paid' },
+    overdue: { bg: c.orangeSoft, fg: c.orangeDeep, bd: `${c.orange}44`,              label: 'Overdue' },
+    void:    { bg: c.paperDeep, fg: c.muted,       bd: c.lineSoft,                    label: 'Void' },
+  };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -83,15 +104,14 @@ export default function InvoicesScreen() {
   }), [sorted]);
 
   if (isLoading) {
-    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: PAPER }}><ActivityIndicator size="large" color={ORANGE} /></View>;
+    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.paper }}><ActivityIndicator size="large" color={c.orange} /></View>;
   }
   if (isError) {
-    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: PAPER }}><Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: INK }}>Couldn't load invoices</Text></View>;
+    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.paper }}><Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>Couldn't load invoices</Text></View>;
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
-      {/* Header */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <View style={s.header}>
         <View style={{ flex: 1 }}>
           <Text style={s.eyebrow}>Invoices</Text>
@@ -102,10 +122,9 @@ export default function InvoicesScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Orange gradient hero */}
       <View style={{ paddingHorizontal: 20, paddingBottom: 14 }}>
         <View style={s.heroCard}>
-          <View style={s.heroGlow} />
+          <View style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.3)' }} />
           <Text style={s.heroEyebrow}>Outstanding · {sorted.filter((i: any) => i.status !== 'paid' && i.status !== 'void').length} invoices</Text>
           <Text style={s.heroAmt}>${outstanding.toLocaleString()}</Text>
           <View style={{ flexDirection: 'row', gap: 14, marginTop: 14 }}>
@@ -119,7 +138,6 @@ export default function InvoicesScreen() {
         </View>
       </View>
 
-      {/* Filter tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow} style={{ maxHeight: 48 }}>
         {([
           { id: 'all', l: 'All', n: counts.all },
@@ -141,23 +159,39 @@ export default function InvoicesScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 130, gap: 10 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
       >
         {filtered.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: 48 }}>
-            <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: INK }}>No invoices here</Text>
+          <View style={{ alignItems: 'center', paddingVertical: 56, paddingHorizontal: 24 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: PAPER_DEEP, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 28 }}>🧾</Text>
+            </View>
+            <Text style={{ fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: INK, textAlign: 'center' }}>
+              {filter !== 'all' ? `No ${filter} invoices` : 'No invoices yet'}
+            </Text>
+            <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+              {filter === 'all' ? 'Convert an accepted quote to an invoice, or create a standalone invoice.' : 'Try a different filter.'}
+            </Text>
+            {filter === 'all' && (
+              <TouchableOpacity
+                style={{ marginTop: 20, backgroundColor: ORANGE, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12 }}
+                activeOpacity={0.85}
+                onPress={() => router.push('/invoices/create' as any)}
+              >
+                <Text style={{ fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>Create invoice</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           filtered.map((inv: any) => {
             const pill = STATUS_PILL[inv.status] ?? STATUS_PILL.draft;
             const amount = parseFloat(inv.totalAmount || '0');
             const num = inv.invoiceNumber || String(inv.id).slice(-3);
-            const amtColor = inv.status === 'paid' ? GREEN : inv.status === 'overdue' ? ORANGE_DEEP : INK;
+            const amtColor = inv.status === 'paid' ? c.green : inv.status === 'overdue' ? c.orangeDeep : c.ink;
             return (
-              <TouchableOpacity key={inv.id} onPress={() => router.push(`/invoices/${inv.id}`)} activeOpacity={0.7}
-                style={s.invCard}>
-                <View style={[s.invAvatar, { backgroundColor: inv.status === 'overdue' ? ORANGE_SOFT : PAPER_DEEP }]}>
-                  <Text style={[s.invAvatarText, { color: inv.status === 'overdue' ? ORANGE_DEEP : MUTED_HI }]}>{num}</Text>
+              <TouchableOpacity key={inv.id} onPress={() => router.push(`/invoices/${inv.id}`)} activeOpacity={0.7} style={s.invCard}>
+                <View style={[s.invAvatar, { backgroundColor: inv.status === 'overdue' ? c.orangeSoft : c.paperDeep }]}>
+                  <Text style={[s.invAvatarText, { color: inv.status === 'overdue' ? c.orangeDeep : c.mutedHi }]}>{num}</Text>
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={s.invTitle} numberOfLines={1}>{inv.title || `Invoice #${num}`}</Text>
@@ -170,7 +204,7 @@ export default function InvoicesScreen() {
                 </View>
                 <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
                   <Text style={[s.invAmt, { color: amtColor }]}>${amount > 0 ? amount.toLocaleString() : '—'}</Text>
-                  <Text style={{ fontSize: 14, color: MUTED, fontFamily: 'Manrope_600SemiBold', marginTop: 4 }}>›</Text>
+                  <Text style={{ fontSize: 14, color: c.muted, fontFamily: 'Manrope_600SemiBold', marginTop: 4 }}>›</Text>
                 </View>
               </TouchableOpacity>
             );
@@ -180,178 +214,3 @@ export default function InvoicesScreen() {
     </SafeAreaView>
   );
 }
-
-const s = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  eyebrow: {
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -0.5,
-    marginTop: 2,
-  },
-  addBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: ORANGE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: ORANGE,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.33,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  heroCard: {
-    borderRadius: 22,
-    padding: 20,
-    overflow: 'hidden',
-    backgroundColor: ORANGE,
-    shadowColor: ORANGE,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.33,
-    shadowRadius: 40,
-    elevation: 10,
-  },
-  heroGlow: {
-    position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-  },
-  heroEyebrow: {
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: 'rgba(255,255,255,0.8)',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
-  heroAmt: {
-    fontSize: 42,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: '#fff',
-    letterSpacing: -1.4,
-    lineHeight: 46,
-    marginTop: 6,
-  },
-  nudgeBtn: {
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-  },
-  nudgeBtnText: {
-    fontSize: 12,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: '#fff',
-    letterSpacing: 0.3,
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 6,
-  },
-  tab: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-  },
-  tabActive: {
-    backgroundColor: INK,
-    borderColor: INK,
-  },
-  tabText: {
-    fontSize: 12,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED_HI,
-  },
-  tabTextActive: {
-    color: '#fff',
-  },
-  invCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 16,
-    borderRadius: 18,
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-  },
-  invAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  invAvatarText: {
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    letterSpacing: 0.5,
-  },
-  invTitle: {
-    fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -0.2,
-  },
-  invMeta: {
-    fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
-    color: MUTED,
-    marginTop: 2,
-  },
-  statusPill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  statusPillText: {
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-  },
-  invAmt: {
-    fontSize: 16,
-    fontFamily: 'Manrope_800ExtraBold',
-    letterSpacing: -0.3,
-  },
-});

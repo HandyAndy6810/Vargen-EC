@@ -4,29 +4,17 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
 } from 'react-native';
 import { useState, useMemo } from 'react';
 import { router } from 'expo-router';
 import { format, startOfWeek, addDays, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
+import { useWeather } from '@/hooks/use-weather';
 import { Plus, Search } from 'lucide-react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const BLACK       = '#0f0e0b';
-const BLUE        = '#1f6feb';
-const BLUE_SOFT   = '#eaf2ff';
-const BLUE_BORDER = '#c8dcff';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
+const BLUE = '#1f6feb';
 
 const HOUR_H = 54;
 const START_H = 7;
@@ -45,7 +33,34 @@ function getJobHour(dateStr: string): number {
   return d.getHours() + d.getMinutes() / 60;
 }
 
+function makeStyles(c: Colors, isDark: boolean) {
+  return StyleSheet.create({
+    header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingBottom: 16 },
+    eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 },
+    title: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
+    iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
+    addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', shadowColor: c.orange, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.33, shadowRadius: 14, elevation: 6 },
+    dayCell: { flex: 1, paddingVertical: 10, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', gap: 2 },
+    dayCellActive: { backgroundColor: c.orange, borderColor: c.orange },
+    dayLabel: { fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: 1, opacity: 0.55, textTransform: 'uppercase' },
+    dayNum: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
+    dayHeadline: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
+    daySubhead: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2 },
+    hourLine: { position: 'absolute', left: 0, right: 12, height: 1, borderTopWidth: 1, borderTopColor: c.lineSoft, borderStyle: 'dashed' },
+    hourLabel: { position: 'absolute', left: -44, top: -8, fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, width: 38, textAlign: 'right' },
+    nowLabel: { width: 40, textAlign: 'right', paddingRight: 4, fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+    nowDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.orange, marginRight: -4, zIndex: 2 },
+    nowBar: { flex: 1, height: 2, backgroundColor: c.orange, borderRadius: 999 },
+    eventTime: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 0.8, textTransform: 'uppercase' },
+    eventTitle: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.2, marginTop: 1 },
+    eventSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', marginTop: 1, opacity: 0.6 },
+  });
+}
+
 export default function CalendarScreen() {
+  const { colors: c, isDark } = useTheme();
+  const s = makeStyles(c, isDark);
+
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -56,8 +71,8 @@ export default function CalendarScreen() {
   });
 
   const { data: jobs } = useJobs();
+  const { data: weather } = useWeather();
   const allJobs = (jobs as any[]) || [];
-
   const selectedDay = days[dayIdx];
 
   const dayJobs = useMemo(() => {
@@ -83,36 +98,45 @@ export default function CalendarScreen() {
   const showNow = isToday(selectedDay) && nowHour >= START_H && nowHour <= END_H;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
-      {/* Header */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <View style={s.header}>
         <View style={{ flex: 1 }}>
           <Text style={s.eyebrow}>Week {format(weekStart, 'w')} · {format(weekStart, 'MMMM')}</Text>
           <Text style={s.title}>Your week</Text>
         </View>
         <TouchableOpacity style={s.iconBtn} activeOpacity={0.7}>
-          <Search size={18} color={INK} strokeWidth={2.1} />
+          <Search size={18} color={c.ink} strokeWidth={2.1} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.addBtn} activeOpacity={0.8}>
+        <TouchableOpacity style={s.addBtn} activeOpacity={0.8} onPress={() => router.push('/jobs/create' as any)}>
           <Plus size={20} color="#fff" strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
 
       {/* Week strip */}
-      <View style={{ paddingHorizontal: 12, paddingBottom: 0 }}>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 0 }}>
         <View style={{ flexDirection: 'row', gap: 6 }}>
           {days.map((d, i) => {
             const active = dayIdx === i;
             const count = jobCountPerDay[i];
+            const dateKey = format(d, 'yyyy-MM-dd');
+            const dayWeather = weatherByDate[dateKey];
+            const isRainy = dayWeather && dayWeather.precipitation > 1;
             return (
               <TouchableOpacity key={i} onPress={() => setDayIdx(i)} activeOpacity={0.7}
                 style={[s.dayCell, active && s.dayCellActive]}>
-                <Text style={[s.dayLabel, active && { opacity: 0.6 }]}>{format(d, 'EEE').toUpperCase()}</Text>
+                <Text style={[s.dayLabel, active && { color: 'rgba(255,255,255,0.7)', opacity: 1 }]}>
+                  {format(d, 'EEE').toUpperCase()}
+                </Text>
                 <Text style={[s.dayNum, active && { color: '#fff' }]}>{format(d, 'd')}</Text>
+                {dayWeather ? (
+                  <Text style={{ fontSize: 11, lineHeight: 14, marginTop: 1 }}>{dayWeather.weather_icon}</Text>
+                ) : (
+                  <View style={{ height: 14 }} />
+                )}
                 {count > 0 ? (
                   <View style={{ flexDirection: 'row', gap: 2, marginTop: 2 }}>
                     {Array.from({ length: Math.min(count, 3) }).map((_, k) => (
-                      <View key={k} style={[s.daydot, { backgroundColor: ORANGE }]} />
+                      <View key={k} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: active ? 'rgba(255,255,255,0.7)' : c.orange }} />
                     ))}
                   </View>
                 ) : (
@@ -128,70 +152,81 @@ export default function CalendarScreen() {
       <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 6 }}>
         <Text style={s.dayHeadline}>
           {format(selectedDay, 'EEEE d MMM')} ·{' '}
-          <Text style={{ color: ORANGE }}>{dayJobs.length} {dayJobs.length === 1 ? 'job' : 'jobs'}</Text>
+          <Text style={{ color: c.orange }}>{dayJobs.length} {dayJobs.length === 1 ? 'job' : 'jobs'}</Text>
         </Text>
         {dayJobs.length > 0 && (
           <Text style={s.daySubhead}>
-            {format(new Date(dayJobs[0].scheduledDate), 'h:mm a')} → {format(new Date(dayJobs[dayJobs.length - 1].scheduledDate), 'h:mm a')} · {dayJobs.length * 90}m booked
+            {format(new Date(dayJobs[0].scheduledDate), 'h:mm a')} → {format(new Date(dayJobs[dayJobs.length - 1].scheduledDate), 'h:mm a')} · {
+              (() => {
+                const total = dayJobs.reduce((s: number, j: any) => s + (j.estimatedDuration || 60), 0);
+                const h = Math.floor(total / 60);
+                const m = total % 60;
+                return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`;
+              })()
+            } booked
           </Text>
         )}
       </View>
 
       {/* Hour grid */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
         <View style={{ paddingLeft: 20, paddingRight: 8, position: 'relative' }}>
           <View style={{ paddingLeft: 44, position: 'relative' }}>
-            {/* Hour lines */}
             {Array.from({ length: END_H - START_H + 1 }, (_, i) => (
               <View key={i} style={[s.hourLine, { top: i * HOUR_H }]}>
                 <Text style={s.hourLabel}>{START_H + i}:00</Text>
               </View>
             ))}
 
-            {/* Now line */}
             {showNow && (
-              <View style={[s.nowLine, { top: nowTop }]}>
+              <View style={{ position: 'absolute', left: -44, right: 12, top: nowTop, flexDirection: 'row', alignItems: 'center', zIndex: 10 }}>
                 <Text style={s.nowLabel}>{format(now, 'HH:mm')}</Text>
                 <View style={s.nowDot} />
                 <View style={s.nowBar} />
               </View>
             )}
 
-            {/* Events */}
             {dayJobs.map((job: any, i: number) => {
               const startH = getJobHour(job.scheduledDate);
-              const endH_ = startH + 1.5;
+              const durationHrs = (job.estimatedDuration || 60) / 60;
+              const endH_ = startH + durationHrs;
               const top = (startH - START_H) * HOUR_H;
-              const height = (endH_ - startH) * HOUR_H;
+              const height = Math.max(durationHrs * HOUR_H, 36);
               const isNext = i === 0 && job.status !== 'completed';
-              const tone = isNext ? 'next' : 'normal';
-              const bg = tone === 'next' ? BLACK : CARD;
-              const fg = tone === 'next' ? '#fff' : INK;
-              const border = tone === 'next' ? 'transparent' : LINE_MID;
+              const bg = isNext ? (isDark ? c.card : '#0f0e0b') : c.card;
+              const fg = isNext ? (isDark ? c.ink : '#fff') : c.ink;
+              const subFg = isNext ? (isDark ? c.muted : 'rgba(255,255,255,0.6)') : c.muted;
+              const timeFg = isNext ? (isDark ? c.muted : 'rgba(255,255,255,0.6)') : c.muted;
+              const border = isNext ? 'transparent' : c.lineSoft;
 
               return (
                 <TouchableOpacity key={job.id}
                   onPress={() => router.push(`/jobs/${job.id}`)}
                   activeOpacity={0.8}
-                  style={[s.eventCard, { top, height, backgroundColor: bg, borderColor: border }]}>
-                  {tone === 'next' && (
-                    <View style={s.eventGlow} />
+                  style={[{
+                    position: 'absolute', left: 0, right: 12, borderRadius: 12,
+                    paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, overflow: 'hidden',
+                    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.03, shadowRadius: 6, elevation: 2,
+                    top, height, backgroundColor: bg, borderColor: border,
+                  }]}>
+                  {isNext && (
+                    <View style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: 60, backgroundColor: `${c.orange}40` }} />
                   )}
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    {tone === 'next' && <View style={s.eventDot} />}
-                    <Text style={[s.eventTime, { color: tone === 'next' ? 'rgba(255,255,255,0.6)' : 'rgba(20,19,16,0.55)' }]}>
+                    {isNext && (
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.orange, shadowColor: c.orange, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 3 }} />
+                    )}
+                    <Text style={[s.eventTime, { color: timeFg }]}>
                       {formatTime(startH)} – {formatTime(endH_)}
                     </Text>
                   </View>
                   <Text style={[s.eventTitle, { color: fg }]} numberOfLines={1}>{job.title}</Text>
-                  <Text style={[s.eventSub, { color: tone === 'next' ? 'rgba(255,255,255,0.6)' : MUTED }]} numberOfLines={1}>
-                    {(job as any).customerName || ''}
-                  </Text>
+                  <Text style={[s.eventSub, { color: subFg }]} numberOfLines={1}>{(job as any).customerName || ''}</Text>
                 </TouchableOpacity>
               );
             })}
 
-            {/* Grid height spacer */}
             <View style={{ height: (END_H - START_H + 1) * HOUR_H }} />
           </View>
         </View>
@@ -199,198 +234,3 @@ export default function CalendarScreen() {
     </SafeAreaView>
   );
 }
-
-const s = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  eyebrow: {
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -0.5,
-    marginTop: 2,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: ORANGE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: ORANGE,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.33,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  dayCell: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-    alignItems: 'center',
-    gap: 2,
-    position: 'relative',
-  },
-  dayCellActive: {
-    backgroundColor: INK,
-    borderColor: INK,
-  },
-  dayLabel: {
-    fontSize: 9,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: 1,
-    opacity: 0.55,
-    textTransform: 'uppercase',
-  },
-  dayNum: {
-    fontSize: 16,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -0.3,
-  },
-  daydot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-  },
-  dayHeadline: {
-    fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -0.2,
-  },
-  daySubhead: {
-    fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
-    color: MUTED,
-    marginTop: 2,
-  },
-  hourLine: {
-    position: 'absolute',
-    left: 0,
-    right: 12,
-    height: 1,
-    borderTopWidth: 1,
-    borderTopColor: LINE_SOFT,
-    borderStyle: 'dashed',
-  },
-  hourLabel: {
-    position: 'absolute',
-    left: -44,
-    top: -8,
-    fontSize: 10,
-    fontFamily: 'Manrope_700Bold',
-    color: MUTED,
-    width: 38,
-    textAlign: 'right',
-  },
-  nowLine: {
-    position: 'absolute',
-    left: -44,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  nowLabel: {
-    width: 40,
-    textAlign: 'right',
-    paddingRight: 4,
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
-  },
-  nowDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: ORANGE,
-    marginRight: -4,
-    zIndex: 2,
-  },
-  nowBar: {
-    flex: 1,
-    height: 2,
-    backgroundColor: ORANGE,
-    borderRadius: 999,
-  },
-  eventCard: {
-    position: 'absolute',
-    left: 0,
-    right: 12,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  eventGlow: {
-    position: 'absolute',
-    top: -30,
-    right: -30,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: `${ORANGE}40`,
-  },
-  eventDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: ORANGE,
-    shadowColor: ORANGE,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 3,
-  },
-  eventTime: {
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  eventTitle: {
-    fontSize: 13,
-    fontFamily: 'Manrope_800ExtraBold',
-    letterSpacing: -0.2,
-    marginTop: 1,
-  },
-  eventSub: {
-    fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
-    marginTop: 1,
-    opacity: 0.6,
-  },
-});

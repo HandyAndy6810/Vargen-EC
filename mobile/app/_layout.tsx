@@ -13,9 +13,11 @@ import {
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useEffect, useRef, Component, ReactNode } from 'react';
+import { useEffect, useRef, useState, Component, type ReactNode } from 'react';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
+import { ThemeProvider, useTheme } from '@/hooks/use-theme';
+import { loadCachedUser } from '@/lib/auth-cache';
 
 // ── Push notification handler config ────────────────────────────────────────
 Notifications.setNotificationHandler({
@@ -48,31 +50,40 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 }
 
 const eb = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f7f4ee', alignItems: 'center', justifyContent: 'center', padding: 32 },
-  title:     { fontSize: 20, fontWeight: '800', color: '#141310', marginBottom: 10 },
-  sub:       { fontSize: 13, color: 'rgba(20,19,16,0.55)', textAlign: 'center', marginBottom: 28 },
-  btn:       { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, backgroundColor: '#f26a2a' },
+  container: { flex: 1, backgroundColor: '#FFFBF8', alignItems: 'center', justifyContent: 'center', padding: 32 },
+  title:     { fontSize: 20, fontWeight: '800', color: '#1A0E06', marginBottom: 10 },
+  sub:       { fontSize: 13, color: 'rgba(26,14,6,0.55)', textAlign: 'center', marginBottom: 28 },
+  btn:       { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, backgroundColor: '#FF5C00' },
   btnText:   { fontSize: 14, fontWeight: '800', color: '#fff' },
 });
 
-// ── Root layout ───────────────────────────────────────────────────────────────
-export default function RootLayout() {
+// ── Themed status bar (reads from ThemeContext) ───────────────────────────────
+function ThemedStatusBar() {
+  const { colors } = useTheme();
+  return <StatusBar style={colors.statusBar} />;
+}
+
+// ── Inner app (gates on fonts + theme ready + auth cache) ────────────────────
+function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
+  const { ready: themeReady } = useTheme();
+  const [authReady, setAuthReady] = useState(false);
   const notifListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
-  const [fontsLoaded] = useFonts({
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
-  });
+  // Pre-populate auth cache before any screen renders so previously-logged-in
+  // users bypass the login screen instantly, even when the server is unreachable.
+  useEffect(() => {
+    loadCachedUser()
+      .then((user) => {
+        if (user) queryClient.setQueryData(['/api/auth/user'], user);
+      })
+      .catch(() => {})
+      .finally(() => setAuthReady(true));
+  }, []);
 
   useEffect(() => {
-    // Register for push notifications
     registerForPushNotifications();
 
-    // Navigate on notification tap
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as any;
       if (data?.screen) router.push(data.screen);
@@ -84,35 +95,62 @@ export default function RootLayout() {
     };
   }, []);
 
-  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: '#141310' }} />;
+  if (!fontsLoaded || !themeReady || !authReady) return <View style={{ flex: 1, backgroundColor: '#0F0905' }} />;
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <ThemedStatusBar />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="ai-chat"
+            options={{
+              presentation: 'modal',
+              headerShown: false,
+              animation: 'slide_from_bottom',
+            }}
+          />
+          <Stack.Screen name="jobs/list" />
+          <Stack.Screen name="jobs/[id]" />
+          <Stack.Screen name="jobs/timer" />
+          <Stack.Screen name="jobs/complete" />
+          <Stack.Screen name="quotes/[id]" />
+          <Stack.Screen name="quotes/create" />
+          <Stack.Screen name="invoices/[id]" />
+          <Stack.Screen name="invoices/create" />
+          <Stack.Screen name="settings/edit-profile" />
+          <Stack.Screen name="settings/business-details" />
+          <Stack.Screen name="settings/invoice-settings" />
+          <Stack.Screen name="settings/working-hours" />
+          <Stack.Screen name="settings/service-area" />
+          <Stack.Screen name="settings/ai-quoting" />
+          <Stack.Screen name="settings/reminders" />
+          <Stack.Screen name="settings/notifications" />
+          <Stack.Screen name="settings/sms-templates" />
+          <Stack.Screen name="settings/subscription" />
+        </Stack>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+// ── Root layout ───────────────────────────────────────────────────────────────
+export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+  });
 
   return (
     <ErrorBoundary>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <QueryClientProvider client={queryClient}>
-          <StatusBar style="dark" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="ai-chat"
-              options={{
-                presentation: 'modal',
-                headerShown: false,
-                animation: 'slide_from_bottom',
-              }}
-            />
-            <Stack.Screen name="jobs/list" />
-            <Stack.Screen name="jobs/[id]" />
-            <Stack.Screen name="jobs/timer" />
-            <Stack.Screen name="jobs/complete" />
-            <Stack.Screen name="quotes/[id]" />
-            <Stack.Screen name="quotes/create" />
-            <Stack.Screen name="invoices/[id]" />
-            <Stack.Screen name="invoices/create" />
-          </Stack>
-        </QueryClientProvider>
-      </GestureHandlerRootView>
+      <ThemeProvider>
+        <AppContent fontsLoaded={fontsLoaded ?? false} />
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

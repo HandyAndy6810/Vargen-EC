@@ -5,41 +5,169 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  type DimensionValue,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { format, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useJobs } from '@/hooks/use-jobs';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useInvoices } from '@/hooks/use-invoices';
+import { useWeather } from '@/hooks/use-weather';
+import { useSettings } from '@/hooks/use-settings';
 import { queryClient } from '@/lib/queryClient';
-import { Play, Navigation, MessageCircle, Sparkles, Mic } from 'lucide-react-native';
+import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap } from 'lucide-react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const CREAM       = '#fff8ef';
-const BLACK       = '#0f0e0b';
-const BLUE        = '#1f6feb';
-const GREEN       = '#2a9d4c';
-const GREEN_SOFT  = '#e5f6eb';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
+const BLUE      = '#1f6feb';
+const BLUE_SOFT = '#eaf2ff';
+const GREEN_SOFT = '#e5f6eb';
+const PILL_STATES = 4;
+
+function AnimatedNumber({ value, prefix = '$', style }: { value: number; prefix?: string; style?: any }) {
+  const [displayed, setDisplayed] = useState(0);
+  useEffect(() => {
+    if (value === 0) { setDisplayed(0); return; }
+    const steps = 28;
+    const ms = 800 / steps;
+    let step = 0;
+    const t = setInterval(() => {
+      step++;
+      setDisplayed(Math.round((value * step) / steps));
+      if (step >= steps) clearInterval(t);
+    }, ms);
+    return () => clearInterval(t);
+  }, [value]);
+  const fmt = displayed >= 1000 ? `${(displayed / 1000).toFixed(1)}k` : displayed.toLocaleString();
+  return <Text style={style}>{prefix}{fmt}</Text>;
+}
+
+function CyclingPill({ nextJob, pipelineAmt, colors: c }: { nextJob: any; pipelineAmt: number; colors: Colors }) {
+  const [idx, setIdx] = useState(0);
+  const [locked, setLocked] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (locked) return;
+    timerRef.current = setInterval(() => setIdx(i => (i + 1) % PILL_STATES), 4000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [locked]);
+
+  const now = new Date();
+  const weatherLabel = weather?.current ? `${weather.current.icon} ${Math.round(weather.current.temp)}°` : 'Loading weather...';
+  const states = [
+    { icon: weather?.current?.icon || '☀️', label: weatherLabel },
+    { icon: '🕐', label: format(now, "EEE d · h:mm a") },
+    { icon: '📍', label: nextJob ? nextJob.title.slice(0, 22) : 'No jobs' },
+    { icon: '💰', label: pipelineAmt >= 1000 ? `$${(pipelineAmt / 1000).toFixed(1)}k out` : `$${pipelineAmt} out` },
+  ];
+
+  const advance = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setIdx(i => (i + 1) % PILL_STATES);
+    if (!locked) {
+      timerRef.current = setInterval(() => setIdx(i => (i + 1) % PILL_STATES), 4000);
+    }
+  };
+
+  const { icon, label } = states[idx];
+
+  return (
+    <TouchableOpacity
+      style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft }}
+      onPress={advance}
+      onLongPress={() => setLocked(l => !l)}
+      activeOpacity={0.8}
+    >
+      <Text style={{ fontSize: 12, fontFamily: 'Manrope_700Bold', color: c.ink }}>{icon}  {label}{locked ? '  🔒' : ''}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function makeStyles(c: Colors, isDark: boolean) {
+  const heroBg = isDark ? c.card : '#0f0e0b';
+  return StyleSheet.create({
+    topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 0 },
+    avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' },
+    avatarText: { color: c.orange, fontSize: 14, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.2 },
+    eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 2, color: c.muted, textTransform: 'uppercase', marginBottom: 2 },
+    heroGreeting: { fontSize: 42, fontFamily: 'Manrope_800ExtraBold', color: c.ink, lineHeight: 42, letterSpacing: -1.5, marginTop: 6 },
+    heroSub: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: c.mutedHi, marginTop: 10, lineHeight: 20, maxWidth: 280 },
+    heroCard: { backgroundColor: heroBg, borderRadius: 28, padding: 20, marginTop: 18, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.22, shadowRadius: 40, elevation: 20 },
+    heroEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, textTransform: 'uppercase' },
+    durationBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
+    durationText: { fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: 0.8 },
+    heroJobTitle: { fontSize: 26, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.6, lineHeight: 30, marginBottom: 6 },
+    heroJobAddr: { fontSize: 13, fontFamily: 'Manrope_500Medium', color: 'rgba(255,255,255,0.55)' },
+    startBtn: { flex: 1, height: 52, borderRadius: 16, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', shadowColor: c.orange, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 20, elevation: 8 },
+    startBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.2 },
+    heroIconBtn: { width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+    aiRail: { backgroundColor: c.orange, borderRadius: 24, padding: 18, overflow: 'hidden', shadowColor: c.orange, shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.3, shadowRadius: 28, elevation: 10 },
+    aiIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    aiEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.75)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 },
+    aiRailText: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.2, lineHeight: 20 },
+    micBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+    sectionTitle: { fontSize: 18, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginTop: 2, letterSpacing: -0.3 },
+    seeAll: { fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+    pipelineChip: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 14, minWidth: 108, gap: 4 },
+    pipelineNum: { fontSize: 28, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.8, lineHeight: 32 },
+    card: { backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, borderRadius: 22, overflow: 'hidden' },
+    qaRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+    qaBtn: { flex: 1, borderRadius: 18, paddingVertical: 14, alignItems: 'center', gap: 8 },
+    qaIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+    qaLabel: { fontSize: 11, fontFamily: 'Manrope_700Bold', textAlign: 'center' },
+    scheduleCard: { width: 148, backgroundColor: c.card, borderRadius: 20, borderWidth: 1, borderColor: c.lineSoft, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8 },
+    scheduleTime: { fontSize: 11, fontFamily: 'Manrope_700Bold', color: c.mutedHi },
+    scheduleTitle: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2, lineHeight: 17, marginBottom: 4 },
+    scheduleSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted },
+    emptyCard: { backgroundColor: c.card, borderRadius: 18, borderWidth: 1, borderColor: c.lineSoft, paddingVertical: 18, alignItems: 'center' },
+    emptyText: { fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted },
+    rvCard: { flexDirection: 'row', backgroundColor: c.card, borderRadius: 22, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
+    rvCol: { flex: 1, paddingVertical: 18, alignItems: 'center', gap: 6 },
+    rvAmt: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.6 },
+    rvDot: { width: 8, height: 8, borderRadius: 4 },
+    rvLabel: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, letterSpacing: 1, textTransform: 'uppercase' },
+    rqRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
+    rqTitle: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink, letterSpacing: -0.2 },
+    rqSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted },
+    rqAmt: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
+    rqBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+    rqBadgeText: { fontSize: 10, fontFamily: 'Manrope_700Bold', textTransform: 'capitalize' },
+    invRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
+    invIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    nudgeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.orangeSoft, borderRadius: 18, borderWidth: 1, borderColor: `${c.orange}33`, paddingHorizontal: 16, paddingVertical: 14 },
+    nudgeIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    nudgeText: { flex: 1, fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.orangeDeep, lineHeight: 18 },
+    pipelineHalfGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+    pipelineHalfCell: { width: '47%', backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineSoft, padding: 10, gap: 2 },
+    pipelineHalfNum: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.5 },
+    pipelineHalfLabel: { fontSize: 9, fontFamily: 'Manrope_700Bold', color: c.muted, textTransform: 'uppercase', letterSpacing: 1 },
+    rvHalfRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11 },
+    rvHalfLabel: { fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: c.muted },
+    rvHalfAmt: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.3 },
+  });
+}
 
 export default function HomeScreen() {
+  const { colors: c, isDark } = useTheme();
+  const s = makeStyles(c, isDark);
+
+  const QUOTE_STATUS: Record<string, { bg: string; text: string }> = {
+    draft:    { bg: c.paperDeep,  text: c.muted    },
+    sent:     { bg: BLUE_SOFT,    text: BLUE        },
+    viewed:   { bg: BLUE_SOFT,    text: BLUE        },
+    accepted: { bg: c.greenSoft,  text: c.green     },
+    declined: { bg: c.redSoft,    text: c.red       },
+    expired:  { bg: c.paperDeep,  text: c.muted     },
+  };
+
   const { user } = useAuth();
   const { data: jobs, isLoading: jobsLoading } = useJobs();
   const { data: quotes } = useQuotes();
   const { data: invoices } = useInvoices();
+  const { data: weather } = useWeather();
+  const { data: settings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -50,18 +178,15 @@ export default function HomeScreen() {
 
   const firstName = user?.firstName || user?.email?.split('@')[0] || 'Andy';
   const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase() || 'AH';
-
   const now = new Date();
   const dayName = format(now, 'EEE d MMM');
   const timeStr = format(now, 'HH:mm');
 
-  const allJobs = (jobs as any[]) || [];
-  const allQuotes = (quotes as any[]) || [];
+  const allJobs    = (jobs as any[])     || [];
+  const allQuotes  = (quotes as any[])   || [];
   const allInvoices = (invoices as any[]) || [];
 
-  const todayJobs = useMemo(() => {
-    return allJobs.filter((j: any) => j.scheduledDate && isToday(new Date(j.scheduledDate)));
-  }, [allJobs]);
+  const todayJobs = useMemo(() => allJobs.filter((j: any) => j.scheduledDate && isToday(new Date(j.scheduledDate))), [allJobs]);
 
   const nextJob = useMemo(() => {
     const upcoming = allJobs
@@ -71,87 +196,399 @@ export default function HomeScreen() {
   }, [allJobs, todayJobs]);
 
   const pipeline = useMemo(() => ({
-    draft: allQuotes.filter((q: any) => q.status === 'draft').length,
-    sent: allQuotes.filter((q: any) => q.status === 'sent' || q.status === 'viewed').length,
+    draft:    allQuotes.filter((q: any) => q.status === 'draft').length,
+    sent:     allQuotes.filter((q: any) => q.status === 'sent' || q.status === 'viewed').length,
     accepted: allQuotes.filter((q: any) => q.status === 'accepted').length,
-    overdue: allQuotes.filter((q: any) => q.status === 'overdue').length,
+    overdue:  allQuotes.filter((q: any) => q.status === 'overdue').length,
   }), [allQuotes]);
 
   const pipelineTotal = allQuotes.filter((q: any) => ['draft', 'sent', 'viewed', 'accepted'].includes(q.status)).length;
-  const pipelineAmt = allQuotes
+  const pipelineAmt   = allQuotes
     .filter((q: any) => ['sent', 'viewed', 'accepted'].includes(q.status))
-    .reduce((s: number, q: any) => s + (Number(q.totalAmount) || 0), 0);
+    .reduce((sum: number, q: any) => sum + (Number(q.totalAmount) || 0), 0);
 
-  const activityItems = useMemo(() => {
-    const items: any[] = [];
-    allInvoices.slice(0, 2).forEach((inv: any) => {
-      if (inv.status === 'paid') items.push({ type: 'paid', title: `${inv.customerName || 'Customer'} paid`, amt: `+$${Number(inv.totalAmount || 0).toLocaleString()}`, t: '2h', c: GREEN, bg: GREEN_SOFT, ic: '✓' });
-    });
-    allInvoices.filter((i: any) => i.status === 'overdue').slice(0, 1).forEach((inv: any) => {
-      items.push({ type: 'overdue', title: `INV now overdue`, amt: `$${Number(inv.totalAmount || 0).toLocaleString()}`, t: '2d', c: ORANGE, bg: ORANGE_SOFT, ic: '!' });
-    });
-    return items.slice(0, 3);
-  }, [allInvoices]);
+  const totalPaid    = allInvoices.filter((i: any) => i.status === 'paid').reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
+  const totalPending = allInvoices.filter((i: any) => ['sent', 'pending', 'unpaid'].includes(i.status)).reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
+  const totalOverdue = allInvoices.filter((i: any) => i.status === 'overdue').reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
+
+  const recentQuotes     = useMemo(() => allQuotes.slice(0, 5), [allQuotes]);
+  const overdueInvoices  = useMemo(() => allInvoices.filter((i: any) => i.status === 'overdue'), [allInvoices]);
+  const pendingInvoices  = useMemo(() => allInvoices.filter((i: any) => ['sent', 'pending', 'unpaid'].includes(i.status)), [allInvoices]);
+
+  const aiNudge = useMemo(() => {
+    if (overdueInvoices.length > 0) {
+      const total = overdueInvoices.reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
+      return `${overdueInvoices.length} overdue invoice${overdueInvoices.length > 1 ? 's' : ''} totalling $${total.toLocaleString()} — worth a follow-up today.`;
+    }
+    if (pipeline.draft > 2) return `${pipeline.draft} quotes sitting in draft — send them before they go cold.`;
+    if (pipeline.accepted > 0) return `${pipeline.accepted} quote${pipeline.accepted > 1 ? 's' : ''} accepted — time to raise an invoice.`;
+    if (todayJobs.length > 0) return `${todayJobs.length} job${todayJobs.length > 1 ? 's' : ''} on today — have a good one out there.`;
+    return 'Tap the AI rail above to quote a new job in seconds.';
+  }, [overdueInvoices, pipeline, todayJobs]);
+
+  type WDef = { id: string; score: number; fullWidth: boolean };
+  const widgetDefs: WDef[] = ([
+    { id: 'outstanding',  score: (overdueInvoices.length + pendingInvoices.length) > 0 ? 90 + overdueInvoices.length * 5 : 0, fullWidth: false },
+    { id: 'schedule',     score: todayJobs.length > 0 ? 80 : 20,   fullWidth: true  },
+    { id: 'quickactions', score: 70,                                 fullWidth: true  },
+    { id: 'recentquotes', score: 45 + pipeline.accepted * 15 + pipeline.sent * 8, fullWidth: true },
+    { id: 'pipeline',     score: 40 + (pipeline.sent + pipeline.accepted) * 5, fullWidth: false },
+    { id: 'revenue',      score: 35,                                 fullWidth: false },
+    { id: 'nudge',        score: 30,                                 fullWidth: false },
+  ] as WDef[]).filter(w => w.score > 0).sort((a, b) => b.score - a.score);
+
+  const rows: WDef[][] = [];
+  let wi = 0;
+  while (wi < widgetDefs.length) {
+    const w = widgetDefs[wi];
+    const isFull = w.fullWidth || w.score >= 80;
+    if (isFull) { rows.push([w]); wi++; }
+    else if (wi === widgetDefs.length - 1) { rows.push([w]); wi++; }
+    else {
+      const nxt = widgetDefs[wi + 1];
+      if (!nxt.fullWidth && nxt.score < 80) { rows.push([w, nxt]); wi += 2; }
+      else { rows.push([w]); wi++; }
+    }
+  }
+
+  const renderWidget = (id: string, half: boolean) => {
+    switch (id) {
+      case 'quickactions':
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <Text style={s.eyebrow}>Quick Actions</Text>
+            <View style={s.qaRow}>
+              {([
+                { Icon: Sparkles,  label: 'New Quote',    color: c.orange, bg: c.orangeSoft, route: '/ai-chat' },
+                { Icon: Briefcase, label: 'New Job',      color: BLUE,     bg: BLUE_SOFT,    route: '/jobs/create' },
+                { Icon: Users,     label: 'Add Customer', color: c.green,  bg: c.greenSoft,  route: '/customers/create' },
+              ] as const).map(({ Icon, label, color, bg, route }) => (
+                <TouchableOpacity key={label} style={[s.qaBtn, { backgroundColor: bg }]} onPress={() => router.push(route as any)} activeOpacity={0.75}>
+                  <View style={[s.qaIcon, { backgroundColor: color }]}><Icon size={18} color="#fff" strokeWidth={2} /></View>
+                  <Text style={[s.qaLabel, { color }]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        );
+
+      case 'schedule':
+        return (
+          <View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginBottom: 12 }}>
+              <View>
+                <Text style={s.eyebrow}>Today's Schedule</Text>
+                <Text style={s.sectionTitle}>{todayJobs.length} {todayJobs.length === 1 ? 'stop' : 'stops'} today</Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/jobs/list')}><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
+            </View>
+            {todayJobs.length === 0 ? (
+              <View style={{ paddingHorizontal: 20 }}><View style={s.emptyCard}><Text style={s.emptyText}>Nothing on the books today</Text></View></View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10, paddingBottom: 4 }}>
+                {todayJobs.map((job: any, i: number) => (
+                  <TouchableOpacity key={job.id} style={s.scheduleCard} onPress={() => router.push(`/jobs/${job.id}`)} activeOpacity={0.75}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i === 0 ? c.orange : BLUE }} />
+                      <Text style={s.scheduleTime}>{job.scheduledDate ? format(new Date(job.scheduledDate), 'h:mm a') : 'TBC'}</Text>
+                    </View>
+                    <Text style={s.scheduleTitle} numberOfLines={2}>{job.title}</Text>
+                    <Text style={s.scheduleSub} numberOfLines={1}>{(job as any).customerName || 'Customer'}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        );
+
+      case 'pipeline':
+        return half ? (
+          <View>
+            <Text style={s.eyebrow}>Pipeline</Text>
+            <View style={s.pipelineHalfGrid}>
+              {[
+                { n: pipeline.draft,    l: 'Draft',    col: c.muted    },
+                { n: pipeline.sent,     l: 'Sent',     col: BLUE       },
+                { n: pipeline.accepted, l: 'Accepted', col: c.green    },
+                { n: pipeline.overdue,  l: 'Overdue',  col: c.orange   },
+              ].map(item => (
+                <TouchableOpacity key={item.l} style={s.pipelineHalfCell} onPress={() => router.push('/(tabs)/quotes')} activeOpacity={0.7}>
+                  <Text style={[s.pipelineHalfNum, { color: item.col }]}>{item.n}</Text>
+                  <Text style={s.pipelineHalfLabel}>{item.l}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ) : (
+          <View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginBottom: 12 }}>
+              <View>
+                <Text style={s.eyebrow}>Quote Pipeline</Text>
+                <Text style={s.sectionTitle}>{pipelineTotal} on the go · <Text style={{ color: c.orange }}>${pipelineAmt.toLocaleString()}</Text></Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+              {[
+                { n: pipeline.draft,    l: 'Draft',    col: c.muted,   bg: c.card,       ring: c.lineSoft    },
+                { n: pipeline.sent,     l: 'Sent',     col: BLUE,      bg: BLUE_SOFT,    ring: '#c8dcff'     },
+                { n: pipeline.accepted, l: 'Accepted', col: c.green,   bg: c.greenSoft,  ring: `${c.green}44` },
+                { n: pipeline.overdue,  l: 'Overdue',  col: c.orange,  bg: c.orangeSoft, ring: `${c.orange}44` },
+              ].map(st => (
+                <TouchableOpacity key={st.l} onPress={() => router.push('/(tabs)/quotes')} activeOpacity={0.7}>
+                  <View style={[s.pipelineChip, { backgroundColor: st.bg, borderColor: st.ring }]}>
+                    <Text style={[s.pipelineNum, { color: st.col }]}>{st.n}</Text>
+                    <Text style={[s.eyebrow, { color: st.col, marginBottom: 0 }]}>{st.l}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        );
+
+      case 'revenue':
+        return half ? (
+          <View>
+            <Text style={s.eyebrow}>Revenue</Text>
+            <View style={[s.card, { marginTop: 10 }]}>
+              {([
+                { label: 'Paid',    amount: totalPaid,    color: c.green  },
+                { label: 'Pending', amount: totalPending, color: BLUE     },
+                { label: 'Overdue', amount: totalOverdue, color: c.orange },
+              ] as const).map((row, i) => (
+                <View key={row.label} style={[s.rvHalfRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
+                  <Text style={s.rvHalfLabel}>{row.label}</Text>
+                  <AnimatedNumber value={row.amount} style={[s.rvHalfAmt, { color: row.color }]} />
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : (
+          <View style={{ paddingHorizontal: 20 }}>
+            <Text style={[s.eyebrow, { marginBottom: 10 }]}>Revenue Snapshot</Text>
+            <View style={s.rvCard}>
+              {([
+                { label: 'Paid',    amount: totalPaid,    color: c.green,  bg: c.greenSoft  },
+                { label: 'Pending', amount: totalPending, color: BLUE,     bg: BLUE_SOFT    },
+                { label: 'Overdue', amount: totalOverdue, color: c.orange, bg: c.orangeSoft },
+              ] as const).map((col, i) => (
+                <View key={col.label} style={[s.rvCol, i > 0 && { borderLeftWidth: 1, borderLeftColor: c.lineSoft }]}>
+                  <AnimatedNumber value={col.amount} style={[s.rvAmt, { color: col.color }]} />
+                  <View style={[s.rvDot, { backgroundColor: col.bg }]} />
+                  <Text style={s.rvLabel}>{col.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        );
+
+      case 'recentquotes':
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+              <View>
+                <Text style={s.eyebrow}>Recent Quotes</Text>
+                <Text style={s.sectionTitle}>Last {recentQuotes.length}</Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
+            </View>
+            {recentQuotes.length === 0 ? (
+              <View style={s.emptyCard}><Text style={s.emptyText}>No quotes yet — start one above</Text></View>
+            ) : (
+              <View style={s.card}>
+                {recentQuotes.map((q: any, i: number) => {
+                  const sc = QUOTE_STATUS[q.status] ?? QUOTE_STATUS.draft;
+                  return (
+                    <TouchableOpacity key={q.id} activeOpacity={0.7}>
+                      <View style={[s.rqRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={s.rqTitle} numberOfLines={1}>{q.title || q.jobTitle || 'Quote'}</Text>
+                          <Text style={s.rqSub} numberOfLines={1}>{q.customerName || '—'}</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end', gap: 5 }}>
+                          <Text style={s.rqAmt}>${Number(q.totalAmount || 0).toLocaleString()}</Text>
+                          <View style={[s.rqBadge, { backgroundColor: sc.bg }]}>
+                            <Text style={[s.rqBadgeText, { color: sc.text }]}>{q.status}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        );
+
+      case 'outstanding':
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+              <View>
+                <Text style={s.eyebrow}>Outstanding Invoices</Text>
+                <Text style={s.sectionTitle}>
+                  {overdueInvoices.length > 0 ? <Text style={{ color: c.orange }}>{overdueInvoices.length} overdue</Text> : null}
+                  {overdueInvoices.length > 0 && pendingInvoices.length > 0 ? <Text style={{ color: c.muted }}> · </Text> : null}
+                  {pendingInvoices.length > 0 ? <Text>{pendingInvoices.length} pending</Text> : null}
+                </Text>
+              </View>
+            </View>
+            <View style={s.card}>
+              {[...overdueInvoices.slice(0, 2), ...pendingInvoices.slice(0, 1)].map((inv: any, i: number) => {
+                const isOverdue = inv.status === 'overdue';
+                return (
+                  <View key={inv.id ?? i} style={[s.invRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
+                    <View style={[s.invIcon, { backgroundColor: isOverdue ? c.orangeSoft : BLUE_SOFT }]}>
+                      <AlertTriangle size={14} color={isOverdue ? c.orange : BLUE} strokeWidth={2.5} />
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={s.rqTitle} numberOfLines={1}>{inv.customerName || 'Customer'}</Text>
+                      <Text style={[s.rqSub, isOverdue && { color: c.orange }]}>{isOverdue ? 'Overdue' : 'Pending'}</Text>
+                    </View>
+                    <Text style={[s.rqAmt, { color: isOverdue ? c.orange : c.ink }]}>${Number(inv.totalAmount || 0).toLocaleString()}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        );
+
+      case 'weather': {
+        if (!weather) {
+          return (
+            <View style={{ paddingHorizontal: 20 }}>
+              <View style={[s.card, { padding: 18, alignItems: 'center' }]}>
+                <Text style={{ fontSize: 13, color: MUTED, fontFamily: 'Manrope_500Medium' }}>
+                  Fetching weather…
+                </Text>
+              </View>
+            </View>
+          );
+        }
+        const rainyDays = weather.forecast.filter((d: any) => d.precipitation > 1);
+        const hasRainWarning = rainyDays.length > 0;
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <Text style={s.eyebrow}>Weather</Text>
+            <View style={s.weatherCard}>
+              {/* Current conditions */}
+              <View style={s.weatherTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.weatherTemp}>{Math.round(weather.current.temp)}°</Text>
+                  <Text style={s.weatherDesc}>{weather.current.desc}</Text>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                    <Text style={s.weatherHiLo}>↑ {Math.round(weather.forecast[0]?.temp_max)}°</Text>
+                    <Text style={s.weatherHiLo}>↓ {Math.round(weather.forecast[0]?.temp_min)}°</Text>
+                    {weather.forecast[0]?.precipitation > 0 && (
+                      <Text style={[s.weatherHiLo, { color: BLUE }]}>💧 {weather.forecast[0].precipitation.toFixed(1)}mm</Text>
+                    )}
+                  </View>
+                </View>
+                <Text style={s.weatherBigIcon}>{weather.current.icon}</Text>
+              </View>
+
+              {/* Rain warning */}
+              {hasRainWarning && (
+                <View style={s.rainWarning}>
+                  <Text style={s.rainWarningText}>
+                    🌧️ Rain expected {rainyDays.map((d: any) => format(new Date(d.date + 'T00:00:00'), 'EEE')).join(', ')} — plan your outdoor jobs around it.
+                  </Text>
+                </View>
+              )}
+
+              {/* 7-day forecast strip */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }} contentContainerStyle={{ gap: 6 }}>
+                {weather.forecast.map((day: any, i: number) => {
+                  const isRainy = day.precipitation > 1;
+                  const isToday_ = i === 0;
+                  return (
+                    <View key={day.date} style={[s.weatherDayCell, isToday_ && s.weatherDayCellActive, isRainy && s.weatherDayCellRainy]}>
+                      <Text style={[s.weatherDayLabel, isToday_ && { color: '#fff' }]}>
+                        {isToday_ ? 'Today' : format(new Date(day.date + 'T00:00:00'), 'EEE')}
+                      </Text>
+                      <Text style={s.weatherDayIcon}>{day.weather_icon}</Text>
+                      <Text style={[s.weatherDayTemp, isToday_ && { color: '#fff' }]}>
+                        {Math.round(day.temp_max)}°
+                      </Text>
+                      {isRainy && (
+                        <Text style={s.weatherDayRain}>{day.precipitation.toFixed(0)}mm</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        );
+      }
+
+      case 'nudge':
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <View style={s.nudgeCard}>
+              <View style={s.nudgeIcon}><Zap size={16} color={c.orange} strokeWidth={2.5} /></View>
+              <Text style={s.nudgeText}>{aiNudge}</Text>
+            </View>
+          </View>
+        );
+
+      default: return null;
+    }
+  };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 130 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ORANGE} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
       >
-        {/* Ambient blobs */}
-        <View pointerEvents="none" style={{ position: 'absolute', top: -80, right: -100, width: 340, height: 340, borderRadius: 170, backgroundColor: `${ORANGE}15` }} />
+        <View pointerEvents="none" style={{ position: 'absolute', top: -80, right: -100, width: 340, height: 340, borderRadius: 170, backgroundColor: `${c.orange}15` }} />
 
-        {/* TopBar */}
         <View style={s.topBar}>
           <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.8}>
             <View style={s.avatar}>
               <Text style={s.avatarText}>{initials}</Text>
             </View>
           </TouchableOpacity>
-          <View style={s.weatherPill}>
-            <View style={s.weatherIcon}><Text style={{ fontSize: 14 }}>☀</Text></View>
-            <Text style={s.weatherTemp}>24°</Text>
-            <Text style={s.weatherCity}>· Sydney</Text>
-          </View>
+          <CyclingPill nextJob={nextJob} pipelineAmt={pipelineAmt} colors={c} />
         </View>
 
-        {/* Hero greeting */}
         <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
           <Text style={s.eyebrow}>{dayName} · {timeStr}</Text>
           <Text style={s.heroGreeting}>
             {"G'day,\n"}
-            <Text style={{ color: ORANGE }}>{firstName}.</Text>
+            <Text style={{ color: c.orange }}>{firstName}.</Text>
           </Text>
           <Text style={s.heroSub}>
             {todayJobs.length} {todayJobs.length === 1 ? 'job' : 'jobs'} booked today.{' '}
-            <Text style={{ color: MUTED }}>Let's not touch a single form.</Text>
+            <Text style={{ color: c.muted }}>Let's not touch a single form.</Text>
           </Text>
 
-          {/* Hero job card */}
           <View style={s.heroCard}>
-            <View style={s.heroGlow} />
+            <View style={{ position: 'absolute', top: 0, right: 0, width: 140, height: 140, borderRadius: 70, backgroundColor: `${c.orange}73`, opacity: 0.45 }} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={s.pulseDot} />
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.orange, shadowColor: c.orange, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 4 }} />
                 <Text style={s.heroEyebrow}>
                   {nextJob ? `Up next · ${nextJob.scheduledDate ? format(new Date(nextJob.scheduledDate), 'h:mm a') : 'Soon'}` : 'No upcoming jobs'}
                 </Text>
               </View>
-              {nextJob?.scheduledDate && (
+              {nextJob?.estimatedDuration ? (
                 <View style={s.durationBadge}>
-                  <Text style={s.durationText}>1H 45M</Text>
+                  <Text style={s.durationText}>
+                    {nextJob.estimatedDuration >= 60
+                      ? `${Math.floor(nextJob.estimatedDuration / 60)}H${nextJob.estimatedDuration % 60 ? ` ${nextJob.estimatedDuration % 60}M` : ''}`
+                      : `${nextJob.estimatedDuration}M`}
+                  </Text>
                 </View>
-              )}
+              ) : null}
             </View>
 
             {nextJob ? (
               <>
                 <Text style={s.heroJobTitle}>{nextJob.title}</Text>
-                <Text style={s.heroJobAddr}>
-                  {(nextJob as any).address || '—'}
-                </Text>
+                <Text style={s.heroJobAddr}>{(nextJob as any).address || '—'}</Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
                   <TouchableOpacity style={s.startBtn} onPress={() => router.push(`/jobs/${nextJob.id}`)}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -175,10 +612,9 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* AI Rail */}
         <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
           <TouchableOpacity style={s.aiRail} onPress={() => router.push('/ai-chat')} activeOpacity={0.88}>
-            <View style={s.aiRailGlow} />
+            <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: '50%', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 24 }} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, position: 'relative' }}>
               <View style={s.aiIcon}>
                 <Sparkles size={22} color="#fff" strokeWidth={2} />
@@ -187,141 +623,31 @@ export default function HomeScreen() {
                 <Text style={s.aiEyebrow}>Quote with a sentence</Text>
                 <Text style={s.aiRailText}>"Swap hot water at Dalton's, $1,840..."</Text>
               </View>
-              <View style={s.micBtn}><Mic size={18} color={ORANGE} strokeWidth={2} /></View>
+              <View style={s.micBtn}><Mic size={18} color={c.orange} strokeWidth={2} /></View>
             </View>
           </TouchableOpacity>
         </View>
 
-        {/* Goal Block */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
-          <View style={s.goalCard}>
-            <Text style={s.eyebrow}>Week revenue</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 8, marginBottom: 14 }}>
-              <Text style={s.goalAmount}>
-                ${(allInvoices.filter((i: any) => i.status === 'paid').reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0) / 1000).toFixed(1)}k
-              </Text>
-              <Text style={{ fontSize: 14, color: MUTED, fontFamily: 'Manrope_600SemiBold', marginBottom: 6 }}>/ $5,000 goal</Text>
-            </View>
-            <View style={s.progressBg}>
-              <View style={[s.progressFill, { width: '62%' }]} />
-              {[25, 50, 75].map(m => (
-                <View key={m} style={[s.progressTick, { left: `${m}%` as DimensionValue }]} />
-              ))}
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-              <Text style={{ fontSize: 11, color: MUTED_HI, fontFamily: 'Manrope_600SemiBold' }}>
-                <Text style={{ color: ORANGE, fontFamily: 'Manrope_700Bold' }}>62%</Text> there
-              </Text>
-              <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_600SemiBold' }}>
-                {todayJobs.length} jobs today
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Pipeline */}
-        <View style={{ paddingTop: 14 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginBottom: 12 }}>
-            <View>
-              <Text style={s.eyebrow}>Quote pipeline</Text>
-              <Text style={s.sectionTitle}>
-                {pipelineTotal} on the go ·{' '}
-                <Text style={{ color: ORANGE }}>${pipelineAmt.toLocaleString()} out</Text>
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}>
-              <Text style={s.seeAll}>See all →</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
-            {[
-              { n: pipeline.draft, l: 'Draft', c: MUTED, bg: CARD, ring: LINE_MID },
-              { n: pipeline.sent, l: 'Sent', c: BLUE, bg: '#eaf2ff', ring: '#c8dcff' },
-              { n: pipeline.accepted, l: 'Accepted', c: GREEN, bg: GREEN_SOFT, ring: '#bde2c9' },
-              { n: pipeline.overdue, l: 'Overdue', c: ORANGE, bg: ORANGE_SOFT, ring: '#f8c59f' },
-            ].map(stage => (
-              <TouchableOpacity key={stage.l} onPress={() => router.push('/(tabs)/quotes')} activeOpacity={0.7}>
-                <View style={[s.pipelineChip, { backgroundColor: stage.bg, borderColor: stage.ring }]}>
-                  <Text style={[s.pipelineNum, { color: stage.c }]}>{stage.n}</Text>
-                  <Text style={[s.eyebrow, { color: stage.c, marginBottom: 0 }]}>{stage.l}</Text>
-                </View>
-              </TouchableOpacity>
+        {rows.map((row, rowIdx) => (
+          <View
+            key={row.map(w => w.id).join('-')}
+            style={row.length === 2
+              ? { flexDirection: 'row', paddingHorizontal: 20, gap: 10, paddingTop: 18 }
+              : { paddingTop: 18 }}
+          >
+            {row.map(w => (
+              <View key={w.id} style={row.length === 2 ? { flex: 1 } : {}}>
+                {renderWidget(w.id, row.length === 2)}
+              </View>
             ))}
-          </ScrollView>
-        </View>
-
-        {/* Today's Schedule */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
-            <View>
-              <Text style={s.eyebrow}>Today · {todayJobs.length} stops</Text>
-              <Text style={s.sectionTitle}>Out the door by 9.</Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push('/jobs/list')}>
-              <Text style={s.seeAll}>See all →</Text>
-            </TouchableOpacity>
           </View>
+        ))}
 
-          {todayJobs.length === 0 ? (
-            <View style={s.emptyTimeline}>
-              <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED }}>Nothing scheduled today</Text>
-            </View>
-          ) : (
-            todayJobs.map((job: any, i: number) => {
-              const isLast = i === todayJobs.length - 1;
-              const dotC = i === 0 ? ORANGE : BLUE;
-              return (
-                <TouchableOpacity key={job.id} onPress={() => router.push(`/jobs/${job.id}`)} activeOpacity={0.7}>
-                  <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 12 }}>
-                    <View style={[s.timeGutter, { width: 54 }]}>
-                      <Text style={s.timeMain}>{job.scheduledDate ? format(new Date(job.scheduledDate), 'h:mm') : '--'}</Text>
-                      <Text style={s.timeAmPm}>{job.scheduledDate ? format(new Date(job.scheduledDate), 'a') : ''}</Text>
-                      <View style={[s.timeRail, { backgroundColor: dotC, bottom: isLast ? 'auto' : -14, height: isLast ? 20 : undefined }]} />
-                      <View style={[s.timeDot, { backgroundColor: dotC, borderColor: PAPER }]} />
-                    </View>
-                    <View style={[s.timelineCard, { marginBottom: isLast ? 0 : 14 }]}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                        <Text style={s.timelineTitle}>{job.title}</Text>
-                        <Text style={s.timelineDur}>90m</Text>
-                      </View>
-                      <Text style={s.timelineSub}>
-                        {(job as any).customerName || 'Customer'}{(job as any).address ? ` · ${(job as any).address}` : ''}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          )}
-        </View>
-
-        {/* Activity */}
-        {activityItems.length > 0 && (
-          <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-            <Text style={[s.eyebrow, { marginBottom: 12 }]}>Activity · Last 24h</Text>
-            <View style={[s.card, { padding: 0 }]}>
-              {activityItems.map((a: any, i: number) => (
-                <View key={i} style={[s.activityRow, i > 0 && s.activityRowBorder]}>
-                  <View style={[s.activityIcon, { backgroundColor: a.bg }]}>
-                    <Text style={{ color: a.c, fontSize: 14, fontFamily: 'Manrope_800ExtraBold' }}>{a.ic}</Text>
-                  </View>
-                  <Text style={s.activityText}>{a.title}</Text>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[s.activityAmt, { color: a.c }]}>{a.amt}</Text>
-                    <Text style={s.activityTime}>{a.t} ago</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Sig */}
         <View style={{ paddingTop: 26, alignItems: 'center' }}>
-          <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_600SemiBold', letterSpacing: 0.2 }}>
+          <Text style={{ fontSize: 11, color: c.muted, fontFamily: 'Manrope_600SemiBold', letterSpacing: 0.2 }}>
             Admin for people who'd rather be on the tools.
           </Text>
-          <Text style={{ fontSize: 10, color: MUTED, fontFamily: 'Manrope_800ExtraBold', marginTop: 6, letterSpacing: 2, textTransform: 'uppercase' }}>
+          <Text style={{ fontSize: 10, color: c.muted, fontFamily: 'Manrope_800ExtraBold', marginTop: 6, letterSpacing: 2, textTransform: 'uppercase' }}>
             VARGENEZEY · v1.0
           </Text>
         </View>
@@ -329,410 +655,3 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-
-const s = StyleSheet.create({
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 0,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: INK,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: ORANGE,
-    fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
-    letterSpacing: -0.2,
-  },
-  weatherPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 6,
-    paddingLeft: 6,
-    paddingRight: 12,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-  },
-  weatherIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#d9ecff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weatherTemp: {
-    fontSize: 12,
-    fontFamily: 'Manrope_700Bold',
-    color: INK,
-  },
-  weatherCity: {
-    fontSize: 11,
-    color: MUTED,
-    fontFamily: 'Manrope_500Medium',
-  },
-  eyebrow: {
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    letterSpacing: 2,
-    color: MUTED,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  heroGreeting: {
-    fontSize: 42,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    lineHeight: 42,
-    letterSpacing: -1.5,
-    marginTop: 6,
-  },
-  heroSub: {
-    fontSize: 14,
-    fontFamily: 'Manrope_600SemiBold',
-    color: MUTED_HI,
-    marginTop: 10,
-    lineHeight: 20,
-    maxWidth: 280,
-    marginBottom: 0,
-  },
-  heroCard: {
-    backgroundColor: BLACK,
-    borderRadius: 28,
-    padding: 20,
-    marginTop: 18,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.22,
-    shadowRadius: 40,
-    elevation: 20,
-  },
-  heroGlow: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: `${ORANGE}73`,
-    opacity: 0.45,
-  },
-  pulseDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: ORANGE,
-    shadowColor: ORANGE,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-  },
-  heroEyebrow: {
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: 'rgba(255,255,255,0.6)',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
-  durationBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  durationText: {
-    fontSize: 10.5,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: '#fff',
-    letterSpacing: 0.8,
-  },
-  heroJobTitle: {
-    fontSize: 26,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: '#fff',
-    letterSpacing: -0.6,
-    lineHeight: 30,
-    marginBottom: 6,
-  },
-  heroJobAddr: {
-    fontSize: 13,
-    fontFamily: 'Manrope_500Medium',
-    color: 'rgba(255,255,255,0.55)',
-  },
-  startBtn: {
-    flex: 1,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: ORANGE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: ORANGE,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  startBtnText: {
-    fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: '#fff',
-    letterSpacing: -0.2,
-  },
-  heroIconBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  aiRail: {
-    backgroundColor: ORANGE,
-    borderRadius: 24,
-    padding: 18,
-    overflow: 'hidden',
-    shadowColor: ORANGE,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.3,
-    shadowRadius: 28,
-    elevation: 10,
-  },
-  aiRailGlow: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: '50%',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 24,
-  },
-  aiIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  aiEyebrow: {
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: 'rgba(255,255,255,0.75)',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  aiRailText: {
-    fontSize: 16,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: '#fff',
-    letterSpacing: -0.2,
-    lineHeight: 20,
-  },
-  micBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  goalCard: {
-    backgroundColor: CREAM,
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 22,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-    overflow: 'hidden',
-  },
-  goalAmount: {
-    fontSize: 44,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -1.5,
-    lineHeight: 48,
-  },
-  progressBg: {
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: PAPER_DEEP,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  progressFill: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    backgroundColor: ORANGE,
-    borderRadius: 999,
-  },
-  progressTick: {
-    position: 'absolute',
-    top: 2,
-    bottom: 2,
-    width: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    marginTop: 2,
-    letterSpacing: -0.3,
-  },
-  seeAll: {
-    fontSize: 11,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
-  },
-  pipelineChip: {
-    borderWidth: 1.5,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    minWidth: 108,
-    gap: 4,
-  },
-  pipelineNum: {
-    fontSize: 28,
-    fontFamily: 'Manrope_800ExtraBold',
-    letterSpacing: -0.8,
-    lineHeight: 32,
-  },
-  emptyTimeline: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-    alignItems: 'center',
-  },
-  timeGutter: {
-    flexShrink: 0,
-    position: 'relative',
-    alignItems: 'flex-end',
-    paddingTop: 6,
-    paddingRight: 14,
-  },
-  timeMain: {
-    fontSize: 12,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: 0.2,
-    lineHeight: 14,
-  },
-  timeAmPm: {
-    fontSize: 9.5,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
-    letterSpacing: 0.6,
-    marginTop: 2,
-    textTransform: 'uppercase',
-  },
-  timeRail: {
-    position: 'absolute',
-    right: 5,
-    top: 22,
-    width: 2,
-    opacity: 0.3,
-  },
-  timeDot: {
-    position: 'absolute',
-    right: -1,
-    top: 6,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 3,
-  },
-  timelineCard: {
-    flex: 1,
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-    borderRadius: 18,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-  },
-  timelineTitle: {
-    fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -0.2,
-    flex: 1,
-  },
-  timelineDur: {
-    fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
-    letterSpacing: 0.3,
-    flexShrink: 0,
-  },
-  timelineSub: {
-    fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
-    color: MUTED,
-    marginTop: 2,
-  },
-  card: {
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  activityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  activityRowBorder: {
-    borderTopWidth: 1,
-    borderTopColor: LINE_SOFT,
-  },
-  activityIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activityText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'Manrope_600SemiBold',
-    color: INK,
-  },
-  activityAmt: {
-    fontSize: 12,
-    fontFamily: 'Manrope_800ExtraBold',
-  },
-  activityTime: {
-    fontSize: 10,
-    fontFamily: 'Manrope_600SemiBold',
-    color: MUTED,
-  },
-});

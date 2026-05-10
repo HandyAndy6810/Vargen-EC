@@ -8,7 +8,21 @@ const config = getDefaultConfig(__dirname);
 config.watchFolders = [path.resolve(__dirname, "../shared")];
 config.resolver.nodeModulesPaths = [
   path.resolve(__dirname, "node_modules"),
-  path.resolve(__dirname, "../node_modules"),
 ];
+config.resolver.disableHierarchicalLookup = false;
 
-module.exports = withNativeWind(config, { input: "./global.css" });
+const finalConfig = withNativeWind(config, { input: "./global.css" });
+
+// Apply AFTER withNativeWind so it doesn't overwrite us
+const nativeWindResolver = finalConfig.resolver.resolveRequest;
+finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName.includes('NativeReactNativeFeatureFlags')) {
+    return { type: 'sourceFile', filePath: path.resolve(__dirname, 'mocks/NativeReactNativeFeatureFlags.js') };
+  }
+  if (nativeWindResolver) {
+    return nativeWindResolver(context, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
+module.exports = finalConfig;

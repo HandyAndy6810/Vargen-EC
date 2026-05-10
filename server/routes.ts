@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { storage } from "./storage";
 import { api } from "../shared/routes";
 import { z } from "zod";
@@ -15,6 +15,7 @@ import multer from "multer";
 import fs from "fs";
 import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken, upsertXeroContact, createXeroInvoice } from "./xero";
 import { stripe, createPaymentLink } from "./stripe";
+import { squareClient, createSquarePaymentLink } from "./square";
 import { getTradeContext } from "./trade-knowledge";
 import crypto from "crypto";
 import { sendCustomerEmail } from "./lib/email";
@@ -108,6 +109,8 @@ async function syncCustomerToXero(
 }
 
 let openai: OpenAI;
+const isGroq = (process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || '').includes('groq');
+const AI_MODEL = isGroq ? 'llama-3.3-70b-versatile' : 'gpt-4o';
 try {
   openai = new OpenAI({
     apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -122,7 +125,7 @@ try {
 const aiRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 20,                   // 20 AI generations per user per hour
-  keyGenerator: (req: any) => (req.session as any)?.localUserId || req.ip,
+  keyGenerator: (req: any) => (req.session as any)?.localUserId || ipKeyGenerator(req),
   message: { message: "Too many requests. Please wait before generating another quote." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -139,7 +142,7 @@ const loginRateLimit = rateLimit({
 const emailRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 30,                   // 30 emails per user per hour
-  keyGenerator: (req: any) => (req.session as any)?.localUserId || req.ip,
+  keyGenerator: (req: any) => (req.session as any)?.localUserId || ipKeyGenerator(req),
   message: { message: "Email sending rate limit reached. Try again later." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -474,7 +477,19 @@ export async function registerRoutes(
       const tradeContext = tradeType && tradeType !== "general" ? `\nThe tradesperson is a ${tradeType}. Use pricing, terminology, units of measure, and compliance requirements specific to this trade.` : "";
       const tradeKnowledge = getTradeContext(tradeType || "general");
 
-      const systemPrompt = `You are a senior Australian trade contractor with 15+ years of experience writing detailed, professional quotes. Your quotes win jobs because they are specific, thorough, and priced correctly for the Australian market.${tradeContext}
+      const businessProfile = [
+        tradeType && tradeType !== "general" ? `Trade: ${tradeType}` : null,
+        labourRateNum ? `Labour rate: $${labourRateNum}/hr` : null,
+        callOutNum > 0 ? `Callout fee: $${callOutNum}` : null,
+        gstEnabled ? `GST: 10% included in totals` : `GST: all prices GST-exclusive`,
+        markupNum > 0 ? `Materials markup: ${markupNum}%` : null,
+      ].filter(Boolean).join('\n');
+
+      const systemPrompt = `You are Trade Pal — an AI quoting assistant built specifically for Australian tradespeople. Your job is to generate fast, accurate, professional quotes that help tradies win work and get paid what they're worth.
+
+You understand Australian trade work deeply: realistic 2025 pricing, AS/NZS compliance requirements, how clients think, and the small line items that most people forget (consumables, disposal, compliance paperwork, cleanup time). You write quotes that are specific enough to be legally defensible, yet clear enough that a client with no trade knowledge can understand exactly what they're getting.
+
+${businessProfile ? `BUSINESS PROFILE — apply these settings to every quote:\n${businessProfile}\n` : ''}
 
 You MUST respond with valid JSON in this exact format:
 {
@@ -556,6 +571,20 @@ CRITICAL RULES — follow these exactly:
         // Non-critical — continue without past quote context
       }
 
+      // Inject user's personal price book
+      try {
+        const priceBookItems = await storage.getPriceBook(req.userId);
+        if (priceBookItems.length > 0) {
+          const priceBookContext = `\n\nTHIS TRADESPERSON'S OWN PRICE BOOK — These are their real negotiated prices with their supplier. Use these EXACT prices when the item matches. Do not substitute a different price from the reference data.\n${priceBookItems.map(item =>
+            `• ${item.description} — $${item.price} / ${item.unit}${item.supplier ? ` (${item.supplier})` : ''}${item.category ? ` [${item.category}]` : ''}`
+          ).join('\n')}`;
+          messages.push({ role: "system", content: priceBookContext });
+        }
+      } catch (err) {
+        console.error("Failed to load price book for AI context:", err);
+        // Non-critical — continue without price book context
+      }
+
       const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
 
       userContent.push({
@@ -563,7 +592,11 @@ CRITICAL RULES — follow these exactly:
         text: `Generate a quote for this job:\n\n${description}${customerName ? `\n\nClient: ${customerName}` : ""}`,
       });
 
-      if (imageBase64) {
+      const imagePayload = typeof imageBase64 === 'string'
+        ? imageBase64.includes(';base64,') ? imageBase64.split(';base64,')[1] : imageBase64
+        : null;
+
+      if (imagePayload && imagePayload.length > 128) {
         userContent.push({
           type: "image_url",
           image_url: {
@@ -576,9 +609,9 @@ CRITICAL RULES — follow these exactly:
       messages.push({ role: "user", content: userContent });
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: AI_MODEL,
         messages,
-        max_completion_tokens: 4096,
+        max_tokens: 4096,
         response_format: { type: "json_object" },
       });
 
@@ -606,7 +639,13 @@ CRITICAL RULES — follow these exactly:
       res.json(parsed);
     } catch (error: any) {
       console.error("Quote generation error:", error);
-      res.status(500).json({ message: error?.message || "Failed to generate quote" });
+      const msg: string = error?.message || "";
+      const isImageError = /image|invalid.*url|unsupported.*media|400/i.test(msg);
+      res.status(isImageError ? 400 : 500).json({
+        message: isImageError
+          ? "The attached image couldn't be read — try a clearer photo or remove it and describe the job instead."
+          : (msg || "Failed to generate quote"),
+      });
     }
   });
 
@@ -866,9 +905,11 @@ CRITICAL RULES — follow these exactly:
   // Standalone invoice creation (no quote required)
   app.post("/api/invoices", requireAuth, async (req: any, res) => {
     try {
-      const { customerId, items, dueDate, notes, includeGST } = req.body;
-      if (!customerId) return res.status(400).json({ message: "Customer is required" });
+      const { customerId, customerName, items, dueDate, notes, includeGST } = req.body;
       if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: "At least one line item is required" });
+      const combinedNotes = customerName && !customerId
+        ? `Customer: ${customerName}${notes ? `\n\n${notes}` : ''}`
+        : (notes || null);
 
       const subtotal = items.reduce((s: number, item: any) => s + (Number(item.quantity) * Number(item.unitPrice)), 0);
       const gstAmount = includeGST ? +(subtotal * 0.1).toFixed(2) : 0;
@@ -886,7 +927,7 @@ CRITICAL RULES — follow these exactly:
 
       const invoiceNumber = await storage.getNextInvoiceNumber(req.userId);
       const invoice = await storage.createInvoice({
-        customerId: Number(customerId),
+        customerId: customerId ? Number(customerId) : null,
         invoiceNumber,
         status: "draft",
         items: JSON.stringify(items),
@@ -894,7 +935,7 @@ CRITICAL RULES — follow these exactly:
         gstAmount: gstAmount.toFixed(2),
         totalAmount: totalAmount.toFixed(2),
         dueDate: dueDateValue,
-        notes: notes || null,
+        notes: combinedNotes,
         userId: req.userId,
       });
 
@@ -1148,6 +1189,56 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
+  // ─── Customer Messages ───
+
+  app.get("/api/customers/:customerId/messages", requireAuth, async (req: any, res) => {
+    const customerId = parseInt(req.params.customerId);
+    if (isNaN(customerId)) return res.status(400).json({ message: "Invalid customer id" });
+    const msgs = await storage.getCustomerMessages(req.userId, customerId);
+    res.json(msgs);
+  });
+
+  app.post("/api/customers/:customerId/messages", requireAuth, async (req: any, res) => {
+    const customerId = parseInt(req.params.customerId);
+    if (isNaN(customerId)) return res.status(400).json({ message: "Invalid customer id" });
+    const { body, direction = "out", channel = "note", jobId, quoteId } = req.body || {};
+    if (!body?.trim()) return res.status(400).json({ message: "body is required" });
+    const msg = await storage.createCustomerMessage({
+      userId: req.userId,
+      customerId,
+      body: body.trim(),
+      direction,
+      channel,
+      jobId: jobId ?? null,
+      quoteId: quoteId ?? null,
+    });
+
+    // If channel is 'sms' and Twilio is configured, try to send
+    if (channel === "sms" && direction === "out") {
+      const customer = await storage.getCustomer(customerId);
+      const phone = customer?.phone;
+      const accountSid = process.env.TWILIO_ACCOUNT_SID;
+      const authToken  = process.env.TWILIO_AUTH_TOKEN;
+      const from       = process.env.TWILIO_PHONE_NUMBER;
+      if (phone && accountSid && authToken && from) {
+        try {
+          const twilio = (await import('twilio')).default;
+          await twilio(accountSid, authToken).messages.create({ body: body.trim(), from, to: phone });
+        } catch (smsErr) {
+          console.error("SMS send failed:", smsErr);
+          // Don't fail the request — message is still saved
+        }
+      }
+    }
+
+    res.status(201).json(msg);
+  });
+
+  app.delete("/api/customers/:customerId/messages/:id", requireAuth, async (req: any, res) => {
+    await storage.deleteCustomerMessage(parseInt(req.params.id), req.userId);
+    res.json({ ok: true });
+  });
+
   // ─── Customer Email ───
 
   app.post("/api/messages/email", requireAuth, emailRateLimit, async (req: any, res) => {
@@ -1203,6 +1294,61 @@ CRITICAL RULES — follow these exactly:
     } catch (err) {
       console.error("Activity fetch error:", err);
       res.status(500).json({ message: "Failed to fetch activity" });
+    }
+  });
+
+  // ─── Price Book ───
+
+  app.get("/api/price-book", requireAuth, async (req: any, res) => {
+    try {
+      const items = await storage.getPriceBook(req.userId);
+      res.json(items);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch price book" });
+    }
+  });
+
+  app.post("/api/price-book", requireAuth, async (req: any, res) => {
+    try {
+      const { description, unit, price, supplier, category } = req.body;
+      if (!description || price == null) return res.status(400).json({ message: "description and price are required" });
+      const item = await storage.createPriceBookItem({
+        userId: req.userId,
+        description: String(description),
+        unit: unit || "each",
+        price: String(price),
+        supplier: supplier || null,
+        category: category || null,
+      });
+      res.status(201).json(item);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to create price book item" });
+    }
+  });
+
+  app.patch("/api/price-book/:id", requireAuth, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { description, unit, price, supplier, category } = req.body;
+      const updates: Record<string, any> = {};
+      if (description !== undefined) updates.description = String(description);
+      if (unit !== undefined) updates.unit = unit;
+      if (price !== undefined) updates.price = String(price);
+      if (supplier !== undefined) updates.supplier = supplier;
+      if (category !== undefined) updates.category = category;
+      const item = await storage.updatePriceBookItem(id, req.userId, updates);
+      res.json(item);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update price book item" });
+    }
+  });
+
+  app.delete("/api/price-book/:id", requireAuth, async (req: any, res) => {
+    try {
+      await storage.deletePriceBookItem(Number(req.params.id), req.userId);
+      res.status(204).end();
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete price book item" });
     }
   });
 
@@ -1520,6 +1666,70 @@ CRITICAL RULES — follow these exactly:
     res.json({ received: true });
   });
 
+  // ── Square ────────────────────────────────────────────────────────────────
+
+  // POST /api/square/payment-link/:invoiceId
+  app.post("/api/square/payment-link/:invoiceId", requireAuth, async (req: any, res) => {
+    if (!squareClient) return res.status(503).json({ message: "Square is not configured on this server." });
+
+    const invoiceId = parseInt(req.params.invoiceId);
+    if (isNaN(invoiceId)) return res.status(400).json({ message: "Invalid invoice id" });
+
+    const invoice = await storage.getInvoice(invoiceId, req.userId);
+    if (!invoice || invoice.userId !== req.userId) return res.status(404).json({ message: "Invoice not found" });
+
+    if (invoice.squarePaymentLinkUrl) {
+      return res.json({ url: invoice.squarePaymentLinkUrl, id: invoice.squarePaymentLinkId });
+    }
+
+    const amountCents = BigInt(Math.round(parseFloat(String(invoice.totalAmount)) * 100));
+
+    try {
+      const link = await createSquarePaymentLink({
+        invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        description: `Invoice ${invoice.invoiceNumber}`,
+        amountCents,
+        currency: 'AUD',
+      });
+
+      await storage.updateInvoice(invoiceId, {
+        squarePaymentLinkId: link.id,
+        squarePaymentLinkUrl: link.url,
+      });
+
+      res.json({ url: link.url, id: link.id });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to create Square payment link" });
+    }
+  });
+
+  // POST /api/square/webhook — mark invoice paid on payment.completed
+  app.post("/api/square/webhook", async (req, res) => {
+    const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+    try {
+      const event = req.body;
+      if (event?.type === 'payment.completed' || event?.type === 'payment_link.completed') {
+        const metadata = event?.data?.object?.payment?.note || event?.data?.object?.metadata || '';
+        const match = String(metadata).match(/invoiceId[=:](\d+)/i);
+        if (match) {
+          const invoiceId = parseInt(match[1]);
+          const invoice = await storage.getInvoice(invoiceId);
+          if (invoice && invoice.status !== 'paid') {
+            await storage.updateInvoice(invoiceId, {
+              status: 'paid',
+              paidDate: new Date(),
+              paidAmount: String(invoice.totalAmount),
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Square webhook error:', err);
+    }
+    res.json({ received: true });
+  });
+
   // ── Twilio SMS ─────────────────────────────────────────────────────────────
 
   // POST /api/sms/send  — send an SMS to a customer phone number
@@ -1543,6 +1753,177 @@ CRITICAL RULES — follow these exactly:
       res.json({ ok: true, sid: msg.sid });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to send SMS" });
+    }
+  });
+
+  // ── Receipts ──────────────────────────────────────────────────────────
+
+  // AI scan a receipt image
+  app.post("/api/receipts/scan", requireAuth, async (req: any, res) => {
+    try {
+      const { imageBase64 } = req.body;
+      if (!imageBase64) return res.status(400).json({ message: "imageBase64 required" });
+
+      const imagePayload = typeof imageBase64 === 'string'
+        ? imageBase64.includes(';base64,') ? imageBase64.split(';base64,')[1] : imageBase64
+        : null;
+
+      if (!imagePayload) return res.status(400).json({ message: "Invalid image data" });
+
+      const messages: any[] = [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
+                detail: "low",
+              },
+            },
+            {
+              type: "text",
+              text: `You are a receipt scanner. Extract the following from this receipt image and return ONLY valid JSON with no markdown:
+{
+  "vendor": "store or supplier name",
+  "date": "YYYY-MM-DD or empty string if not found",
+  "total": 0.00,
+  "category": "one of: Materials, Equipment, Fuel, Subcontractor, Food, Other",
+  "items": [{ "description": "item name", "amount": 0.00 }],
+  "notes": "any useful notes or empty string"
+}
+
+If you cannot read the image clearly, return your best guess. Always return valid JSON.`,
+            },
+          ],
+        },
+      ];
+
+      const response = await openai.chat.completions.create({
+        model: AI_MODEL,
+        messages,
+        max_tokens: 800,
+        temperature: 0,
+      });
+
+      const raw = response.choices[0]?.message?.content || '{}';
+      // Strip markdown code fences if present
+      const cleaned = raw.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
+      let parsed: any = {};
+      try { parsed = JSON.parse(cleaned); } catch { parsed = {}; }
+
+      res.json({
+        vendor: parsed.vendor || '',
+        date: parsed.date || '',
+        total: String(parsed.total || '0'),
+        category: parsed.category || 'Other',
+        items: parsed.items || [],
+        notes: parsed.notes || '',
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message || "Scan failed" });
+    }
+  });
+
+  app.get("/api/receipts", requireAuth, async (req: any, res) => {
+    const list = await storage.getReceipts(req.userId);
+    res.json(list);
+  });
+
+  app.post("/api/receipts", requireAuth, async (req: any, res) => {
+    try {
+      const receipt = await storage.createReceipt({ ...req.body, userId: req.userId });
+      res.status(201).json(receipt);
+    } catch (err: any) {
+      res.status(400).json({ message: err?.message || "Failed to create receipt" });
+    }
+  });
+
+  app.get("/api/receipts/:id", requireAuth, async (req: any, res) => {
+    const receipt = await storage.getReceipt(Number(req.params.id), req.userId);
+    if (!receipt) return res.status(404).json({ message: "Not found" });
+    res.json(receipt);
+  });
+
+  app.delete("/api/receipts/:id", requireAuth, async (req: any, res) => {
+    await storage.deleteReceipt(Number(req.params.id), req.userId);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/weather", requireAuth, async (req: any, res) => {
+    try {
+      const { latitude, longitude } = req.query;
+      if (!latitude || !longitude) {
+        return res.status(400).json({ message: "latitude and longitude required" });
+      }
+      const lat = parseFloat(latitude);
+      const lon = parseFloat(longitude);
+      if (isNaN(lat) || isNaN(lon)) {
+        return res.status(400).json({ message: "Invalid coordinates" });
+      }
+
+      const response = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&temperature_unit=celsius&timezone=auto`
+      );
+      const data = await response.json();
+
+      // Map WMO weather codes to descriptions
+      const weatherCodeMap: Record<number, { icon: string; desc: string }> = {
+        0: { icon: '☀️', desc: 'Clear' },
+        1: { icon: '🌤️', desc: 'Mostly Clear' },
+        2: { icon: '⛅', desc: 'Partly Cloudy' },
+        3: { icon: '☁️', desc: 'Overcast' },
+        45: { icon: '🌫️', desc: 'Foggy' },
+        48: { icon: '🌫️', desc: 'Foggy' },
+        51: { icon: '🌦️', desc: 'Light Drizzle' },
+        53: { icon: '🌧️', desc: 'Drizzle' },
+        55: { icon: '🌧️', desc: 'Heavy Drizzle' },
+        61: { icon: '🌧️', desc: 'Light Rain' },
+        63: { icon: '🌧️', desc: 'Rain' },
+        65: { icon: '⛈️', desc: 'Heavy Rain' },
+        71: { icon: '🌨️', desc: 'Light Snow' },
+        73: { icon: '🌨️', desc: 'Snow' },
+        75: { icon: '🌨️', desc: 'Heavy Snow' },
+        77: { icon: '🌨️', desc: 'Snow Grains' },
+        80: { icon: '🌧️', desc: 'Light Showers' },
+        81: { icon: '🌧️', desc: 'Showers' },
+        82: { icon: '⛈️', desc: 'Heavy Showers' },
+        85: { icon: '🌨️', desc: 'Light Snow Showers' },
+        86: { icon: '🌨️', desc: 'Snow Showers' },
+        95: { icon: '⛈️', desc: 'Thunderstorm' },
+        96: { icon: '⛈️', desc: 'Thunderstorm with Hail' },
+        99: { icon: '⛈️', desc: 'Thunderstorm with Hail' },
+      };
+
+      const daily = data.daily || {};
+      const forecast = (daily.time || []).slice(0, 7).map((date: string, i: number) => {
+        const code = daily.weather_code?.[i] || 0;
+        const weather = weatherCodeMap[code] || { icon: '❓', desc: 'Unknown' };
+        return {
+          date,
+          temp_max: daily.temperature_2m_max?.[i],
+          temp_min: daily.temperature_2m_min?.[i],
+          precipitation: daily.precipitation_sum?.[i] || 0,
+          weather_code: code,
+          weather_icon: weather.icon,
+          weather_desc: weather.desc,
+        };
+      });
+
+      const today = forecast[0];
+      res.json({
+        location: data.timezone,
+        current: {
+          temp: today?.temp_max,
+          icon: today?.weather_icon,
+          desc: today?.weather_desc,
+          precipitation_chance: today?.precipitation || 0,
+        },
+        forecast,
+      });
+    } catch (err: any) {
+      console.error("Weather fetch failed:", err);
+      res.status(500).json({ message: "Failed to fetch weather" });
     }
   });
 
