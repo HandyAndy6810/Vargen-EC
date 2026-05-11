@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useXeroStatus, useXeroDisconnect, useXeroSyncAll } from '@/hooks/use-xero';
 import { API_BASE_URL } from '@/lib/api';
 import { useCustomers } from '@/hooks/use-customers';
@@ -373,6 +374,17 @@ export default function ProfileScreen() {
   const { colors: c, mode } = useTheme();
   const { user, logout } = useAuth() as any;
   const { data: customers } = useCustomers();
+  const { data: jobs } = useJobs();
+  const { data: invoices } = useInvoices();
+
+  const jobsThisMonth = ((jobs as any[]) || [])
+    .filter((j: any) => j.scheduledDate && isThisMonth(new Date(j.scheduledDate))).length;
+  const revenueLabel = (() => {
+    const total = ((invoices as any[]) || [])
+      .filter((inv: any) => inv.status === 'paid' && inv.createdAt && isThisMonth(new Date(inv.createdAt)))
+      .reduce((sum: number, inv: any) => sum + parseFloat(inv.totalAmount || '0'), 0);
+    return total >= 1000 ? `$${(total / 1000).toFixed(1)}k` : `$${total}`;
+  })();
   const [showAppearance, setShowAppearance] = useState(false);
 
   const firstName = user?.firstName || 'Andy';

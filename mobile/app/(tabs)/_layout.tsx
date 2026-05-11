@@ -119,6 +119,8 @@ const styles = StyleSheet.create({
   },
   blur: {
     overflow: 'hidden',
+    borderRadius: 28,
+    marginHorizontal: 16,
     borderWidth: 1,
     shadowOffset: { width: 0, height: 18 },
     shadowOpacity: 0.18,

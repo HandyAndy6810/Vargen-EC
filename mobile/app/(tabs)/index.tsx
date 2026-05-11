@@ -260,7 +260,7 @@ export default function HomeScreen() {
             <View style={s.qaRow}>
               {([
                 { Icon: Sparkles,  label: 'New Quote',    color: c.orange, bg: c.orangeSoft, route: '/ai-chat' },
-                { Icon: Briefcase, label: 'New Job',      color: BLUE,     bg: BLUE_SOFT,    route: '/jobs/create' },
+                { Icon: Briefcase, label: 'New Job',      color: BLUE,     bg: isDark ? 'rgba(31,111,235,0.15)' : BLUE_SOFT,    route: '/jobs/create' },
                 { Icon: Users,     label: 'Add Customer', color: c.green,  bg: c.greenSoft,  route: '/customers/create' },
               ] as const).map(({ Icon, label, color, bg, route }) => (
                 <TouchableOpacity key={label} style={[s.qaBtn, { backgroundColor: bg }]} onPress={() => router.push(route as any)} activeOpacity={0.75}>
@@ -458,7 +458,7 @@ export default function HomeScreen() {
           return (
             <View style={{ paddingHorizontal: 20 }}>
               <View style={[s.card, { padding: 18, alignItems: 'center' }]}>
-                <Text style={{ fontSize: 13, color: MUTED, fontFamily: 'Manrope_500Medium' }}>
+                <Text style={{ fontSize: 13, color: c.muted, fontFamily: 'Manrope_500Medium' }}>
                   Fetching weather…
                 </Text>
               </View>
