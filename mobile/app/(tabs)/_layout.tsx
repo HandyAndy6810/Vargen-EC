@@ -33,7 +33,7 @@ function FloatingTabBar({ state, navigation }: any) {
           },
         ]}
       >
-        <View style={styles.specular} pointerEvents="none" />
+        {!isDark && <View style={styles.specular} pointerEvents="none" />}
         <View
           style={[
             styles.inner,
