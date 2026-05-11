@@ -18,27 +18,50 @@ const TABS = [
 
 const ORANGE = '#E8541A';
 
+// Leading edge springs fast, trailing edge drags → squash-and-stretch feel
+const FAST = { damping: 18, stiffness: 300, mass: 0.5,  useNativeDriver: false } as const;
+const SLOW = { damping: 30, stiffness: 140, mass: 1.2,  useNativeDriver: false } as const;
+
 function TabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { colors: c, isDark } = useTheme();
+  const { colors: c } = useTheme();
   const [containerWidth, setContainerWidth] = useState(0);
   const tabWidth = containerWidth > 0 ? containerWidth / TABS.length : 0;
-  const animatedIndex = useRef(new Animated.Value(state.index)).current;
 
+  const leftEdge     = useRef(new Animated.Value(0)).current;
+  const rightEdge    = useRef(new Animated.Value(0)).current;
+  const prevIndex    = useRef(state.index);
+  const prevTabWidth = useRef(0);
+
+  // Snap to correct position whenever tabWidth is first measured or changes (rotation)
   useEffect(() => {
-    Animated.spring(animatedIndex, {
-      toValue: state.index,
-      useNativeDriver: true,
-      damping: 22,
-      stiffness: 220,
-      mass: 0.8,
-    }).start();
-  }, [state.index]);
+    if (tabWidth === 0) return;
+    if (prevTabWidth.current !== tabWidth) {
+      leftEdge.setValue(state.index * tabWidth);
+      rightEdge.setValue(state.index * tabWidth + tabWidth);
+      prevTabWidth.current = tabWidth;
+    }
+  }, [tabWidth]);
 
-  const translateX = animatedIndex.interpolate({
-    inputRange: TABS.map((_, i) => i),
-    outputRange: TABS.map((_, i) => i * tabWidth),
-  });
+  // Direction-aware spring on tab change
+  useEffect(() => {
+    if (tabWidth === 0) return;
+    const prev = prevIndex.current;
+    const curr = state.index;
+    if (prev === curr) return;
+    prevIndex.current = curr;
+
+    const newLeft     = curr * tabWidth;
+    const newRight    = curr * tabWidth + tabWidth;
+    const movingRight = curr > prev;
+
+    Animated.parallel([
+      Animated.spring(movingRight ? rightEdge : leftEdge,  { toValue: movingRight ? newRight : newLeft,  ...FAST }),
+      Animated.spring(movingRight ? leftEdge  : rightEdge, { toValue: movingRight ? newLeft  : newRight, ...SLOW }),
+    ]).start();
+  }, [state.index, tabWidth]);
+
+  const indicatorWidth = Animated.subtract(rightEdge, leftEdge);
 
   return (
     <View
@@ -56,12 +79,12 @@ function TabBar({ state, navigation }: any) {
       <View style={styles.indicatorTrack}>
         {tabWidth > 0 && (
           <Animated.View
-            style={[styles.indicatorSlider, { width: tabWidth, transform: [{ translateX }] }]}
+            style={[styles.indicatorSlider, { left: leftEdge, width: indicatorWidth }]}
           >
             <LinearGradient
-              colors={[ORANGE, isDark ? 'rgba(232,84,26,0.0)' : 'rgba(232,84,26,0.0)']}
-              start={{ x: 0.1, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              colors={[ORANGE, 'rgba(232,84,26,0.0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0.9, y: 0 }}
               style={styles.accentLine}
             />
           </Animated.View>
@@ -155,9 +178,7 @@ const styles = StyleSheet.create({
   },
   tabsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
   },
