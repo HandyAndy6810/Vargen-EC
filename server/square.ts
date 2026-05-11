@@ -1,10 +1,17 @@
-import { Client, Environment } from 'square';
+import { createRequire } from 'module';
 import { randomUUID } from 'crypto';
+
+// Square SDK v44 uses CJS exports; use createRequire to load from ESM context
+const _require = createRequire(import.meta.url);
+let _squarePkg: any = null;
+try { _squarePkg = _require('square'); } catch {}
+const Client   = _squarePkg?.Client   ?? _squarePkg?.SquareClient   ?? null;
+const Environment = _squarePkg?.Environment ?? _squarePkg?.SquareEnvironment ?? null;
 
 const accessToken = process.env.SQUARE_ACCESS_TOKEN;
 export const locationId = process.env.SQUARE_LOCATION_ID || '';
 
-export const squareClient = accessToken
+export const squareClient = (accessToken && Client && Environment)
   ? new Client({
       accessToken,
       environment: process.env.NODE_ENV === 'production' ? Environment.Production : Environment.Sandbox,
