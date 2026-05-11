@@ -6,12 +6,12 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "vargen",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#141310"
+      "backgroundColor": "#0F0905"
     },
     "ios": {
       "supportsTablet": false,
@@ -30,7 +30,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#f26a2a"
+        "backgroundColor": "#0F0905"
       },
       "package": "com.vargen.ec",
       "versionCode": 1,
@@ -81,8 +81,17 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#f26a2a",
+          "color": "#FF5C00",
           "sounds": []
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "extraPodspecDependencies": {},
+            "ccFlags": "-DFOLLY_CFG_NO_COROUTINES=1"
+          }
         }
       ],
       "expo-updates",
