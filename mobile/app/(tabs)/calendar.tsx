@@ -73,6 +73,13 @@ export default function CalendarScreen() {
   const { data: jobs } = useJobs();
   const { data: weather } = useWeather();
   const allJobs = (jobs as any[]) || [];
+  const weatherByDate = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const day of (weather as any)?.forecast ?? []) {
+      map[day.date] = day;
+    }
+    return map;
+  }, [weather]);
   const selectedDay = days[dayIdx];
 
   const dayJobs = useMemo(() => {

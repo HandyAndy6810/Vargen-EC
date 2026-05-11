@@ -43,7 +43,7 @@ function AnimatedNumber({ value, prefix = '$', style }: { value: number; prefix?
   return <Text style={style}>{prefix}{fmt}</Text>;
 }
 
-function CyclingPill({ nextJob, pipelineAmt, colors: c }: { nextJob: any; pipelineAmt: number; colors: Colors }) {
+function CyclingPill({ nextJob, pipelineAmt, colors: c, weather }: { nextJob: any; pipelineAmt: number; colors: Colors; weather: any }) {
   const [idx, setIdx] = useState(0);
   const [locked, setLocked] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -551,7 +551,7 @@ export default function HomeScreen() {
               <Text style={s.avatarText}>{initials}</Text>
             </View>
           </TouchableOpacity>
-          <CyclingPill nextJob={nextJob} pipelineAmt={pipelineAmt} colors={c} />
+          <CyclingPill nextJob={nextJob} pipelineAmt={pipelineAmt} colors={c} weather={weather} />
         </View>
 
         <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>

@@ -22,8 +22,8 @@ import { useInvoices } from '@/hooks/use-invoices';
 import { isThisMonth } from 'date-fns';
 import {
   FileText, Receipt, Calendar, MapPin, Sparkles,
-  Bell, MessageSquare, Sun, Settings, LogOut, ChevronRight, Pencil,
-  Link, RefreshCw, Unlink, CheckCircle, BookOpen, Users, Building2, LayoutGrid,
+  Bell, MessageSquare, Sun, Moon, Smartphone, Settings, LogOut, ChevronRight, Pencil,
+  Link, RefreshCw, Unlink, CheckCircle, BookOpen, Users, Building2, LayoutGrid, Check,
 } from 'lucide-react-native';
 
 // ── Style factory ─────────────────────────────────────────────────────────────
