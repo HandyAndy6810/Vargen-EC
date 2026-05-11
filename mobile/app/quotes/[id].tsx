@@ -6,10 +6,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Share,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuote, useQuoteItems } from '@/hooks/use-quotes';
+import { useQuote, useQuoteItems, useDeleteQuote, useUpdateQuote } from '@/hooks/use-quotes';
 import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Edit2 } from 'lucide-react-native';
 import { format } from 'date-fns';
 import * as Linking from 'expo-linking';
@@ -40,11 +41,17 @@ const STATUS_PILL: Record<string, { bg: string; fg: string; bd: string; label: s
   invoiced: { bg: GREEN_SOFT, fg: GREEN,        bd: `${GREEN}44`,      label: 'Invoiced' },
 };
 
-const PROGRESS_STEPS = ['Drafted', 'Sent', 'Viewed', 'Accepted'];
+const PROGRESS_STEPS = ['Draft', 'Sent', 'Viewed', 'Accepted'];
 
 function getProgressIndex(status: string): number {
   const map: Record<string, number> = { draft: 0, sent: 1, viewed: 2, accepted: 3, invoiced: 3 };
-  return map[status] ?? 1;
+  return map[status] ?? 0;
+}
+
+function isTerminalStatus(status: string): { terminal: true; label: string; color: string } | null {
+  if (status === 'declined') return { terminal: true, label: 'Declined', color: '#d23b3b' };
+  if (status === 'expired')  return { terminal: true, label: 'Expired', color: 'rgba(20,19,16,0.4)' };
+  return null;
 }
 
 export default function QuoteDetailScreen() {
@@ -52,6 +59,8 @@ export default function QuoteDetailScreen() {
   const quoteId = id ? Number(id) : 0;
   const { data: quote, isLoading } = useQuote(quoteId) as any;
   const { data: quoteItems = [] } = useQuoteItems(quoteId) as any;
+  const deleteQuote = useDeleteQuote();
+  const updateQuote = useUpdateQuote();
 
   if (isLoading) {
     return (
@@ -108,6 +117,32 @@ export default function QuoteDetailScreen() {
 
   const customerPhone = content.customerPhone || null;
   const alreadyInvoiced = status === 'invoiced';
+  const terminalStatus = isTerminalStatus(status);
+
+  const handleMore = () => {
+    const actions: Array<{ text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }> = [
+      { text: 'Cancel', style: 'cancel' },
+    ];
+    if (customerPhone) {
+      actions.unshift({ text: 'Call customer', onPress: () => Linking.openURL(`tel:${customerPhone}`) });
+      actions.unshift({ text: 'SMS customer', onPress: () => Linking.openURL(`sms:${customerPhone}`) });
+    }
+    actions.unshift({
+      text: 'Share quote',
+      onPress: () => Share.share({ message: `Quote ${num} — $${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2 })} inc. GST` }),
+    });
+    if (!alreadyInvoiced) {
+      actions.unshift({
+        text: 'Delete quote',
+        style: 'destructive',
+        onPress: () => Alert.alert('Delete quote?', 'This cannot be undone.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => deleteQuote.mutate(quoteId, { onSuccess: () => router.back() }) },
+        ]),
+      });
+    }
+    Alert.alert(title, '', actions);
+  };
 
   const handleConvert = () => {
     if (alreadyInvoiced) {
@@ -128,7 +163,7 @@ export default function QuoteDetailScreen() {
           <Text style={s.eyebrow}>{num}</Text>
           <Text style={s.title} numberOfLines={1}>{title}</Text>
         </View>
-        <TouchableOpacity style={s.iconBtn} activeOpacity={0.7}>
+        <TouchableOpacity style={s.iconBtn} activeOpacity={0.7} onPress={handleMore}>
           <MoreHorizontal size={18} color={INK} strokeWidth={2} />
         </TouchableOpacity>
       </View>
@@ -158,20 +193,26 @@ export default function QuoteDetailScreen() {
             </View>
 
             {/* Progress rail */}
-            <View style={{ flexDirection: 'row', gap: 4, marginTop: 16 }}>
-              {PROGRESS_STEPS.map((step, i) => {
-                const done = i < progressIdx;
-                const cur = i === progressIdx;
-                return (
-                  <View key={step} style={{ flex: 1 }}>
-                    <View style={[s.railBar, done ? { backgroundColor: ORANGE } : cur ? { backgroundColor: ORANGE_SOFT } : { backgroundColor: PAPER_DEEP }]} />
-                    <Text style={[s.railLabel, done ? { color: ORANGE_DEEP } : cur ? { color: ORANGE } : { color: MUTED }]}>
-                      {step}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
+            {terminalStatus ? (
+              <View style={{ marginTop: 16, alignItems: 'flex-start' }}>
+                <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: terminalStatus.color + '22', borderWidth: 1, borderColor: terminalStatus.color + '44' }}>
+                  <Text style={{ fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: terminalStatus.color, letterSpacing: 1, textTransform: 'uppercase' }}>{terminalStatus.label}</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', gap: 4, marginTop: 16 }}>
+                {PROGRESS_STEPS.map((step, i) => {
+                  const done = i < progressIdx;
+                  const cur = i === progressIdx;
+                  return (
+                    <View key={step} style={{ flex: 1 }}>
+                      <View style={[s.railBar, done ? { backgroundColor: ORANGE } : cur ? { backgroundColor: ORANGE_SOFT } : { backgroundColor: PAPER_DEEP }]} />
+                      <Text style={[s.railLabel, done ? { color: ORANGE_DEEP } : cur ? { color: ORANGE } : { color: MUTED }]}>{step}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
 
           {/* Customer */}
@@ -273,7 +314,14 @@ export default function QuoteDetailScreen() {
 
       {/* Bottom CTAs */}
       <View style={s.bottomBar}>
-        <TouchableOpacity style={s.tweakBtn} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={s.tweakBtn}
+          activeOpacity={0.7}
+          onPress={() => {
+            const desc = content.jobTitle || title;
+            router.push(`/ai-chat?description=${encodeURIComponent(desc)}` as any);
+          }}
+        >
           <Edit2 size={15} color={INK} strokeWidth={2} />
           <Text style={s.tweakBtnText}>Tweak</Text>
         </TouchableOpacity>
@@ -472,11 +520,22 @@ const s = StyleSheet.create({
   },
   bottomBar: {
     position: 'absolute',
-    bottom: 100,
-    left: 12,
-    right: 12,
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     gap: 8,
+    paddingTop: 12,
+    paddingBottom: 32,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(247,244,238,0.92)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.85)',
+    shadowColor: '#141310',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
+    elevation: 12,
     zIndex: 30,
   },
   tweakBtn: {

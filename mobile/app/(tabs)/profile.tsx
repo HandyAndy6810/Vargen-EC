@@ -17,12 +17,13 @@ import { useAuth } from '@/hooks/use-auth';
 import { useXeroStatus, useXeroDisconnect, useXeroSyncAll } from '@/hooks/use-xero';
 import { API_BASE_URL } from '@/lib/api';
 import { useCustomers } from '@/hooks/use-customers';
-import { useTheme, type ThemeMode, type Colors } from '@/hooks/use-theme';
+import { useJobs } from '@/hooks/use-jobs';
+import { useInvoices } from '@/hooks/use-invoices';
+import { isThisMonth } from 'date-fns';
 import {
   FileText, Receipt, Calendar, MapPin, Sparkles,
-  Bell, MessageSquare, Sun, Moon, Smartphone, Settings, LogOut,
-  ChevronRight, Pencil, Link, RefreshCw, Unlink, CheckCircle,
-  BookOpen, Users, Check,
+  Bell, MessageSquare, Sun, Settings, LogOut, ChevronRight, Pencil,
+  Link, RefreshCw, Unlink, CheckCircle, BookOpen, Users, Building2, LayoutGrid,
 } from 'lucide-react-native';
 
 // ── Style factory ─────────────────────────────────────────────────────────────
@@ -402,7 +403,7 @@ export default function ProfileScreen() {
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={s.name}>{fullName}</Text>
-              <Text style={s.biz}>Vargenezey Electrical · ABN 52 889 221 143</Text>
+              <Text style={s.biz}>{user?.email || ''}</Text>
               <View style={s.proBadge}>
                 <Text style={s.proBadgeText}>✦ Pro plan</Text>
               </View>
@@ -416,9 +417,9 @@ export default function ProfileScreen() {
         {/* Stats */}
         <View style={{ paddingHorizontal: 20, flexDirection: 'row', gap: 8 }}>
           {[
-            { l: 'Jobs this month', v: '42' },
-            { l: 'Revenue',         v: '$14.2k' },
-            { l: 'On-time',         v: '96%' },
+            { l: 'Jobs this month', v: String(jobsThisMonth) },
+            { l: 'Revenue this mo', v: revenueLabel },
+            { l: 'Customers',       v: String((customers as any[])?.length ?? 0) },
           ].map(stat => (
             <View key={stat.l} style={s.statCard}>
               <Text style={s.statVal}>{stat.v}</Text>

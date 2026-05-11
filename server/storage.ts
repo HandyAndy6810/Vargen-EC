@@ -1,7 +1,7 @@
 import { db } from "./db";
 import {
   customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
-  invoices, jobTimerEntries, portalFeedback, jobTemplates, priceBook,
+  invoices, jobTimerEntries, portalFeedback, jobTemplates, priceBook, receipts, customerMessages,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem,
@@ -11,6 +11,8 @@ import {
   type PortalFeedback, type InsertPortalFeedback,
   type JobTemplate, type InsertJobTemplate,
   type PriceBookItem, type InsertPriceBookItem,
+  type Receipt, type InsertReceipt,
+  type CustomerMessage, type InsertCustomerMessage,
 } from "../shared/schema";
 import { eq, desc, isNull, and, sql } from "drizzle-orm";
 
@@ -89,6 +91,17 @@ export interface IStorage {
   createPriceBookItem(item: InsertPriceBookItem): Promise<PriceBookItem>;
   updatePriceBookItem(id: number, userId: string, updates: Partial<InsertPriceBookItem>): Promise<PriceBookItem>;
   deletePriceBookItem(id: number, userId: string): Promise<void>;
+
+  // Receipts
+  getReceipts(userId: string): Promise<Receipt[]>;
+  getReceipt(id: number, userId: string): Promise<Receipt | undefined>;
+  createReceipt(receipt: InsertReceipt): Promise<Receipt>;
+  deleteReceipt(id: number, userId: string): Promise<void>;
+
+  // Customer messages
+  getCustomerMessages(userId: string, customerId: number): Promise<CustomerMessage[]>;
+  createCustomerMessage(msg: InsertCustomerMessage): Promise<CustomerMessage>;
+  deleteCustomerMessage(id: number, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -425,6 +438,45 @@ export class DatabaseStorage implements IStorage {
 
   async deletePriceBookItem(id: number, userId: string): Promise<void> {
     await db.delete(priceBook).where(and(eq(priceBook.id, id), eq(priceBook.userId, userId)));
+  }
+
+  // ── Receipts ─────────────────────────────────────────────────────────
+  async getReceipts(userId: string): Promise<Receipt[]> {
+    return await db.select().from(receipts)
+      .where(eq(receipts.userId, userId))
+      .orderBy(desc(receipts.createdAt));
+  }
+
+  async getReceipt(id: number, userId: string): Promise<Receipt | undefined> {
+    const [receipt] = await db.select().from(receipts)
+      .where(and(eq(receipts.id, id), eq(receipts.userId, userId)));
+    return receipt;
+  }
+
+  async createReceipt(receipt: InsertReceipt): Promise<Receipt> {
+    const [newReceipt] = await db.insert(receipts).values(receipt).returning();
+    return newReceipt;
+  }
+
+  async deleteReceipt(id: number, userId: string): Promise<void> {
+    await db.delete(receipts).where(and(eq(receipts.id, id), eq(receipts.userId, userId)));
+  }
+
+  async getCustomerMessages(userId: string, customerId: number): Promise<CustomerMessage[]> {
+    return db
+      .select()
+      .from(customerMessages)
+      .where(and(eq(customerMessages.userId, userId), eq(customerMessages.customerId, customerId)))
+      .orderBy(customerMessages.createdAt);
+  }
+
+  async createCustomerMessage(msg: InsertCustomerMessage): Promise<CustomerMessage> {
+    const [created] = await db.insert(customerMessages).values(msg).returning();
+    return created;
+  }
+
+  async deleteCustomerMessage(id: number, userId: string): Promise<void> {
+    await db.delete(customerMessages).where(and(eq(customerMessages.id, id), eq(customerMessages.userId, userId)));
   }
 }
 

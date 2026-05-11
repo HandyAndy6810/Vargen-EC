@@ -14,6 +14,7 @@ export const api = {
   },
   quotes: {
     list: { path: '/api/quotes' },
+    get: { path: '/api/quotes/:id' },
     create: { path: '/api/quotes' },
     update: { path: '/api/quotes/:id' },
     delete: { path: '/api/quotes/:id' },
@@ -34,6 +35,13 @@ export const api = {
   settings: {
     get: { path: '/api/settings' },
     update: { path: '/api/settings' },
+  },
+  receipts: {
+    list: { path: '/api/receipts' },
+    get: { path: '/api/receipts/:id' },
+    create: { path: '/api/receipts' },
+    delete: { path: '/api/receipts/:id' },
+    scan: { path: '/api/receipts/scan' },
   },
 };
 

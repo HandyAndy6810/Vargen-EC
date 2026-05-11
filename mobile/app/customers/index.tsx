@@ -121,7 +121,7 @@ export default function CustomersScreen() {
               </Text>
             </View>
           }
-          style={{ backgroundColor: CARD, borderRadius: 16, borderWidth: 1, borderColor: LINE_SOFT, overflow: 'hidden', marginHorizontal: 20 }}
+          style={{ backgroundColor: CARD, borderRadius: 18, borderWidth: 1, borderColor: LINE_SOFT, overflow: 'hidden', marginHorizontal: 20 }}
         />
       )}
     </SafeAreaView>

@@ -72,7 +72,7 @@ function FloatingTabBar({ state, navigation }: any) {
                   }
                 }}
               >
-                <tab.Icon size={20} color={color} strokeWidth={2.1} />
+                <tab.Icon size={22} color={color} strokeWidth={2.1} />
                 {isFocused && (
                   <Text style={[styles.tabLabel, { color: colors.orange }]}>{tab.label}</Text>
                 )}
@@ -98,6 +98,7 @@ export default function TabsLayout() {
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{ headerShown: false }}
+      sceneContainerStyle={{ backgroundColor: '#f7f4ee' }}
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="quotes" />
@@ -111,14 +112,12 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   outer: {
     position: 'absolute',
+    bottom: 0,
     left: 0,
     right: 0,
-    alignItems: 'center',
     zIndex: 100,
   },
   blur: {
-    width: 340,
-    borderRadius: 30,
     overflow: 'hidden',
     borderWidth: 1,
     shadowOffset: { width: 0, height: 18 },
@@ -131,9 +130,8 @@ const styles = StyleSheet.create({
     top: 1,
     left: 10,
     right: 10,
-    height: 12,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.6)',
     zIndex: 1,
   },
   inner: {

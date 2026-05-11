@@ -17,12 +17,13 @@ export function useQuotes() {
 
 export function useQuote(id: number) {
   return useQuery({
-    queryKey: [api.quotes.list.path, id],
+    queryKey: [api.quotes.get.path, id],
     queryFn: async () => {
-      const res = await apiRequest("GET", api.quotes.list.path);
-      if (!res.ok) throw new Error("Failed to fetch quotes");
-      const list = (await res.json()) as Quote[];
-      return list.find((q) => q.id === id) ?? null;
+      const url = buildUrl(api.quotes.get.path, { id });
+      const res = await apiRequest("GET", url);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to fetch quote");
+      return res.json() as Promise<Quote>;
     },
     enabled: !!id,
   });
