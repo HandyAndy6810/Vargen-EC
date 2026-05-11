@@ -1,7 +1,7 @@
 import { Tabs, router } from 'expo-router';
-import { useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
@@ -16,77 +16,102 @@ const TABS = [
   { name: 'profile',  label: 'Profile',  Icon: User },
 ];
 
-function FloatingTabBar({ state, navigation }: any) {
+const ORANGE = '#E8541A';
+
+function TabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useTheme();
+  const { colors: c, isDark } = useTheme();
+  const [containerWidth, setContainerWidth] = useState(0);
+  const tabWidth = containerWidth > 0 ? containerWidth / TABS.length : 0;
+  const animatedIndex = useRef(new Animated.Value(state.index)).current;
+
+  useEffect(() => {
+    Animated.spring(animatedIndex, {
+      toValue: state.index,
+      useNativeDriver: true,
+      damping: 22,
+      stiffness: 220,
+      mass: 0.8,
+    }).start();
+  }, [state.index]);
+
+  const translateX = animatedIndex.interpolate({
+    inputRange: TABS.map((_, i) => i),
+    outputRange: TABS.map((_, i) => i * tabWidth),
+  });
 
   return (
-    <View style={[styles.outer, { bottom: 22 + (insets.bottom > 20 ? insets.bottom - 20 : 0) }]} pointerEvents="box-none">
-      <BlurView
-        intensity={90}
-        tint={colors.blurTint}
-        style={[
-          styles.blur,
-          {
-            borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.7)',
-            shadowColor: colors.ink,
-          },
-        ]}
-      >
-        {!isDark && <View style={styles.specular} pointerEvents="none" />}
-        <View
-          style={[
-            styles.inner,
-            { backgroundColor: isDark ? 'rgba(20,19,16,0.7)' : 'rgba(255,255,255,0.6)' },
-          ]}
-        >
-          {TABS.map((tab, i) => {
-            const isFocused = state.index === i;
-            const color = isFocused ? colors.orange : colors.muted;
-            return (
-              <Pressable
-                key={tab.name}
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: c.paper,
+          borderTopColor: c.lineSoft,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+        },
+      ]}
+      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+    >
+      {/* Sliding gradient accent line */}
+      <View style={styles.indicatorTrack}>
+        {tabWidth > 0 && (
+          <Animated.View
+            style={[styles.indicatorSlider, { width: tabWidth, transform: [{ translateX }] }]}
+          >
+            <LinearGradient
+              colors={[ORANGE, isDark ? 'rgba(232,84,26,0.0)' : 'rgba(232,84,26,0.0)']}
+              start={{ x: 0.1, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.accentLine}
+            />
+          </Animated.View>
+        )}
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabsRow}>
+        {TABS.map((tab, i) => {
+          const isFocused = state.index === i;
+          const color = isFocused ? ORANGE : c.muted;
+          return (
+            <Pressable
+              key={tab.name}
+              style={styles.tabItem}
+              onPress={() => {
+                Haptics.selectionAsync();
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: state.routes[i].key,
+                  canPreventDefault: true,
+                });
+                if (!isFocused && !event.defaultPrevented) {
+                  navigation.navigate(tab.name as never);
+                }
+              }}
+            >
+              <tab.Icon size={24} color={color} strokeWidth={2} />
+              <Text
                 style={[
-                  styles.tabItem,
-                  isFocused && {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.92)',
-                    shadowColor: colors.ink,
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.08,
-                    shadowRadius: 8,
-                    elevation: 4,
-                    borderWidth: 0.5,
-                    borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.9)',
-                    borderRadius: 24,
+                  styles.tabLabel,
+                  {
+                    color,
+                    fontFamily: isFocused ? 'Manrope_600SemiBold' : 'Manrope_400Regular',
                   },
                 ]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  const event = navigation.emit({
-                    type: 'tabPress',
-                    target: state.routes[i].key,
-                    canPreventDefault: true,
-                  });
-                  if (!isFocused && !event.defaultPrevented) {
-                    navigation.navigate(tab.name as never);
-                  }
-                }}
               >
-                <tab.Icon size={22} color={color} strokeWidth={2.1} />
-                {isFocused && (
-                  <Text style={[styles.tabLabel, { color: colors.orange }]}>{tab.label}</Text>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
-      </BlurView>
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 export default function TabsLayout() {
   const { isAuthenticated, isLoading } = useAuth();
+  const { colors: c } = useTheme();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -96,9 +121,9 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      tabBar={(props) => <FloatingTabBar {...props} />}
+      tabBar={(props) => <TabBar {...props} />}
       screenOptions={{ headerShown: false }}
-      sceneContainerStyle={{ backgroundColor: '#f7f4ee' }}
+      sceneContainerStyle={{ backgroundColor: c.paper }}
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="quotes" />
@@ -110,48 +135,38 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  outer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
+  container: {
+    borderTopWidth: 1,
   },
-  blur: {
+  indicatorTrack: {
+    height: 3,
     overflow: 'hidden',
-    borderRadius: 28,
-    marginHorizontal: 16,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.18,
-    shadowRadius: 40,
-    elevation: 20,
   },
-  specular: {
+  indicatorSlider: {
     position: 'absolute',
-    top: 1,
-    left: 10,
-    right: 10,
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    zIndex: 1,
+    top: 0,
+    left: 0,
+    height: 3,
   },
-  inner: {
+  accentLine: {
+    flex: 1,
+    height: 3,
+    borderRadius: 2,
+  },
+  tabsRow: {
     flexDirection: 'row',
-    padding: 5,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 7,
-    paddingHorizontal: 4,
-    borderRadius: 24,
-    gap: 2,
+    gap: 4,
   },
   tabLabel: {
-    fontSize: 9,
-    fontFamily: 'Manrope_800ExtraBold',
-    letterSpacing: 0.3,
+    fontSize: 12,
   },
 });
