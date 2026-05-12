@@ -84,7 +84,8 @@
       ],
       "expo-updates",
       "expo-image-picker",
-      "expo-location"
+      "expo-location",
+      "./plugins/with-folly-fix"
     ],
     "experiments": {
       "typedRoutes": true
