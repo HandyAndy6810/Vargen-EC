@@ -130,6 +130,17 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="settings/notifications" />
           <Stack.Screen name="settings/sms-templates" />
           <Stack.Screen name="settings/subscription" />
+          <Stack.Screen name="settings/bank" />
+          <Stack.Screen name="settings/payment-terms" />
+          <Stack.Screen name="settings/widgets" />
+          <Stack.Screen name="customers/index" />
+          <Stack.Screen name="customers/[id]" />
+          <Stack.Screen name="customers/new" />
+          <Stack.Screen name="customers/messages" />
+          <Stack.Screen name="receipts/index" />
+          <Stack.Screen name="receipts/scan" />
+          <Stack.Screen name="jobs/create" />
+          <Stack.Screen name="price-book" />
         </Stack>
       </QueryClientProvider>
     </GestureHandlerRootView>

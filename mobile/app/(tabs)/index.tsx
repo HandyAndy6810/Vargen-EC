@@ -231,6 +231,7 @@ export default function HomeScreen() {
     { id: 'outstanding',  score: (overdueInvoices.length + pendingInvoices.length) > 0 ? 90 + overdueInvoices.length * 5 : 0, fullWidth: false },
     { id: 'schedule',     score: todayJobs.length > 0 ? 80 : 20,   fullWidth: true  },
     { id: 'quickactions', score: 70,                                 fullWidth: true  },
+    { id: 'weather',      score: weather ? 55 : 0,                  fullWidth: true  },
     { id: 'recentquotes', score: 45 + pipeline.accepted * 15 + pipeline.sent * 8, fullWidth: true },
     { id: 'pipeline',     score: 40 + (pipeline.sent + pipeline.accepted) * 5, fullWidth: false },
     { id: 'revenue',      score: 35,                                 fullWidth: false },
@@ -261,7 +262,7 @@ export default function HomeScreen() {
               {([
                 { Icon: Sparkles,  label: 'New Quote',    color: c.orange, bg: c.orangeSoft, route: '/ai-chat' },
                 { Icon: Briefcase, label: 'New Job',      color: BLUE,     bg: isDark ? 'rgba(31,111,235,0.15)' : BLUE_SOFT,    route: '/jobs/create' },
-                { Icon: Users,     label: 'Add Customer', color: c.green,  bg: c.greenSoft,  route: '/customers/create' },
+                { Icon: Users,     label: 'Add Customer', color: c.green,  bg: c.greenSoft,  route: '/customers/new' },
               ] as const).map(({ Icon, label, color, bg, route }) => (
                 <TouchableOpacity key={label} style={[s.qaBtn, { backgroundColor: bg }]} onPress={() => router.push(route as any)} activeOpacity={0.75}>
                   <View style={[s.qaIcon, { backgroundColor: color }]}><Icon size={18} color="#fff" strokeWidth={2} /></View>
