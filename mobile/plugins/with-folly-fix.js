@@ -3,9 +3,9 @@ const path = require('path');
 const fs = require('fs');
 
 // expo-build-properties ccFlags only reaches the main app target, NOT pod targets.
-// This plugin injects a post_install hook into the Podfile that sets
-// -DFOLLY_CFG_NO_COROUTINES=1 on every pod's build configuration, which prevents
-// folly/Expected.h from trying to include folly/coro/Coroutine.h (missing on RN 0.81.x + old arch).
+// CocoaPods forbids multiple post_install blocks, so we inject inside the existing one.
+// Sets -DFOLLY_CFG_NO_COROUTINES=1 on every pod target to prevent folly/Expected.h
+// from trying to include folly/coro/Coroutine.h (missing on Xcode 16 / RN 0.81.x).
 module.exports = function withFollyFix(config) {
   return withDangerousMod(config, [
     'ios',
@@ -18,21 +18,23 @@ module.exports = function withFollyFix(config) {
         return config;
       }
 
-      const hook = [
-        '',
-        tag,
-        'post_install do |installer|',
+      // Inject our lines right after the opening "post_install do |installer|" line
+      const injection = [
+        `  ${tag}`,
         '  installer.pods_project.targets.each do |target|',
         '    target.build_configurations.each do |cfg|',
         "      flags = cfg.build_settings['OTHER_CPLUSPLUSFLAGS'] || '$(inherited)'",
         "      cfg.build_settings['OTHER_CPLUSPLUSFLAGS'] = \"#{flags} -DFOLLY_CFG_NO_COROUTINES=1\"",
         '    end',
         '  end',
-        'end',
-        '',
       ].join('\n');
 
-      fs.writeFileSync(podfilePath, podfile + hook);
+      podfile = podfile.replace(
+        /^(post_install do \|installer\|)\s*$/m,
+        `$1\n${injection}`
+      );
+
+      fs.writeFileSync(podfilePath, podfile);
       return config;
     },
   ]);
