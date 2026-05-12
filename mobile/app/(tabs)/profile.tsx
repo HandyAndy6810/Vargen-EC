@@ -14,7 +14,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
-import { useTheme, type Colors } from '@/hooks/use-theme';
+import { useTheme, type Colors, type ThemeMode } from '@/hooks/use-theme';
 import { useXeroStatus, useXeroDisconnect, useXeroSyncAll } from '@/hooks/use-xero';
 import { API_BASE_URL } from '@/lib/api';
 import { useCustomers } from '@/hooks/use-customers';

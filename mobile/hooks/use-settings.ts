@@ -29,6 +29,8 @@ export type UserSettings = {
   serviceArea: string;
   notificationPrefs: string;
   darkMode: boolean;
+  stripeEnabled: boolean;
+  squareEnabled: boolean;
 };
 
 const QK = ['/api/settings'];

@@ -146,6 +146,21 @@ function makeStyles(c: Colors, isDark: boolean) {
     rvHalfRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11 },
     rvHalfLabel: { fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: c.muted },
     rvHalfAmt: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.3 },
+    weatherCard: { backgroundColor: c.card, borderRadius: 22, borderWidth: 1, borderColor: c.lineSoft, padding: 16, overflow: 'hidden' },
+    weatherTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 },
+    weatherTemp: { fontSize: 52, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -2, lineHeight: 56 },
+    weatherDesc: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: c.mutedHi, marginTop: 2 },
+    weatherHiLo: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: c.muted },
+    weatherBigIcon: { fontSize: 56, lineHeight: 64 },
+    rainWarning: { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff', borderRadius: 12, borderWidth: 1, borderColor: isDark ? 'rgba(59,130,246,0.3)' : '#bfdbfe', padding: 10, marginVertical: 8 },
+    rainWarningText: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: isDark ? '#93c5fd' : '#1d4ed8', lineHeight: 17 },
+    weatherDayCell: { alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: c.lineSoft, backgroundColor: c.paperDeep, minWidth: 58 },
+    weatherDayCellActive: { backgroundColor: c.orange, borderColor: c.orange },
+    weatherDayCellRainy: { borderColor: isDark ? 'rgba(59,130,246,0.4)' : '#93c5fd' },
+    weatherDayLabel: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+    weatherDayIcon: { fontSize: 20, lineHeight: 24 },
+    weatherDayTemp: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
+    weatherDayRain: { fontSize: 9, fontFamily: 'Manrope_700Bold', color: isDark ? '#93c5fd' : '#3b82f6' },
   });
 }
 
