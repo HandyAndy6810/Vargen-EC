@@ -4,16 +4,22 @@ import type { User } from "@shared/mobile-types";
 import { apiRequest } from "@/lib/api";
 import { loadCachedUser, saveCachedUser, clearCachedUser } from "@/lib/auth-cache";
 
+const DEV_BYPASS = process.env.EXPO_PUBLIC_DEV_BYPASS === 'true';
+
 async function fetchUser(): Promise<User | null> {
   // Read cache first so we can fall back if the network is down
   const cached = await loadCachedUser();
+
+  // In dev-bypass builds, if a cached user exists skip the server check entirely
+  if (DEV_BYPASS && cached) return cached;
 
   try {
     const res = await apiRequest("GET", "/api/auth/user");
 
     if (res.status === 401) {
-      await clearCachedUser();
-      return null;
+      // Don't clear cache in dev-bypass mode — server auth is irrelevant
+      if (!DEV_BYPASS) await clearCachedUser();
+      return DEV_BYPASS ? cached : null;
     }
     if (!res.ok) {
       // Server-side error (5xx) — keep user in app on cached session

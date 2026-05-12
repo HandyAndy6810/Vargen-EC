@@ -466,8 +466,9 @@ export default function ProfileScreen() {
         <XeroSection />
 
         <SettingsGroup title="Preferences" items={[
-          { icon: Sun,  label: 'Appearance',    sub: appearanceSub,            onPress: () => setShowAppearance(true) },
-          { icon: Bell, label: 'Notifications', sub: 'Quotes, invoices, reviews', onPress: () => router.push('/settings/notifications' as any) },
+          { icon: Sun,         label: 'Appearance',    sub: appearanceSub,              onPress: () => setShowAppearance(true) },
+          { icon: LayoutGrid,  label: 'Home widgets',  sub: 'Reorder your dashboard',   onPress: () => router.push('/settings/widgets' as any) },
+          { icon: Bell,        label: 'Notifications', sub: 'Quotes, invoices, reviews', onPress: () => router.push('/settings/notifications' as any) },
         ]} />
 
         <SettingsGroup title="Account" items={[

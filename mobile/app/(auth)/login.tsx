@@ -16,6 +16,9 @@ import { queryClient as globalQueryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Sparkles } from "lucide-react-native";
+import { saveCachedUser } from "@/lib/auth-cache";
+
+const DEV_BYPASS = process.env.EXPO_PUBLIC_DEV_BYPASS === 'true';
 
 const ORANGE      = '#FF5C00';
 const ORANGE_DEEP = '#E64500';
@@ -174,10 +177,10 @@ export default function LoginScreen() {
             By continuing, you agree to our Terms of Service and Privacy Policy.
           </Text>
 
-          {__DEV__ && (
+          {(__DEV__ || DEV_BYPASS) && (
             <TouchableOpacity
-              onPress={() => {
-                queryClient.setQueryData(["/api/auth/user"], {
+              onPress={async () => {
+                const mockUser = {
                   id: 'dev-user-001',
                   email: 'dev@vargen.app',
                   firstName: 'Dev',
@@ -187,7 +190,9 @@ export default function LoginScreen() {
                   password: null,
                   resetToken: null,
                   resetTokenExpiry: null,
-                });
+                };
+                await saveCachedUser(mockUser as any);
+                queryClient.setQueryData(["/api/auth/user"], mockUser);
                 router.replace('/(tabs)');
               }}
               style={s.devBtn}
