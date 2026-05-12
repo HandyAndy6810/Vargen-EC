@@ -89,7 +89,6 @@
         "expo-build-properties",
         {
           "ios": {
-            "extraPodspecDependencies": {},
             "ccFlags": "-DFOLLY_CFG_NO_COROUTINES=1"
           }
         }
