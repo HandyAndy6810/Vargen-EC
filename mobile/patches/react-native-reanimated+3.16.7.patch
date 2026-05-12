@@ -11,3 +11,16 @@ index 25e32fe..d3c41f0 100644
  #include <worklets/WorkletRuntime/ReanimatedRuntime.h>
  
  #include <cxxreact/MessageQueueThread.h>
+diff --git a/node_modules/react-native-reanimated/RNReanimated.podspec b/node_modules/react-native-reanimated/RNReanimated.podspec
+index dbc7403..a4b8e54 100644
+--- a/node_modules/react-native-reanimated/RNReanimated.podspec
++++ b/node_modules/react-native-reanimated/RNReanimated.podspec
+@@ -114,7 +114,7 @@ Pod::Spec.new do |s|
+     "GCC_PREPROCESSOR_DEFINITIONS[config=Debug]" => gcc_debug_definitions,
+     "GCC_PREPROCESSOR_DEFINITIONS[config=Release]" => '$(inherited) NDEBUG=1',
+   }
+-  s.compiler_flags = "#{folly_compiler_flags} #{boost_compiler_flags}"
++  s.compiler_flags = "#{folly_compiler_flags} #{boost_compiler_flags} -DFOLLY_CFG_NO_COROUTINES=1"
+   s.xcconfig = {
+     "HEADER_SEARCH_PATHS" => [
+       '"$(PODS_ROOT)/boost"',
