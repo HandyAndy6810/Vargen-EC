@@ -32,6 +32,8 @@ export interface Job {
   estimatedDuration: number | null;
   completionData: string | null;
   createdAt: Date | string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
 }
 
 export interface InsertJob {
@@ -60,6 +62,7 @@ export interface Quote {
   followUpSchedule: string | null;
   sentAt: string | null;
   createdAt: string | null;
+  customerName?: string | null;
 }
 
 export interface Invoice {
@@ -79,7 +82,10 @@ export interface Invoice {
   notes: string | null;
   stripePaymentLinkId: string | null;
   stripePaymentLinkUrl: string | null;
+  squarePaymentLinkId: string | null;
+  squarePaymentLinkUrl: string | null;
   createdAt: string | null;
+  customerName?: string | null;
 }
 
 export interface User {

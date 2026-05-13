@@ -242,7 +242,7 @@ export async function registerRoutes(
 
   // Jobs
   app.get(api.jobs.list.path, requireAuth, async (req: any, res) => {
-    const jobs = await storage.getJobs(req.userId);
+    const jobs = await storage.getJobsWithCustomer(req.userId);
     res.json(jobs);
   });
 
@@ -285,7 +285,7 @@ export async function registerRoutes(
 
   // Quotes
   app.get(api.quotes.list.path, requireAuth, async (req: any, res) => {
-    const quotes = await storage.getQuotes(req.userId);
+    const quotes = await storage.getQuotesWithCustomer(req.userId);
     res.json(quotes);
   });
 
@@ -886,7 +886,7 @@ CRITICAL RULES — follow these exactly:
 
   app.get(api.invoices.list.path, requireAuth, async (req: any, res) => {
     try {
-      const allInvoices = await storage.getInvoices(req.userId);
+      const allInvoices = await storage.getInvoicesWithCustomer(req.userId);
       // Auto-mark overdue: batch-update any "sent" invoice past its due date
       const now = new Date();
       const overdueIds = allInvoices
@@ -1092,6 +1092,18 @@ CRITICAL RULES — follow these exactly:
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to resend invoice" });
+    }
+  });
+
+  app.delete("/api/invoices/:id", requireAuth, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const existing = await storage.getInvoice(id, req.userId);
+      if (!existing) return res.status(404).json({ message: "Invoice not found" });
+      await storage.deleteInvoice(id, req.userId);
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to delete invoice" });
     }
   });
 

@@ -47,7 +47,7 @@ export default function CustomerNewScreen() {
         address: address.trim() || null,
         notes: notes.trim() || null,
       },
-      { onSuccess: () => router.back() }
+      { onSuccess: (newCustomer: any) => router.replace(`/customers/${newCustomer.id}` as any) }
     );
   };
 

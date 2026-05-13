@@ -75,6 +75,22 @@ export default function QuoteDetailScreen() {
     );
   }
 
+  if (!quote) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 14 }}>
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: CARD, borderWidth: 1, borderColor: LINE_SOFT, alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronLeft size={20} color={INK} strokeWidth={2.2} />
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 16, fontFamily: 'Manrope_700Bold', color: MUTED }}>Quote not found</Text>
+          <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED }}>It may have been deleted.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // Parse content JSON
   let content: any = {};
   try { content = JSON.parse(quote?.content || '{}'); } catch {}

@@ -144,6 +144,29 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(jobs.scheduledDate));
   }
 
+  async getJobsWithCustomer(userId: string): Promise<(Job & { customerName: string | null; customerPhone: string | null })[]> {
+    return await db
+      .select({
+        id: jobs.id,
+        userId: jobs.userId,
+        customerId: jobs.customerId,
+        title: jobs.title,
+        description: jobs.description,
+        address: jobs.address,
+        status: jobs.status,
+        scheduledDate: jobs.scheduledDate,
+        estimatedDuration: jobs.estimatedDuration,
+        completionData: jobs.completionData,
+        createdAt: jobs.createdAt,
+        customerName: customers.name,
+        customerPhone: customers.phone,
+      })
+      .from(jobs)
+      .leftJoin(customers, eq(jobs.customerId, customers.id))
+      .where(eq(jobs.userId, userId))
+      .orderBy(desc(jobs.scheduledDate));
+  }
+
   async getJob(id: number, userId?: string): Promise<Job | undefined> {
     const conditions = userId
       ? and(eq(jobs.id, id), eq(jobs.userId, userId))
@@ -168,6 +191,30 @@ export class DatabaseStorage implements IStorage {
   // ── Quotes ────────────────────────────────────────────────────────────
   async getQuotes(userId: string): Promise<Quote[]> {
     return await db.select().from(quotes)
+      .where(eq(quotes.userId, userId))
+      .orderBy(desc(quotes.createdAt));
+  }
+
+  async getQuotesWithCustomer(userId: string): Promise<(Quote & { customerName: string | null })[]> {
+    return await db
+      .select({
+        id: quotes.id,
+        userId: quotes.userId,
+        jobId: quotes.jobId,
+        customerId: quotes.customerId,
+        totalAmount: quotes.totalAmount,
+        status: quotes.status,
+        content: quotes.content,
+        xeroInvoiceId: quotes.xeroInvoiceId,
+        xeroInvoiceNumber: quotes.xeroInvoiceNumber,
+        shareToken: quotes.shareToken,
+        followUpSchedule: quotes.followUpSchedule,
+        sentAt: quotes.sentAt,
+        createdAt: quotes.createdAt,
+        customerName: customers.name,
+      })
+      .from(quotes)
+      .leftJoin(customers, eq(quotes.customerId, customers.id))
       .where(eq(quotes.userId, userId))
       .orderBy(desc(quotes.createdAt));
   }
@@ -223,6 +270,40 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(invoices)
       .where(eq(invoices.userId, userId))
       .orderBy(desc(invoices.createdAt));
+  }
+
+  async getInvoicesWithCustomer(userId: string): Promise<(Invoice & { customerName: string | null })[]> {
+    return await db
+      .select({
+        id: invoices.id,
+        userId: invoices.userId,
+        quoteId: invoices.quoteId,
+        customerId: invoices.customerId,
+        invoiceNumber: invoices.invoiceNumber,
+        status: invoices.status,
+        items: invoices.items,
+        subtotal: invoices.subtotal,
+        gstAmount: invoices.gstAmount,
+        totalAmount: invoices.totalAmount,
+        dueDate: invoices.dueDate,
+        paidDate: invoices.paidDate,
+        paidAmount: invoices.paidAmount,
+        notes: invoices.notes,
+        stripePaymentLinkId: invoices.stripePaymentLinkId,
+        stripePaymentLinkUrl: invoices.stripePaymentLinkUrl,
+        squarePaymentLinkId: invoices.squarePaymentLinkId,
+        squarePaymentLinkUrl: invoices.squarePaymentLinkUrl,
+        createdAt: invoices.createdAt,
+        customerName: customers.name,
+      })
+      .from(invoices)
+      .leftJoin(customers, eq(invoices.customerId, customers.id))
+      .where(eq(invoices.userId, userId))
+      .orderBy(desc(invoices.createdAt));
+  }
+
+  async deleteInvoice(id: number, userId: string): Promise<void> {
+    await db.delete(invoices).where(and(eq(invoices.id, id), eq(invoices.userId, userId)));
   }
 
   async getInvoice(id: number, userId?: string): Promise<Invoice | undefined> {

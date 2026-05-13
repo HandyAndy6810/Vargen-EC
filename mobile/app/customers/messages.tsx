@@ -59,7 +59,7 @@ export default function CustomerMessagesScreen() {
   const [direction, setDirection] = useState<'out' | 'in'>('out');
   const listRef = useRef<FlatList>(null);
 
-  const name = [customer?.firstName, customer?.lastName].filter(Boolean).join(' ') || 'Customer';
+  const name = customer?.name || 'Customer';
 
   const handleSend = () => {
     const trimmed = body.trim();

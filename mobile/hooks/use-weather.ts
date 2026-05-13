@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import * as Location from 'expo-location';
 import { apiRequest } from '@/lib/api';
 
@@ -28,24 +28,26 @@ export function useWeather() {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locError, setLocError] = useState<string | null>(null);
 
-  // Get user's location once
-  useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setLocError('Location permission denied');
-          return;
-        }
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        setLocation({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        });
-      } catch (err) {
-        setLocError('Failed to get location');
+  const requestLocation = useCallback(async () => {
+    setLocError(null);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocError('Location permission denied');
+        return;
       }
-    })();
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setLocation({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
+    } catch (err) {
+      setLocError('Failed to get location');
+    }
+  }, []);
+
+  useEffect(() => {
+    requestLocation();
   }, []);
 
   // Fetch weather data using location
@@ -64,7 +66,9 @@ export function useWeather() {
   return {
     data,
     isLoading,
+    locError,
     error: error || locError,
     refetch,
+    requestLocation,
   };
 }
