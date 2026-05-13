@@ -1,10 +1,12 @@
 import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, ActivityIndicator, Alert, Image, TextInput } from 'react-native';
+import { useState } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Image as ImageIcon, X } from 'lucide-react-native';
+import { ChevronLeft, Image as ImageIcon, X, Sparkles, Type } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
+import { apiRequest } from '@/lib/api';
 
 function makeStyles(c: Colors) {
   return StyleSheet.create({
@@ -45,11 +47,21 @@ const HEADER_STYLES = [
   { value: 'classic', label: 'Classic' },
 ];
 
+function makeInitialsSvg(businessName: string, accentColor: string): string {
+  const words = businessName.trim().split(/\s+/).filter(Boolean);
+  const initials = words.length >= 2
+    ? (words[0][0] + words[1][0]).toUpperCase()
+    : (businessName.slice(0, 2)).toUpperCase();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100"><rect width="200" height="100" rx="16" fill="${accentColor}"/><text x="100" y="68" font-family="Arial,Helvetica,sans-serif" font-size="52" font-weight="bold" fill="white" text-anchor="middle">${initials}</text></svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
 export default function InvoiceSettingsScreen() {
   const { colors: c } = useTheme();
   const s = makeStyles(c);
   const { data: settings, isLoading } = useSettings();
   const update = useUpdateSettings();
+  const [generating, setGenerating] = useState(false);
 
   if (isLoading) {
     return (
@@ -166,6 +178,50 @@ export default function InvoiceSettingsScreen() {
                 >
                   <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink }}>{logoUrl ? 'Replace logo' : 'Pick from camera roll'}</Text>
                 </TouchableOpacity>
+                {!logoUrl ? (
+                  <TouchableOpacity
+                    style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    onPress={() => save({ logoUrl: makeInitialsSvg(settings?.businessName ?? '', accent) })}
+                    activeOpacity={0.7}
+                  >
+                    <Type size={14} color={c.ink} strokeWidth={2} />
+                    <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink }}>Use initials</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {!logoUrl ? (
+                  <TouchableOpacity
+                    style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: generating ? c.paperDeep : c.orange, borderWidth: 1, borderColor: generating ? c.lineSoft : c.orange, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: generating ? 0.7 : 1 }}
+                    onPress={async () => {
+                      if (generating) return;
+                      setGenerating(true);
+                      try {
+                        const biz = settings?.businessName ?? 'my business';
+                        const trade = settings?.tradeType ?? 'trade';
+                        const prompt = `Minimal professional logo mark for '${biz}', a ${trade} trade business. Simple bold icon, no text, clean vector style, white background, suitable for printing on business documents and invoices.`;
+                        const data = await apiRequest('POST', '/api/generate-image', { prompt, size: '256x256' });
+                        if (data?.b64_json) {
+                          save({ logoUrl: `data:image/png;base64,${data.b64_json}` });
+                        } else {
+                          Alert.alert('Logo generation unavailable', 'Try picking from your camera roll instead.');
+                        }
+                      } catch {
+                        Alert.alert('Logo generation unavailable', 'Try picking from your camera roll instead.');
+                      } finally {
+                        setGenerating(false);
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    {generating ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Sparkles size={14} color="#fff" strokeWidth={2} />
+                    )}
+                    <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: generating ? c.ink : '#fff' }}>
+                      {generating ? 'Generating…' : 'Generate with AI'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
                 {logoUrl ? (
                   <TouchableOpacity
                     style={{ paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' }}

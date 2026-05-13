@@ -45,7 +45,11 @@ function buildHeader(data: PdfDocumentData, s: UserSettings): string {
   const addr = escHtml(s.address ?? '');
   const phone = escHtml(s.phone ?? '');
   const email = escHtml(s.email ?? '');
-  const logo = s.logoUrl
+  // On gradient headers, multiply blend mode makes white logo backgrounds disappear into the colour
+  const logoGradient = s.logoUrl
+    ? `<img src="${escHtml(s.logoUrl)}" style="height:56px;max-width:140px;object-fit:contain;mix-blend-mode:multiply;" alt="logo" />`
+    : '';
+  const logoFlat = s.logoUrl
     ? `<img src="${escHtml(s.logoUrl)}" style="height:56px;max-width:140px;object-fit:contain;" alt="logo" />`
     : '';
 
@@ -58,7 +62,7 @@ function buildHeader(data: PdfDocumentData, s: UserSettings): string {
           ${addr ? `<div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:4px;">${addr}</div>` : ''}
           <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:2px;">${[phone, email].filter(Boolean).join('  ·  ')}</div>
         </div>
-        <div style="margin-top:2px;">${logo}</div>
+        <div style="margin-top:2px;">${logoGradient}</div>
       </div>
     </div>`;
   }
@@ -72,7 +76,7 @@ function buildHeader(data: PdfDocumentData, s: UserSettings): string {
           <div style="font-size:20px;font-weight:800;color:#141310;letter-spacing:-0.4px;">${biz}</div>
           <div style="font-size:11px;color:rgba(20,19,16,0.55);margin-top:3px;">${[addr, phone, email].filter(Boolean).join('  ·  ')}</div>
         </div>
-        ${logo}
+        ${logoFlat}
       </div>
     </div>`;
   }
@@ -82,7 +86,7 @@ function buildHeader(data: PdfDocumentData, s: UserSettings): string {
   <div style="padding:28px 36px 16px;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;">
       <div style="display:flex;align-items:center;gap:16px;flex:1;">
-        ${logo}
+        ${logoFlat}
         <div>
           <div style="font-size:20px;font-weight:800;color:#141310;letter-spacing:-0.4px;">${biz}</div>
         </div>

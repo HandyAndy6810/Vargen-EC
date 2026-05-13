@@ -167,7 +167,7 @@ export async function registerRoutes(
   // 2. Register Integration Routes
   registerChatRoutes(app);
   registerAudioRoutes(app);
-  registerImageRoutes(app);
+  registerImageRoutes(app, requireAuth);
 
   // 3. Register Application Routes
 
