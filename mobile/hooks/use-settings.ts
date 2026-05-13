@@ -31,6 +31,7 @@ export type UserSettings = {
   darkMode: boolean;
   stripeEnabled: boolean;
   squareEnabled: boolean;
+  bladeOrder?: string;
 };
 
 const QK = ['/api/settings'];

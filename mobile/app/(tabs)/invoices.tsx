@@ -75,9 +75,10 @@ export default function InvoicesScreen() {
     setRefreshing(false);
   }, []);
 
+  // Treat errors as empty data so the screen is usable even without a server session
   const sorted = useMemo(
-    () => [...((invoices as any[]) || [])].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
-    [invoices]
+    () => [...((isError ? [] : (invoices as any[])) || [])].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
+    [invoices, isError]
   );
 
   const filtered = useMemo(() => {
@@ -105,9 +106,6 @@ export default function InvoicesScreen() {
 
   if (isLoading) {
     return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.paper }}><ActivityIndicator size="large" color={c.orange} /></View>;
-  }
-  if (isError) {
-    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.paper }}><Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>Couldn't load invoices</Text></View>;
   }
 
   return (

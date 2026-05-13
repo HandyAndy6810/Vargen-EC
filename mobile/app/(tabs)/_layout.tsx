@@ -1,5 +1,5 @@
 import { Tabs, router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,8 +33,8 @@ function TabBar({ state, navigation }: any) {
   const prevIndex    = useRef(state.index);
   const prevTabWidth = useRef(0);
 
-  // Snap to correct position whenever tabWidth is first measured or changes (rotation)
-  useEffect(() => {
+  // Snap to correct position before first paint so indicator is visible immediately
+  useLayoutEffect(() => {
     if (tabWidth === 0) return;
     if (prevTabWidth.current !== tabWidth) {
       leftEdge.setValue(state.index * tabWidth);
@@ -61,7 +61,8 @@ function TabBar({ state, navigation }: any) {
     ]).start();
   }, [state.index, tabWidth]);
 
-  const indicatorWidth = Animated.subtract(rightEdge, leftEdge);
+  // Memoize so the same Animated node is reused across renders
+  const indicatorWidth = useMemo(() => Animated.subtract(rightEdge, leftEdge), []);
 
   return (
     <View

@@ -104,7 +104,8 @@ export default function QuotesScreen() {
     setRefreshing(false);
   }, []);
 
-  const allQuotes = (quotes || []) as QuoteWithJoins[];
+  // Treat errors as empty data so the screen is usable even without a server session
+  const allQuotes = (isError ? [] : (quotes || [])) as QuoteWithJoins[];
   const sorted = useMemo(
     () => [...allQuotes].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
     [allQuotes]
@@ -134,9 +135,6 @@ export default function QuotesScreen() {
 
   if (isLoading) {
     return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.paper }}><ActivityIndicator size="large" color={c.orange} /></View>;
-  }
-  if (isError) {
-    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.paper }}><Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>Couldn't load quotes</Text></View>;
   }
 
   return (

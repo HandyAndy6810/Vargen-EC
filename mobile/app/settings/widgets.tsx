@@ -7,7 +7,7 @@ import {
   Switch,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronUp, ChevronDown } from 'lucide-react-native';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
@@ -64,6 +64,16 @@ export default function WidgetsScreen() {
   }, [settings?.bladeOrder]);
 
   const [order, setOrder] = useState<string[]>(initialOrder);
+  const loadedBladeOrder = useRef<string | null>(null);
+
+  // Sync order when settings first loads or bladeOrder changes (useState ignores updates to initial value)
+  useEffect(() => {
+    const bo = settings?.bladeOrder ?? null;
+    if (bo !== loadedBladeOrder.current) {
+      loadedBladeOrder.current = bo;
+      setOrder(initialOrder);
+    }
+  }, [settings?.bladeOrder, initialOrder]);
 
   const isVisible = (id: string) => !order.find(entry => entry === `-${id}`);
   const idOf = (entry: string) => entry.replace(/^-/, '');
