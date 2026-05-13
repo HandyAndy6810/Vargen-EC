@@ -308,7 +308,7 @@ export default function HomeScreen() {
               {([
                 { Icon: Sparkles,  label: 'New Quote',    color: c.orange, bg: c.orangeSoft, route: '/ai-chat' },
                 { Icon: Briefcase, label: 'New Job',      color: BLUE,     bg: isDark ? 'rgba(31,111,235,0.15)' : BLUE_SOFT,    route: '/jobs/create' },
-                { Icon: Users,     label: 'Add Customer', color: c.green,  bg: c.greenSoft,  route: '/customers/new' },
+                { Icon: Users,     label: 'Customers',    color: c.green,  bg: c.greenSoft,  route: '/customers' },
               ] as const).map(({ Icon, label, color, bg, route }) => (
                 <TouchableOpacity key={label} style={[s.qaBtn, { backgroundColor: bg }]} onPress={() => router.push(route as any)} activeOpacity={0.75}>
                   <View style={[s.qaIcon, { backgroundColor: color }]}><Icon size={18} color="#fff" strokeWidth={2} /></View>

@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useState, useEffect } from 'react';
-import { router, useNavigation } from 'expo-router';
+import { router, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
@@ -49,9 +49,11 @@ const DEFAULT_LINES: LineItem[] = [
 ];
 
 export default function QuoteCreateScreen() {
-  const [mode, setMode] = useState<Mode>('ai');
+  const { customerName: prefillName, customerId: prefillCustomerId } = useLocalSearchParams<{ customerName?: string; customerId?: string }>();
+  const [mode, setMode] = useState<Mode>(prefillName ? 'form' : 'ai');
   const [aiDescription, setAiDescription] = useState('');
-  const [customer, setCustomer]   = useState('');
+  const [customer, setCustomer]   = useState(prefillName || '');
+  const [customerId, setCustomerId] = useState<number | null>(prefillName && prefillCustomerId ? Number(prefillCustomerId) : null);
   const [jobTitle, setJobTitle]   = useState('');
   const [schedDate, setSchedDate] = useState('');
   const [notes, setNotes]         = useState('');
@@ -95,6 +97,7 @@ export default function QuoteCreateScreen() {
       const res = await apiRequest('POST', '/api/quotes', {
         totalAmount: String(total),
         status,
+        customerId: customerId ?? undefined,
         content: JSON.stringify({ customerName: customer, jobTitle, schedDate, notes, lines }),
       });
       if (!res.ok) throw new Error('Failed to save quote');

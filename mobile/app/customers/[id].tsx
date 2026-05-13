@@ -3,23 +3,26 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
   StyleSheet,
   Linking,
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Phone, MessageSquare, Mail, MapPin, FileText } from 'lucide-react-native';
-import { useCustomer } from '@/hooks/use-customers';
+import { ChevronLeft, Phone, MessageSquare, Mail, MapPin, FileText, Pencil, Trash2 } from 'lucide-react-native';
+import { useCustomer, useUpdateCustomer, useDeleteCustomer } from '@/hooks/use-customers';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_SOFT = '#ffe6d3';
-const ORANGE_DEEP = '#d94d0e';
 const INK         = '#141310';
 const BLACK       = '#0f0e0b';
 const PAPER       = '#f7f4ee';
 const PAPER_DEEP  = '#efe9dd';
 const CARD        = '#ffffff';
+const MUTED_HI    = 'rgba(20,19,16,0.72)';
 const GREEN       = '#2a9d4c';
 const GREEN_SOFT  = '#e5f6eb';
 const BLUE        = '#1f6feb';
@@ -60,6 +63,53 @@ function openMaps(address: string) {
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: customer, isLoading } = useCustomer(Number(id));
+  const { mutate: updateCustomer, isPending: isSaving } = useUpdateCustomer();
+  const { mutate: deleteCustomer } = useDeleteCustomer();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName]       = useState('');
+  const [editPhone, setEditPhone]     = useState('');
+  const [editEmail, setEditEmail]     = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editNotes, setEditNotes]     = useState('');
+
+  const startEditing = () => {
+    if (!customer) return;
+    setEditName(customer.name);
+    setEditPhone(customer.phone || '');
+    setEditEmail(customer.email || '');
+    setEditAddress(customer.address || '');
+    setEditNotes(customer.notes || '');
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editName.trim()) return;
+    updateCustomer(
+      { id: Number(id), data: {
+        name: editName.trim(),
+        phone: editPhone.trim() || null,
+        email: editEmail.trim() || null,
+        address: editAddress.trim() || null,
+        notes: editNotes.trim() || null,
+      }},
+      { onSuccess: () => setIsEditing(false) }
+    );
+  };
+
+  const handleDelete = () => {
+    if (!customer) return;
+    Alert.alert(
+      'Delete customer?',
+      `Remove ${customer.name} and all their contact history? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => {
+          deleteCustomer(Number(id), { onSuccess: () => router.back() });
+        }},
+      ]
+    );
+  };
 
   if (isLoading) {
     return (
@@ -84,114 +134,215 @@ export default function CustomerDetailScreen() {
     );
   }
 
+  const avatarLabel = initials(isEditing ? (editName || customer.name) : customer.name);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.navBtn}>
-            <ChevronLeft size={18} color={INK} strokeWidth={2.1} />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>Customer</Text>
-          <View style={{ width: 40 }} />
+          {isEditing ? (
+            <TouchableOpacity
+              onPress={() => setIsEditing(false)}
+              style={[s.navBtn, { width: 'auto', paddingHorizontal: 14 }]}
+            >
+              <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: MUTED }}>Cancel</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => router.back()} style={s.navBtn}>
+              <ChevronLeft size={18} color={INK} strokeWidth={2.1} />
+            </TouchableOpacity>
+          )}
+          <Text style={s.headerTitle}>{isEditing ? 'Edit customer' : 'Customer'}</Text>
+          {isEditing ? (
+            <TouchableOpacity
+              onPress={handleSaveEdit}
+              disabled={isSaving || !editName.trim()}
+              style={[s.navBtn, { width: 'auto', paddingHorizontal: 14, backgroundColor: ORANGE, borderColor: ORANGE }]}
+            >
+              {isSaving
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: '#fff' }}>Save</Text>}
+            </TouchableOpacity>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity onPress={startEditing} style={s.navBtn}>
+                <Pencil size={15} color={INK} strokeWidth={2} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDelete} style={s.navBtn}>
+                <Trash2 size={15} color={ORANGE} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Hero */}
         <View style={s.hero}>
           <View style={s.heroGlow} />
           <View style={s.avatarWrap}>
-            <Text style={s.avatarText}>{initials(customer.name)}</Text>
+            <Text style={s.avatarText}>{avatarLabel}</Text>
           </View>
-          <Text style={s.name}>{customer.name}</Text>
-          {customer.address ? (
-            <Text style={s.heroSub} numberOfLines={2}>{customer.address}</Text>
-          ) : null}
-        </View>
-
-        {/* Quick actions */}
-        <View style={s.actionsRow}>
-          {customer.phone ? (
+          {isEditing ? (
+            <TextInput
+              style={s.editNameInput}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Customer name"
+              placeholderTextColor={MUTED}
+              autoCapitalize="words"
+              autoFocus
+              textAlign="center"
+            />
+          ) : (
             <>
-              <TouchableOpacity style={[s.actionBtn, { backgroundColor: GREEN_SOFT }]} onPress={() => openCall(customer.phone!)}>
-                <Phone size={20} color={GREEN} strokeWidth={2} />
-                <Text style={[s.actionLabel, { color: GREEN }]}>Call</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.actionBtn, { backgroundColor: ORANGE_SOFT }]} onPress={() => openSMS(customer.phone!)}>
-                <MessageSquare size={20} color={ORANGE} strokeWidth={2} />
-                <Text style={[s.actionLabel, { color: ORANGE }]}>Message</Text>
-              </TouchableOpacity>
+              <Text style={s.name}>{customer.name}</Text>
+              {customer.address ? (
+                <Text style={s.heroSub} numberOfLines={2}>{customer.address}</Text>
+              ) : null}
             </>
-          ) : null}
-          {customer.email ? (
-            <TouchableOpacity style={[s.actionBtn, { backgroundColor: BLUE_SOFT }]} onPress={() => openEmail(customer.email!)}>
-              <Mail size={20} color={BLUE} strokeWidth={2} />
-              <Text style={[s.actionLabel, { color: BLUE }]}>Email</Text>
-            </TouchableOpacity>
-          ) : null}
-          <TouchableOpacity
-            style={[s.actionBtn, { backgroundColor: PAPER_DEEP }]}
-            onPress={() => router.push('/quotes/create' as any)}
-          >
-            <FileText size={20} color={INK} strokeWidth={2} />
-            <Text style={[s.actionLabel, { color: INK }]}>Quote</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.actionBtn, { backgroundColor: '#f3e8ff' }]}
-            onPress={() => router.push(`/customers/messages?id=${id}` as any)}
-          >
-            <MessageSquare size={20} color="#7c3aed" strokeWidth={2} />
-            <Text style={[s.actionLabel, { color: '#7c3aed' }]}>History</Text>
-          </TouchableOpacity>
+          )}
         </View>
 
-        {/* Contact details */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <Text style={s.sectionEyebrow}>Contact details</Text>
-          <View style={s.card}>
-            {customer.phone ? (
-              <TouchableOpacity style={s.detailRow} onPress={() => openCall(customer.phone!)}>
+        {isEditing ? (
+          /* ── Edit form ── */
+          <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+            <Text style={s.sectionEyebrow}>Contact details</Text>
+            <View style={s.card}>
+              <View style={s.editRow}>
                 <View style={s.detailIcon}><Phone size={15} color={ORANGE} strokeWidth={2} /></View>
-                <Text style={s.detailText}>{customer.phone}</Text>
-                <Text style={s.detailAction}>Call</Text>
-              </TouchableOpacity>
-            ) : null}
-            {customer.email ? (
-              <TouchableOpacity style={[s.detailRow, { borderTopWidth: customer.phone ? 1 : 0, borderTopColor: LINE_SOFT }]} onPress={() => openEmail(customer.email!)}>
-                <View style={s.detailIcon}><Mail size={15} color={BLUE} strokeWidth={2} /></View>
-                <Text style={s.detailText}>{customer.email}</Text>
-                <Text style={[s.detailAction, { color: BLUE }]}>Email</Text>
-              </TouchableOpacity>
-            ) : null}
-            {customer.address ? (
-              <TouchableOpacity style={[s.detailRow, { borderTopWidth: (customer.phone || customer.email) ? 1 : 0, borderTopColor: LINE_SOFT }]} onPress={() => openMaps(customer.address!)}>
-                <View style={s.detailIcon}><MapPin size={15} color={MUTED} strokeWidth={2} /></View>
-                <Text style={[s.detailText, { flex: 1 }]}>{customer.address}</Text>
-                <Text style={[s.detailAction, { color: MUTED }]}>Maps</Text>
-              </TouchableOpacity>
-            ) : null}
-            {!customer.phone && !customer.email && !customer.address ? (
-              <View style={s.detailRow}>
-                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED }}>No contact details on file</Text>
+                <TextInput
+                  style={s.editInput}
+                  value={editPhone}
+                  onChangeText={setEditPhone}
+                  placeholder="Phone"
+                  placeholderTextColor={MUTED}
+                  keyboardType="phone-pad"
+                />
               </View>
-            ) : null}
-          </View>
-        </View>
+              <View style={[s.editRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                <View style={s.detailIcon}><Mail size={15} color={BLUE} strokeWidth={2} /></View>
+                <TextInput
+                  style={s.editInput}
+                  value={editEmail}
+                  onChangeText={setEditEmail}
+                  placeholder="Email"
+                  placeholderTextColor={MUTED}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+              <View style={[s.editRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                <View style={s.detailIcon}><MapPin size={15} color={MUTED} strokeWidth={2} /></View>
+                <TextInput
+                  style={s.editInput}
+                  value={editAddress}
+                  onChangeText={setEditAddress}
+                  placeholder="Address"
+                  placeholderTextColor={MUTED}
+                />
+              </View>
+            </View>
 
-        {/* Notes */}
-        {customer.notes ? (
-          <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
-            <Text style={s.sectionEyebrow}>Notes</Text>
+            <Text style={[s.sectionEyebrow, { marginTop: 18 }]}>Notes</Text>
             <View style={[s.card, { padding: 14 }]}>
-              <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED_HI, lineHeight: 20 }}>{customer.notes}</Text>
+              <TextInput
+                style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: INK, minHeight: 80, textAlignVertical: 'top' }}
+                value={editNotes}
+                onChangeText={setEditNotes}
+                placeholder="Gate codes, preferences, parking…"
+                placeholderTextColor={MUTED}
+                multiline
+              />
             </View>
           </View>
-        ) : null}
+        ) : (
+          /* ── View mode ── */
+          <>
+            {/* Quick actions */}
+            <View style={s.actionsRow}>
+              {customer.phone ? (
+                <>
+                  <TouchableOpacity style={[s.actionBtn, { backgroundColor: GREEN_SOFT }]} onPress={() => openCall(customer.phone!)}>
+                    <Phone size={20} color={GREEN} strokeWidth={2} />
+                    <Text style={[s.actionLabel, { color: GREEN }]}>Call</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.actionBtn, { backgroundColor: ORANGE_SOFT }]} onPress={() => openSMS(customer.phone!)}>
+                    <MessageSquare size={20} color={ORANGE} strokeWidth={2} />
+                    <Text style={[s.actionLabel, { color: ORANGE }]}>Message</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+              {customer.email ? (
+                <TouchableOpacity style={[s.actionBtn, { backgroundColor: BLUE_SOFT }]} onPress={() => openEmail(customer.email!)}>
+                  <Mail size={20} color={BLUE} strokeWidth={2} />
+                  <Text style={[s.actionLabel, { color: BLUE }]}>Email</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                style={[s.actionBtn, { backgroundColor: PAPER_DEEP }]}
+                onPress={() => router.push(`/quotes/create?customerName=${encodeURIComponent(customer.name)}&customerId=${customer.id}` as any)}
+              >
+                <FileText size={20} color={INK} strokeWidth={2} />
+                <Text style={[s.actionLabel, { color: INK }]}>Quote</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.actionBtn, { backgroundColor: '#f3e8ff' }]}
+                onPress={() => router.push(`/customers/messages?id=${id}` as any)}
+              >
+                <MessageSquare size={20} color="#7c3aed" strokeWidth={2} />
+                <Text style={[s.actionLabel, { color: '#7c3aed' }]}>History</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Contact details */}
+            <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+              <Text style={s.sectionEyebrow}>Contact details</Text>
+              <View style={s.card}>
+                {customer.phone ? (
+                  <TouchableOpacity style={s.detailRow} onPress={() => openCall(customer.phone!)}>
+                    <View style={s.detailIcon}><Phone size={15} color={ORANGE} strokeWidth={2} /></View>
+                    <Text style={s.detailText}>{customer.phone}</Text>
+                    <Text style={s.detailAction}>Call</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {customer.email ? (
+                  <TouchableOpacity style={[s.detailRow, { borderTopWidth: customer.phone ? 1 : 0, borderTopColor: LINE_SOFT }]} onPress={() => openEmail(customer.email!)}>
+                    <View style={s.detailIcon}><Mail size={15} color={BLUE} strokeWidth={2} /></View>
+                    <Text style={s.detailText}>{customer.email}</Text>
+                    <Text style={[s.detailAction, { color: BLUE }]}>Email</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {customer.address ? (
+                  <TouchableOpacity style={[s.detailRow, { borderTopWidth: (customer.phone || customer.email) ? 1 : 0, borderTopColor: LINE_SOFT }]} onPress={() => openMaps(customer.address!)}>
+                    <View style={s.detailIcon}><MapPin size={15} color={MUTED} strokeWidth={2} /></View>
+                    <Text style={[s.detailText, { flex: 1 }]}>{customer.address}</Text>
+                    <Text style={[s.detailAction, { color: MUTED }]}>Maps</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {!customer.phone && !customer.email && !customer.address ? (
+                  <View style={s.detailRow}>
+                    <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED }}>No contact details on file</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+
+            {/* Notes */}
+            {customer.notes ? (
+              <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+                <Text style={s.sectionEyebrow}>Notes</Text>
+                <View style={[s.card, { padding: 14 }]}>
+                  <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED_HI, lineHeight: 20 }}>{customer.notes}</Text>
+                </View>
+              </View>
+            ) : null}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const MUTED_HI = 'rgba(20,19,16,0.72)';
 
 const s = StyleSheet.create({
   header: {
@@ -203,8 +354,8 @@ const s = StyleSheet.create({
     gap: 12,
   },
   navBtn: {
-    width: 40,
     height: 40,
+    minWidth: 40,
     borderRadius: 12,
     backgroundColor: CARD,
     borderWidth: 1,
@@ -268,6 +419,18 @@ const s = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
+  editNameInput: {
+    fontSize: 24,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.5,
+    borderBottomWidth: 2,
+    borderBottomColor: ORANGE,
+    paddingBottom: 4,
+    paddingHorizontal: 8,
+    minWidth: 200,
+    textAlign: 'center',
+  },
   actionsRow: {
     flexDirection: 'row',
     paddingHorizontal: 20,
@@ -308,6 +471,13 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
+  editRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
   detailIcon: {
     width: 32,
     height: 32,
@@ -327,5 +497,12 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Manrope_700Bold',
     color: ORANGE,
+  },
+  editInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Manrope_600SemiBold',
+    color: INK,
+    paddingVertical: 2,
   },
 });
