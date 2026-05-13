@@ -157,6 +157,7 @@ function makeStyles(c: Colors, isDark: boolean) {
     rvHalfRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11 },
     rvHalfLabel: { fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: c.muted },
     rvHalfAmt: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.3 },
+    weatherCardShadow: { borderRadius: 22, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 18, elevation: 6 },
     weatherCard: { backgroundColor: c.card, borderRadius: 22, borderWidth: 1, borderColor: c.lineSoft, padding: 16, overflow: 'hidden' },
     weatherTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 },
     weatherTemp: { fontSize: 52, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -2, lineHeight: 56 },
@@ -540,6 +541,7 @@ export default function HomeScreen() {
         return (
           <View style={{ paddingHorizontal: 20 }}>
             <Text style={s.eyebrow}>Weather</Text>
+            <View style={s.weatherCardShadow}>
             <View style={s.weatherCard}>
               {/* Current conditions */}
               <View style={s.weatherTop}>
@@ -587,6 +589,7 @@ export default function HomeScreen() {
                   );
                 })}
               </ScrollView>
+            </View>
             </View>
           </View>
         );
