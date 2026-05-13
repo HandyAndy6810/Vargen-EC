@@ -1,8 +1,11 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { openai } from "./client";
 
-export function registerImageRoutes(app: Express): void {
-  app.post("/api/generate-image", async (req: Request, res: Response) => {
+type Middleware = (req: Request, res: Response, next: NextFunction) => void;
+
+export function registerImageRoutes(app: Express, requireAuth?: Middleware): void {
+  const guard = requireAuth ?? ((_r: any, _s: any, n: any) => n());
+  app.post("/api/generate-image", guard, async (req: Request, res: Response) => {
     try {
       const { prompt, size = "1024x1024" } = req.body;
 

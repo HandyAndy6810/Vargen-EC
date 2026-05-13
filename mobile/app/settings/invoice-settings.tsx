@@ -1,12 +1,18 @@
-import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, ActivityIndicator, Alert, Image, TextInput } from 'react-native';
+import { useState } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Image as ImageIcon, X, Sparkles, Type } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
+import { apiRequest } from '@/lib/api';
 
 function makeStyles(c: Colors) {
   return StyleSheet.create({
+    logoPreview: { width: 72, height: 72, borderRadius: 12, resizeMode: 'contain' },
+    logoPlaceholder: { width: 72, height: 72, borderRadius: 12, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+    urlInput: { flex: 1, fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.ink, paddingVertical: 0 },
     header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14, paddingTop: 4 },
     backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
     titleWrap: { flex: 1 },
@@ -41,11 +47,21 @@ const HEADER_STYLES = [
   { value: 'classic', label: 'Classic' },
 ];
 
+function makeInitialsSvg(businessName: string, accentColor: string): string {
+  const words = businessName.trim().split(/\s+/).filter(Boolean);
+  const initials = words.length >= 2
+    ? (words[0][0] + words[1][0]).toUpperCase()
+    : (businessName.slice(0, 2)).toUpperCase();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100"><rect width="200" height="100" rx="16" fill="${accentColor}"/><text x="100" y="68" font-family="Arial,Helvetica,sans-serif" font-size="52" font-weight="bold" fill="white" text-anchor="middle">${initials}</text></svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
 export default function InvoiceSettingsScreen() {
   const { colors: c } = useTheme();
   const s = makeStyles(c);
   const { data: settings, isLoading } = useSettings();
   const update = useUpdateSettings();
+  const [generating, setGenerating] = useState(false);
 
   if (isLoading) {
     return (
@@ -68,6 +84,26 @@ export default function InvoiceSettingsScreen() {
   const accent = settings?.quoteAccentColor ?? '#f26a2a';
   const font = settings?.quoteFontFamily ?? 'inter';
   const headerStyle = settings?.quoteHeaderStyle ?? 'gradient';
+  const logoUrl = settings?.logoUrl ?? '';
+
+  const pickLogo = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow access to your photo library to pick a logo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      base64: true,
+      allowsEditing: true,
+      aspect: [4, 2],
+    });
+    if (!result.canceled && result.assets[0]?.base64) {
+      const ext = result.assets[0].mimeType?.split('/')[1] ?? 'jpeg';
+      save({ logoUrl: `data:image/${ext};base64,${result.assets[0].base64}` });
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
@@ -120,6 +156,102 @@ export default function InvoiceSettingsScreen() {
               />
             </View>
           </View>
+        </View>
+
+        {/* Logo */}
+        <View style={s.group}>
+          <Text style={s.groupLabel}>Business logo</Text>
+          <View style={s.card}>
+            <View style={[s.row, { gap: 14 }]}>
+              {logoUrl ? (
+                <Image source={{ uri: logoUrl }} style={s.logoPreview} />
+              ) : (
+                <TouchableOpacity style={s.logoPlaceholder} onPress={pickLogo} activeOpacity={0.7}>
+                  <ImageIcon size={22} color={c.muted} strokeWidth={1.8} />
+                </TouchableOpacity>
+              )}
+              <View style={{ flex: 1, gap: 8 }}>
+                <TouchableOpacity
+                  style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center' }}
+                  onPress={pickLogo}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink }}>{logoUrl ? 'Replace logo' : 'Pick from camera roll'}</Text>
+                </TouchableOpacity>
+                {!logoUrl ? (
+                  <TouchableOpacity
+                    style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    onPress={() => save({ logoUrl: makeInitialsSvg(settings?.businessName ?? '', accent) })}
+                    activeOpacity={0.7}
+                  >
+                    <Type size={14} color={c.ink} strokeWidth={2} />
+                    <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink }}>Use initials</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {!logoUrl ? (
+                  <TouchableOpacity
+                    style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: generating ? c.paperDeep : c.orange, borderWidth: 1, borderColor: generating ? c.lineSoft : c.orange, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: generating ? 0.7 : 1 }}
+                    onPress={async () => {
+                      if (generating) return;
+                      setGenerating(true);
+                      try {
+                        const biz = settings?.businessName ?? 'my business';
+                        const trade = settings?.tradeType ?? 'trade';
+                        const prompt = `Minimal professional logo mark for '${biz}', a ${trade} trade business. Simple bold icon, no text, clean vector style, white background, suitable for printing on business documents and invoices.`;
+                        const data = await apiRequest('POST', '/api/generate-image', { prompt, size: '256x256' });
+                        if (data?.b64_json) {
+                          save({ logoUrl: `data:image/png;base64,${data.b64_json}` });
+                        } else {
+                          Alert.alert('Logo generation unavailable', 'Try picking from your camera roll instead.');
+                        }
+                      } catch {
+                        Alert.alert('Logo generation unavailable', 'Try picking from your camera roll instead.');
+                      } finally {
+                        setGenerating(false);
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    {generating ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Sparkles size={14} color="#fff" strokeWidth={2} />
+                    )}
+                    <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: generating ? c.ink : '#fff' }}>
+                      {generating ? 'Generating…' : 'Generate with AI'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+                {logoUrl ? (
+                  <TouchableOpacity
+                    style={{ paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' }}
+                    onPress={() => save({ logoUrl: '' })}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: c.muted }}>Remove logo</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+            <View style={[s.row, s.rowDivider, { paddingTop: 10, paddingBottom: 10 }]}>
+              <Text style={[s.rowSub, { marginRight: 8 }]}>Or paste URL</Text>
+              <TextInput
+                style={s.urlInput}
+                value={logoUrl.startsWith('data:') ? '' : logoUrl}
+                onChangeText={(v) => save({ logoUrl: v })}
+                placeholder="https://..."
+                placeholderTextColor={c.muted}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {logoUrl && !logoUrl.startsWith('data:') ? (
+                <TouchableOpacity onPress={() => save({ logoUrl: '' })} activeOpacity={0.7} style={{ padding: 4 }}>
+                  <X size={14} color={c.muted} strokeWidth={2} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+          <Text style={s.hint}>Appears on all PDFs. Crop to a wide (4:2) aspect ratio for best results.</Text>
         </View>
 
         {/* Accent colour */}
