@@ -39,7 +39,7 @@ type Quote = {
   createdAt: Date | null;
 };
 
-type QuoteWithJoins = Quote & { customerName?: string; expiresAt?: Date | null; title?: string };
+type QuoteWithJoins = Quote & { customerName?: string | null; expiryDate?: string | null; title?: string };
 
 function parseTitle(quote: QuoteWithJoins): string {
   if (quote.title) return quote.title;
@@ -107,10 +107,16 @@ export default function QuotesScreen() {
   // Treat errors as empty data so the screen is usable even without a server session
   const allQuotes = (isError ? [] : (quotes || [])) as QuoteWithJoins[];
   const sorted = useMemo(
-    () => [...allQuotes].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
+    () => [...allQuotes]
+      .map((q) => {
+        let expiryDate: string | null = null;
+        try { expiryDate = q.content ? (JSON.parse(q.content).expiryDate ?? null) : null; } catch {}
+        return { ...q, expiryDate };
+      })
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
     [allQuotes]
   );
-  const overdueQuotes = sorted.filter((q) => q.status === 'sent' && q.expiresAt && new Date(q.expiresAt) < new Date());
+  const overdueQuotes = sorted.filter((q) => q.status === 'sent' && q.expiryDate && new Date(q.expiryDate) < new Date());
 
   const filtered = useMemo(() => {
     let list = sorted;

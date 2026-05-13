@@ -81,6 +81,28 @@ export function useCreateInvoice() {
   });
 }
 
+export function useDeleteInvoice() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl('/api/invoices/:id' as any, { id });
+      const res = await apiRequest('DELETE', url);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || 'Failed to delete invoice');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.invoices.list.path] });
+      toast({ title: 'Invoice deleted' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
 export function useConvertQuoteToInvoice() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

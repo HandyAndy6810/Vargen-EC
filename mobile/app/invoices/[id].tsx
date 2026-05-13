@@ -11,12 +11,12 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useInvoice, useUpdateInvoice } from '@/hooks/use-invoices';
+import { useInvoice, useUpdateInvoice, useDeleteInvoice } from '@/hooks/use-invoices';
 import { useStripePaymentLink } from '@/hooks/use-stripe';
 import { useSquarePaymentLink } from '@/hooks/use-square';
 import { useSettings } from '@/hooks/use-settings';
 import { buildQuotePDF, type PdfDocumentData } from '@/lib/quote-pdf';
-import { ChevronLeft, Check, CreditCard, Building2, Copy, FileText } from 'lucide-react-native';
+import { ChevronLeft, Check, CreditCard, Building2, Copy, FileText, MoreHorizontal } from 'lucide-react-native';
 import { format, differenceInCalendarDays } from 'date-fns';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -44,6 +44,7 @@ export default function InvoiceDetailScreen() {
   const invoiceId = id ? Number(id) : 0;
   const { data: invoice, isLoading } = useInvoice(invoiceId) as any;
   const updateInvoice = useUpdateInvoice();
+  const deleteInvoice = useDeleteInvoice();
   const stripeLink = useStripePaymentLink();
   const squareLink = useSquarePaymentLink();
   const { data: settings } = useSettings();
@@ -125,10 +126,45 @@ export default function InvoiceDetailScreen() {
     }
   };
 
+  const handleDelete = () => {
+    Alert.alert('Delete invoice?', 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => deleteInvoice.mutate(invoiceId, { onSuccess: () => router.back() }),
+      },
+    ]);
+  };
+
+  const handleMore = () => {
+    const actions: Array<{ text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }> = [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete invoice', style: 'destructive', onPress: handleDelete },
+    ];
+    Alert.alert('Invoice options', '', actions);
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: PAPER, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
         <ActivityIndicator size="large" color={ORANGE} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!invoice) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 14 }}>
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: CARD, borderWidth: 1, borderColor: LINE_SOFT, alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronLeft size={20} color={INK} strokeWidth={2.2} />
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 16, fontFamily: 'Manrope_700Bold', color: MUTED }}>Invoice not found</Text>
+          <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED }}>It may have been deleted.</Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -188,6 +224,11 @@ export default function InvoiceDetailScreen() {
           <Text style={s.eyebrow}>{num}</Text>
           <Text style={s.title} numberOfLines={1}>{title}</Text>
         </View>
+        {!isPaid && (
+          <TouchableOpacity onPress={handleMore} activeOpacity={0.7} style={s.iconBtn}>
+            <MoreHorizontal size={18} color={INK} strokeWidth={2.2} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>

@@ -8,6 +8,7 @@ import {
   Platform,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router, useNavigation } from 'expo-router';
@@ -16,6 +17,7 @@ import { apiRequest } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Sparkles, FileText, Plus, Trash2, Camera, Send } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -54,6 +56,8 @@ export default function QuoteCreateScreen() {
   const [schedDate, setSchedDate] = useState('');
   const [notes, setNotes]         = useState('');
   const [lines, setLines]         = useState<LineItem[]>(DEFAULT_LINES);
+  const [receiptBase64, setReceiptBase64] = useState<string | null>(null);
+  const [error, setError]         = useState<string | null>(null);
 
   const subtotal = lines.reduce((s, l) => {
     const q = parseFloat(l.qty)  || 0;
@@ -67,6 +71,24 @@ export default function QuoteCreateScreen() {
   const removeLine = (i: number) => setLines(prev => prev.filter((_, idx) => idx !== i));
   const updateLine = (i: number, key: keyof LineItem, val: string) =>
     setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [key]: val } : l));
+
+  const handlePickReceipt = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow access to your photo library to attach a receipt.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]?.base64) {
+      const ext = result.assets[0].mimeType?.split('/')[1] ?? 'jpeg';
+      setReceiptBase64(`data:image/${ext};base64,${result.assets[0].base64}`);
+      setAiDescription(prev => prev ? prev + '\n[Receipt attached]' : '[Receipt attached]');
+    }
+  };
 
   const saveMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent') => {
@@ -82,7 +104,17 @@ export default function QuoteCreateScreen() {
       queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
       router.back();
     },
+    onError: () => Alert.alert('Could not save', 'Check your connection and try again.'),
   });
+
+  const handleSave = (status: 'draft' | 'sent') => {
+    if (!jobTitle.trim()) { setError('Job title is required'); return; }
+    if (lines.every(l => !l.price || parseFloat(l.price) <= 0)) {
+      setError('Add at least one line item with a price'); return;
+    }
+    setError(null);
+    saveMutation.mutate(status);
+  };
 
   const handleStartWithAI = () => {
     const desc = aiDescription.trim();
@@ -193,9 +225,9 @@ export default function QuoteCreateScreen() {
 
             {/* Quick actions */}
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
-              <TouchableOpacity style={[s.quickBtn, { flex: 1 }]} activeOpacity={0.7}>
-                <Camera size={18} color={INK} strokeWidth={2} />
-                <Text style={s.quickBtnText}>Photo / receipt</Text>
+              <TouchableOpacity style={[s.quickBtn, { flex: 1, borderColor: receiptBase64 ? ORANGE : LINE_SOFT }]} activeOpacity={0.7} onPress={handlePickReceipt}>
+                <Camera size={18} color={receiptBase64 ? ORANGE : INK} strokeWidth={2} />
+                <Text style={[s.quickBtnText, receiptBase64 && { color: ORANGE }]}>{receiptBase64 ? 'Receipt attached' : 'Photo / receipt'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.quickBtn, { flex: 1 }]}
@@ -352,14 +384,21 @@ export default function QuoteCreateScreen() {
 
         {/* Bottom CTAs — form mode only */}
         {mode === 'form' && (
-          <View style={[s.bottomBar, { flexDirection: 'row', gap: 10 }]}>
-            <TouchableOpacity style={s.secondaryBtn} activeOpacity={0.7} onPress={() => saveMutation.mutate('draft')} disabled={saveMutation.isPending}>
-              <Text style={s.secondaryBtnText}>Save draft</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.primaryBtn, { flex: 2 }]} activeOpacity={0.8} onPress={() => saveMutation.mutate('sent')} disabled={saveMutation.isPending}>
-              <Send size={16} color="#fff" strokeWidth={2} />
-              <Text style={s.primaryBtnText}>Send to customer</Text>
-            </TouchableOpacity>
+          <View style={s.bottomBar}>
+            {error ? (
+              <View style={{ backgroundColor: '#fde5e5', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 10 }}>
+                <Text style={{ fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: '#d23b3b' }}>{error}</Text>
+              </View>
+            ) : null}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={s.secondaryBtn} activeOpacity={0.7} onPress={() => handleSave('draft')} disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? <ActivityIndicator size="small" color={INK} /> : <Text style={s.secondaryBtnText}>Save draft</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.primaryBtn, { flex: 2 }]} activeOpacity={0.8} onPress={() => handleSave('sent')} disabled={saveMutation.isPending}>
+                <Send size={16} color="#fff" strokeWidth={2} />
+                <Text style={s.primaryBtnText}>Send to customer</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </KeyboardAvoidingView>
