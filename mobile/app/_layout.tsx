@@ -65,7 +65,7 @@ function ThemedStatusBar() {
 
 // ── Inner app (gates on fonts + theme ready + auth cache) ────────────────────
 function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
-  const { ready: themeReady } = useTheme();
+  const { ready: themeReady, colors } = useTheme();
   const [authReady, setAuthReady] = useState(false);
   const notifListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
@@ -98,10 +98,10 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
   if (!fontsLoaded || !themeReady || !authReady) return <View style={{ flex: 1, backgroundColor: '#0F0905' }} />;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
       <QueryClientProvider client={queryClient}>
         <ThemedStatusBar />
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper } }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
