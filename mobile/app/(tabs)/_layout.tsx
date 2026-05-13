@@ -83,9 +83,9 @@ function TabBar({ state, navigation }: any) {
             style={[styles.indicatorSlider, { left: leftEdge, width: indicatorWidth }]}
           >
             <LinearGradient
-              colors={[ORANGE, 'rgba(232,84,26,0.0)']}
+              colors={[ORANGE, ORANGE]}
               start={{ x: 0, y: 0 }}
-              end={{ x: 0.9, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={styles.accentLine}
             />
           </Animated.View>

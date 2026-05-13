@@ -386,8 +386,7 @@ export default function QuoteDetailScreen() {
           style={s.tweakBtn}
           activeOpacity={0.7}
           onPress={() => {
-            const desc = content.jobTitle || title;
-            router.push(`/ai-chat?description=${encodeURIComponent(desc)}` as any);
+            router.push(`/quotes/create?quoteId=${id}` as any);
           }}
         >
           <Edit2 size={15} color={INK} strokeWidth={2} />

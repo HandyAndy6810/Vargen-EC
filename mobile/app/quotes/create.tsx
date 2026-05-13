@@ -11,13 +11,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useState, useEffect } from 'react';
-import { router, useNavigation, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Sparkles, FileText, Plus, Trash2, Camera, Send } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useQuote } from '@/hooks/use-quotes';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -36,7 +37,6 @@ type Mode = 'ai' | 'form';
 
 type LineItem = { name: string; qty: string; price: string };
 
-// Trade-specific quick suggestions — update when trade type is added to user profile
 const QUICK_SUGGESTIONS = [
   'Replace hot water system — Rheem 315L, same location',
   'Fix leaking tap — kitchen mixer, supply new cartridge',
@@ -49,17 +49,51 @@ const DEFAULT_LINES: LineItem[] = [
 ];
 
 export default function QuoteCreateScreen() {
-  const { customerName: prefillName, customerId: prefillCustomerId } = useLocalSearchParams<{ customerName?: string; customerId?: string }>();
-  const [mode, setMode] = useState<Mode>(prefillName ? 'form' : 'ai');
+  const {
+    customerName: prefillName,
+    customerId: prefillCustomerId,
+    quoteId: editIdParam,
+  } = useLocalSearchParams<{ customerName?: string; customerId?: string; quoteId?: string }>();
+
+  const editId = editIdParam ? Number(editIdParam) : 0;
+  const isEditing = editId > 0;
+
+  const [mode, setMode] = useState<Mode>((prefillName || isEditing) ? 'form' : 'ai');
   const [aiDescription, setAiDescription] = useState('');
+  const [descFocused, setDescFocused] = useState(false);
   const [customer, setCustomer]   = useState(prefillName || '');
-  const [customerId, setCustomerId] = useState<number | null>(prefillName && prefillCustomerId ? Number(prefillCustomerId) : null);
+  const [customerId, setCustomerId] = useState<number | null>(
+    prefillName && prefillCustomerId ? Number(prefillCustomerId) : null
+  );
   const [jobTitle, setJobTitle]   = useState('');
   const [schedDate, setSchedDate] = useState('');
   const [notes, setNotes]         = useState('');
   const [lines, setLines]         = useState<LineItem[]>(DEFAULT_LINES);
   const [receiptBase64, setReceiptBase64] = useState<string | null>(null);
   const [error, setError]         = useState<string | null>(null);
+  const [populated, setPopulated] = useState(false);
+
+  // Fetch existing quote when editing
+  const { data: editQuote } = useQuote(editId);
+
+  useEffect(() => {
+    if (!editQuote || populated) return;
+    let c: any = {};
+    try { c = JSON.parse((editQuote as any).content || '{}'); } catch {}
+    setJobTitle(c.jobTitle || '');
+    setCustomer(c.customerName || '');
+    if ((editQuote as any).customerId) setCustomerId((editQuote as any).customerId);
+    setSchedDate(c.schedDate || '');
+    setNotes(c.notes || '');
+    if (c.lines?.length > 0) {
+      setLines(c.lines.map((l: any) => ({
+        name: l.name || '',
+        qty: String(l.qty || 1),
+        price: String(l.price || ''),
+      })));
+    }
+    setPopulated(true);
+  }, [editQuote]);
 
   const subtotal = lines.reduce((s, l) => {
     const q = parseFloat(l.qty)  || 0;
@@ -94,12 +128,15 @@ export default function QuoteCreateScreen() {
 
   const saveMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent') => {
-      const res = await apiRequest('POST', '/api/quotes', {
+      const body = {
         totalAmount: String(total),
         status,
         customerId: customerId ?? undefined,
         content: JSON.stringify({ customerName: customer, jobTitle, schedDate, notes, lines }),
-      });
+      };
+      const res = isEditing
+        ? await apiRequest('PATCH', `/api/quotes/${editId}`, body)
+        : await apiRequest('POST', '/api/quotes', body);
       if (!res.ok) throw new Error('Failed to save quote');
       return res.json();
     },
@@ -109,6 +146,21 @@ export default function QuoteCreateScreen() {
     },
     onError: () => Alert.alert('Could not save', 'Check your connection and try again.'),
   });
+
+  const hasWork = () =>
+    aiDescription.trim() || customer.trim() || jobTitle.trim() || schedDate.trim() || notes.trim() ||
+    lines.some(l => l.name.trim() || l.qty !== '1' || l.price.trim());
+
+  const handleBack = () => {
+    if (hasWork() && !isEditing) {
+      Alert.alert('Leave without saving?', 'Your quote details will be lost.', [
+        { text: 'Stay', style: 'cancel' },
+        { text: 'Leave', style: 'destructive', onPress: () => router.back() },
+      ]);
+    } else {
+      router.back();
+    }
+  };
 
   const handleSave = (status: 'draft' | 'sent') => {
     if (!jobTitle.trim()) { setError('Job title is required'); return; }
@@ -128,65 +180,53 @@ export default function QuoteCreateScreen() {
     }
   };
 
-  const navigation = useNavigation();
-  useEffect(() => {
-    const unsub = navigation.addListener('beforeRemove' as any, (e: any) => {
-      const hasWork = aiDescription.trim() || customer.trim() || jobTitle.trim() || schedDate.trim() || notes.trim() || lines.some(l => l.name.trim() || l.qty !== '1' || l.price.trim());
-      if (!hasWork) return;
-      e.preventDefault();
-      Alert.alert('Leave without saving?', 'Your quote details will be lost.', [
-        { text: 'Stay', style: 'cancel' },
-        { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
-      ]);
-    });
-    return unsub;
-  }, [navigation, aiDescription, customer, jobTitle, schedDate, notes, lines]);
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+          <TouchableOpacity onPress={handleBack} activeOpacity={0.7} style={s.backBtn}>
             <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.eyebrow}>Quotes</Text>
-            <Text style={s.title}>New quote</Text>
+            <Text style={s.title}>{isEditing ? 'Edit quote' : 'New quote'}</Text>
           </View>
         </View>
 
-        {/* Mode toggle */}
-        <View style={{ paddingHorizontal: 20, paddingBottom: 14 }}>
-          <View style={s.modeToggle}>
-            {([
-              { id: 'ai',   label: 'Use AI',    Icon: Sparkles  },
-              { id: 'form', label: 'Manual',     Icon: FileText  },
-            ] as { id: Mode; label: string; Icon: any }[]).map((t) => {
-              const active = mode === t.id;
-              return (
-                <TouchableOpacity
-                  key={t.id}
-                  onPress={() => setMode(t.id)}
-                  activeOpacity={0.7}
-                  style={[s.modeBtn, active && s.modeBtnActive]}
-                >
-                  <t.Icon size={14} color={active ? INK : MUTED} strokeWidth={2} />
-                  <Text style={[s.modeBtnText, active && s.modeBtnTextActive]}>{t.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
+        {/* Mode toggle — hidden in edit mode (always form) */}
+        {!isEditing && (
+          <View style={{ paddingHorizontal: 20, paddingBottom: 14 }}>
+            <View style={s.modeToggle}>
+              {([
+                { id: 'ai',   label: 'Use AI',    Icon: Sparkles  },
+                { id: 'form', label: 'Manual',     Icon: FileText  },
+              ] as { id: Mode; label: string; Icon: any }[]).map((t) => {
+                const active = mode === t.id;
+                return (
+                  <TouchableOpacity
+                    key={t.id}
+                    onPress={() => setMode(t.id)}
+                    activeOpacity={0.7}
+                    style={[s.modeBtn, active && s.modeBtnActive]}
+                  >
+                    <t.Icon size={14} color={active ? INK : MUTED} strokeWidth={2} />
+                    <Text style={[s.modeBtnText, active && s.modeBtnTextActive]}>{t.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
-        </View>
+        )}
 
         {mode === 'ai' ? (
           /* ── AI mode ── */
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-            {/* Hero card — headline + input unified */}
+            {/* Hero card */}
             <View style={s.aiHero}>
               <View style={s.aiHeroGlow} />
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 }}>
                 <View style={s.aiAvatar}>
                   <Sparkles size={24} color="#fff" strokeWidth={2} />
                 </View>
@@ -197,16 +237,21 @@ export default function QuoteCreateScreen() {
                   <Text style={s.aiSubtitle}>Describe the job — I'll price and build it.</Text>
                 </View>
               </View>
-              <TextInput
-                style={s.descInput}
-                placeholder="e.g. Replace hot water system at Smiths place, Rheem 315L…"
-                placeholderTextColor={'rgba(255,255,255,0.35)'}
-                value={aiDescription}
-                onChangeText={setAiDescription}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
+              {/* Prominent describe input with orange glow on focus/fill */}
+              <View style={[s.descInputWrap, (descFocused || aiDescription) ? s.descInputWrapActive : null]}>
+                <TextInput
+                  style={s.descInput}
+                  placeholder="e.g. Replace hot water system at Smiths place, Rheem 315L…"
+                  placeholderTextColor={'rgba(255,255,255,0.35)'}
+                  value={aiDescription}
+                  onChangeText={setAiDescription}
+                  onFocus={() => setDescFocused(true)}
+                  onBlur={() => setDescFocused(false)}
+                  multiline
+                  numberOfLines={5}
+                  textAlignVertical="top"
+                />
+              </View>
             </View>
 
             {/* Quick suggestions */}
@@ -228,26 +273,31 @@ export default function QuoteCreateScreen() {
 
             {/* Quick actions */}
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
-              <TouchableOpacity style={[s.quickBtn, { flex: 1, borderColor: receiptBase64 ? ORANGE : LINE_SOFT }]} activeOpacity={0.7} onPress={handlePickReceipt}>
+              <TouchableOpacity
+                style={[s.quickBtn, { flex: 1, borderColor: receiptBase64 ? ORANGE : LINE_SOFT }]}
+                activeOpacity={0.7}
+                onPress={handlePickReceipt}
+              >
                 <Camera size={18} color={receiptBase64 ? ORANGE : INK} strokeWidth={2} />
-                <Text style={[s.quickBtnText, receiptBase64 && { color: ORANGE }]}>{receiptBase64 ? 'Receipt attached' : 'Photo / receipt'}</Text>
+                <Text style={[s.quickBtnText, receiptBase64 && { color: ORANGE }]}>
+                  {receiptBase64 ? 'Receipt attached' : 'Photo / receipt'}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.quickBtn, { flex: 1 }]}
                 activeOpacity={0.7}
-                onPress={() => Alert.alert('Templates', 'Quote templates are coming soon.\n\nYou\'ll be able to save any quote as a template and reuse it with one tap.', [{ text: 'Got it' }])}
+                onPress={() => Alert.alert(
+                  'Templates',
+                  "Quote templates are coming soon.\n\nYou'll be able to save any quote as a template and reuse it with one tap.",
+                  [{ text: 'Got it' }]
+                )}
               >
                 <FileText size={18} color={INK} strokeWidth={2} />
                 <Text style={s.quickBtnText}>From template</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Start with AI — in flow, never overlaps */}
-            <TouchableOpacity
-              style={s.primaryBtn}
-              activeOpacity={0.8}
-              onPress={handleStartWithAI}
-            >
+            <TouchableOpacity style={s.primaryBtn} activeOpacity={0.8} onPress={handleStartWithAI}>
               <Sparkles size={18} color="#fff" strokeWidth={2} />
               <Text style={s.primaryBtnText}>Start with AI</Text>
             </TouchableOpacity>
@@ -337,7 +387,7 @@ export default function QuoteCreateScreen() {
                       value={item.name}
                       onChangeText={(v) => updateLine(i, 'name', v)}
                     />
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         <Text style={s.lineMetaLabel}>Qty</Text>
                         <TextInput
@@ -371,14 +421,14 @@ export default function QuoteCreateScreen() {
                     onPress={() => removeLine(i)}
                     activeOpacity={0.7}
                     style={s.removeBtn}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   >
                     <Trash2 size={14} color={MUTED} strokeWidth={2} />
                   </TouchableOpacity>
                 </View>
               ))}
               <TouchableOpacity style={s.addLineBtn} activeOpacity={0.7} onPress={addLine}>
-                <Plus size={14} color={ORANGE_DEEP} strokeWidth={2.5} />
+                <Plus size={16} color={ORANGE_DEEP} strokeWidth={2.5} />
                 <Text style={s.addLineBtnText}>Add line item</Text>
               </TouchableOpacity>
             </View>
@@ -389,15 +439,28 @@ export default function QuoteCreateScreen() {
         {mode === 'form' && (
           <View style={s.bottomBar}>
             {error ? (
-              <View style={{ backgroundColor: '#fde5e5', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 10 }}>
-                <Text style={{ fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: '#d23b3b' }}>{error}</Text>
+              <View style={{ backgroundColor: '#fde5e5', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12 }}>
+                <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: '#d23b3b' }}>{error}</Text>
               </View>
             ) : null}
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity style={s.secondaryBtn} activeOpacity={0.7} onPress={() => handleSave('draft')} disabled={saveMutation.isPending}>
-                {saveMutation.isPending ? <ActivityIndicator size="small" color={INK} /> : <Text style={s.secondaryBtnText}>Save draft</Text>}
+              <TouchableOpacity
+                style={s.secondaryBtn}
+                activeOpacity={0.7}
+                onPress={() => handleSave('draft')}
+                disabled={saveMutation.isPending}
+              >
+                {saveMutation.isPending
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Text style={s.secondaryBtnText}>Save draft</Text>
+                }
               </TouchableOpacity>
-              <TouchableOpacity style={[s.primaryBtn, { flex: 2 }]} activeOpacity={0.8} onPress={() => handleSave('sent')} disabled={saveMutation.isPending}>
+              <TouchableOpacity
+                style={[s.primaryBtn, { flex: 2 }]}
+                activeOpacity={0.8}
+                onPress={() => handleSave('sent')}
+                disabled={saveMutation.isPending}
+              >
                 <Send size={16} color="#fff" strokeWidth={2} />
                 <Text style={s.primaryBtnText}>Send to customer</Text>
               </TouchableOpacity>
@@ -418,9 +481,9 @@ const s = StyleSheet.create({
     paddingBottom: 14,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: CARD,
     borderWidth: 1,
     borderColor: LINE_SOFT,
@@ -449,7 +512,7 @@ const s = StyleSheet.create({
   },
   modeBtn: {
     flex: 1,
-    height: 40,
+    height: 44,
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -484,26 +547,26 @@ const s = StyleSheet.create({
   },
   aiHeroGlow: {
     position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+    top: -60,
+    right: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
     backgroundColor: `${ORANGE}88`,
-    opacity: 0.4,
+    opacity: 0.5,
   },
   aiAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     backgroundColor: ORANGE,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
     shadowColor: ORANGE,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
     elevation: 6,
   },
   aiHeadline: {
@@ -520,22 +583,34 @@ const s = StyleSheet.create({
     color: 'rgba(255,255,255,0.55)',
     lineHeight: 17,
   },
+  descInputWrap: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
+  },
+  descInputWrapActive: {
+    borderColor: ORANGE,
+    shadowColor: ORANGE,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
+    elevation: 10,
+  },
   descInput: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    padding: 14,
-    fontSize: 14,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    padding: 16,
+    fontSize: 15,
     fontFamily: 'Manrope_600SemiBold',
     color: '#fff',
-    minHeight: 88,
+    minHeight: 140,
   },
   sugRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    padding: 14,
+    padding: 16,
     paddingHorizontal: 16,
     borderRadius: 16,
     backgroundColor: CARD,
@@ -553,8 +628,8 @@ const s = StyleSheet.create({
     color: INK,
   },
   quickBtn: {
-    height: 52,
-    borderRadius: 14,
+    height: 56,
+    borderRadius: 16,
     backgroundColor: CARD,
     borderWidth: 1,
     borderColor: LINE_SOFT,
@@ -573,7 +648,7 @@ const s = StyleSheet.create({
   totalHero: {
     backgroundColor: BLACK,
     borderRadius: 20,
-    padding: 18,
+    padding: 20,
     overflow: 'hidden',
     marginBottom: 20,
   },
@@ -621,12 +696,12 @@ const s = StyleSheet.create({
   fieldRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 12,
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Manrope_700Bold',
     color: MUTED_HI,
     width: 72,
@@ -634,7 +709,7 @@ const s = StyleSheet.create({
   },
   fieldInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Manrope_700Bold',
     color: INK,
     paddingVertical: 2,
@@ -643,38 +718,38 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   lineNameInput: {
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: 'Manrope_700Bold',
     color: INK,
     paddingVertical: 0,
   },
   lineMetaLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: 'Manrope_600SemiBold',
     color: MUTED,
   },
   lineMetaInput: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Manrope_700Bold',
     color: INK,
-    minWidth: 40,
-    paddingVertical: 0,
+    minWidth: 44,
+    paddingVertical: 3,
     borderBottomWidth: 1,
     borderBottomColor: LINE_MID,
   },
   lineTotal: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
     color: INK,
   },
   removeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: PAPER_DEEP,
     alignItems: 'center',
     justifyContent: 'center',
@@ -686,12 +761,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    padding: 14,
+    paddingVertical: 18,
     borderTopWidth: 1,
     borderTopColor: LINE_MID,
   },
   addLineBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
     color: ORANGE_DEEP,
   },
@@ -702,10 +777,10 @@ const s = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingTop: 12,
-    paddingBottom: 32,
+    paddingTop: 14,
+    paddingBottom: 34,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(247,244,238,0.92)',
+    backgroundColor: 'rgba(247,244,238,0.96)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.85)',
     shadowColor: '#141310',
@@ -716,7 +791,7 @@ const s = StyleSheet.create({
     zIndex: 30,
   },
   primaryBtn: {
-    height: 56,
+    height: 60,
     borderRadius: 20,
     backgroundColor: ORANGE,
     flexDirection: 'row',
@@ -730,28 +805,26 @@ const s = StyleSheet.create({
     elevation: 8,
   },
   primaryBtnText: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: 'Manrope_800ExtraBold',
     color: '#fff',
   },
   secondaryBtn: {
     flex: 1,
-    height: 56,
+    height: 60,
     borderRadius: 20,
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: LINE_MID,
+    backgroundColor: BLACK,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.18,
     shadowRadius: 12,
-    elevation: 2,
+    elevation: 4,
   },
   secondaryBtnText: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: '#fff',
   },
 });
