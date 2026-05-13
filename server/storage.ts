@@ -144,6 +144,28 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(jobs.scheduledDate));
   }
 
+  async getJobsWithCustomer(userId: string): Promise<(Job & { customerName: string | null })[]> {
+    return await db
+      .select({
+        id: jobs.id,
+        userId: jobs.userId,
+        customerId: jobs.customerId,
+        title: jobs.title,
+        description: jobs.description,
+        address: jobs.address,
+        status: jobs.status,
+        scheduledDate: jobs.scheduledDate,
+        estimatedDuration: jobs.estimatedDuration,
+        completionData: jobs.completionData,
+        createdAt: jobs.createdAt,
+        customerName: customers.name,
+      })
+      .from(jobs)
+      .leftJoin(customers, eq(jobs.customerId, customers.id))
+      .where(eq(jobs.userId, userId))
+      .orderBy(desc(jobs.scheduledDate));
+  }
+
   async getJob(id: number, userId?: string): Promise<Job | undefined> {
     const conditions = userId
       ? and(eq(jobs.id, id), eq(jobs.userId, userId))

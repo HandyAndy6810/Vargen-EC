@@ -32,6 +32,7 @@ export interface Job {
   estimatedDuration: number | null;
   completionData: string | null;
   createdAt: Date | string | null;
+  customerName?: string | null;
 }
 
 export interface InsertJob {

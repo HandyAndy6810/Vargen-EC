@@ -242,7 +242,7 @@ export async function registerRoutes(
 
   // Jobs
   app.get(api.jobs.list.path, requireAuth, async (req: any, res) => {
-    const jobs = await storage.getJobs(req.userId);
+    const jobs = await storage.getJobsWithCustomer(req.userId);
     res.json(jobs);
   });
 

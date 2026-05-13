@@ -3,22 +3,21 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
 } from 'react-native';
 import { useState, useMemo } from 'react';
 import { router } from 'expo-router';
-import { format, startOfWeek, addDays, isToday } from 'date-fns';
+import { format, startOfWeek, addDays, addWeeks, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
 import { useWeather } from '@/hooks/use-weather';
-import { Plus, Search } from 'lucide-react-native';
+import { Plus, Search, X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 
-const BLUE = '#1f6feb';
-
 const HOUR_H = 54;
-const START_H = 7;
-const END_H = 19;
+const START_H = 6;
+const END_H = 20;
 
 function formatTime(v: number) {
   const h = Math.floor(v);
@@ -28,8 +27,8 @@ function formatTime(v: number) {
   return m === 0 ? `${hh}${ampm}` : `${hh}:${String(m).padStart(2, '0')}${ampm}`;
 }
 
-function getJobHour(dateStr: string): number {
-  const d = new Date(dateStr);
+function getJobHour(dateStr: string | Date): number {
+  const d = new Date(dateStr as any);
   return d.getHours() + d.getMinutes() / 60;
 }
 
@@ -39,7 +38,10 @@ function makeStyles(c: Colors, isDark: boolean) {
     eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 },
     title: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
     iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
+    iconBtnActive: { backgroundColor: c.orange, borderColor: c.orange },
     addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', shadowColor: c.orange, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.33, shadowRadius: 14, elevation: 6 },
+    searchBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 10, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, gap: 8 },
+    searchInput: { flex: 1, fontSize: 14, fontFamily: 'Manrope_500Medium', color: c.ink, paddingVertical: 0 },
     dayCell: { flex: 1, paddingVertical: 10, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', gap: 2 },
     dayCellActive: { backgroundColor: c.orange, borderColor: c.orange },
     dayLabel: { fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: 1, opacity: 0.55, textTransform: 'uppercase' },
@@ -62,17 +64,30 @@ export default function CalendarScreen() {
   const s = makeStyles(c, isDark);
 
   const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
+  const [weekOffset, setWeekOffset] = useState(0);
   const [dayIdx, setDayIdx] = useState(() => {
-    const todayIdx = days.findIndex(d => isToday(d));
+    const todayIdx = Array.from({ length: 7 }, (_, i) =>
+      addDays(startOfWeek(now, { weekStartsOn: 1 }), i)
+    ).findIndex(d => isToday(d));
     return todayIdx >= 0 ? todayIdx : 0;
   });
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const weekStart = useMemo(
+    () => startOfWeek(addWeeks(now, weekOffset), { weekStartsOn: 1 }),
+    [weekOffset]
+  );
+  const days = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekStart]
+  );
 
   const { data: jobs } = useJobs();
   const { data: weather } = useWeather();
   const allJobs = (jobs as any[]) || [];
+
   const weatherByDate = useMemo(() => {
     const map: Record<string, any> = {};
     for (const day of (weather as any)?.forecast ?? []) {
@@ -80,54 +95,136 @@ export default function CalendarScreen() {
     }
     return map;
   }, [weather]);
+
   const selectedDay = days[dayIdx];
 
   const dayJobs = useMemo(() => {
-    return allJobs.filter((j: any) => {
-      if (!j.scheduledDate) return false;
-      const d = new Date(j.scheduledDate);
-      return d.getFullYear() === selectedDay.getFullYear() &&
-             d.getMonth() === selectedDay.getMonth() &&
-             d.getDate() === selectedDay.getDate();
-    }).sort((a: any, b: any) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
-  }, [allJobs, selectedDay]);
+    const q = searchQuery.trim().toLowerCase();
+    return allJobs
+      .filter((j: any) => {
+        if (!j.scheduledDate) return false;
+        const d = new Date(j.scheduledDate);
+        return (
+          d.getFullYear() === selectedDay.getFullYear() &&
+          d.getMonth() === selectedDay.getMonth() &&
+          d.getDate() === selectedDay.getDate()
+        );
+      })
+      .filter((j: any) => {
+        if (!q) return true;
+        return (
+          (j.title ?? '').toLowerCase().includes(q) ||
+          (j.customerName ?? '').toLowerCase().includes(q)
+        );
+      })
+      .sort((a: any, b: any) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
+  }, [allJobs, selectedDay, searchQuery]);
 
   const jobCountPerDay = useMemo(() => {
-    return days.map(day => allJobs.filter((j: any) => {
-      if (!j.scheduledDate) return false;
-      const d = new Date(j.scheduledDate);
-      return d.getFullYear() === day.getFullYear() && d.getMonth() === day.getMonth() && d.getDate() === day.getDate();
-    }).length);
+    return days.map(day =>
+      allJobs.filter((j: any) => {
+        if (!j.scheduledDate) return false;
+        const d = new Date(j.scheduledDate);
+        return (
+          d.getFullYear() === day.getFullYear() &&
+          d.getMonth() === day.getMonth() &&
+          d.getDate() === day.getDate()
+        );
+      }).length
+    );
   }, [allJobs, days]);
 
   const nowHour = now.getHours() + now.getMinutes() / 60;
   const nowTop = (nowHour - START_H) * HOUR_H;
-  const showNow = isToday(selectedDay) && nowHour >= START_H && nowHour <= END_H;
+  const showNow = weekOffset === 0 && isToday(selectedDay) && nowHour >= START_H && nowHour <= END_H;
+
+  const goToToday = () => {
+    setWeekOffset(0);
+    const todayIdx = Array.from({ length: 7 }, (_, i) =>
+      addDays(startOfWeek(now, { weekStartsOn: 1 }), i)
+    ).findIndex(d => isToday(d));
+    setDayIdx(todayIdx >= 0 ? todayIdx : 0);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <View style={s.header}>
         <View style={{ flex: 1 }}>
-          <Text style={s.eyebrow}>Week {format(weekStart, 'w')} · {format(weekStart, 'MMMM')}</Text>
+          <Text style={s.eyebrow}>Week {format(weekStart, 'w')} · {format(weekStart, 'MMMM yyyy')}</Text>
           <Text style={s.title}>Your week</Text>
         </View>
-        <TouchableOpacity style={s.iconBtn} activeOpacity={0.7}>
-          <Search size={18} color={c.ink} strokeWidth={2.1} />
+        <TouchableOpacity
+          style={[s.iconBtn, showSearch && s.iconBtnActive]}
+          activeOpacity={0.7}
+          onPress={() => {
+            setShowSearch(v => !v);
+            setSearchQuery('');
+          }}
+        >
+          <Search size={18} color={showSearch ? '#fff' : c.ink} strokeWidth={2.1} />
         </TouchableOpacity>
         <TouchableOpacity style={s.addBtn} activeOpacity={0.8} onPress={() => router.push('/jobs/create' as any)}>
           <Plus size={20} color="#fff" strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
 
-      {/* Week strip */}
+      {showSearch && (
+        <View style={s.searchBar}>
+          <Search size={15} color={c.muted} strokeWidth={2} />
+          <TextInput
+            style={s.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search jobs or customers…"
+            placeholderTextColor={c.muted}
+            autoFocus
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+              <X size={14} color={c.muted} strokeWidth={2} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Week navigation + strip */}
       <View style={{ paddingHorizontal: 20, paddingBottom: 0 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+          <TouchableOpacity
+            style={[s.iconBtn, { width: 32, height: 32, borderRadius: 10 }]}
+            onPress={() => { setWeekOffset(o => o - 1); setDayIdx(0); }}
+            activeOpacity={0.7}
+          >
+            <ChevronLeft size={16} color={c.ink} strokeWidth={2.2} />
+          </TouchableOpacity>
+          {weekOffset !== 0 && (
+            <TouchableOpacity
+              style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft }}
+              onPress={goToToday}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: c.orange }}>Today</Text>
+            </TouchableOpacity>
+          )}
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity
+            style={[s.iconBtn, { width: 32, height: 32, borderRadius: 10 }]}
+            onPress={() => { setWeekOffset(o => o + 1); setDayIdx(0); }}
+            activeOpacity={0.7}
+          >
+            <ChevronRight size={16} color={c.ink} strokeWidth={2.2} />
+          </TouchableOpacity>
+        </View>
+
         <View style={{ flexDirection: 'row', gap: 6 }}>
           {days.map((d, i) => {
             const active = dayIdx === i;
             const count = jobCountPerDay[i];
             const dateKey = format(d, 'yyyy-MM-dd');
             const dayWeather = weatherByDate[dateKey];
-            const isRainy = dayWeather && dayWeather.precipitation > 1;
             return (
               <TouchableOpacity key={i} onPress={() => setDayIdx(i)} activeOpacity={0.7}
                 style={[s.dayCell, active && s.dayCellActive]}>
@@ -165,7 +262,7 @@ export default function CalendarScreen() {
           <Text style={s.daySubhead}>
             {format(new Date(dayJobs[0].scheduledDate), 'h:mm a')} → {format(new Date(dayJobs[dayJobs.length - 1].scheduledDate), 'h:mm a')} · {
               (() => {
-                const total = dayJobs.reduce((s: number, j: any) => s + (j.estimatedDuration || 60), 0);
+                const total = dayJobs.reduce((acc: number, j: any) => acc + (j.estimatedDuration || 60), 0);
                 const h = Math.floor(total / 60);
                 const m = total % 60;
                 return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`;
@@ -199,7 +296,8 @@ export default function CalendarScreen() {
               const endH_ = startH + durationHrs;
               const top = (startH - START_H) * HOUR_H;
               const height = Math.max(durationHrs * HOUR_H, 36);
-              const isNext = i === 0 && job.status !== 'completed';
+              const isCompleted = job.status === 'completed';
+              const isNext = i === 0 && !isCompleted;
               const bg = isNext ? (isDark ? c.card : '#0f0e0b') : c.card;
               const fg = isNext ? (isDark ? c.ink : '#fff') : c.ink;
               const subFg = isNext ? (isDark ? c.muted : 'rgba(255,255,255,0.6)') : c.muted;
@@ -216,6 +314,7 @@ export default function CalendarScreen() {
                     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.03, shadowRadius: 6, elevation: 2,
                     top, height, backgroundColor: bg, borderColor: border,
+                    opacity: isCompleted ? 0.4 : 1,
                   }]}>
                   {isNext && (
                     <View style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: 60, backgroundColor: `${c.orange}40` }} />
@@ -224,12 +323,17 @@ export default function CalendarScreen() {
                     {isNext && (
                       <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.orange, shadowColor: c.orange, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 3 }} />
                     )}
+                    {isCompleted && (
+                      <Text style={{ fontSize: 10, color: c.muted }}>✓</Text>
+                    )}
                     <Text style={[s.eventTime, { color: timeFg }]}>
                       {formatTime(startH)} – {formatTime(endH_)}
                     </Text>
                   </View>
                   <Text style={[s.eventTitle, { color: fg }]} numberOfLines={1}>{job.title}</Text>
-                  <Text style={[s.eventSub, { color: subFg }]} numberOfLines={1}>{(job as any).customerName || ''}</Text>
+                  {job.customerName ? (
+                    <Text style={[s.eventSub, { color: subFg }]} numberOfLines={1}>{job.customerName}</Text>
+                  ) : null}
                 </TouchableOpacity>
               );
             })}
