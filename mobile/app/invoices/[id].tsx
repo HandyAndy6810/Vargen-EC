@@ -15,8 +15,11 @@ import { useInvoice, useUpdateInvoice } from '@/hooks/use-invoices';
 import { useStripePaymentLink } from '@/hooks/use-stripe';
 import { useSquarePaymentLink } from '@/hooks/use-square';
 import { useSettings } from '@/hooks/use-settings';
-import { ChevronLeft, Check, CreditCard, Building2, Copy } from 'lucide-react-native';
+import { buildQuotePDF, type PdfDocumentData } from '@/lib/quote-pdf';
+import { ChevronLeft, Check, CreditCard, Building2, Copy, FileText } from 'lucide-react-native';
 import { format, differenceInCalendarDays } from 'date-fns';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -87,6 +90,39 @@ export default function InvoiceDetailScreen() {
         }),
       },
     ]);
+  };
+
+  const handleSharePDF = async () => {
+    try {
+      const docData: PdfDocumentData = {
+        documentType: 'invoice',
+        documentNumber: invoice?.invoiceNumber || String(id).slice(-3),
+        createdAt: invoice?.createdAt ?? new Date().toISOString(),
+        dueDate: invoice?.dueDate,
+        jobTitle: title,
+        items: (JSON.parse(invoice?.items || '[]') as any[]).map((item: any) => ({
+          description: item.description,
+          quantity: item.quantity || 1,
+          unit: item.unit,
+          unitPrice: item.unitPrice || 0,
+        })),
+        notes: invoice?.notes,
+        subtotal: parseFloat(invoice?.subtotal || '0'),
+        gstAmount: parseFloat(invoice?.gstAmount || '0'),
+        totalAmount: parseFloat(invoice?.totalAmount || '0'),
+        includeGST: parseFloat(invoice?.gstAmount || '0') > 0,
+      };
+
+      const html = buildQuotePDF(docData, settings ?? {});
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        UTI: '.pdf',
+        dialogTitle: `Invoice ${invoice?.invoiceNumber || id}`,
+      });
+    } catch (err: any) {
+      Alert.alert('Could not generate PDF', err?.message ?? 'Please try again.');
+    }
   };
 
   if (isLoading) {
@@ -323,6 +359,10 @@ export default function InvoiceDetailScreen() {
       {!isPaid ? (
         <View style={s.bottomBar}>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+            <TouchableOpacity onPress={handleSharePDF} activeOpacity={0.7} style={s.pdfBtn}>
+              <FileText size={16} color={ORANGE} strokeWidth={2} />
+              <Text style={s.pdfBtnText}>PDF</Text>
+            </TouchableOpacity>
             {settings?.stripeEnabled && (
               <TouchableOpacity
                 onPress={handlePayByCard}
@@ -364,9 +404,15 @@ export default function InvoiceDetailScreen() {
         </View>
       ) : (
         <View style={s.bottomBar}>
-          <View style={[s.paidBadge]}>
-            <Check size={18} color={GREEN} strokeWidth={2.5} />
-            <Text style={s.paidBadgeText}>Invoice paid — all done</Text>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity onPress={handleSharePDF} activeOpacity={0.7} style={s.pdfBtn}>
+              <FileText size={16} color={ORANGE} strokeWidth={2} />
+              <Text style={s.pdfBtnText}>PDF</Text>
+            </TouchableOpacity>
+            <View style={[s.paidBadge, { flex: 1 }]}>
+              <Check size={18} color={GREEN} strokeWidth={2.5} />
+              <Text style={s.paidBadgeText}>Invoice paid — all done</Text>
+            </View>
           </View>
         </View>
       )}
@@ -632,5 +678,22 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
     color: GREEN,
+  },
+  pdfBtn: {
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: ORANGE_SOFT,
+    borderWidth: 1,
+    borderColor: `${ORANGE}44`,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+  },
+  pdfBtnText: {
+    fontSize: 13,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: ORANGE,
   },
 });

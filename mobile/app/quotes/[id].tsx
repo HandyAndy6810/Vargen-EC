@@ -11,9 +11,13 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuote, useQuoteItems, useDeleteQuote, useUpdateQuote } from '@/hooks/use-quotes';
-import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Edit2 } from 'lucide-react-native';
+import { useSettings } from '@/hooks/use-settings';
+import { buildQuotePDF, type PdfDocumentData } from '@/lib/quote-pdf';
+import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Edit2, FileText } from 'lucide-react-native';
 import { format } from 'date-fns';
 import * as Linking from 'expo-linking';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -59,6 +63,7 @@ export default function QuoteDetailScreen() {
   const quoteId = id ? Number(id) : 0;
   const { data: quote, isLoading } = useQuote(quoteId) as any;
   const { data: quoteItems = [] } = useQuoteItems(quoteId) as any;
+  const { data: settings } = useSettings();
   const deleteQuote = useDeleteQuote();
   const updateQuote = useUpdateQuote();
 
@@ -150,6 +155,53 @@ export default function QuoteDetailScreen() {
       return;
     }
     router.push(`/invoices/create?quoteId=${id}` as any);
+  };
+
+  const handleSharePDF = async () => {
+    try {
+      const rawItems = (quoteItems as any[]).length > 0
+        ? (quoteItems as any[]).map((item: any) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit,
+            unitPrice: parseFloat(item.price) / Math.max(item.quantity, 1),
+          }))
+        : (content.items ?? []).map((item: any) => ({
+            description: item.description,
+            quantity: item.quantity || 1,
+            unit: item.unit,
+            unitPrice: item.unitPrice || 0,
+          }));
+
+      const docData: PdfDocumentData = {
+        documentType: 'quote',
+        documentNumber: String(id).padStart(4, '0').slice(-4),
+        createdAt: quote?.createdAt ?? new Date().toISOString(),
+        expiryDate: content.expiryDate,
+        jobTitle: content.jobTitle || title,
+        summary: content.summary,
+        customerName: content.customerName,
+        customerPhone: content.customerPhone,
+        customerEmail: content.customerEmail,
+        customerAddress: content.customerAddress,
+        items: rawItems,
+        notes: content.notes,
+        subtotal: subtotal,
+        gstAmount: gst,
+        totalAmount: totalAmount,
+        includeGST: content.includeGST ?? true,
+      };
+
+      const html = buildQuotePDF(docData, settings ?? {});
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        UTI: '.pdf',
+        dialogTitle: `Quote ${num}`,
+      });
+    } catch (err: any) {
+      Alert.alert('Could not generate PDF', err?.message ?? 'Please try again.');
+    }
   };
 
   return (
@@ -326,12 +378,20 @@ export default function QuoteDetailScreen() {
           <Text style={s.tweakBtnText}>Tweak</Text>
         </TouchableOpacity>
         <TouchableOpacity
+          style={s.pdfBtn}
+          activeOpacity={0.7}
+          onPress={handleSharePDF}
+        >
+          <FileText size={15} color={ORANGE} strokeWidth={2} />
+          <Text style={s.pdfBtnText}>PDF</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[s.convertBtn, alreadyInvoiced && { backgroundColor: PAPER_DEEP }]}
           activeOpacity={0.8}
           onPress={handleConvert}
         >
           <Text style={[s.convertBtnText, alreadyInvoiced && { color: MUTED_HI }]}>
-            {alreadyInvoiced ? 'Already invoiced' : 'Convert to invoice ›'}
+            {alreadyInvoiced ? 'Already invoiced' : 'Convert ›'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -558,6 +618,23 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
     color: INK,
+  },
+  pdfBtn: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: ORANGE_SOFT,
+    borderWidth: 1,
+    borderColor: `${ORANGE}44`,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  pdfBtnText: {
+    fontSize: 11,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: ORANGE,
   },
   convertBtn: {
     flex: 2,
