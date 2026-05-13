@@ -241,8 +241,17 @@ export default function HomeScreen() {
     return 'Tap the AI rail above to quote a new job in seconds.';
   }, [overdueInvoices, pipeline, todayJobs]);
 
+  const bladeOrderIds = useMemo<string[] | null>(() => {
+    try {
+      const raw = settings?.bladeOrder;
+      if (!raw) return null;
+      const arr = JSON.parse(raw) as string[];
+      return Array.isArray(arr) && arr.length > 0 ? arr : null;
+    } catch { return null; }
+  }, [settings?.bladeOrder]);
+
   type WDef = { id: string; score: number; fullWidth: boolean };
-  const widgetDefs: WDef[] = ([
+  const baseWidgets: WDef[] = [
     { id: 'outstanding',  score: (overdueInvoices.length + pendingInvoices.length) > 0 ? 90 + overdueInvoices.length * 5 : 0, fullWidth: false },
     { id: 'schedule',     score: todayJobs.length > 0 ? 80 : 20,   fullWidth: true  },
     { id: 'quickactions', score: 70,                                 fullWidth: true  },
@@ -251,7 +260,18 @@ export default function HomeScreen() {
     { id: 'pipeline',     score: 40 + (pipeline.sent + pipeline.accepted) * 5, fullWidth: false },
     { id: 'revenue',      score: 35,                                 fullWidth: false },
     { id: 'nudge',        score: 30,                                 fullWidth: false },
-  ] as WDef[]).filter(w => w.score > 0).sort((a, b) => b.score - a.score);
+  ];
+
+  let widgetDefs: WDef[];
+  if (bladeOrderIds) {
+    const byId = Object.fromEntries(baseWidgets.map(w => [w.id, w]));
+    widgetDefs = bladeOrderIds
+      .filter(entry => !entry.startsWith('-'))
+      .map(id => byId[id])
+      .filter((w): w is WDef => !!w);
+  } else {
+    widgetDefs = baseWidgets.filter(w => w.score > 0).sort((a, b) => b.score - a.score);
+  }
 
   const rows: WDef[][] = [];
   let wi = 0;
