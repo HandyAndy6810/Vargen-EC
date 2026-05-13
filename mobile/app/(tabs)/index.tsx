@@ -5,7 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
+  Linking,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { format, isToday } from 'date-fns';
@@ -24,6 +26,15 @@ const BLUE      = '#1f6feb';
 const BLUE_SOFT = '#eaf2ff';
 const GREEN_SOFT = '#e5f6eb';
 const PILL_STATES = 4;
+
+function parseQuoteTitle(q: any): string {
+  if (q.title) return q.title;
+  try {
+    const p = JSON.parse(q.content || '{}');
+    if (p.jobTitle) return p.jobTitle;
+  } catch {}
+  return `Quote #${q.id}`;
+}
 
 function AnimatedNumber({ value, prefix = '$', style }: { value: number; prefix?: string; style?: any }) {
   const [displayed, setDisplayed] = useState(0);
@@ -181,7 +192,7 @@ export default function HomeScreen() {
   const { data: jobs, isLoading: jobsLoading } = useJobs();
   const { data: quotes } = useQuotes();
   const { data: invoices } = useInvoices();
-  const { data: weather } = useWeather();
+  const { data: weather, locError: weatherLocError, requestLocation: retryWeatherLocation } = useWeather();
   const { data: settings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -435,10 +446,10 @@ export default function HomeScreen() {
                 {recentQuotes.map((q: any, i: number) => {
                   const sc = QUOTE_STATUS[q.status] ?? QUOTE_STATUS.draft;
                   return (
-                    <TouchableOpacity key={q.id} activeOpacity={0.7}>
+                    <TouchableOpacity key={q.id} activeOpacity={0.7} onPress={() => router.push(`/quotes/${q.id}`)}>
                       <View style={[s.rqRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                         <View style={{ flex: 1, gap: 2 }}>
-                          <Text style={s.rqTitle} numberOfLines={1}>{q.title || q.jobTitle || 'Quote'}</Text>
+                          <Text style={s.rqTitle} numberOfLines={1}>{parseQuoteTitle(q)}</Text>
                           <Text style={s.rqSub} numberOfLines={1}>{q.customerName || '—'}</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end', gap: 5 }}>
@@ -473,7 +484,12 @@ export default function HomeScreen() {
               {[...overdueInvoices.slice(0, 2), ...pendingInvoices.slice(0, 1)].map((inv: any, i: number) => {
                 const isOverdue = inv.status === 'overdue';
                 return (
-                  <View key={inv.id ?? i} style={[s.invRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
+                  <TouchableOpacity
+                    key={inv.id ?? i}
+                    style={[s.invRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}
+                    onPress={() => router.push(`/invoices/${inv.id}`)}
+                    activeOpacity={0.7}
+                  >
                     <View style={[s.invIcon, { backgroundColor: isOverdue ? c.orangeSoft : BLUE_SOFT }]}>
                       <AlertTriangle size={14} color={isOverdue ? c.orange : BLUE} strokeWidth={2.5} />
                     </View>
@@ -482,7 +498,7 @@ export default function HomeScreen() {
                       <Text style={[s.rqSub, isOverdue && { color: c.orange }]}>{isOverdue ? 'Overdue' : 'Pending'}</Text>
                     </View>
                     <Text style={[s.rqAmt, { color: isOverdue ? c.orange : c.ink }]}>${Number(inv.totalAmount || 0).toLocaleString()}</Text>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>
@@ -493,10 +509,28 @@ export default function HomeScreen() {
         if (!weather) {
           return (
             <View style={{ paddingHorizontal: 20 }}>
-              <View style={[s.card, { padding: 18, alignItems: 'center' }]}>
-                <Text style={{ fontSize: 13, color: c.muted, fontFamily: 'Manrope_500Medium' }}>
-                  Fetching weather…
-                </Text>
+              <View style={[s.card, { padding: 18, alignItems: 'center', gap: 10 }]}>
+                {weatherLocError === 'Location permission denied' ? (
+                  <>
+                    <Text style={{ fontSize: 13, color: c.muted, fontFamily: 'Manrope_500Medium', textAlign: 'center' }}>
+                      Location access is needed for weather
+                    </Text>
+                    <TouchableOpacity
+                      onPress={async () => {
+                        await Location.requestForegroundPermissionsAsync();
+                        retryWeatherLocation();
+                      }}
+                      style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, backgroundColor: c.orange }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={{ fontSize: 12, fontFamily: 'Manrope_700Bold', color: '#fff' }}>Grant access</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <Text style={{ fontSize: 13, color: c.muted, fontFamily: 'Manrope_500Medium' }}>
+                    Fetching weather…
+                  </Text>
+                )}
               </View>
             </View>
           );
@@ -632,10 +666,24 @@ export default function HomeScreen() {
                       <Text style={s.startBtnText}>Start job</Text>
                     </View>
                   </TouchableOpacity>
-                  <TouchableOpacity style={s.heroIconBtn} activeOpacity={0.7}>
+                  <TouchableOpacity
+                    style={s.heroIconBtn}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      const addr = (nextJob as any).address;
+                      if (addr) Linking.openURL(`maps://?q=${encodeURIComponent(addr)}`);
+                    }}
+                  >
                     <Navigation size={18} color="#fff" strokeWidth={2} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={s.heroIconBtn} activeOpacity={0.7}>
+                  <TouchableOpacity
+                    style={s.heroIconBtn}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      const phone = (nextJob as any).customerPhone;
+                      if (phone) Linking.openURL(`sms:${phone}`);
+                    }}
+                  >
                     <MessageCircle size={18} color="#fff" strokeWidth={2} />
                   </TouchableOpacity>
                 </View>

@@ -33,6 +33,7 @@ export interface Job {
   completionData: string | null;
   createdAt: Date | string | null;
   customerName?: string | null;
+  customerPhone?: string | null;
 }
 
 export interface InsertJob {

@@ -144,7 +144,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(jobs.scheduledDate));
   }
 
-  async getJobsWithCustomer(userId: string): Promise<(Job & { customerName: string | null })[]> {
+  async getJobsWithCustomer(userId: string): Promise<(Job & { customerName: string | null; customerPhone: string | null })[]> {
     return await db
       .select({
         id: jobs.id,
@@ -159,6 +159,7 @@ export class DatabaseStorage implements IStorage {
         completionData: jobs.completionData,
         createdAt: jobs.createdAt,
         customerName: customers.name,
+        customerPhone: customers.phone,
       })
       .from(jobs)
       .leftJoin(customers, eq(jobs.customerId, customers.id))
