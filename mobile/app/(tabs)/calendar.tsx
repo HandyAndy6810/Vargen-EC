@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { useState, useMemo } from 'react';
 import { router } from 'expo-router';
@@ -12,8 +13,10 @@ import { format, startOfWeek, addDays, addWeeks, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
 import { useWeather } from '@/hooks/use-weather';
-import { Plus, Search, X, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Plus, Search, X, ChevronLeft, ChevronRight, Send, SkipForward } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/api';
 
 const HOUR_H = 54;
 const START_H = 6;
@@ -62,9 +65,10 @@ function makeStyles(c: Colors, isDark: boolean) {
 export default function CalendarScreen() {
   const { colors: c, isDark } = useTheme();
   const s = makeStyles(c, isDark);
+  const qc = useQueryClient();
 
   const now = new Date();
-
+  const [segment, setSegment] = useState<'calendar' | 'outreach'>('calendar');
   const [weekOffset, setWeekOffset] = useState(0);
   const [dayIdx, setDayIdx] = useState(() => {
     const todayIdx = Array.from({ length: 7 }, (_, i) =>
@@ -138,6 +142,24 @@ export default function CalendarScreen() {
   const nowTop = (nowHour - START_H) * HOUR_H;
   const showNow = weekOffset === 0 && isToday(selectedDay) && nowHour >= START_H && nowHour <= END_H;
 
+  // Outreach / follow-ups
+  const { data: followUps = [], isLoading: followUpsLoading } = useQuery<any[]>({
+    queryKey: ['/api/follow-ups/due'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/follow-ups/due');
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: segment === 'outreach',
+  });
+
+  const skipFollowUp = useMutation({
+    mutationFn: async ({ quoteId, dayIndex }: { quoteId: number; dayIndex: number }) => {
+      await apiRequest('POST', `/api/follow-ups/${quoteId}/skip`, { dayIndex });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['/api/follow-ups/due'] }),
+  });
+
   const goToToday = () => {
     setWeekOffset(0);
     const todayIdx = Array.from({ length: 7 }, (_, i) =>
@@ -168,6 +190,32 @@ export default function CalendarScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Segment toggle */}
+      <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+        <View style={{ flexDirection: 'row', backgroundColor: c.paperDeep, borderRadius: 14, padding: 3 }}>
+          {(['calendar', 'outreach'] as const).map((seg) => {
+            const active = segment === seg;
+            return (
+              <TouchableOpacity
+                key={seg}
+                onPress={() => setSegment(seg)}
+                activeOpacity={0.7}
+                style={{
+                  flex: 1, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: active ? c.card : 'transparent',
+                  shadowColor: active ? '#000' : 'transparent',
+                  shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: active ? 2 : 0,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: active ? c.ink : c.muted }}>
+                  {seg === 'calendar' ? 'Calendar' : 'Outreach'}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
       {showSearch && (
         <View style={s.searchBar}>
           <Search size={15} color={c.muted} strokeWidth={2} />
@@ -189,6 +237,74 @@ export default function CalendarScreen() {
           )}
         </View>
       )}
+
+      {segment === 'outreach' ? (
+        /* ── Outreach view ── */
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}>
+          {followUpsLoading ? (
+            <ActivityIndicator color={c.orange} style={{ marginTop: 40 }} />
+          ) : followUps.length === 0 ? (
+            <View style={{ alignItems: 'center', marginTop: 60, gap: 10 }}>
+              <Text style={{ fontSize: 28 }}>🎉</Text>
+              <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>All caught up</Text>
+              <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted, textAlign: 'center' }}>
+                No follow-ups due today
+              </Text>
+            </View>
+          ) : (
+            <View style={{ gap: 12, paddingTop: 4 }}>
+              {followUps.map((item: any, i: number) => {
+                let content: any = {};
+                try { content = JSON.parse(item.quote?.content || '{}'); } catch {}
+                const custName = content.customerName || `Quote #${item.quote?.id}`;
+                const jobTitle = content.jobTitle || 'Quote';
+                const total = item.quote?.totalAmount ? `$${parseFloat(item.quote.totalAmount).toLocaleString()}` : '';
+                const initials = custName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+                return (
+                  <View key={i} style={{ backgroundColor: c.card, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: c.lineSoft }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.orange }}>{initials}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink }} numberOfLines={1}>{custName}</Text>
+                        <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted }} numberOfLines={1}>
+                          {jobTitle}{total ? ` · ${total}` : ''}
+                        </Text>
+                      </View>
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: c.orangeSoft, borderWidth: 1, borderColor: `${c.orange}44` }}>
+                        <Text style={{ fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.orange }}>Day {item.dayNumber}</Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <TouchableOpacity
+                        style={{ flex: 1, height: 42, borderRadius: 12, backgroundColor: c.orange, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                        activeOpacity={0.8}
+                        onPress={() => router.push(
+                          `/customers/compose?customerId=${item.quote?.customerId || ''}&customerName=${encodeURIComponent(custName)}&context=quote_followup` as any
+                        )}
+                      >
+                        <Send size={14} color="#fff" strokeWidth={2} />
+                        <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>Send</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{ height: 42, paddingHorizontal: 16, borderRadius: 12, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                        activeOpacity={0.7}
+                        onPress={() => skipFollowUp.mutate({ quoteId: item.quote?.id, dayIndex: item.dueIndex })}
+                      >
+                        <SkipForward size={14} color={c.muted} strokeWidth={2} />
+                        <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.muted }}>Skip</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </ScrollView>
+      ) : (
+      /* ── Calendar view ── */
+      <View style={{ flex: 1 }}>
 
       {/* Week navigation + strip */}
       <View style={{ paddingHorizontal: 20, paddingBottom: 0 }}>
@@ -342,6 +458,8 @@ export default function CalendarScreen() {
           </View>
         </View>
       </ScrollView>
+      </View>
+      )}
     </SafeAreaView>
   );
 }

@@ -6,13 +6,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import * as Haptics from 'expo-haptics';
-import { Home, FileText, Receipt, Calendar, User } from 'lucide-react-native';
+import { Home, FileText, Receipt, CalendarClock, User } from 'lucide-react-native';
 
 const TABS = [
   { name: 'index',    label: 'Home',     Icon: Home },
   { name: 'quotes',   label: 'Quotes',   Icon: FileText },
   { name: 'invoices', label: 'Invoices', Icon: Receipt },
-  { name: 'calendar', label: 'Calendar', Icon: Calendar },
+  { name: 'calendar', label: 'Schedule', Icon: CalendarClock },
   { name: 'profile',  label: 'Profile',  Icon: User },
 ];
 

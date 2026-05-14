@@ -267,7 +267,10 @@ export default function CustomerDetailScreen() {
                     <Phone size={20} color={GREEN} strokeWidth={2} />
                     <Text style={[s.actionLabel, { color: GREEN }]}>Call</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[s.actionBtn, { backgroundColor: ORANGE_SOFT }]} onPress={() => openSMS(customer.phone!)}>
+                  <TouchableOpacity
+                    style={[s.actionBtn, { backgroundColor: ORANGE_SOFT }]}
+                    onPress={() => router.push(`/customers/compose?customerId=${id}&customerName=${encodeURIComponent(customer.name)}&customerPhone=${encodeURIComponent(customer.phone ?? '')}&customerEmail=${encodeURIComponent(customer.email ?? '')}` as any)}
+                  >
                     <MessageSquare size={20} color={ORANGE} strokeWidth={2} />
                     <Text style={[s.actionLabel, { color: ORANGE }]}>Message</Text>
                   </TouchableOpacity>
@@ -291,7 +294,7 @@ export default function CustomerDetailScreen() {
                 onPress={() => router.push(`/customers/messages?id=${id}` as any)}
               >
                 <MessageSquare size={20} color="#7c3aed" strokeWidth={2} />
-                <Text style={[s.actionLabel, { color: '#7c3aed' }]}>History</Text>
+                <Text style={[s.actionLabel, { color: '#7c3aed' }]}>Log</Text>
               </TouchableOpacity>
             </View>
 

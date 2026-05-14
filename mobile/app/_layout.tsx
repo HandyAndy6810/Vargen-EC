@@ -137,6 +137,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="customers/[id]" />
           <Stack.Screen name="customers/new" />
           <Stack.Screen name="customers/messages" />
+          <Stack.Screen name="customers/compose" />
           <Stack.Screen name="receipts/index" />
           <Stack.Screen name="receipts/scan" />
           <Stack.Screen name="jobs/create" />
