@@ -24,7 +24,8 @@ const SLOW = { damping: 30, stiffness: 140, mass: 1.2,  useNativeDriver: false }
 
 function TabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
+  const iconInactive = isDark ? '#82868C' : '#6B6460';
   const [containerWidth, setContainerWidth] = useState(0);
   const tabWidth = containerWidth > 0 ? containerWidth / TABS.length : 0;
 
@@ -97,7 +98,7 @@ function TabBar({ state, navigation }: any) {
       <View style={styles.tabsRow}>
         {TABS.map((tab, i) => {
           const isFocused = state.index === i;
-          const color = isFocused ? ORANGE : c.muted;
+          const color = isFocused ? ORANGE : iconInactive;
           return (
             <Pressable
               key={tab.name}
