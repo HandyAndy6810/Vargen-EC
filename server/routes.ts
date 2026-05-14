@@ -1267,6 +1267,44 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
+  // ─── Message AI Draft ───
+  app.post('/api/messages/draft', requireAuth, async (req: any, res) => {
+    try {
+      const { customerName, context } = req.body;
+      if (!openai) return res.status(503).json({ message: 'AI features not configured' });
+
+      const contextHints: Record<string, string> = {
+        quote_followup:       'following up on a quote sent to the customer',
+        invoice_reminder:     'reminding the customer that an invoice is due',
+        job_complete:         'letting the customer know the job is finished',
+        appointment_reminder: 'reminding the customer about an upcoming appointment',
+        general:              'a general friendly check-in',
+      };
+      const hint = contextHints[context] || 'a professional message';
+      const firstName = (customerName || 'there').split(' ')[0];
+
+      const response = await openai.chat.completions.create({
+        model: AI_MODEL,
+        max_tokens: 120,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are helping an Australian tradesperson write a short, friendly SMS to a customer. Write plain text only, no emojis, no quotes around the message. Max 160 characters.',
+          },
+          {
+            role: 'user',
+            content: `Write an SMS from a tradesperson to their customer named ${firstName}. Purpose: ${hint}. Keep it under 160 characters, friendly and professional.`,
+          },
+        ],
+      });
+
+      const message = response.choices[0]?.message?.content?.trim() || '';
+      res.json({ message });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || 'Failed to generate draft' });
+    }
+  });
+
   // ─── Job Templates ───
 
   app.get("/api/templates", requireAuth, async (req: any, res) => {
