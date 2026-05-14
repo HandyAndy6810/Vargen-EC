@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -16,9 +17,10 @@ import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Sparkles, FileText, Plus, Trash2, Camera, Send } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Sparkles, FileText, Plus, Trash2, Camera, Send, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuote } from '@/hooks/use-quotes';
+import { useSettings } from '@/hooks/use-settings';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -34,19 +36,94 @@ const LINE_SOFT   = 'rgba(20,19,16,0.08)';
 const LINE_MID    = 'rgba(20,19,16,0.14)';
 
 type Mode = 'ai' | 'form';
-
 type LineItem = { name: string; qty: string; price: string };
 
-const QUICK_SUGGESTIONS = [
-  'Replace hot water system — Rheem 315L, same location',
-  'Fix leaking tap — kitchen mixer, supply new cartridge',
-  'Unblock drain — high pressure water jetting',
-  'Install new toilet suite — supply and fit Caroma',
-];
+// ── Trade-specific quick suggestions ─────────────────────────────────────────
+const TRADE_SUGGESTIONS: Record<string, string[]> = {
+  plumbing: [
+    'Replace hot water system — Rheem 315L, same location',
+    'Fix leaking tap — kitchen mixer, supply new cartridge',
+    'Unblock drain — high pressure water jetting',
+    'Install new toilet suite — supply and fit Caroma',
+  ],
+  electrical: [
+    'Install 4x double powerpoints — kitchen renovation',
+    'Replace switchboard — upgrade to RCD protected',
+    'Install LED downlights — 10x living/dining areas',
+    'Fault find and repair — no power to kitchen circuit',
+  ],
+  carpentry: [
+    'Supply and install hardwood decking — 40m² backyard',
+    'Build garden shed — 3m × 3m, Colorbond roof',
+    'Replace rotted fascia and soffit — front of house',
+    'Install 6 internal doors with frames and hardware',
+  ],
+  painting: [
+    'Interior repaint — 4 bedroom home, walls and ceilings',
+    'Exterior house repaint — 2 coats, prep and prime',
+    'Render and paint feature wall — living room 4m × 3m',
+    'Paint fence — 40m timber paling, 2 coats oil-based',
+  ],
+  landscaping: [
+    'Supply and lay lawn — 120m² kikuyu, includes prep',
+    'Install garden bed borders — 60m sleeper edging',
+    'Remove and replace front yard — turf, mulch, plants',
+    'Install irrigation system — 8 zone, front and back',
+  ],
+  concreting: [
+    'Pour driveway — 40m², 100mm thick, broom finish',
+    'Shed slab — 6m × 4m, 100mm with mesh reinforcing',
+    'Footpath — 20m × 1.2m, 75mm, exposed aggregate',
+    'Cut and repair concrete — 5m² driveway crack repair',
+  ],
+  fencing: [
+    'Supply and install Colorbond fence — 40m, 1.8m high',
+    'Replace timber paling fence — 20m both sides',
+    'Install pool fence — 25m glass panel, compliant',
+    'Concrete in and replace 8x timber posts',
+  ],
+  tiling: [
+    'Tile bathroom floor and walls — 8m² floor, 25m² walls',
+    'Kitchen splashback — 3m × 0.6m, subway tile',
+    'Outdoor entertaining area tiles — 40m² porcelain',
+    'Remove and relay loose tiles — 15m² bathroom floor',
+  ],
+  aircon: [
+    'Supply and install split system — 6kW living area',
+    'Service and regass 3x existing split systems',
+    'Install ducted system — 4 bedroom home, 14kW',
+    'Replace compressor unit — same brand, same location',
+  ],
+  roofing: [
+    'Reseal and repaint Colorbond roof — 180m²',
+    'Replace broken tiles — storm damage, 40 tiles',
+    'Install whirlybirds — 4x 300mm on ridge',
+    'Full re-roof — remove terracotta, replace Colorbond',
+  ],
+  general: [
+    'Mount 75" TV to brick wall — supply and install bracket',
+    'Install floating shelves — 6x 1.2m timber shelves',
+    'Replace 4x door handles and locks throughout house',
+    'Assemble and install flat-pack furniture — 4 items',
+  ],
+};
 
-const DEFAULT_LINES: LineItem[] = [
-  { name: '', qty: '1', price: '' },
-];
+function getTradeKey(tradeType?: string | null): string {
+  const t = (tradeType || '').toLowerCase();
+  if (t.includes('plumb')) return 'plumbing';
+  if (t.includes('electr')) return 'electrical';
+  if (t.includes('carp') || t.includes('build')) return 'carpentry';
+  if (t.includes('paint')) return 'painting';
+  if (t.includes('landscape') || t.includes('garden')) return 'landscaping';
+  if (t.includes('concret')) return 'concreting';
+  if (t.includes('fenc')) return 'fencing';
+  if (t.includes('tile') || t.includes('tiler')) return 'tiling';
+  if (t.includes('hvac') || t.includes('air')) return 'aircon';
+  if (t.includes('roof')) return 'roofing';
+  return 'general';
+}
+
+const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
 
 export default function QuoteCreateScreen() {
   const {
@@ -57,6 +134,10 @@ export default function QuoteCreateScreen() {
 
   const editId = editIdParam ? Number(editIdParam) : 0;
   const isEditing = editId > 0;
+
+  const { data: settings } = useSettings();
+  const tradeKey = getTradeKey(settings?.tradeType);
+  const quickSuggestions = TRADE_SUGGESTIONS[tradeKey] ?? TRADE_SUGGESTIONS.general;
 
   const [mode, setMode] = useState<Mode>((prefillName || isEditing) ? 'form' : 'ai');
   const [aiDescription, setAiDescription] = useState('');
@@ -72,6 +153,29 @@ export default function QuoteCreateScreen() {
   const [receiptBase64, setReceiptBase64] = useState<string | null>(null);
   const [error, setError]         = useState<string | null>(null);
   const [populated, setPopulated] = useState(false);
+
+  // Line item modal
+  const [editLineIdx, setEditLineIdx]   = useState<number | null>(null);
+  const [editLineDraft, setEditLineDraft] = useState<LineItem>({ name: '', qty: '1', price: '' });
+
+  const openLineEdit = (i: number) => {
+    setEditLineDraft({ ...lines[i] });
+    setEditLineIdx(i);
+  };
+
+  const saveLineEdit = () => {
+    if (editLineIdx !== null) {
+      setLines(prev => prev.map((l, i) => i === editLineIdx ? editLineDraft : l));
+    }
+    setEditLineIdx(null);
+  };
+
+  const deleteLineFromModal = () => {
+    if (editLineIdx !== null) {
+      setLines(prev => prev.filter((_, i) => i !== editLineIdx));
+    }
+    setEditLineIdx(null);
+  };
 
   // Fetch existing quote when editing
   const { data: editQuote } = useQuote(editId);
@@ -103,10 +207,13 @@ export default function QuoteCreateScreen() {
   const gst   = Math.round(subtotal * 0.1);
   const total = subtotal + gst;
 
-  const addLine = () => setLines(prev => [...prev, { name: '', qty: '1', price: '' }]);
-  const removeLine = (i: number) => setLines(prev => prev.filter((_, idx) => idx !== i));
-  const updateLine = (i: number, key: keyof LineItem, val: string) =>
-    setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [key]: val } : l));
+  const addLine = () => {
+    const newIdx = lines.length;
+    setLines(prev => [...prev, { name: '', qty: '1', price: '' }]);
+    // Open modal for the new item
+    setEditLineDraft({ name: '', qty: '1', price: '' });
+    setEditLineIdx(newIdx);
+  };
 
   const handlePickReceipt = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -180,6 +287,8 @@ export default function QuoteCreateScreen() {
     }
   };
 
+  const editLineTotal = (parseFloat(editLineDraft.qty) || 0) * (parseFloat(editLineDraft.price) || 0);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -195,13 +304,13 @@ export default function QuoteCreateScreen() {
           </View>
         </View>
 
-        {/* Mode toggle — hidden in edit mode (always form) */}
+        {/* Mode toggle — hidden in edit mode */}
         {!isEditing && (
           <View style={{ paddingHorizontal: 20, paddingBottom: 14 }}>
             <View style={s.modeToggle}>
               {([
-                { id: 'ai',   label: 'Use AI',    Icon: Sparkles  },
-                { id: 'form', label: 'Manual',     Icon: FileText  },
+                { id: 'ai',   label: 'Use AI',  Icon: Sparkles },
+                { id: 'form', label: 'Manual',   Icon: FileText },
               ] as { id: Mode; label: string; Icon: any }[]).map((t) => {
                 const active = mode === t.id;
                 return (
@@ -223,7 +332,6 @@ export default function QuoteCreateScreen() {
         {mode === 'ai' ? (
           /* ── AI mode ── */
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-            {/* Hero card */}
             <View style={s.aiHero}>
               <View style={s.aiHeroGlow} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 }}>
@@ -237,7 +345,6 @@ export default function QuoteCreateScreen() {
                   <Text style={s.aiSubtitle}>Describe the job — I'll price and build it.</Text>
                 </View>
               </View>
-              {/* Prominent describe input with orange glow on focus/fill */}
               <View style={[s.descInputWrap, (descFocused || aiDescription) ? s.descInputWrapActive : null]}>
                 <TextInput
                   style={s.descInput}
@@ -254,10 +361,9 @@ export default function QuoteCreateScreen() {
               </View>
             </View>
 
-            {/* Quick suggestions */}
             <Text style={s.sectionEyebrow}>Quick suggestions</Text>
             <View style={{ gap: 8, marginBottom: 16 }}>
-              {QUICK_SUGGESTIONS.map((sug, i) => (
+              {quickSuggestions.map((sug, i) => (
                 <TouchableOpacity
                   key={i}
                   onPress={() => setAiDescription(sug)}
@@ -271,7 +377,6 @@ export default function QuoteCreateScreen() {
               ))}
             </View>
 
-            {/* Quick actions */}
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
               <TouchableOpacity
                 style={[s.quickBtn, { flex: 1, borderColor: receiptBase64 ? ORANGE : LINE_SOFT }]}
@@ -286,11 +391,7 @@ export default function QuoteCreateScreen() {
               <TouchableOpacity
                 style={[s.quickBtn, { flex: 1 }]}
                 activeOpacity={0.7}
-                onPress={() => Alert.alert(
-                  'Templates',
-                  "Quote templates are coming soon.\n\nYou'll be able to save any quote as a template and reuse it with one tap.",
-                  [{ text: 'Got it' }]
-                )}
+                onPress={() => Alert.alert('Templates', "Quote templates are coming soon.\n\nYou'll be able to save any quote as a template and reuse it with one tap.", [{ text: 'Got it' }])}
               >
                 <FileText size={18} color={INK} strokeWidth={2} />
                 <Text style={s.quickBtnText}>From template</Text>
@@ -306,7 +407,6 @@ export default function QuoteCreateScreen() {
           /* ── Form mode ── */
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 160 }}>
 
-            {/* Live total hero */}
             <View style={s.totalHero}>
               <View style={s.totalHeroGlow} />
               <Text style={s.totalEyebrow}>Running total</Text>
@@ -321,7 +421,6 @@ export default function QuoteCreateScreen() {
               </View>
             </View>
 
-            {/* Details */}
             <Text style={s.sectionEyebrow}>Details</Text>
             <View style={s.fieldGroup}>
               <View style={s.fieldRow}>
@@ -371,62 +470,33 @@ export default function QuoteCreateScreen() {
               </View>
             </View>
 
-            {/* Line items */}
+            {/* Line items — tap entire row to edit */}
             <Text style={s.sectionEyebrow}>Line items</Text>
             <View style={[s.fieldGroup, { padding: 0 }]}>
-              {lines.map((item, i) => (
-                <View
-                  key={i}
-                  style={[s.lineItemRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <TextInput
-                      style={s.lineNameInput}
-                      placeholder="Item description"
-                      placeholderTextColor={MUTED}
-                      value={item.name}
-                      onChangeText={(v) => updateLine(i, 'name', v)}
-                    />
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={s.lineMetaLabel}>Qty</Text>
-                        <TextInput
-                          style={s.lineMetaInput}
-                          value={item.qty}
-                          onChangeText={(v) => updateLine(i, 'qty', v)}
-                          keyboardType="numeric"
-                          selectTextOnFocus
-                        />
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={s.lineMetaLabel}>$</Text>
-                        <TextInput
-                          style={s.lineMetaInput}
-                          value={item.price}
-                          onChangeText={(v) => updateLine(i, 'price', v)}
-                          keyboardType="numeric"
-                          placeholder="0"
-                          placeholderTextColor={MUTED}
-                          selectTextOnFocus
-                        />
-                      </View>
-                      <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                        <Text style={s.lineTotal}>
-                          ${((parseFloat(item.qty) || 0) * (parseFloat(item.price) || 0)).toLocaleString()}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
+              {lines.map((item, i) => {
+                const lineTotal = (parseFloat(item.qty) || 0) * (parseFloat(item.price) || 0);
+                return (
                   <TouchableOpacity
-                    onPress={() => removeLine(i)}
+                    key={i}
                     activeOpacity={0.7}
-                    style={s.removeBtn}
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    onPress={() => openLineEdit(i)}
+                    style={[s.lineItemRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}
                   >
-                    <Trash2 size={14} color={MUTED} strokeWidth={2} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.lineNameText, !item.name && { color: MUTED }]} numberOfLines={1}>
+                        {item.name || 'Tap to describe item…'}
+                      </Text>
+                      <Text style={s.lineMetaText}>
+                        {item.qty || 1} × ${item.price || '0'}
+                      </Text>
+                    </View>
+                    <Text style={s.lineTotalText}>
+                      ${lineTotal.toLocaleString()}
+                    </Text>
+                    <ChevronRight size={16} color={MUTED} strokeWidth={2} />
                   </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
               <TouchableOpacity style={s.addLineBtn} activeOpacity={0.7} onPress={addLine}>
                 <Plus size={16} color={ORANGE_DEEP} strokeWidth={2.5} />
                 <Text style={s.addLineBtnText}>Add line item</Text>
@@ -468,6 +538,102 @@ export default function QuoteCreateScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
+
+      {/* ── Line item edit modal ── */}
+      <Modal
+        visible={editLineIdx !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setEditLineIdx(null)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            {/* Modal header */}
+            <View style={s.modalHeader}>
+              <TouchableOpacity onPress={() => setEditLineIdx(null)} style={s.modalCancelBtn}>
+                <Text style={s.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={s.modalTitle}>Line item</Text>
+              <TouchableOpacity onPress={saveLineEdit} style={s.modalDoneBtn}>
+                <Text style={s.modalDoneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+              {/* Description */}
+              <Text style={s.modalLabel}>Description</Text>
+              <View style={s.modalInputWrap}>
+                <TextInput
+                  style={s.modalTextArea}
+                  placeholder="What does this item cover?"
+                  placeholderTextColor={MUTED}
+                  value={editLineDraft.name}
+                  onChangeText={v => setEditLineDraft(d => ({ ...d, name: v }))}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  autoFocus
+                />
+              </View>
+
+              {/* Qty + Price side by side */}
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.modalLabel}>Quantity</Text>
+                  <View style={s.modalInputWrap}>
+                    <TextInput
+                      style={s.modalInput}
+                      value={editLineDraft.qty}
+                      onChangeText={v => setEditLineDraft(d => ({ ...d, qty: v }))}
+                      keyboardType="numeric"
+                      selectTextOnFocus
+                      placeholder="1"
+                      placeholderTextColor={MUTED}
+                    />
+                  </View>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.modalLabel}>Unit price ($)</Text>
+                  <View style={s.modalInputWrap}>
+                    <TextInput
+                      style={s.modalInput}
+                      value={editLineDraft.price}
+                      onChangeText={v => setEditLineDraft(d => ({ ...d, price: v }))}
+                      keyboardType="numeric"
+                      selectTextOnFocus
+                      placeholder="0"
+                      placeholderTextColor={MUTED}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Running total for this item */}
+              <View style={s.modalTotalCard}>
+                <Text style={s.modalTotalLabel}>Item total</Text>
+                <Text style={s.modalTotalAmt}>
+                  ${editLineTotal.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+              </View>
+
+              {/* Delete */}
+              {(lines.length > 1) && (
+                <TouchableOpacity
+                  style={s.deleteLineBtn}
+                  activeOpacity={0.7}
+                  onPress={() => Alert.alert('Remove item?', '', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Remove', style: 'destructive', onPress: deleteLineFromModal },
+                  ])}
+                >
+                  <Trash2 size={16} color="#d23b3b" strokeWidth={2} />
+                  <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: '#d23b3b' }}>Remove item</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -611,7 +777,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     padding: 16,
-    paddingHorizontal: 16,
     borderRadius: 16,
     backgroundColor: CARD,
     borderWidth: 1,
@@ -632,7 +797,6 @@ const s = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: CARD,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -714,54 +878,37 @@ const s = StyleSheet.create({
     color: INK,
     paddingVertical: 2,
   },
+
+  /* Line items — summary rows */
   lineItemRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
+    alignItems: 'center',
+    gap: 12,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 18,
   },
-  lineNameInput: {
+  lineNameText: {
     fontSize: 15,
     fontFamily: 'Manrope_700Bold',
     color: INK,
-    paddingVertical: 0,
+    marginBottom: 3,
   },
-  lineMetaLabel: {
+  lineMetaText: {
     fontSize: 12,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'Manrope_500Medium',
     color: MUTED,
   },
-  lineMetaInput: {
-    fontSize: 14,
-    fontFamily: 'Manrope_700Bold',
-    color: INK,
-    minWidth: 44,
-    paddingVertical: 3,
-    borderBottomWidth: 1,
-    borderBottomColor: LINE_MID,
-  },
-  lineTotal: {
-    fontSize: 14,
+  lineTotalText: {
+    fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
     color: INK,
-  },
-  removeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: PAPER_DEEP,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-    flexShrink: 0,
   },
   addLineBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 18,
+    paddingVertical: 20,
     borderTopWidth: 1,
     borderTopColor: LINE_MID,
   },
@@ -826,5 +973,105 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Manrope_800ExtraBold',
     color: '#fff',
+  },
+
+  /* Line item modal */
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: LINE_SOFT,
+  },
+  modalCancelBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+    minWidth: 60,
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontFamily: 'Manrope_600SemiBold',
+    color: MUTED_HI,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+  },
+  modalDoneBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+    minWidth: 60,
+    alignItems: 'flex-end',
+  },
+  modalDoneText: {
+    fontSize: 15,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: ORANGE,
+  },
+  modalLabel: {
+    fontSize: 11,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: MUTED,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  modalInputWrap: {
+    backgroundColor: CARD,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: LINE_SOFT,
+    overflow: 'hidden',
+  },
+  modalTextArea: {
+    padding: 16,
+    fontSize: 16,
+    fontFamily: 'Manrope_600SemiBold',
+    color: INK,
+    minHeight: 100,
+  },
+  modalInput: {
+    padding: 16,
+    fontSize: 22,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+  },
+  modalTotalCard: {
+    marginTop: 24,
+    backgroundColor: BLACK,
+    borderRadius: 18,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+  },
+  modalTotalLabel: {
+    fontSize: 12,
+    fontFamily: 'Manrope_700Bold',
+    color: 'rgba(255,255,255,0.55)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  modalTotalAmt: {
+    fontSize: 28,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#fff',
+    letterSpacing: -0.8,
+  },
+  deleteLineBtn: {
+    marginTop: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(210,59,59,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(210,59,59,0.15)',
   },
 });
