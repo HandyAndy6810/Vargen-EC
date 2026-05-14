@@ -11,7 +11,7 @@ import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { format, isToday } from 'date-fns';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useJobs } from '@/hooks/use-jobs';
 import { useQuotes } from '@/hooks/use-quotes';
@@ -178,6 +178,7 @@ function makeStyles(c: Colors, isDark: boolean) {
 
 export default function HomeScreen() {
   const { colors: c, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const s = makeStyles(c, isDark);
 
   const QUOTE_STATUS: Record<string, { bg: string; text: string }> = {
@@ -610,15 +611,15 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 130 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
       >
-        <View pointerEvents="none" style={{ position: 'absolute', top: -80, right: -100, width: 340, height: 340, borderRadius: 170, backgroundColor: `${c.orange}15` }} />
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: -80, width: 320, height: 320, borderRadius: 160, backgroundColor: `${c.orange}18` }} />
 
-        <View style={s.topBar}>
+        <View style={[s.topBar, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.8}>
             <View style={s.avatar}>
               <Text style={s.avatarText}>{initials}</Text>
