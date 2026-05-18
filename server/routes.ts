@@ -13,7 +13,7 @@ import { registerAudioRoutes } from "./replit_integrations/audio";
 import { registerImageRoutes } from "./replit_integrations/image";
 import multer from "multer";
 import fs from "fs";
-import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken, upsertXeroContact, createXeroInvoice } from "./xero";
+import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken, upsertXeroContact, createXeroInvoice, recordXeroPayment, getXeroInvoiceStatus } from "./xero";
 import { stripe, createPaymentLink } from "./stripe";
 import { squareClient, createSquarePaymentLink } from "./square";
 import { getTradeContext } from "./trade-knowledge";
@@ -93,6 +93,25 @@ async function autoCreateXeroInvoice(userId: string, quoteId: number) {
     console.log(`Xero invoice ${result.invoiceNumber} created for quote ${quoteId}`);
   } catch (err) {
     console.error(`Auto Xero invoice creation failed for quote ${quoteId}:`, err);
+  }
+}
+
+/**
+ * Fire-and-forget: record a payment in Xero when a Vargen invoice is marked paid.
+ * Resolves the xeroInvoiceId via the invoice's linked quote.
+ */
+async function syncPaymentToXero(userId: string, invoiceId: number, amount: number, date: Date) {
+  try {
+    const token = await getValidToken(userId);
+    if (!token) return;
+    const invoice = await storage.getInvoice(invoiceId);
+    if (!invoice?.quoteId) return;
+    const quote = await storage.getQuote(invoice.quoteId);
+    if (!quote?.xeroInvoiceId) return;
+    await recordXeroPayment(token.accessToken, token.tenantId, quote.xeroInvoiceId, amount, date);
+    console.log(`Xero payment recorded for invoice ${invoiceId} (Xero: ${quote.xeroInvoiceId})`);
+  } catch (err) {
+    console.error(`Xero payment sync failed for invoice ${invoiceId}:`, err);
   }
 }
 
@@ -1041,6 +1060,17 @@ CRITICAL RULES — follow these exactly:
       const updated = await storage.updateInvoice(id, patchBody, req.userId);
       res.json(updated);
 
+      // Sync payment to Xero when invoice first becomes paid
+      const justPaid = updated.status === "paid" && existing.status !== "paid";
+      if (justPaid) {
+        syncPaymentToXero(
+          req.userId,
+          id,
+          Number(updated.paidAmount || updated.totalAmount),
+          updated.paidDate ? new Date(updated.paidDate) : new Date(),
+        );
+      }
+
       // Send email when invoice is first marked as sent
       const justSent = req.body.status === "sent" && existing.status !== "sent";
       if (justSent && existing.customerId) {
@@ -1639,11 +1669,75 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
+  // POST /api/xero/webhook — Xero notifies us when an invoice is paid in Xero
+  // Validation: HMAC-SHA256(rawBody, XERO_WEBHOOK_KEY) must match x-xero-signature header.
+  // Xero sends an "Intent to Receive" ping on first setup — return 200 to confirm.
+  app.post("/api/xero/webhook", async (req, res) => {
+    const webhookKey = process.env.XERO_WEBHOOK_KEY;
+    if (!webhookKey) return res.status(200).json({ ok: true }); // not configured, ignore
+
+    const sig = req.headers["x-xero-signature"] as string;
+    if (!sig) return res.status(401).end();
+
+    // Validate HMAC signature
+    const expected = crypto
+      .createHmac("sha256", webhookKey)
+      .update((req as any).rawBody)
+      .digest("base64");
+
+    if (sig !== expected) return res.status(401).end();
+
+    // Signature valid — acknowledge immediately (Xero expects fast 200)
+    res.status(200).json({ ok: true });
+
+    // Process INVOICE events asynchronously
+    const events: any[] = req.body?.events || [];
+    for (const evt of events) {
+      if (evt.eventCategory !== "INVOICE" || evt.eventType !== "UPDATE") continue;
+
+      const xeroInvoiceId: string = evt.resourceId;
+      const tenantId: string = evt.tenantId;
+      if (!xeroInvoiceId || !tenantId) continue;
+
+      try {
+        // Find which user owns this Xero connection
+        const tokenRow = await storage.getXeroTokenByTenantId(tenantId);
+        if (!tokenRow) continue;
+
+        const token = await getValidToken(tokenRow.userId);
+        if (!token) continue;
+
+        // Fetch invoice from Xero to confirm it's genuinely PAID
+        const xeroInvoice = await getXeroInvoiceStatus(token.accessToken, token.tenantId, xeroInvoiceId);
+        if (!xeroInvoice || xeroInvoice.status !== "PAID") continue;
+
+        // Find the Vargen quote that maps to this Xero invoice
+        const quote = await storage.getQuoteByXeroInvoiceId(xeroInvoiceId, tokenRow.userId);
+        if (!quote?.id) continue;
+
+        // Find the Vargen invoice linked to that quote
+        const invoices = await storage.getInvoices(tokenRow.userId);
+        const invoice = invoices.find((inv: any) => inv.quoteId === quote.id);
+        if (!invoice || invoice.status === "paid") continue;
+
+        await storage.updateInvoice(invoice.id, {
+          status: "paid",
+          paidDate: new Date(),
+          paidAmount: String(xeroInvoice.amountPaid || invoice.totalAmount),
+        });
+
+        console.log(`Xero webhook: invoice ${invoice.id} marked paid (Xero: ${xeroInvoiceId})`);
+      } catch (err) {
+        console.error("Xero webhook processing error for invoice", xeroInvoiceId, err);
+      }
+    }
+  });
+
   // ── Stripe ────────────────────────────────────────────────────────────────
 
   // POST /api/stripe/payment-link/:invoiceId
   // Creates (or returns cached) a Stripe Payment Link for the invoice.
-  app.post("/api/stripe/payment-link/:invoiceId", requireAuth, async (req, res) => {
+  app.post("/api/stripe/payment-link/:invoiceId", requireAuth, async (req: any, res) => {
     if (!stripe) return res.status(503).json({ message: "Stripe is not configured on this server." });
 
     const invoiceId = parseInt(req.params.invoiceId);
@@ -1707,11 +1801,15 @@ CRITICAL RULES — follow these exactly:
         // Fetch without userId — webhook has no user context; Stripe signature is the auth
         const invoice = await storage.getInvoice(invoiceId);
         if (invoice && invoice.status !== 'paid') {
+          const paidDate = new Date();
           await storage.updateInvoice(invoiceId, {
             status: 'paid',
-            paidDate: new Date(),
+            paidDate,
             paidAmount: String(invoice.totalAmount),
           });
+          if (invoice.userId) {
+            syncPaymentToXero(invoice.userId, invoiceId, Number(invoice.totalAmount), paidDate);
+          }
         }
       }
     }
@@ -1769,11 +1867,15 @@ CRITICAL RULES — follow these exactly:
           const invoiceId = parseInt(match[1]);
           const invoice = await storage.getInvoice(invoiceId);
           if (invoice && invoice.status !== 'paid') {
+            const paidDate = new Date();
             await storage.updateInvoice(invoiceId, {
               status: 'paid',
-              paidDate: new Date(),
+              paidDate,
               paidAmount: String(invoice.totalAmount),
             });
+            if (invoice.userId) {
+              syncPaymentToXero(invoice.userId, invoiceId, Number(invoice.totalAmount), paidDate);
+            }
           }
         }
       }
