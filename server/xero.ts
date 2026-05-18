@@ -249,12 +249,13 @@ export async function createXeroInvoice(
   accessToken: string,
   tenantId: string,
   opts: {
-    xeroContactId: string;
+    xeroContactId: string | null;
     quoteId: number;
     jobTitle: string;
     lineItems: { description: string; quantity: number; unitPrice: number }[];
     includeGST: boolean;
     dueDate?: Date;
+    reference?: string; // override default VG-Q{quoteId}
   }
 ): Promise<XeroInvoiceResult> {
   const today = new Date().toISOString().split("T")[0];
@@ -277,15 +278,18 @@ export async function createXeroInvoice(
 
   const invoice: Record<string, any> = {
     Type: "ACCREC",
-    Contact: { ContactID: opts.xeroContactId },
     LineItems: lineItems,
     LineAmountTypes: opts.includeGST ? "EXCLUSIVE" : "NOTAX",
     Date: today,
     DueDate: due,
     Status: "AUTHORISED",
-    Reference: `VG-Q${opts.quoteId}`,
+    Reference: opts.reference ?? `VG-Q${opts.quoteId}`,
     Description: opts.jobTitle,
   };
+
+  if (opts.xeroContactId) {
+    invoice.Contact = { ContactID: opts.xeroContactId };
+  }
 
   const res = await fetch(`${XERO_API_BASE}/Invoices`, {
     method: "POST",

@@ -76,6 +76,8 @@ export const invoices = pgTable("invoices", {
   stripePaymentLinkUrl: text("stripe_payment_link_url"),
   squarePaymentLinkId: text("square_payment_link_id"),
   squarePaymentLinkUrl: text("square_payment_link_url"),
+  xeroInvoiceId: text("xero_invoice_id"),
+  xeroInvoiceNumber: text("xero_invoice_number"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -105,11 +105,66 @@ async function syncPaymentToXero(userId: string, invoiceId: number, amount: numb
     const token = await getValidToken(userId);
     if (!token) return;
     const invoice = await storage.getInvoice(invoiceId);
-    if (!invoice?.quoteId) return;
-    const quote = await storage.getQuote(invoice.quoteId);
-    if (!quote?.xeroInvoiceId) return;
-    await recordXeroPayment(token.accessToken, token.tenantId, quote.xeroInvoiceId, amount, date);
-    console.log(`Xero payment recorded for invoice ${invoiceId} (Xero: ${quote.xeroInvoiceId})`);
+    if (!invoice) return;
+
+    // Path A: invoice was generated from a quote — use the quote's Xero invoice ID
+    if (invoice.quoteId) {
+      const quote = await storage.getQuote(invoice.quoteId);
+      if (!quote?.xeroInvoiceId) return;
+      await recordXeroPayment(token.accessToken, token.tenantId, quote.xeroInvoiceId, amount, date);
+      console.log(`Xero payment recorded for invoice ${invoiceId} (Xero: ${quote.xeroInvoiceId})`);
+      return;
+    }
+
+    // Path B: standalone invoice (no quoteId) — create a Xero invoice on the fly then record payment
+    let xeroInvoiceId = invoice.xeroInvoiceId;
+    if (!xeroInvoiceId) {
+      // Resolve Xero contact ID for this customer
+      let xeroContactId: string | null = null;
+      if (invoice.customerId) {
+        const customer = await storage.getCustomer(invoice.customerId);
+        xeroContactId = customer?.xeroContactId ?? null;
+        if (!xeroContactId && customer) {
+          const synced = await syncCustomerToXero(token, invoice.customerId);
+          xeroContactId = synced?.contactId ?? null;
+        }
+      }
+
+      // Parse line items from invoice JSON
+      let lineItems: { description: string; quantity: number; unitPrice: number }[] = [];
+      try {
+        const raw = JSON.parse(invoice.items || "[]");
+        lineItems = raw.map((item: any) => ({
+          description: item.description || "Service",
+          quantity: Number(item.quantity) || 1,
+          unitPrice: Number(item.unitPrice ?? item.price ?? item.amount ?? 0),
+        }));
+      } catch {}
+      if (lineItems.length === 0) {
+        lineItems = [{ description: invoice.invoiceNumber, quantity: 1, unitPrice: amount }];
+      }
+
+      const includeGST = Number(invoice.gstAmount ?? 0) > 0;
+      const result = await createXeroInvoice(token.accessToken, token.tenantId, {
+        xeroContactId,
+        quoteId: invoiceId, // placeholder — overridden by reference below
+        jobTitle: invoice.invoiceNumber,
+        lineItems,
+        includeGST,
+        dueDate: invoice.dueDate ?? undefined,
+        reference: `VG-I${invoiceId}`,
+      });
+
+      xeroInvoiceId = result.invoiceId;
+      await storage.updateInvoice(invoiceId, {
+        xeroInvoiceId: result.invoiceId,
+        xeroInvoiceNumber: result.invoiceNumber,
+      });
+      console.log(`Xero invoice ${result.invoiceNumber} created for standalone invoice ${invoiceId}`);
+    }
+
+    await recordXeroPayment(token.accessToken, token.tenantId, xeroInvoiceId, amount, date);
+    console.log(`Xero payment recorded for standalone invoice ${invoiceId} (Xero: ${xeroInvoiceId})`);
   } catch (err) {
     console.error(`Xero payment sync failed for invoice ${invoiceId}:`, err);
   }
@@ -1711,13 +1766,16 @@ CRITICAL RULES — follow these exactly:
         const xeroInvoice = await getXeroInvoiceStatus(token.accessToken, token.tenantId, xeroInvoiceId);
         if (!xeroInvoice || xeroInvoice.status !== "PAID") continue;
 
-        // Find the Vargen quote that maps to this Xero invoice
+        // Find the Vargen invoice — check quote-linked first, then standalone
+        let invoice: any = null;
         const quote = await storage.getQuoteByXeroInvoiceId(xeroInvoiceId, tokenRow.userId);
-        if (!quote?.id) continue;
-
-        // Find the Vargen invoice linked to that quote
-        const invoices = await storage.getInvoices(tokenRow.userId);
-        const invoice = invoices.find((inv: any) => inv.quoteId === quote.id);
+        if (quote?.id) {
+          const allInvoices = await storage.getInvoices(tokenRow.userId);
+          invoice = allInvoices.find((inv: any) => inv.quoteId === quote.id) ?? null;
+        }
+        if (!invoice) {
+          invoice = await storage.getInvoiceByXeroInvoiceId(xeroInvoiceId) ?? null;
+        }
         if (!invoice || invoice.status === "paid") continue;
 
         await storage.updateInvoice(invoice.id, {

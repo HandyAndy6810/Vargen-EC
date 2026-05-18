@@ -48,6 +48,7 @@ export interface IStorage {
   getInvoices(userId: string): Promise<Invoice[]>;
   getInvoice(id: number, userId?: string): Promise<Invoice | undefined>;
   getInvoiceByQuoteId(quoteId: number): Promise<Invoice | undefined>;
+  getInvoiceByXeroInvoiceId(xeroInvoiceId: string): Promise<Invoice | undefined>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
   updateInvoice(id: number, invoice: Partial<InsertInvoice>, userId?: string): Promise<Invoice>;
   getNextInvoiceNumber(userId: string): Promise<string>;
@@ -302,6 +303,8 @@ export class DatabaseStorage implements IStorage {
         stripePaymentLinkUrl: invoices.stripePaymentLinkUrl,
         squarePaymentLinkId: invoices.squarePaymentLinkId,
         squarePaymentLinkUrl: invoices.squarePaymentLinkUrl,
+        xeroInvoiceId: invoices.xeroInvoiceId,
+        xeroInvoiceNumber: invoices.xeroInvoiceNumber,
         createdAt: invoices.createdAt,
         customerName: customers.name,
       })
@@ -325,6 +328,11 @@ export class DatabaseStorage implements IStorage {
 
   async getInvoiceByQuoteId(quoteId: number): Promise<Invoice | undefined> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.quoteId, quoteId));
+    return invoice;
+  }
+
+  async getInvoiceByXeroInvoiceId(xeroInvoiceId: string): Promise<Invoice | undefined> {
+    const [invoice] = await db.select().from(invoices).where(eq(invoices.xeroInvoiceId, xeroInvoiceId));
     return invoice;
   }
 
