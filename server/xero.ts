@@ -5,7 +5,9 @@ import { storage } from "./storage";
 const XERO_AUTH_URL = "https://login.xero.com/identity/connect/authorize";
 const XERO_TOKEN_URL = "https://identity.xero.com/connect/token";
 const XERO_CONNECTIONS_URL = "https://api.xero.com/connections";
-const XERO_SCOPES = process.env.XERO_SCOPES || "openid profile email offline_access accounting.contacts accounting.transactions";
+// New granular scopes required for apps created after 2 March 2026.
+// Override via XERO_SCOPES env var if needed.
+const XERO_SCOPES = process.env.XERO_SCOPES || "openid profile email offline_access accounting.contacts.read accounting.contacts.write accounting.transactions.read accounting.transactions.write";
 
 function getClientId(): string {
   const id = process.env.XERO_CLIENT_ID;
@@ -247,12 +249,13 @@ export async function createXeroInvoice(
   accessToken: string,
   tenantId: string,
   opts: {
-    xeroContactId: string;
+    xeroContactId: string | null;
     quoteId: number;
     jobTitle: string;
     lineItems: { description: string; quantity: number; unitPrice: number }[];
     includeGST: boolean;
     dueDate?: Date;
+    reference?: string; // override default VG-Q{quoteId}
   }
 ): Promise<XeroInvoiceResult> {
   const today = new Date().toISOString().split("T")[0];
@@ -275,15 +278,18 @@ export async function createXeroInvoice(
 
   const invoice: Record<string, any> = {
     Type: "ACCREC",
-    Contact: { ContactID: opts.xeroContactId },
     LineItems: lineItems,
     LineAmountTypes: opts.includeGST ? "EXCLUSIVE" : "NOTAX",
     Date: today,
     DueDate: due,
     Status: "AUTHORISED",
-    Reference: `VG-Q${opts.quoteId}`,
+    Reference: opts.reference ?? `VG-Q${opts.quoteId}`,
     Description: opts.jobTitle,
   };
+
+  if (opts.xeroContactId) {
+    invoice.Contact = { ContactID: opts.xeroContactId };
+  }
 
   const res = await fetch(`${XERO_API_BASE}/Invoices`, {
     method: "POST",
@@ -313,5 +319,65 @@ export async function createXeroInvoice(
   return {
     invoiceId: created.InvoiceID,
     invoiceNumber: created.InvoiceNumber || `INV-${opts.quoteId}`,
+  };
+}
+
+/**
+ * Record a payment against an existing Xero invoice.
+ * Called when a Vargen invoice is marked paid — keeps Xero books in sync.
+ * XERO_PAYMENT_ACCOUNT_CODE defaults to "090" (standard AU/NZ bank account).
+ */
+export async function recordXeroPayment(
+  accessToken: string,
+  tenantId: string,
+  xeroInvoiceId: string,
+  amount: number,
+  date: Date,
+): Promise<void> {
+  const accountCode = process.env.XERO_PAYMENT_ACCOUNT_CODE || "090";
+  const dateStr = date.toISOString().split("T")[0]; // YYYY-MM-DD
+
+  const res = await fetch(`${XERO_API_BASE}/Payments`, {
+    method: "POST",
+    headers: xeroHeaders(accessToken, tenantId),
+    body: JSON.stringify({
+      Invoice: { InvoiceID: xeroInvoiceId },
+      Account: { Code: accountCode },
+      Date: dateStr,
+      Amount: amount,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    let detail = errText;
+    try { detail = JSON.parse(errText)?.Detail || JSON.parse(errText)?.Message || errText; } catch {}
+    throw new Error(`Xero payment record failed (${res.status}): ${detail}`);
+  }
+}
+
+/**
+ * Fetch a Xero invoice by ID and return its status and amount paid.
+ * Used by the webhook handler to confirm an invoice is genuinely PAID.
+ */
+export async function getXeroInvoiceStatus(
+  accessToken: string,
+  tenantId: string,
+  xeroInvoiceId: string,
+): Promise<{ status: string; amountPaid: number; amountDue: number } | null> {
+  const res = await fetch(`${XERO_API_BASE}/Invoices/${xeroInvoiceId}`, {
+    headers: xeroHeaders(accessToken, tenantId),
+  });
+
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  const inv = data?.Invoices?.[0];
+  if (!inv) return null;
+
+  return {
+    status: inv.Status,
+    amountPaid: Number(inv.AmountPaid || 0),
+    amountDue: Number(inv.AmountDue || 0),
   };
 }

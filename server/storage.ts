@@ -33,6 +33,7 @@ export interface IStorage {
   // Quotes (userId-scoped)
   getQuotes(userId: string): Promise<Quote[]>;
   getQuote(id: number, userId?: string): Promise<Quote | undefined>;
+  getQuoteByXeroInvoiceId(xeroInvoiceId: string, userId: string): Promise<Quote | undefined>;
   createQuote(quote: InsertQuote): Promise<Quote>;
   updateQuote(id: number, quote: Partial<InsertQuote>, userId?: string): Promise<Quote>;
   getQuoteByShareToken(token: string): Promise<Quote | undefined>;
@@ -47,6 +48,7 @@ export interface IStorage {
   getInvoices(userId: string): Promise<Invoice[]>;
   getInvoice(id: number, userId?: string): Promise<Invoice | undefined>;
   getInvoiceByQuoteId(quoteId: number): Promise<Invoice | undefined>;
+  getInvoiceByXeroInvoiceId(xeroInvoiceId: string): Promise<Invoice | undefined>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
   updateInvoice(id: number, invoice: Partial<InsertInvoice>, userId?: string): Promise<Invoice>;
   getNextInvoiceNumber(userId: string): Promise<string>;
@@ -83,6 +85,7 @@ export interface IStorage {
 
   // Xero Tokens
   getXeroToken(userId: string): Promise<XeroToken | undefined>;
+  getXeroTokenByTenantId(tenantId: string): Promise<XeroToken | undefined>;
   upsertXeroToken(userId: string, token: Omit<InsertXeroToken, "userId">): Promise<XeroToken>;
   deleteXeroToken(userId: string): Promise<void>;
 
@@ -227,6 +230,13 @@ export class DatabaseStorage implements IStorage {
     return quote;
   }
 
+  async getQuoteByXeroInvoiceId(xeroInvoiceId: string, userId: string): Promise<Quote | undefined> {
+    const [quote] = await db.select().from(quotes).where(
+      and(eq(quotes.xeroInvoiceId, xeroInvoiceId), eq(quotes.userId, userId))
+    );
+    return quote;
+  }
+
   async createQuote(quote: InsertQuote): Promise<Quote> {
     const [newQuote] = await db.insert(quotes).values(quote).returning();
     return newQuote;
@@ -293,6 +303,8 @@ export class DatabaseStorage implements IStorage {
         stripePaymentLinkUrl: invoices.stripePaymentLinkUrl,
         squarePaymentLinkId: invoices.squarePaymentLinkId,
         squarePaymentLinkUrl: invoices.squarePaymentLinkUrl,
+        xeroInvoiceId: invoices.xeroInvoiceId,
+        xeroInvoiceNumber: invoices.xeroInvoiceNumber,
         createdAt: invoices.createdAt,
         customerName: customers.name,
       })
@@ -316,6 +328,11 @@ export class DatabaseStorage implements IStorage {
 
   async getInvoiceByQuoteId(quoteId: number): Promise<Invoice | undefined> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.quoteId, quoteId));
+    return invoice;
+  }
+
+  async getInvoiceByXeroInvoiceId(xeroInvoiceId: string): Promise<Invoice | undefined> {
+    const [invoice] = await db.select().from(invoices).where(eq(invoices.xeroInvoiceId, xeroInvoiceId));
     return invoice;
   }
 
@@ -478,6 +495,11 @@ export class DatabaseStorage implements IStorage {
   // ── Xero Tokens ───────────────────────────────────────────────────────
   async getXeroToken(userId: string): Promise<XeroToken | undefined> {
     const [token] = await db.select().from(xeroTokens).where(eq(xeroTokens.userId, userId));
+    return token;
+  }
+
+  async getXeroTokenByTenantId(tenantId: string): Promise<XeroToken | undefined> {
+    const [token] = await db.select().from(xeroTokens).where(eq(xeroTokens.tenantId, tenantId));
     return token;
   }
 

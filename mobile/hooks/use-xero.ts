@@ -1,6 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api';
 
+export function useCreateXeroInvoice(quoteId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', `/api/xero/invoice/${quoteId}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to create Xero invoice');
+      }
+      return res.json() as Promise<{ invoiceId: string; invoiceNumber: string; alreadyExists?: boolean }>;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [`/api/quotes/${quoteId}`] });
+    },
+  });
+}
+
 export function useXeroStatus() {
   return useQuery({
     queryKey: ['xero-status'],
