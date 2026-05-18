@@ -11,6 +11,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuote, useQuoteItems, useDeleteQuote, useUpdateQuote } from '@/hooks/use-quotes';
+import { useXeroStatus, useCreateXeroInvoice } from '@/hooks/use-xero';
 import { useSettings } from '@/hooks/use-settings';
 import { buildQuotePDF, type PdfDocumentData } from '@/lib/quote-pdf';
 import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Edit2, FileText } from 'lucide-react-native';
@@ -66,6 +67,8 @@ export default function QuoteDetailScreen() {
   const { data: settings } = useSettings();
   const deleteQuote = useDeleteQuote();
   const updateQuote = useUpdateQuote();
+  const { data: xeroStatus } = useXeroStatus();
+  const createXeroInvoice = useCreateXeroInvoice(quoteId);
 
   if (isLoading) {
     return (
@@ -380,6 +383,35 @@ export default function QuoteDetailScreen() {
         </View>
       </ScrollView>
 
+      {/* Xero sync status */}
+      {xeroStatus?.connected ? (
+        <View style={s.xeroBar}>
+          {quote.xeroInvoiceId ? (
+            <View style={s.xeroBadge}>
+              <Text style={s.xeroText}>
+                Synced to Xero{quote.xeroInvoiceNumber ? ` · ${quote.xeroInvoiceNumber}` : ''}
+              </Text>
+            </View>
+          ) : quote.status === 'accepted' ? (
+            <TouchableOpacity
+              style={s.xeroSyncBtn}
+              activeOpacity={0.8}
+              disabled={createXeroInvoice.isPending}
+              onPress={() => {
+                createXeroInvoice.mutate(undefined, {
+                  onSuccess: (r) => Alert.alert('Xero invoice created', `Invoice ${r.invoiceNumber} created in Xero.`),
+                  onError: (e: any) => Alert.alert('Xero sync failed', e.message || 'Try again.'),
+                });
+              }}
+            >
+              <Text style={s.xeroSyncBtnText}>
+                {createXeroInvoice.isPending ? 'Syncing…' : 'Sync to Xero'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
+
       {/* Bottom CTAs */}
       <View style={s.bottomBar}>
         <TouchableOpacity
@@ -592,6 +624,39 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Manrope_700Bold',
     color: INK,
+  },
+  xeroBar: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    alignItems: 'flex-start',
+  },
+  xeroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: GREEN_SOFT,
+    borderWidth: 1,
+    borderColor: `${GREEN}44`,
+  },
+  xeroText: {
+    fontSize: 11,
+    fontFamily: 'Manrope_700Bold',
+    color: GREEN,
+  },
+  xeroSyncBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: BLUE_SOFT,
+    borderWidth: 1,
+    borderColor: BLUE_BORDER,
+  },
+  xeroSyncBtnText: {
+    fontSize: 11,
+    fontFamily: 'Manrope_700Bold',
+    color: BLUE,
   },
   bottomBar: {
     position: 'absolute',

@@ -1690,18 +1690,21 @@ CRITICAL RULES — follow these exactly:
     let event: any;
     if (webhookSecret && sig) {
       try {
-        event = stripe!.webhooks.constructEvent(req.body, sig, webhookSecret);
+        // Must use req.rawBody (the raw buffer) — constructEvent needs the original
+        // bytes to verify the HMAC signature. req.body is already a parsed object.
+        event = stripe!.webhooks.constructEvent((req as any).rawBody, sig, webhookSecret);
       } catch (err: any) {
         return res.status(400).json({ message: `Webhook signature verification failed: ${err.message}` });
       }
     } else {
-      // Allow unsigned events in dev (no webhook secret set)
-      try { event = JSON.parse(req.body); } catch { return res.status(400).end(); }
+      // Dev mode: no webhook secret — body is already parsed by express.json
+      event = req.body;
     }
 
     if (event?.type === 'checkout.session.completed' || event?.type === 'payment_intent.succeeded') {
       const invoiceId = parseInt(event.data?.object?.metadata?.invoiceId);
       if (!isNaN(invoiceId)) {
+        // Fetch without userId — webhook has no user context; Stripe signature is the auth
         const invoice = await storage.getInvoice(invoiceId);
         if (invoice && invoice.status !== 'paid') {
           await storage.updateInvoice(invoiceId, {
