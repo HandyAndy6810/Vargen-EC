@@ -1853,7 +1853,7 @@ CRITICAL RULES — follow these exactly:
       event = req.body;
     }
 
-    if (event?.type === 'checkout.session.completed' || event?.type === 'payment_intent.succeeded') {
+    if (event?.type === 'checkout.session.completed') {
       const invoiceId = parseInt(event.data?.object?.metadata?.invoiceId);
       if (!isNaN(invoiceId)) {
         // Fetch without userId — webhook has no user context; Stripe signature is the auth
@@ -1867,6 +1867,12 @@ CRITICAL RULES — follow these exactly:
           });
           if (invoice.userId) {
             syncPaymentToXero(invoice.userId, invoiceId, Number(invoice.totalAmount), paidDate);
+          }
+          // Deactivate the payment link so it can't be used again
+          if (invoice.stripePaymentLinkId && stripe) {
+            stripe.paymentLinks.update(invoice.stripePaymentLinkId, { active: false }).catch((err) =>
+              console.error('Failed to archive Stripe payment link:', err)
+            );
           }
         }
       }

@@ -8,6 +8,7 @@ import {
   Linking,
   Alert,
   Clipboard,
+  Share,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -49,14 +50,22 @@ export default function InvoiceDetailScreen() {
   const squareLink = useSquarePaymentLink();
   const { data: settings } = useSettings();
 
+  const sharePaymentLink = (url: string, label: string) => {
+    Share.share({ message: `Pay your invoice here: ${url}`, url }).catch(() => {
+      // Fallback: copy to clipboard
+      Clipboard.setString(url);
+      Alert.alert('Copied', `${label} payment link copied to clipboard`);
+    });
+  };
+
   const handlePayByCard = () => {
     if (!invoiceId) return;
     if (invoice?.stripePaymentLinkUrl) {
-      Linking.openURL(invoice.stripePaymentLinkUrl);
+      sharePaymentLink(invoice.stripePaymentLinkUrl, 'Stripe');
       return;
     }
     stripeLink.mutate(invoiceId, {
-      onSuccess: (data: any) => Linking.openURL(data.url),
+      onSuccess: (data: any) => sharePaymentLink(data.url, 'Stripe'),
       onError: (err: any) => Alert.alert('Card payment unavailable', err.message),
     });
   };
@@ -64,11 +73,11 @@ export default function InvoiceDetailScreen() {
   const handlePayBySquare = () => {
     if (!invoiceId) return;
     if (invoice?.squarePaymentLinkUrl) {
-      Linking.openURL(invoice.squarePaymentLinkUrl);
+      sharePaymentLink(invoice.squarePaymentLinkUrl, 'Square');
       return;
     }
     squareLink.mutate(invoiceId, {
-      onSuccess: (data: any) => Linking.openURL(data.url),
+      onSuccess: (data: any) => sharePaymentLink(data.url, 'Square'),
       onError: (err: any) => Alert.alert('Square payment unavailable', err.message),
     });
   };
@@ -140,8 +149,14 @@ export default function InvoiceDetailScreen() {
   const handleMore = () => {
     const actions: Array<{ text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }> = [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete invoice', style: 'destructive', onPress: handleDelete },
     ];
+    if (invoice?.stripePaymentLinkUrl) {
+      actions.push({ text: 'Copy Stripe link', onPress: () => { Clipboard.setString(invoice.stripePaymentLinkUrl!); Alert.alert('Copied', 'Stripe payment link copied'); } });
+    }
+    if (invoice?.squarePaymentLinkUrl) {
+      actions.push({ text: 'Copy Square link', onPress: () => { Clipboard.setString(invoice.squarePaymentLinkUrl!); Alert.alert('Copied', 'Square payment link copied'); } });
+    }
+    actions.push({ text: 'Delete invoice', style: 'destructive', onPress: handleDelete });
     Alert.alert('Invoice options', '', actions);
   };
 
@@ -414,7 +429,7 @@ export default function InvoiceDetailScreen() {
                 {stripeLink.isPending
                   ? <ActivityIndicator size="small" color={INK} />
                   : <CreditCard size={16} color={INK} strokeWidth={2.2} />}
-                <Text style={s.cardBtnText}>Stripe</Text>
+                <Text style={s.cardBtnText}>{invoice?.stripePaymentLinkUrl ? 'Share Stripe' : 'Stripe'}</Text>
               </TouchableOpacity>
             )}
             {settings?.squareEnabled && (
@@ -427,7 +442,7 @@ export default function InvoiceDetailScreen() {
                 {squareLink.isPending
                   ? <ActivityIndicator size="small" color={INK} />
                   : <CreditCard size={16} color={INK} strokeWidth={2.2} />}
-                <Text style={s.cardBtnText}>Square</Text>
+                <Text style={s.cardBtnText}>{invoice?.squarePaymentLinkUrl ? 'Share Square' : 'Square'}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity

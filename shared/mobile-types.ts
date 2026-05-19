@@ -84,6 +84,8 @@ export interface Invoice {
   stripePaymentLinkUrl: string | null;
   squarePaymentLinkId: string | null;
   squarePaymentLinkUrl: string | null;
+  xeroInvoiceId: string | null;
+  xeroInvoiceNumber: string | null;
   createdAt: string | null;
   customerName?: string | null;
 }

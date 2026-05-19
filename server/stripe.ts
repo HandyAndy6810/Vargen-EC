@@ -30,14 +30,17 @@ export async function createPaymentLink(params: {
   const link = await stripe.paymentLinks.create({
     line_items: [{ price: price.id, quantity: 1 }],
     metadata: { invoiceId: String(params.invoiceId) },
-    ...(params.customerEmail && {
-      customer_creation: 'always',
-    }),
     after_completion: {
       type: 'hosted_confirmation',
       hosted_confirmation: { custom_message: 'Payment received — thank you.' },
     },
   });
 
-  return { id: link.id, url: link.url };
+  // Stripe payment links support ?prefilled_email= as a URL parameter to pre-fill
+  // the customer's email address at checkout — append it if we have one.
+  const url = params.customerEmail
+    ? `${link.url}?prefilled_email=${encodeURIComponent(params.customerEmail)}`
+    : link.url;
+
+  return { id: link.id, url };
 }
