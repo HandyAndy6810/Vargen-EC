@@ -51,7 +51,7 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
- "plugins": [
+    "plugins": [
       "expo-router",
       "expo-secure-store",
       [
@@ -59,9 +59,7 @@
         {
           "ios": {
             "deploymentTarget": "15.1",
-            "compilerFlags": [
-              "-DFOLLY_CFG_NO_COROUTINES=1"
-            ]
+            "ccFlags": "-DFOLLY_CFG_NO_COROUTINES=1"
           }
         }
       ],
@@ -83,14 +81,6 @@
           "icon": "./assets/images/icon.png",
           "color": "#FF5C00",
           "sounds": []
-        }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "ccFlags": "-DFOLLY_CFG_NO_COROUTINES=1"
-          }
         }
       ],
       "expo-updates",
