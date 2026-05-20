@@ -21,7 +21,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://789c18da-bd62-484b-aa0c-9ad268e4fd86-00-396rx0taup16d.riker.replit.dev",
+        "EXPO_PUBLIC_API_URL": "https://trade-pal--andrewyoukhana.replit.app",
         "EXPO_PUBLIC_DEV_BYPASS": "true"
       }
     },
@@ -34,7 +34,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://789c18da-bd62-484b-aa0c-9ad268e4fd86-00-396rx0taup16d.riker.replit.dev"
+        "EXPO_PUBLIC_API_URL": "https://trade-pal--andrewyoukhana.replit.app"
       }
     }
   },
