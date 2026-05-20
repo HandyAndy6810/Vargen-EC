@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api';
@@ -21,6 +21,7 @@ import { ChevronLeft, ChevronRight, Sparkles, FileText, Plus, Trash2, Camera, Se
 import * as ImagePicker from 'expo-image-picker';
 import { useQuote } from '@/hooks/use-quotes';
 import { useSettings } from '@/hooks/use-settings';
+import { useCustomers } from '@/hooks/use-customers';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -139,6 +140,15 @@ export default function QuoteCreateScreen() {
   const tradeKey = getTradeKey(settings?.tradeType);
   const quickSuggestions = TRADE_SUGGESTIONS[tradeKey] ?? TRADE_SUGGESTIONS.general;
 
+  const { data: allCustomers } = useCustomers() as any;
+  const [custSearch, setCustSearch] = useState('');
+  const [showCustList, setShowCustList] = useState(false);
+  const filteredCustomers = useMemo(() => {
+    const list: any[] = allCustomers || [];
+    if (!custSearch.trim()) return list.slice(0, 6);
+    return list.filter((c: any) => c.name?.toLowerCase().includes(custSearch.toLowerCase())).slice(0, 6);
+  }, [allCustomers, custSearch]);
+
   const [mode, setMode] = useState<Mode>((prefillName || isEditing) ? 'form' : 'ai');
   const [aiDescription, setAiDescription] = useState('');
   const [descFocused, setDescFocused] = useState(false);
@@ -146,6 +156,7 @@ export default function QuoteCreateScreen() {
   const [customerId, setCustomerId] = useState<number | null>(
     prefillName && prefillCustomerId ? Number(prefillCustomerId) : null
   );
+  const selectedCustomer = (allCustomers as any[])?.find((c: any) => c.id === customerId);
   const [jobTitle, setJobTitle]   = useState('');
   const [schedDate, setSchedDate] = useState('');
   const [notes, setNotes]         = useState('');
@@ -423,16 +434,55 @@ export default function QuoteCreateScreen() {
 
             <Text style={s.sectionEyebrow}>Details</Text>
             <View style={s.fieldGroup}>
-              <View style={s.fieldRow}>
-                <Text style={s.fieldLabel}>Customer</Text>
-                <TextInput
-                  style={s.fieldInput}
-                  placeholder="Name or company"
-                  placeholderTextColor={MUTED}
-                  value={customer}
-                  onChangeText={setCustomer}
-                  returnKeyType="next"
-                />
+              <View style={[s.fieldRow, { flexWrap: 'wrap', alignItems: 'flex-start', paddingVertical: 12 }]}>
+                <Text style={[s.fieldLabel, { paddingTop: 4 }]}>Customer</Text>
+                <View style={{ flex: 1 }}>
+                  {selectedCustomer ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: PAPER_DEEP, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 }}>
+                        <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: ORANGE }}>{selectedCustomer.name?.slice(0, 2).toUpperCase()}</Text>
+                        </View>
+                        <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: INK, flex: 1 }} numberOfLines={1}>{selectedCustomer.name}</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => { setCustomerId(null); setCustomer(''); setCustSearch(''); }} activeOpacity={0.7}>
+                        <X size={16} color={MUTED} strokeWidth={2} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <>
+                      <TextInput
+                        style={s.fieldInput}
+                        placeholder="Search or type name…"
+                        placeholderTextColor={MUTED}
+                        value={custSearch || customer}
+                        onChangeText={v => { setCustSearch(v); setCustomer(v); setCustomerId(null); setShowCustList(true); }}
+                        onFocus={() => setShowCustList(true)}
+                        returnKeyType="next"
+                      />
+                      {showCustList && filteredCustomers.length > 0 && (
+                        <View style={{ position: 'absolute', top: 38, left: 0, right: 0, backgroundColor: CARD, borderRadius: 12, borderWidth: 1, borderColor: LINE_MID, zIndex: 99, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 8 }}>
+                          {filteredCustomers.map((c: any) => (
+                            <TouchableOpacity
+                              key={c.id}
+                              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: LINE_SOFT }}
+                              activeOpacity={0.7}
+                              onPress={() => { setCustomerId(c.id); setCustomer(c.name); setCustSearch(''); setShowCustList(false); }}
+                            >
+                              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: ORANGE }}>{c.name?.slice(0, 2).toUpperCase()}</Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: INK }}>{c.name}</Text>
+                                {c.phone && <Text style={{ fontSize: 11, fontFamily: 'Manrope_500Medium', color: MUTED }}>{c.phone}</Text>}
+                              </View>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+                    </>
+                  )}
+                </View>
               </View>
               <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
                 <Text style={s.fieldLabel}>Job title</Text>
