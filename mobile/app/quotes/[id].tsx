@@ -436,6 +436,7 @@ export default function QuoteDetailScreen() {
           style={[s.convertBtn, alreadyInvoiced && { backgroundColor: PAPER_DEEP }]}
           activeOpacity={0.8}
           onPress={handleConvert}
+          disabled={alreadyInvoiced}
         >
           <Text style={[s.convertBtnText, alreadyInvoiced && { color: MUTED_HI }]}>
             {alreadyInvoiced ? 'Already invoiced' : 'Convert ›'}

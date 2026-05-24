@@ -3,6 +3,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   ActivityIndicator,
   Linking,
@@ -11,6 +12,7 @@ import {
   Share,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInvoice, useUpdateInvoice, useDeleteInvoice } from '@/hooks/use-invoices';
 import { useStripePaymentLink } from '@/hooks/use-stripe';
@@ -46,6 +48,8 @@ export default function InvoiceDetailScreen() {
   const { data: invoice, isLoading } = useInvoice(invoiceId) as any;
   const updateInvoice = useUpdateInvoice();
   const deleteInvoice = useDeleteInvoice();
+  const [partialMode, setPartialMode] = useState(false);
+  const [partialAmt, setPartialAmt] = useState('');
   const stripeLink = useStripePaymentLink();
   const squareLink = useSquarePaymentLink();
   const { data: settings } = useSettings();
@@ -102,6 +106,30 @@ export default function InvoiceDetailScreen() {
     ]);
   };
 
+  const handleRecordPartial = () => {
+    const amount = parseFloat(partialAmt);
+    if (!amount || amount <= 0) { Alert.alert('Enter a valid amount'); return; }
+    const total = invoice?.totalAmount ? parseFloat(invoice.totalAmount) : 0;
+    if (amount >= total) {
+      updateInvoice.mutate({ id: invoiceId, status: 'paid', paidDate: new Date().toISOString() as any });
+    } else {
+      updateInvoice.mutate({ id: invoiceId, status: 'partial', paidAmount: amount.toString() } as any);
+    }
+    setPartialMode(false);
+    setPartialAmt('');
+  };
+
+  const handleMarkUnpaid = () => {
+    Alert.alert('Mark as unpaid?', 'This will revert the invoice back to Sent.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Mark unpaid',
+        style: 'destructive',
+        onPress: () => updateInvoice.mutate({ id: invoiceId, status: 'sent', paidDate: null } as any),
+      },
+    ]);
+  };
+
   const handleSharePDF = async () => {
     try {
       const docData: PdfDocumentData = {
@@ -150,6 +178,7 @@ export default function InvoiceDetailScreen() {
     const actions: Array<{ text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }> = [
       { text: 'Cancel', style: 'cancel' },
     ];
+    actions.push({ text: 'Record partial payment', onPress: () => setPartialMode(true) });
     if (invoice?.stripePaymentLinkUrl) {
       actions.push({ text: 'Copy Stripe link', onPress: () => { Clipboard.setString(invoice.stripePaymentLinkUrl!); Alert.alert('Copied', 'Stripe payment link copied'); } });
     }
@@ -414,6 +443,33 @@ export default function InvoiceDetailScreen() {
       {/* Action bar */}
       {!isPaid ? (
         <View style={s.bottomBar}>
+          {partialMode && (
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+              <TextInput
+                style={{ flex: 1, height: 44, backgroundColor: CARD, borderWidth: 1, borderColor: LINE_MID, borderRadius: 12, paddingHorizontal: 14, fontSize: 15, fontFamily: 'Manrope_600SemiBold', color: INK }}
+                placeholder="Amount received ($)"
+                placeholderTextColor={MUTED}
+                keyboardType="decimal-pad"
+                value={partialAmt}
+                onChangeText={setPartialAmt}
+                autoFocus
+              />
+              <TouchableOpacity
+                style={{ height: 44, paddingHorizontal: 16, backgroundColor: GREEN, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}
+                onPress={handleRecordPartial}
+                activeOpacity={0.8}
+              >
+                <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>Record</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ height: 44, paddingHorizontal: 12, backgroundColor: PAPER_DEEP, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}
+                onPress={() => { setPartialMode(false); setPartialAmt(''); }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: MUTED_HI }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
             <TouchableOpacity onPress={handleSharePDF} activeOpacity={0.7} style={s.pdfBtn}>
               <FileText size={16} color={ORANGE} strokeWidth={2} />
@@ -469,6 +525,13 @@ export default function InvoiceDetailScreen() {
               <Check size={18} color={GREEN} strokeWidth={2.5} />
               <Text style={s.paidBadgeText}>Invoice paid — all done</Text>
             </View>
+            <TouchableOpacity
+              onPress={handleMarkUnpaid}
+              activeOpacity={0.7}
+              style={{ height: 54, paddingHorizontal: 14, borderRadius: 18, backgroundColor: PAPER_DEEP, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Text style={{ fontSize: 12, fontFamily: 'Manrope_700Bold', color: MUTED_HI }}>Undo</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}

@@ -16,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Sparkles, Send, Plus, Trash2 } from 'lucide-react-native';
 import { useQuote } from '@/hooks/use-quotes';
 import { useCreateInvoice, useConvertQuoteToInvoice } from '@/hooks/use-invoices';
+import { useSettings } from '@/hooks/use-settings';
+import { addDays, format } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 import { apiRequest } from '@/lib/api';
 
@@ -81,6 +83,10 @@ export default function InvoiceCreateScreen() {
 
   const convertMutation = useConvertQuoteToInvoice();
   const createMutation = useCreateInvoice();
+  const { data: settings } = useSettings();
+
+  const paymentTermsDays = Number(settings?.paymentTermsDays ?? 14) || 14;
+  const dueDateStr = format(addDays(new Date(), paymentTermsDays), 'EEE d MMM yyyy');
 
   // Labour line value
   const labourTotal = (parseFloat(labourRate) || 0) * (parseFloat(labourHours) || 0);
@@ -270,7 +276,7 @@ export default function InvoiceCreateScreen() {
                     {[
                       'All line items copied from the quote',
                       'Invoice number auto-generated',
-                      'Due date set to your payment terms (14 days)',
+                      `Due date: ${dueDateStr} (${paymentTermsDays}-day terms)`,
                       'Quote status updated to "Invoiced"',
                     ].map((item, i) => (
                       <View key={i} style={[s.infoRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
