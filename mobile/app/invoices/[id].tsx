@@ -267,6 +267,14 @@ export default function InvoiceDetailScreen() {
         <View style={{ flex: 1 }}>
           <Text style={s.eyebrow}>{num}</Text>
           <Text style={s.title} numberOfLines={1}>{title}</Text>
+          {invoice?.customerName ? (
+            <TouchableOpacity
+              activeOpacity={invoice.customerId ? 0.7 : 1}
+              onPress={() => invoice.customerId && router.push(`/customers/${invoice.customerId}` as any)}
+            >
+              <Text style={s.customerLink}>{invoice.customerName}{invoice.customerId ? ' ›' : ''}</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
         {!isPaid && (
           <TouchableOpacity onPress={handleMore} activeOpacity={0.7} style={s.iconBtn}>
@@ -569,6 +577,12 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_800ExtraBold',
     color: INK,
     letterSpacing: -0.4,
+    marginTop: 2,
+  },
+  customerLink: {
+    fontSize: 12,
+    fontFamily: 'Manrope_600SemiBold',
+    color: BLUE,
     marginTop: 2,
   },
   heroCard: {
