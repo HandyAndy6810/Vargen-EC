@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import * as Haptics from 'expo-haptics';
 import { Home, FileText, Receipt, CalendarClock, User } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TABS = [
   { name: 'index',    label: 'Home',     Icon: Home },
@@ -140,9 +141,14 @@ export default function TabsLayout() {
   const { colors: c } = useTheme();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isLoading) return;
+    if (!isAuthenticated) {
       router.replace('/(auth)/login');
+      return;
     }
+    AsyncStorage.getItem('onboarding_seen').then((seen) => {
+      if (!seen) router.replace('/onboarding');
+    });
   }, [isAuthenticated, isLoading]);
 
   return (
