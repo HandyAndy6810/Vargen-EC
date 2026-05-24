@@ -9,6 +9,9 @@ import {
   Share,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useMutation } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/api';
+import { queryClient } from '@/lib/queryClient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuote, useQuoteItems, useDeleteQuote, useUpdateQuote } from '@/hooks/use-quotes';
 import { useXeroStatus, useCreateXeroInvoice } from '@/hooks/use-xero';
@@ -143,6 +146,38 @@ export default function QuoteDetailScreen() {
   const alreadyInvoiced = status === 'invoiced';
   const terminalStatus = isTerminalStatus(status);
 
+  const duplicateQuote = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/quotes', {
+        content: quote?.content,
+        title: quote?.title ?? undefined,
+        status: 'draft',
+      });
+      if (!res.ok) throw new Error('Failed to duplicate');
+      return res.json();
+    },
+    onSuccess: (newQuote: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+      router.replace(`/quotes/${newQuote.id}` as any);
+    },
+    onError: () => Alert.alert('Could not duplicate', 'Try again.'),
+  });
+
+  const handleChangeStatus = () => {
+    const options: Array<{ label: string; value: string }> = [];
+    if (status !== 'sent')     options.push({ label: 'Mark as Sent',     value: 'sent' });
+    if (status !== 'accepted') options.push({ label: 'Mark as Accepted', value: 'accepted' });
+    if (status !== 'declined') options.push({ label: 'Mark as Declined', value: 'declined' });
+    if (status !== 'draft')    options.push({ label: 'Revert to Draft',  value: 'draft' });
+    Alert.alert('Change status', '', [
+      { text: 'Cancel', style: 'cancel' },
+      ...options.map(({ label, value }) => ({
+        text: label,
+        onPress: () => updateQuote.mutate({ id: quoteId, status: value } as any),
+      })),
+    ]);
+  };
+
   const handleMore = () => {
     const actions: Array<{ text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }> = [
       { text: 'Cancel', style: 'cancel' },
@@ -155,6 +190,10 @@ export default function QuoteDetailScreen() {
       text: 'Share quote',
       onPress: () => Share.share({ message: `Quote ${num} — $${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2 })} inc. GST` }),
     });
+    actions.unshift({ text: 'Duplicate quote', onPress: () => duplicateQuote.mutate() });
+    if (status !== 'invoiced') {
+      actions.unshift({ text: 'Change status', onPress: handleChangeStatus });
+    }
     if (!alreadyInvoiced) {
       actions.unshift({
         text: 'Delete quote',
@@ -436,6 +475,7 @@ export default function QuoteDetailScreen() {
           style={[s.convertBtn, alreadyInvoiced && { backgroundColor: PAPER_DEEP }]}
           activeOpacity={0.8}
           onPress={handleConvert}
+          disabled={alreadyInvoiced}
         >
           <Text style={[s.convertBtnText, alreadyInvoiced && { color: MUTED_HI }]}>
             {alreadyInvoiced ? 'Already invoiced' : 'Convert ›'}

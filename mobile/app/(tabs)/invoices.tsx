@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { useState, useCallback, useMemo } from 'react';
 import { router } from 'expo-router';
@@ -129,10 +130,12 @@ export default function InvoicesScreen() {
             <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: '#fff' }}>🔴 ${overdue.toLocaleString()} overdue</Text>
             <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: 'rgba(255,255,255,0.7)' }}>● ${current.toLocaleString()} current</Text>
           </View>
-          <TouchableOpacity style={s.nudgeBtn} onPress={() => router.push('/ai-chat')} activeOpacity={0.8}>
-            <Sparkles size={14} color="#fff" strokeWidth={2} />
-            <Text style={s.nudgeBtnText}>Nudge overdue customers</Text>
-          </TouchableOpacity>
+          {counts.overdue > 0 && (
+            <TouchableOpacity style={s.nudgeBtn} onPress={() => setFilter('overdue')} activeOpacity={0.8}>
+              <Sparkles size={14} color="#fff" strokeWidth={2} />
+              <Text style={s.nudgeBtnText}>View {counts.overdue} overdue invoice{counts.overdue === 1 ? '' : 's'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -159,6 +162,17 @@ export default function InvoicesScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 130, gap: 10 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
       >
+        {isError && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onRefresh}
+            style={{ backgroundColor: '#fde5e5', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#f0a0a0' }}
+          >
+            <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: '#d23b3b' }}>
+              Couldn't load invoices — tap to retry
+            </Text>
+          </TouchableOpacity>
+        )}
         {filtered.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 56, paddingHorizontal: 24 }}>
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: c.paperDeep, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>

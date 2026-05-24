@@ -16,6 +16,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
+import { format, addDays } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, Sparkles, FileText, Plus, Trash2, Camera, Send, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -158,8 +159,9 @@ export default function QuoteCreateScreen() {
   );
   const selectedCustomer = (allCustomers as any[])?.find((c: any) => c.id === customerId);
   const [jobTitle, setJobTitle]   = useState('');
-  const [schedDate, setSchedDate] = useState('');
-  const [notes, setNotes]         = useState('');
+  const [schedDate, setSchedDate]     = useState('');
+  const [expiryDate, setExpiryDate]   = useState(() => format(addDays(new Date(), 30), 'd MMM yyyy'));
+  const [notes, setNotes]             = useState('');
   const [lines, setLines]         = useState<LineItem[]>(DEFAULT_LINES);
   const [receiptBase64, setReceiptBase64] = useState<string | null>(null);
   const [error, setError]         = useState<string | null>(null);
@@ -199,6 +201,7 @@ export default function QuoteCreateScreen() {
     setCustomer(c.customerName || '');
     if ((editQuote as any).customerId) setCustomerId((editQuote as any).customerId);
     setSchedDate(c.schedDate || '');
+    setExpiryDate(c.expiryDate || format(addDays(new Date(), 30), 'd MMM yyyy'));
     setNotes(c.notes || '');
     if (c.lines?.length > 0) {
       setLines(c.lines.map((l: any) => ({
@@ -250,7 +253,7 @@ export default function QuoteCreateScreen() {
         totalAmount: String(total),
         status,
         customerId: customerId ?? undefined,
-        content: JSON.stringify({ customerName: customer, jobTitle, schedDate, notes, lines }),
+        content: JSON.stringify({ customerName: customer, jobTitle, schedDate, expiryDate, notes, lines }),
       };
       const res = isEditing
         ? await apiRequest('PATCH', `/api/quotes/${editId}`, body)
@@ -503,6 +506,17 @@ export default function QuoteCreateScreen() {
                   placeholderTextColor={MUTED}
                   value={schedDate}
                   onChangeText={setSchedDate}
+                  returnKeyType="next"
+                />
+              </View>
+              <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                <Text style={s.fieldLabel}>Expires</Text>
+                <TextInput
+                  style={s.fieldInput}
+                  placeholder="e.g. 30 Jun 2026"
+                  placeholderTextColor={MUTED}
+                  value={expiryDate}
+                  onChangeText={setExpiryDate}
                   returnKeyType="next"
                 />
               </View>
