@@ -446,14 +446,18 @@ export async function registerRoutes(
 
   // Quote Items
   app.get("/api/quotes/:quoteId/items", requireAuth, async (req: any, res) => {
-    const items = await storage.getQuoteItems(Number(req.params.quoteId));
+    const quote = await storage.getQuote(Number(req.params.quoteId), req.userId);
+    if (!quote) return res.status(404).json({ message: "Quote not found" });
+    const items = await storage.getQuoteItems(quote.id);
     res.json(items);
   });
 
   app.post("/api/quotes/:quoteId/items", requireAuth, async (req: any, res) => {
     try {
+      const quote = await storage.getQuote(Number(req.params.quoteId), req.userId);
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
       const item = await storage.createQuoteItem({
-        quoteId: Number(req.params.quoteId),
+        quoteId: quote.id,
         description: req.body.description,
         quantity: Number(req.body.quantity),
         price: String(req.body.price),
@@ -877,8 +881,8 @@ CRITICAL RULES — follow these exactly:
 
       const feedback = await storage.getPortalFeedback(quote.id);
 
-      // Fetch business details from user settings
-      const s = await storage.getAnyUserSettings();
+      // Fetch business details from the quote owner's settings
+      const s = quote.userId ? await storage.getUserSettings(quote.userId) : undefined;
       const businessName = s?.businessName || "";
       const businessPhone = s?.phone || "";
       const businessEmail = s?.email || "";
@@ -1131,7 +1135,7 @@ CRITICAL RULES — follow these exactly:
       if (justSent && existing.customerId) {
         const customer = await storage.getCustomer(existing.customerId);
         if (customer?.email) {
-          const s = await storage.getAnyUserSettings();
+          const s = await storage.getUserSettings(req.userId);
           const businessName = s?.businessName || "Your Tradie";
           const dueDate = updated.dueDate
             ? new Date(updated.dueDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" })
@@ -1160,7 +1164,7 @@ CRITICAL RULES — follow these exactly:
       const customer = await storage.getCustomer(invoice.customerId);
       if (!customer?.email) return res.status(400).json({ message: "Customer has no email address" });
 
-      const s = await storage.getAnyUserSettings();
+      const s = await storage.getUserSettings(req.userId);
       const businessName = s?.businessName || "Your Tradie";
       const dueDate = invoice.dueDate
         ? new Date(invoice.dueDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" })
@@ -1821,6 +1825,7 @@ CRITICAL RULES — follow these exactly:
         amountCents,
         currency: 'aud',
         customerEmail: customer?.email ?? undefined,
+        userId: req.userId,
       });
 
       await storage.updateInvoice(invoiceId, {
@@ -1855,9 +1860,12 @@ CRITICAL RULES — follow these exactly:
 
     if (event?.type === 'checkout.session.completed') {
       const invoiceId = parseInt(event.data?.object?.metadata?.invoiceId);
+      const webhookUserId = event.data?.object?.metadata?.userId || null;
       if (!isNaN(invoiceId)) {
-        // Fetch without userId — webhook has no user context; Stripe signature is the auth
-        const invoice = await storage.getInvoice(invoiceId);
+        // Scope lookup to the userId stored in metadata — falls back to unscoped if missing
+        const invoice = webhookUserId
+          ? await storage.getInvoice(invoiceId, webhookUserId)
+          : await storage.getInvoice(invoiceId);
         if (invoice && invoice.status !== 'paid') {
           const paidDate = new Date();
           await storage.updateInvoice(invoiceId, {
