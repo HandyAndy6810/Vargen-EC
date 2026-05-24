@@ -13,6 +13,7 @@ export async function createPaymentLink(params: {
   amountCents: number;
   currency: string;
   customerEmail?: string;
+  userId?: string;
 }): Promise<{ id: string; url: string }> {
   if (!stripe) throw new Error('Stripe is not configured. Add STRIPE_SECRET_KEY to environment.');
 
@@ -29,7 +30,7 @@ export async function createPaymentLink(params: {
 
   const link = await stripe.paymentLinks.create({
     line_items: [{ price: price.id, quantity: 1 }],
-    metadata: { invoiceId: String(params.invoiceId) },
+    metadata: { invoiceId: String(params.invoiceId), userId: params.userId ?? '' },
     after_completion: {
       type: 'hosted_confirmation',
       hosted_confirmation: { custom_message: 'Payment received — thank you.' },

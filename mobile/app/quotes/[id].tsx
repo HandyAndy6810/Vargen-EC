@@ -414,16 +414,16 @@ export default function QuoteDetailScreen() {
 
       {/* Bottom CTAs */}
       <View style={s.bottomBar}>
-        <TouchableOpacity
-          style={s.tweakBtn}
-          activeOpacity={0.7}
-          onPress={() => {
-            router.push(`/quotes/create?quoteId=${id}` as any);
-          }}
-        >
-          <Edit2 size={15} color={INK} strokeWidth={2} />
-          <Text style={s.tweakBtnText}>Tweak</Text>
-        </TouchableOpacity>
+        {(status === 'draft' || status === 'sent') && (
+          <TouchableOpacity
+            style={s.tweakBtn}
+            activeOpacity={0.7}
+            onPress={() => router.push(`/quotes/create?quoteId=${id}` as any)}
+          >
+            <Edit2 size={15} color={INK} strokeWidth={2} />
+            <Text style={s.tweakBtnText}>Tweak</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={s.pdfBtn}
           activeOpacity={0.7}
