@@ -105,7 +105,7 @@ export default function QuoteDetailScreen() {
   let content: any = {};
   try { content = JSON.parse(quote?.content || '{}'); } catch {}
 
-  const title = content.jobTitle || `Quote #${id}`;
+  const title = (quote as any)?.jobTitle || content.jobTitle || `Quote #${id}`;
   const customerName = content.customerName || '';
   const status = quote?.status || 'draft';
   const totalAmount = quote?.totalAmount ? parseFloat(quote.totalAmount) : 0;
@@ -154,7 +154,8 @@ export default function QuoteDetailScreen() {
     mutationFn: async () => {
       const res = await apiRequest('POST', '/api/quotes', {
         content: quote?.content,
-        title: quote?.title ?? undefined,
+        jobTitle: (quote as any)?.jobTitle || title || undefined,
+        totalAmount: quote?.totalAmount ?? '0',
         status: 'draft',
       });
       if (!res.ok) throw new Error('Failed to duplicate');

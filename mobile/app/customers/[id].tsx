@@ -262,19 +262,19 @@ export default function CustomerDetailScreen() {
             {/* Quick actions */}
             <View style={s.actionsRow}>
               {customer.phone ? (
-                <>
-                  <TouchableOpacity style={[s.actionBtn, { backgroundColor: GREEN_SOFT }]} onPress={() => openCall(customer.phone!)}>
-                    <Phone size={20} color={GREEN} strokeWidth={2} />
-                    <Text style={[s.actionLabel, { color: GREEN }]}>Call</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[s.actionBtn, { backgroundColor: ORANGE_SOFT }]}
-                    onPress={() => router.push(`/customers/compose?customerId=${id}&customerName=${encodeURIComponent(customer.name)}&customerPhone=${encodeURIComponent(customer.phone ?? '')}&customerEmail=${encodeURIComponent(customer.email ?? '')}` as any)}
-                  >
-                    <MessageSquare size={20} color={ORANGE} strokeWidth={2} />
-                    <Text style={[s.actionLabel, { color: ORANGE }]}>Message</Text>
-                  </TouchableOpacity>
-                </>
+                <TouchableOpacity style={[s.actionBtn, { backgroundColor: GREEN_SOFT }]} onPress={() => openCall(customer.phone!)}>
+                  <Phone size={20} color={GREEN} strokeWidth={2} />
+                  <Text style={[s.actionLabel, { color: GREEN }]}>Call</Text>
+                </TouchableOpacity>
+              ) : null}
+              {(customer.phone || customer.email) ? (
+                <TouchableOpacity
+                  style={[s.actionBtn, { backgroundColor: ORANGE_SOFT }]}
+                  onPress={() => router.push(`/customers/compose?customerId=${id}&customerName=${encodeURIComponent(customer.name)}&customerPhone=${encodeURIComponent(customer.phone ?? '')}&customerEmail=${encodeURIComponent(customer.email ?? '')}` as any)}
+                >
+                  <MessageSquare size={20} color={ORANGE} strokeWidth={2} />
+                  <Text style={[s.actionLabel, { color: ORANGE }]}>Message</Text>
+                </TouchableOpacity>
               ) : null}
               {customer.email ? (
                 <TouchableOpacity style={[s.actionBtn, { backgroundColor: BLUE_SOFT }]} onPress={() => openEmail(customer.email!)}>

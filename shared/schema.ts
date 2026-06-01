@@ -44,6 +44,7 @@ export const quotes = pgTable("quotes", {
   xeroInvoiceId: text("xero_invoice_id"),
   xeroInvoiceNumber: text("xero_invoice_number"),
   shareToken: text("share_token"), // UUID for client portal link
+  jobTitle: text("job_title"),
   followUpSchedule: text("follow_up_schedule"), // JSON: [{ day, status, sentAt? }]
   sentAt: timestamp("sent_at"), // set when status first changes to "sent"
   createdAt: timestamp("created_at").defaultNow(),

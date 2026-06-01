@@ -56,6 +56,7 @@ export interface Quote {
   totalAmount: string;
   status: string | null;
   content: string | null;
+  jobTitle: string | null;
   xeroInvoiceId: string | null;
   xeroInvoiceNumber: string | null;
   shareToken: string | null;
@@ -63,6 +64,15 @@ export interface Quote {
   sentAt: string | null;
   createdAt: string | null;
   customerName?: string | null;
+}
+
+export interface QuoteItem {
+  id: number;
+  quoteId: number | null;
+  description: string;
+  quantity: number;
+  price: string;
+  unit?: string | null;
 }
 
 export interface Invoice {

@@ -253,6 +253,7 @@ export default function QuoteCreateScreen() {
         totalAmount: String(total),
         status,
         customerId: customerId ?? undefined,
+        jobTitle: jobTitle.trim() || undefined,
         content: JSON.stringify({ customerName: customer, jobTitle, schedDate, expiryDate, notes, lines }),
       };
       const res = isEditing
@@ -288,6 +289,8 @@ export default function QuoteCreateScreen() {
     if (lines.every(l => !l.price || parseFloat(l.price) <= 0)) {
       setError('Add at least one line item with a price'); return;
     }
+    const hasBlankPricedLine = lines.some(l => parseFloat(l.price) > 0 && !l.name.trim());
+    if (hasBlankPricedLine) { setError('All priced line items need a description'); return; }
     setError(null);
     saveMutation.mutate(status);
   };

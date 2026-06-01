@@ -2,14 +2,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/mobile-routes";
 import { type Quote } from "@shared/mobile-types";
 import { useToast } from "@/lib/toast";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, extractError } from "@/lib/api";
 
 export function useQuotes() {
   return useQuery({
     queryKey: [api.quotes.list.path],
     queryFn: async () => {
       const res = await apiRequest("GET", api.quotes.list.path);
-      if (!res.ok) throw new Error("Failed to fetch quotes");
+      if (!res.ok) throw new Error(await extractError(res));
       return res.json() as Promise<Quote[]>;
     },
   });
@@ -22,7 +22,7 @@ export function useQuote(id: number) {
       const url = buildUrl(api.quotes.get.path, { id });
       const res = await apiRequest("GET", url);
       if (res.status === 404) return null;
-      if (!res.ok) throw new Error("Failed to fetch quote");
+      if (!res.ok) throw new Error(await extractError(res));
       return res.json() as Promise<Quote>;
     },
     enabled: !!id,
@@ -58,7 +58,7 @@ export function useQuoteItems(quoteId: number) {
     queryKey: [`/api/quotes/${quoteId}/items`],
     queryFn: async () => {
       const res = await apiRequest('GET', `/api/quotes/${quoteId}/items`);
-      if (!res.ok) throw new Error('Failed to fetch quote items');
+      if (!res.ok) throw new Error(await extractError(res));
       return res.json() as Promise<Array<{
         id: number;
         quoteId: number;

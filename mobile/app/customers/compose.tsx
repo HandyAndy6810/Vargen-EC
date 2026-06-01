@@ -18,6 +18,7 @@ import * as Linking from 'expo-linking';
 import { useSettings } from '@/hooks/use-settings';
 import { useSendMessage } from '@/hooks/use-messages';
 import { apiRequest } from '@/lib/api';
+import { queryClient } from '@/lib/queryClient';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -76,12 +77,16 @@ export default function ComposeScreen() {
     customerPhone,
     customerEmail,
     context,
+    quoteId,
+    dayIndex,
   } = useLocalSearchParams<{
     customerId?: string;
     customerName?: string;
     customerPhone?: string;
     customerEmail?: string;
     context?: string;
+    quoteId?: string;
+    dayIndex?: string;
   }>();
 
   const { data: settings } = useSettings();
@@ -137,6 +142,14 @@ export default function ComposeScreen() {
     }
   };
 
+  const markFollowUpSent = async () => {
+    if (!quoteId) return;
+    try {
+      await apiRequest('POST', `/api/follow-ups/${quoteId}/mark-sent`, { dayIndex: Number(dayIndex) });
+      queryClient.invalidateQueries({ queryKey: ['/api/follow-ups/due'] });
+    } catch { /* non-blocking */ }
+  };
+
   const sendSMS = () => {
     if (!phone) {
       Alert.alert('No phone number', 'This customer has no phone number on file.');
@@ -150,6 +163,7 @@ export default function ComposeScreen() {
     Linking.openURL(`sms:${phone}${sep}body=${encodeURIComponent(body)}`).catch(() =>
       Alert.alert('Cannot open Messages', 'Make sure a SIM is installed.')
     );
+    markFollowUpSent();
   };
 
   const sendEmail = () => {
@@ -166,6 +180,7 @@ export default function ComposeScreen() {
     Linking.openURL(`mailto:${email}?subject=${subject}&body=${encodeURIComponent(body)}`).catch(() =>
       Alert.alert('Cannot open Mail', 'No mail app found.')
     );
+    markFollowUpSent();
   };
 
   const logNote = async () => {
@@ -180,6 +195,7 @@ export default function ComposeScreen() {
     setIsSaving(true);
     try {
       await sendMessage.mutateAsync({ body: body.trim(), channel: 'note', direction: 'out' });
+      await markFollowUpSent();
       router.back();
     } catch {
       Alert.alert('Could not save', 'Check your connection and try again.');

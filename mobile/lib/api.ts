@@ -22,6 +22,15 @@ export const API_BASE_URL = getBaseUrl();
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
+export async function extractError(res: Response): Promise<string> {
+  try {
+    const body = await res.clone().json();
+    return body.message || body.error || res.statusText || 'Something went wrong';
+  } catch {
+    return res.statusText || 'Something went wrong';
+  }
+}
+
 export async function apiRequest(
   method: string,
   path: string,

@@ -2,14 +2,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/mobile-routes";
 import { type InsertCustomer, type Customer } from "@shared/mobile-types";
 import { useToast } from "@/lib/toast";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, extractError } from "@/lib/api";
 
 export function useCustomers() {
   return useQuery({
     queryKey: [api.customers.list.path],
     queryFn: async () => {
       const res = await apiRequest("GET", api.customers.list.path);
-      if (!res.ok) throw new Error("Failed to fetch customers");
+      if (!res.ok) throw new Error(await extractError(res));
       return res.json();
     },
   });
@@ -22,7 +22,7 @@ export function useCustomer(id: number) {
       const url = buildUrl(api.customers.get.path, { id });
       const res = await apiRequest("GET", url);
       if (res.status === 404) return null;
-      if (!res.ok) throw new Error("Failed to fetch customer");
+      if (!res.ok) throw new Error(await extractError(res));
       return res.json() as Promise<Customer>;
     },
     enabled: !!id,
