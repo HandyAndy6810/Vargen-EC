@@ -7,7 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { format, startOfWeek, addDays, addWeeks, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -77,6 +78,16 @@ export default function CalendarScreen() {
     return todayIdx >= 0 ? todayIdx : 0;
   });
   const [showSearch, setShowSearch] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem('cal_weekOffset').then(v => {
+      if (v !== null) setWeekOffset(Number(v));
+    });
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.setItem('cal_weekOffset', String(weekOffset));
+  }, [weekOffset]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const weekStart = useMemo(
@@ -141,6 +152,9 @@ export default function CalendarScreen() {
   const nowHour = now.getHours() + now.getMinutes() / 60;
   const nowTop = (nowHour - START_H) * HOUR_H;
   const showNow = weekOffset === 0 && isToday(selectedDay) && nowHour >= START_H && nowHour <= END_H;
+
+  const outOfRangeBefore = dayJobs.filter(j => new Date(j.scheduledDate).getHours() < START_H).length;
+  const outOfRangeAfter  = dayJobs.filter(j => new Date(j.scheduledDate).getHours() >= END_H).length;
 
   // Outreach / follow-ups
   const { data: followUps = [], isLoading: followUpsLoading } = useQuery<any[]>({
@@ -281,7 +295,7 @@ export default function CalendarScreen() {
                         style={{ flex: 1, height: 42, borderRadius: 12, backgroundColor: c.orange, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                         activeOpacity={0.8}
                         onPress={() => router.push(
-                          `/customers/compose?customerId=${item.quote?.customerId || ''}&customerName=${encodeURIComponent(custName)}&context=quote_followup` as any
+                          `/customers/compose?customerId=${item.quote?.customerId || ''}&customerName=${encodeURIComponent(custName)}&context=quote_followup&quoteId=${item.quote?.id || ''}&dayIndex=${item.dueIndex ?? ''}` as any
                         )}
                       >
                         <Send size={14} color="#fff" strokeWidth={2} />
@@ -388,6 +402,17 @@ export default function CalendarScreen() {
         )}
       </View>
 
+      {/* Out-of-range indicators */}
+      {outOfRangeBefore > 0 && (
+        <View style={{ paddingHorizontal: 20, marginBottom: 4 }}>
+          <View style={{ alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft }}>
+            <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: c.muted }}>
+              ↑ {outOfRangeBefore} job{outOfRangeBefore > 1 ? 's' : ''} before 6am
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Hour grid */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
         <View style={{ paddingLeft: 20, paddingRight: 8, position: 'relative' }}>
@@ -457,6 +482,15 @@ export default function CalendarScreen() {
             <View style={{ height: (END_H - START_H + 1) * HOUR_H }} />
           </View>
         </View>
+        {outOfRangeAfter > 0 && (
+          <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
+            <View style={{ alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft }}>
+              <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: c.muted }}>
+                ↓ {outOfRangeAfter} job{outOfRangeAfter > 1 ? 's' : ''} after 8pm
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
       </View>
       )}

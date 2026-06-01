@@ -6,6 +6,7 @@ import {
   StyleSheet,
   RefreshControl,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
@@ -331,7 +332,9 @@ export default function HomeScreen() {
               </View>
               <TouchableOpacity onPress={() => router.push('/jobs/list')}><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
             </View>
-            {todayJobs.length === 0 ? (
+            {jobsLoading ? (
+              <View style={{ paddingHorizontal: 20 }}><View style={[s.emptyCard, { paddingVertical: 24 }]}><ActivityIndicator color={c.orange} /></View></View>
+            ) : todayJobs.length === 0 ? (
               <View style={{ paddingHorizontal: 20 }}><View style={s.emptyCard}><Text style={s.emptyText}>Nothing on the books today</Text></View></View>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10, paddingBottom: 4 }}>

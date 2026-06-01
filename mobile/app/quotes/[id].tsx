@@ -9,6 +9,7 @@ import {
   Share,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
@@ -22,6 +23,7 @@ import { format } from 'date-fns';
 import * as Linking from 'expo-linking';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import PDFComposeModal from '@/components/PDFComposeModal';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -70,6 +72,8 @@ export default function QuoteDetailScreen() {
   const { data: settings } = useSettings();
   const deleteQuote = useDeleteQuote();
   const updateQuote = useUpdateQuote();
+  const [showPDF, setShowPDF] = useState(false);
+  const [pdfPending, setPdfPending] = useState(false);
   const { data: xeroStatus } = useXeroStatus();
   const createXeroInvoice = useCreateXeroInvoice(quoteId);
 
@@ -101,7 +105,7 @@ export default function QuoteDetailScreen() {
   let content: any = {};
   try { content = JSON.parse(quote?.content || '{}'); } catch {}
 
-  const title = content.jobTitle || `Quote #${id}`;
+  const title = (quote as any)?.jobTitle || content.jobTitle || `Quote #${id}`;
   const customerName = content.customerName || '';
   const status = quote?.status || 'draft';
   const totalAmount = quote?.totalAmount ? parseFloat(quote.totalAmount) : 0;
@@ -150,7 +154,8 @@ export default function QuoteDetailScreen() {
     mutationFn: async () => {
       const res = await apiRequest('POST', '/api/quotes', {
         content: quote?.content,
-        title: quote?.title ?? undefined,
+        jobTitle: (quote as any)?.jobTitle || title || undefined,
+        totalAmount: quote?.totalAmount ?? '0',
         status: 'draft',
       });
       if (!res.ok) throw new Error('Failed to duplicate');
@@ -215,7 +220,8 @@ export default function QuoteDetailScreen() {
     router.push(`/invoices/create?quoteId=${id}` as any);
   };
 
-  const handleSharePDF = async () => {
+  const generateAndSharePDF = async (customMessage: string, notes: string) => {
+    setPdfPending(true);
     try {
       const rawItems = (quoteItems as any[]).length > 0
         ? (quoteItems as any[]).map((item: any) => ({
@@ -224,11 +230,11 @@ export default function QuoteDetailScreen() {
             unit: item.unit,
             unitPrice: parseFloat(item.price) / Math.max(item.quantity, 1),
           }))
-        : (content.items ?? []).map((item: any) => ({
-            description: item.description,
-            quantity: item.quantity || 1,
+        : (content.items ?? content.lines ?? []).map((item: any) => ({
+            description: item.description || item.name,
+            quantity: item.quantity || item.qty || 1,
             unit: item.unit,
-            unitPrice: item.unitPrice || 0,
+            unitPrice: item.unitPrice ?? (item.price ? parseFloat(item.price) / Math.max(item.quantity || item.qty || 1, 1) : 0),
           }));
 
       const docData: PdfDocumentData = {
@@ -236,22 +242,25 @@ export default function QuoteDetailScreen() {
         documentNumber: String(id).padStart(4, '0').slice(-4),
         createdAt: quote?.createdAt ?? new Date().toISOString(),
         expiryDate: content.expiryDate,
+        status: quote?.status,
         jobTitle: content.jobTitle || title,
         summary: content.summary,
-        customerName: content.customerName,
+        customerName: content.customerName || quote?.customerName,
         customerPhone: content.customerPhone,
         customerEmail: content.customerEmail,
         customerAddress: content.customerAddress,
         items: rawItems,
-        notes: content.notes,
-        subtotal: subtotal,
+        notes: notes || undefined,
+        customMessage: customMessage || undefined,
+        subtotal,
         gstAmount: gst,
-        totalAmount: totalAmount,
+        totalAmount,
         includeGST: content.includeGST ?? true,
       };
 
       const html = buildQuotePDF(docData, settings ?? {});
       const { uri } = await Print.printToFileAsync({ html, base64: false });
+      setShowPDF(false);
       await Sharing.shareAsync(uri, {
         mimeType: 'application/pdf',
         UTI: '.pdf',
@@ -259,10 +268,13 @@ export default function QuoteDetailScreen() {
       });
     } catch (err: any) {
       Alert.alert('Could not generate PDF', err?.message ?? 'Please try again.');
+    } finally {
+      setPdfPending(false);
     }
   };
 
   return (
+    <>
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
@@ -466,7 +478,7 @@ export default function QuoteDetailScreen() {
         <TouchableOpacity
           style={s.pdfBtn}
           activeOpacity={0.7}
-          onPress={handleSharePDF}
+          onPress={() => setShowPDF(true)}
         >
           <FileText size={15} color={ORANGE} strokeWidth={2} />
           <Text style={s.pdfBtnText}>PDF</Text>
@@ -483,6 +495,20 @@ export default function QuoteDetailScreen() {
         </TouchableOpacity>
       </View>
     </SafeAreaView>
+
+    <PDFComposeModal
+      visible={showPDF}
+      onClose={() => setShowPDF(false)}
+      onShare={generateAndSharePDF}
+      documentType="quote"
+      documentNumber={String(id).padStart(4, '0').slice(-4)}
+      customerName={content.customerName || quote?.customerName}
+      jobTitle={content.jobTitle || title}
+      totalAmount={totalAmount}
+      initialNotes={content.notes}
+      isPending={pdfPending}
+    />
+    </>
   );
 }
 

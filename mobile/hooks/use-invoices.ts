@@ -2,14 +2,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, buildUrl } from '@shared/mobile-routes';
 import { type Invoice } from '@shared/mobile-types';
 import { useToast } from '@/lib/toast';
-import { apiRequest } from '@/lib/api';
+import { apiRequest, extractError } from '@/lib/api';
 
 export function useInvoices() {
   return useQuery({
     queryKey: [api.invoices.list.path],
     queryFn: async () => {
       const res = await apiRequest('GET', api.invoices.list.path);
-      if (!res.ok) throw new Error('Failed to fetch invoices');
+      if (!res.ok) throw new Error(await extractError(res));
       return res.json() as Promise<Invoice[]>;
     },
   });
@@ -22,7 +22,7 @@ export function useInvoice(id: number) {
       const url = buildUrl(api.invoices.get.path, { id });
       const res = await apiRequest('GET', url);
       if (res.status === 404) return null;
-      if (!res.ok) throw new Error('Failed to fetch invoice');
+      if (!res.ok) throw new Error(await extractError(res));
       return res.json() as Promise<Invoice>;
     },
     enabled: !!id,
@@ -86,7 +86,7 @@ export function useDeleteInvoice() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (id: number) => {
-      const url = buildUrl('/api/invoices/:id' as any, { id });
+      const url = `/api/invoices/${id}`;
       const res = await apiRequest('DELETE', url);
       if (!res.ok) {
         const body = await res.json().catch(() => null);
