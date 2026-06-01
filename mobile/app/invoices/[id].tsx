@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import PDFComposeModal from '@/components/PDFComposeModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInvoice, useUpdateInvoice, useDeleteInvoice } from '@/hooks/use-invoices';
 import { useStripePaymentLink } from '@/hooks/use-stripe';
@@ -50,6 +51,8 @@ export default function InvoiceDetailScreen() {
   const deleteInvoice = useDeleteInvoice();
   const [partialMode, setPartialMode] = useState(false);
   const [partialAmt, setPartialAmt] = useState('');
+  const [showPDF, setShowPDF] = useState(false);
+  const [pdfPending, setPdfPending] = useState(false);
   const stripeLink = useStripePaymentLink();
   const squareLink = useSquarePaymentLink();
   const { data: settings } = useSettings();
@@ -130,21 +133,30 @@ export default function InvoiceDetailScreen() {
     ]);
   };
 
-  const handleSharePDF = async () => {
+  const generateAndSharePDF = async (customMessage: string, notes: string) => {
+    setPdfPending(true);
     try {
+      const parsedItems = (JSON.parse(invoice?.items || '[]') as any[]).map((item: any) => ({
+        description: item.description,
+        quantity: item.quantity || 1,
+        unit: item.unit,
+        unitPrice: item.unitPrice || 0,
+      }));
+
+      // Use actual invoice title (not truncated first-item description)
+      const invoiceTitle = invoice?.title || (parsedItems[0]?.description ?? `Invoice ${num}`);
+
       const docData: PdfDocumentData = {
         documentType: 'invoice',
         documentNumber: invoice?.invoiceNumber || String(id).slice(-3),
         createdAt: invoice?.createdAt ?? new Date().toISOString(),
         dueDate: invoice?.dueDate,
-        jobTitle: title,
-        items: (JSON.parse(invoice?.items || '[]') as any[]).map((item: any) => ({
-          description: item.description,
-          quantity: item.quantity || 1,
-          unit: item.unit,
-          unitPrice: item.unitPrice || 0,
-        })),
-        notes: invoice?.notes,
+        status: invoice?.status,
+        jobTitle: invoiceTitle,
+        customerName: invoice?.customerName ?? undefined,
+        items: parsedItems,
+        notes: notes || invoice?.notes || undefined,
+        customMessage: customMessage || undefined,
         subtotal: parseFloat(invoice?.subtotal || '0'),
         gstAmount: parseFloat(invoice?.gstAmount || '0'),
         totalAmount: parseFloat(invoice?.totalAmount || '0'),
@@ -153,6 +165,7 @@ export default function InvoiceDetailScreen() {
 
       const html = buildQuotePDF(docData, settings ?? {});
       const { uri } = await Print.printToFileAsync({ html, base64: false });
+      setShowPDF(false);
       await Sharing.shareAsync(uri, {
         mimeType: 'application/pdf',
         UTI: '.pdf',
@@ -160,6 +173,8 @@ export default function InvoiceDetailScreen() {
       });
     } catch (err: any) {
       Alert.alert('Could not generate PDF', err?.message ?? 'Please try again.');
+    } finally {
+      setPdfPending(false);
     }
   };
 
@@ -258,6 +273,7 @@ export default function InvoiceDetailScreen() {
   const heroBg = isOverdue ? ORANGE_DEEP : BLACK;
 
   return (
+    <>
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
@@ -479,7 +495,7 @@ export default function InvoiceDetailScreen() {
             </View>
           )}
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-            <TouchableOpacity onPress={handleSharePDF} activeOpacity={0.7} style={s.pdfBtn}>
+            <TouchableOpacity onPress={() => setShowPDF(true)} activeOpacity={0.7} style={s.pdfBtn}>
               <FileText size={16} color={ORANGE} strokeWidth={2} />
               <Text style={s.pdfBtnText}>PDF</Text>
             </TouchableOpacity>
@@ -525,7 +541,7 @@ export default function InvoiceDetailScreen() {
       ) : (
         <View style={s.bottomBar}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity onPress={handleSharePDF} activeOpacity={0.7} style={s.pdfBtn}>
+            <TouchableOpacity onPress={() => setShowPDF(true)} activeOpacity={0.7} style={s.pdfBtn}>
               <FileText size={16} color={ORANGE} strokeWidth={2} />
               <Text style={s.pdfBtnText}>PDF</Text>
             </TouchableOpacity>
@@ -544,6 +560,20 @@ export default function InvoiceDetailScreen() {
         </View>
       )}
     </SafeAreaView>
+
+    <PDFComposeModal
+      visible={showPDF}
+      onClose={() => setShowPDF(false)}
+      onShare={generateAndSharePDF}
+      documentType="invoice"
+      documentNumber={invoice?.invoiceNumber || String(id).slice(-3)}
+      customerName={invoice?.customerName}
+      jobTitle={invoice?.title || title}
+      totalAmount={totalAmount}
+      initialNotes={invoice?.notes}
+      isPending={pdfPending}
+    />
+    </>
   );
 }
 
