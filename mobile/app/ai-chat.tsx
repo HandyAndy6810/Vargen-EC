@@ -147,6 +147,10 @@ export default function AiChatScreen() {
     }
   }, [userSettings]);
 
+  const [editableItems, setEditableItems] = useState<{ description: string; qty: string; unit: string; rate: string }[]>([]);
+  const [savedQuoteId, setSavedQuoteId] = useState<number | null>(null);
+  const [quoteStatus, setQuoteStatus] = useState<string>('draft');
+
   // Intercept swipe-down dismiss on modal — show "Leave without saving?" when there's unsaved work
   useEffect(() => {
     const unsub = navigation.addListener('beforeRemove' as any, (e: any) => {
@@ -160,9 +164,6 @@ export default function AiChatScreen() {
     });
     return unsub;
   }, [navigation, description, firstName, phone, savedQuoteId]);
-  const [editableItems, setEditableItems] = useState<{ description: string; qty: string; unit: string; rate: string }[]>([]);
-  const [savedQuoteId, setSavedQuoteId] = useState<number | null>(null);
-  const [quoteStatus, setQuoteStatus] = useState<string>('draft');
 
   const { data: allCustomers = [] } = useCustomers();
   const customers = allCustomers as Customer[];
