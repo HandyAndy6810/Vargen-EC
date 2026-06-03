@@ -44,6 +44,28 @@ app.use(
   })
 );
 
+// ── CORS (development only) ────────────────────────────────────────────
+// The Expo web client runs on a different port (8081/8082) than this API
+// (5000), so browser fetches are cross-origin. Reflect the request origin
+// and allow credentials so session cookies work during local browser testing.
+// Disabled in production, where the SPA is served same-origin.
+if (process.env.NODE_ENV !== "production") {
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      res.header("Access-Control-Allow-Origin", origin);
+      res.header("Vary", "Origin");
+      res.header("Access-Control-Allow-Credentials", "true");
+      res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,PUT,DELETE,OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    }
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(204);
+    }
+    next();
+  });
+}
+
 app.use(
   express.json({
     limit: "20mb",
