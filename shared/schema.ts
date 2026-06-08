@@ -82,17 +82,6 @@ export const invoices = pgTable("invoices", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const jobTimerEntries = pgTable("job_timer_entries", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id),
-  jobId: integer("job_id").references(() => jobs.id),
-  startTime: timestamp("start_time").notNull(),
-  endTime: timestamp("end_time"),
-  duration: integer("duration"), // seconds
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 export const portalFeedback = pgTable("portal_feedback", {
   id: serial("id").primaryKey(),
   quoteId: integer("quote_id").references(() => quotes.id),
@@ -111,7 +100,6 @@ export const jobsRelations = relations(jobs, ({ one, many }) => ({
     references: [customers.id],
   }),
   quotes: many(quotes),
-  timerEntries: many(jobTimerEntries),
 }));
 
 export const quotesRelations = relations(quotes, ({ one, many }) => ({
@@ -143,13 +131,6 @@ export const invoicesRelations = relations(invoices, ({ one }) => ({
   customer: one(customers, {
     fields: [invoices.customerId],
     references: [customers.id],
-  }),
-}));
-
-export const jobTimerEntriesRelations = relations(jobTimerEntries, ({ one }) => ({
-  job: one(jobs, {
-    fields: [jobTimerEntries.jobId],
-    references: [jobs.id],
   }),
 }));
 
@@ -267,7 +248,6 @@ export const insertJobSchema = createInsertSchema(jobs).omit({ id: true, created
 export const insertQuoteSchema = createInsertSchema(quotes).omit({ id: true, createdAt: true });
 export const insertQuoteItemSchema = createInsertSchema(quoteItems).omit({ id: true });
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
-export const insertJobTimerEntrySchema = createInsertSchema(jobTimerEntries).omit({ id: true, createdAt: true });
 export const insertPortalFeedbackSchema = createInsertSchema(portalFeedback).omit({ id: true, createdAt: true });
 
 // Types
@@ -281,8 +261,6 @@ export type QuoteItem = typeof quoteItems.$inferSelect;
 export type InsertQuoteItem = z.infer<typeof insertQuoteItemSchema>;
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
-export type JobTimerEntry = typeof jobTimerEntries.$inferSelect;
-export type InsertJobTimerEntry = z.infer<typeof insertJobTimerEntrySchema>;
 export type PortalFeedback = typeof portalFeedback.$inferSelect;
 export type InsertPortalFeedback = z.infer<typeof insertPortalFeedbackSchema>;
 

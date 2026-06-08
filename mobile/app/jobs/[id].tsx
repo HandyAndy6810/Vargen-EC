@@ -12,7 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJob } from '@/hooks/use-jobs';
 import { useCustomer } from '@/hooks/use-customers';
-import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Navigation, Play } from 'lucide-react-native';
+import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Navigation, CheckCircle2 } from 'lucide-react-native';
 import Svg, { Path, Circle, Polygon } from 'react-native-svg';
 import { format } from 'date-fns';
 
@@ -185,10 +185,10 @@ export default function JobDetailScreen() {
         <TouchableOpacity
           style={s.startBtn}
           activeOpacity={0.8}
-          onPress={() => router.push(`/jobs/timer?id=${id}`)}
+          onPress={() => router.push(`/jobs/complete?id=${id}`)}
         >
-          <Play size={14} color="#fff" strokeWidth={2.5} fill="#fff" />
-          <Text style={s.startBtnText}>Start job</Text>
+          <CheckCircle2 size={14} color="#fff" strokeWidth={2.5} />
+          <Text style={s.startBtnText}>Finish job</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

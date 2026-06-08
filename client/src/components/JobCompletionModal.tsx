@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { SuccessFlash } from "@/components/SuccessFlash";
-import { useTimerEntries, formatDuration } from "@/hooks/use-timers";
 import { useUpdateJob } from "@/hooks/use-jobs";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useCustomer } from "@/hooks/use-customers";
@@ -17,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   CheckCircle,
-  Clock,
   TrendingUp,
   TrendingDown,
   MessageSquare,
@@ -43,7 +41,6 @@ export function JobCompletionModal({
   customerId,
   linkedQuoteId,
 }: JobCompletionModalProps) {
-  const { data: timerEntries = [] } = useTimerEntries(jobId);
   const updateJob = useUpdateJob();
   const { data: quotes } = useQuotes();
   const { data: customer } = useCustomer(customerId || 0);
@@ -74,18 +71,6 @@ export function JobCompletionModal({
 
   const quotedAmount = linkedQuote ? parseFloat(String(linkedQuote.totalAmount)) : null;
 
-  // Pre-populate actual hours from timer entries
-  useEffect(() => {
-    if (timerEntries.length > 0) {
-      const totalSeconds = timerEntries.reduce(
-        (sum, entry) => sum + (entry.duration || 0),
-        0
-      );
-      const hours = Math.round((totalSeconds / 3600) * 100) / 100;
-      setActualHours(hours.toString());
-    }
-  }, [timerEntries]);
-
   // Reset form when modal opens
   useEffect(() => {
     if (open) {
@@ -93,11 +78,6 @@ export function JobCompletionModal({
       setJobCompleted(false);
     }
   }, [open]);
-
-  const totalTimerSeconds = timerEntries.reduce(
-    (sum, entry) => sum + (entry.duration || 0),
-    0
-  );
 
   const actualHoursNum = parseFloat(actualHours) || 0;
   const isOverEstimate =
@@ -190,23 +170,6 @@ export function JobCompletionModal({
           </div>
         ) : (
         <div className="space-y-5 pt-2">
-          {/* Timer summary strip */}
-          {totalTimerSeconds > 0 && (
-            <div className="bg-[#F8F7F5] dark:bg-white/5 rounded-xl p-3 flex items-center gap-3">
-              <Clock className="w-5 h-5 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-sm font-bold text-foreground">
-                  Time tracked
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatDuration(totalTimerSeconds)} across{" "}
-                  {timerEntries.length} session
-                  {timerEntries.length !== 1 ? "s" : ""}
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* Estimate vs Actual comparison card */}
           {estimatedHours !== null && (
             <div
@@ -274,11 +237,9 @@ export function JobCompletionModal({
               placeholder="e.g. 4.5"
               className="rounded-xl"
             />
-            {totalTimerSeconds > 0 && !actualHours && (
-              <p className="text-xs text-muted-foreground">
-                Pre-filled from timer: {formatDuration(totalTimerSeconds)}
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground">
+              How many hours did this job take?
+            </p>
           </div>
 
           {/* Extra notes */}

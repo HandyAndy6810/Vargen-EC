@@ -1,20 +1,19 @@
 import { db } from "./db";
 import {
   customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
-  invoices, jobTimerEntries, portalFeedback, jobTemplates, priceBook, receipts, customerMessages,
+  invoices, portalFeedback, jobTemplates, priceBook, receipts, customerMessages,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem,
   type XeroToken, type InsertXeroToken,
   type Invoice, type InsertInvoice,
-  type JobTimerEntry, type InsertJobTimerEntry,
   type PortalFeedback, type InsertPortalFeedback,
   type JobTemplate, type InsertJobTemplate,
   type PriceBookItem, type InsertPriceBookItem,
   type Receipt, type InsertReceipt,
   type CustomerMessage, type InsertCustomerMessage,
 } from "../shared/schema";
-import { eq, desc, isNull, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Customers (userId-scoped)
@@ -53,12 +52,6 @@ export interface IStorage {
   updateInvoice(id: number, invoice: Partial<InsertInvoice>, userId?: string): Promise<Invoice>;
   getNextInvoiceNumber(userId: string): Promise<string>;
 
-  // Job Timer Entries (userId-scoped)
-  getTimerEntries(jobId: number): Promise<JobTimerEntry[]>;
-  getActiveTimer(userId: string): Promise<JobTimerEntry | undefined>;
-  createTimerEntry(entry: InsertJobTimerEntry): Promise<JobTimerEntry>;
-  updateTimerEntry(id: number, entry: Partial<InsertJobTimerEntry>): Promise<JobTimerEntry>;
-  deleteTimerEntry(id: number): Promise<void>;
 
   // Portal Feedback (no auth — public)
   createPortalFeedback(feedback: InsertPortalFeedback): Promise<PortalFeedback>;
@@ -355,34 +348,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(invoices.userId, userId));
     const next = (result?.count || 0) + 1;
     return `INV-${String(next).padStart(4, "0")}`;
-  }
-
-  // ── Job Timer Entries ─────────────────────────────────────────────────
-  async getTimerEntries(jobId: number): Promise<JobTimerEntry[]> {
-    return await db.select().from(jobTimerEntries)
-      .where(eq(jobTimerEntries.jobId, jobId))
-      .orderBy(desc(jobTimerEntries.startTime));
-  }
-
-  async getActiveTimer(userId: string): Promise<JobTimerEntry | undefined> {
-    const [entry] = await db.select().from(jobTimerEntries)
-      .where(and(isNull(jobTimerEntries.endTime), eq(jobTimerEntries.userId, userId)));
-    return entry;
-  }
-
-  async createTimerEntry(entry: InsertJobTimerEntry): Promise<JobTimerEntry> {
-    const [newEntry] = await db.insert(jobTimerEntries).values(entry).returning();
-    return newEntry;
-  }
-
-  async updateTimerEntry(id: number, entry: Partial<InsertJobTimerEntry>): Promise<JobTimerEntry> {
-    const [updated] = await db.update(jobTimerEntries).set(entry)
-      .where(eq(jobTimerEntries.id, id)).returning();
-    return updated;
-  }
-
-  async deleteTimerEntry(id: number): Promise<void> {
-    await db.delete(jobTimerEntries).where(eq(jobTimerEntries.id, id));
   }
 
   // ── Portal Feedback ───────────────────────────────────────────────────

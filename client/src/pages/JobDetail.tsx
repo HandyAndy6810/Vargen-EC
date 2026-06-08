@@ -10,10 +10,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { RunningLateModal } from "@/components/RunningLateModal";
-import { JobTimer } from "@/components/JobTimer";
 import { JobCompletionModal } from "@/components/JobCompletionModal";
 import { useQuotes } from "@/hooks/use-quotes";
-import { formatDuration } from "@/hooks/use-timers";
 
 export default function JobDetail() {
   const [, params] = useRoute("/jobs/:id");
@@ -107,11 +105,6 @@ export default function JobDetail() {
           </div>
         </div>
       </div>
-
-      {/* Job Timer */}
-      {job.status !== "completed" && job.status !== "cancelled" && (
-        <JobTimer jobId={job.id} />
-      )}
 
       {/* Completion Summary (for completed jobs) */}
       {completionData && (

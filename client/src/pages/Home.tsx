@@ -6,7 +6,6 @@ import { useCustomers } from "@/hooks/use-customers";
 import { useWidgetConfig } from "@/hooks/use-widget-config";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserSettings } from "@/hooks/use-user-settings";
-import { ActiveTimerBanner } from "@/components/ActiveTimerBanner";
 import { JobCompletionModal } from "@/components/JobCompletionModal";
 import { QuickQuoteSheet } from "@/components/QuickQuoteSheet";
 import { WidgetCustomiseSheet } from "@/components/WidgetCustomiseSheet";
@@ -165,7 +164,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background pb-36">
-      <ActiveTimerBanner />
 
       {/* Ambient background blobs */}
       <div className="pointer-events-none fixed top-0 right-0 w-[340px] h-[340px] opacity-[0.08] rounded-full"
