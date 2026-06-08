@@ -93,6 +93,24 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    reconciliation: {
+      method: 'GET' as const,
+      path: '/api/jobs/:id/reconciliation',
+      responses: {
+        200: z.object({
+          available: z.boolean(),
+          quotedAmount: z.number().nullable().optional(),
+          estimatedHours: z.number().nullable().optional(),
+          actualHours: z.number().nullable().optional(),
+          actualLabourCost: z.number().nullable().optional(),
+          actualMaterialCost: z.number().nullable().optional(),
+          realProfit: z.number().nullable().optional(),
+          realMarginPercent: z.number().nullable().optional(),
+          hoursVariance: z.number().nullable().optional(),
+        }),
+        404: errorSchemas.notFound,
+      },
+    },
   },
   quotes: {
     list: {

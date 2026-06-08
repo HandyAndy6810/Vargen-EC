@@ -357,6 +357,63 @@ export async function registerRoutes(
     }
   });
 
+  // Quote-vs-actual profit reconciliation for a completed job
+  app.get('/api/jobs/:id/reconciliation', requireAuth, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const job = await storage.getJob(id, req.userId);
+      if (!job) return res.status(404).json({ message: "Job not found" });
+
+      if (!job.completionData) {
+        return res.json({ available: false });
+      }
+
+      let completion: any = {};
+      try {
+        completion = JSON.parse(job.completionData as string);
+      } catch {
+        // malformed completion data — treat as unavailable
+      }
+
+      const quotedAmount = completion.quotedAmount != null ? Number(completion.quotedAmount) : null;
+      const estimatedHours = completion.estimatedHours != null ? Number(completion.estimatedHours) : null;
+      const actualHours = completion.actualHours != null ? Number(completion.actualHours) : null;
+
+      const settings = await storage.getUserSettings(req.userId);
+      const labourRate = settings?.labourRate ? Number(settings.labourRate) : 0;
+
+      const jobReceipts = await storage.getReceiptsByJobId(id, req.userId);
+      const actualMaterialCost = jobReceipts.reduce((sum, r) => sum + (parseFloat(r.totalAmount) || 0), 0);
+
+      const actualLabourCost = actualHours != null ? actualHours * labourRate : null;
+
+      let realProfit: number | null = null;
+      let realMarginPercent: number | null = null;
+      if (quotedAmount != null && actualLabourCost != null) {
+        realProfit = quotedAmount - actualLabourCost - actualMaterialCost;
+        realMarginPercent = quotedAmount > 0 ? (realProfit / quotedAmount) * 100 : null;
+      }
+
+      const hoursVariance = (estimatedHours != null && actualHours != null)
+        ? actualHours - estimatedHours
+        : null;
+
+      res.json({
+        available: true,
+        quotedAmount,
+        estimatedHours,
+        actualHours,
+        actualLabourCost,
+        actualMaterialCost,
+        realProfit,
+        realMarginPercent,
+        hoursVariance,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to compute reconciliation" });
+    }
+  });
+
   // Quotes
   app.get(api.quotes.list.path, requireAuth, async (req: any, res) => {
     const quotes = await storage.getQuotesWithCustomer(req.userId);

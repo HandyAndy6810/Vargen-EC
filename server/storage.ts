@@ -93,6 +93,7 @@ export interface IStorage {
   getReceipt(id: number, userId: string): Promise<Receipt | undefined>;
   createReceipt(receipt: InsertReceipt): Promise<Receipt>;
   deleteReceipt(id: number, userId: string): Promise<void>;
+  getReceiptsByJobId(jobId: number, userId: string): Promise<Receipt[]>;
 
   // Customer messages
   getCustomerMessages(userId: string, customerId: number): Promise<CustomerMessage[]>;
@@ -528,6 +529,11 @@ export class DatabaseStorage implements IStorage {
 
   async deleteReceipt(id: number, userId: string): Promise<void> {
     await db.delete(receipts).where(and(eq(receipts.id, id), eq(receipts.userId, userId)));
+  }
+
+  async getReceiptsByJobId(jobId: number, userId: string): Promise<Receipt[]> {
+    return await db.select().from(receipts)
+      .where(and(eq(receipts.jobId, jobId), eq(receipts.userId, userId)));
   }
 
   async getCustomerMessages(userId: string, customerId: number): Promise<CustomerMessage[]> {
