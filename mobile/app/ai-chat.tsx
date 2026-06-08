@@ -25,6 +25,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest, API_BASE_URL } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { useCustomers } from '@/hooks/use-customers';
+import { MarginSlider } from '@/components/MarginSlider';
 import type { Customer } from '@shared/mobile-types';
 
 const ORANGE      = '#f26a2a';
@@ -827,6 +828,26 @@ export default function AiChatScreen() {
                     <Text style={s.summaryText}>{aiResult.summary}</Text>
                   </View>
                 ) : null}
+
+                {/* Live margin slider */}
+                {(() => {
+                  const cost = aiResult.totalLabour + aiResult.totalMaterials;
+                  const liveSubtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
+                  return (
+                    <MarginSlider
+                      cost={cost}
+                      price={liveSubtotal}
+                      onPriceChange={(newSubtotal) => {
+                        if (liveSubtotal <= 0) return;
+                        const scale = newSubtotal / liveSubtotal;
+                        setEditableItems(prev => prev.map(it => {
+                          const rate = parseFloat(it.rate) || 0;
+                          return { ...it, rate: (rate * scale).toFixed(2) };
+                        }));
+                      }}
+                    />
+                  );
+                })()}
 
                 {/* Editable line items */}
                 <View style={{ marginBottom: 12 }}>

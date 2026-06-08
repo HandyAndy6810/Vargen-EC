@@ -22,6 +22,7 @@ import { ChevronLeft, ChevronRight, Sparkles, FileText, Plus, Trash2, Camera, Se
 import * as ImagePicker from 'expo-image-picker';
 import { useQuote } from '@/hooks/use-quotes';
 import { useSettings } from '@/hooks/use-settings';
+import { MarginSlider } from '@/components/MarginSlider';
 import { useCustomers } from '@/hooks/use-customers';
 
 const ORANGE      = '#f26a2a';
@@ -437,6 +438,26 @@ export default function QuoteCreateScreen() {
                 </Text>
               </View>
             </View>
+
+            {/* Live margin slider — cost estimated from your usual markup */}
+            {subtotal > 0 && (() => {
+              const markupPercent = settings?.markupPercent ?? 15;
+              const cost = subtotal / (1 + markupPercent / 100);
+              return (
+                <MarginSlider
+                  cost={cost}
+                  price={subtotal}
+                  onPriceChange={(newSubtotal) => {
+                    if (subtotal <= 0) return;
+                    const scale = newSubtotal / subtotal;
+                    setLines(prev => prev.map(l => {
+                      const price = parseFloat(l.price) || 0;
+                      return { ...l, price: (price * scale).toFixed(2) };
+                    }));
+                  }}
+                />
+              );
+            })()}
 
             <Text style={s.sectionEyebrow}>Details</Text>
             <View style={s.fieldGroup}>
