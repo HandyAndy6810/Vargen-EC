@@ -357,6 +357,63 @@ export async function registerRoutes(
     }
   });
 
+  // Quote-vs-actual profit reconciliation for a completed job
+  app.get('/api/jobs/:id/reconciliation', requireAuth, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const job = await storage.getJob(id, req.userId);
+      if (!job) return res.status(404).json({ message: "Job not found" });
+
+      if (!job.completionData) {
+        return res.json({ available: false });
+      }
+
+      let completion: any = {};
+      try {
+        completion = JSON.parse(job.completionData as string);
+      } catch {
+        // malformed completion data — treat as unavailable
+      }
+
+      const quotedAmount = completion.quotedAmount != null ? Number(completion.quotedAmount) : null;
+      const estimatedHours = completion.estimatedHours != null ? Number(completion.estimatedHours) : null;
+      const actualHours = completion.actualHours != null ? Number(completion.actualHours) : null;
+
+      const settings = await storage.getUserSettings(req.userId);
+      const labourRate = settings?.labourRate ? Number(settings.labourRate) : 0;
+
+      const jobReceipts = await storage.getReceiptsByJobId(id, req.userId);
+      const actualMaterialCost = jobReceipts.reduce((sum, r) => sum + (parseFloat(r.totalAmount) || 0), 0);
+
+      const actualLabourCost = actualHours != null ? actualHours * labourRate : null;
+
+      let realProfit: number | null = null;
+      let realMarginPercent: number | null = null;
+      if (quotedAmount != null && actualLabourCost != null) {
+        realProfit = quotedAmount - actualLabourCost - actualMaterialCost;
+        realMarginPercent = quotedAmount > 0 ? (realProfit / quotedAmount) * 100 : null;
+      }
+
+      const hoursVariance = (estimatedHours != null && actualHours != null)
+        ? actualHours - estimatedHours
+        : null;
+
+      res.json({
+        available: true,
+        quotedAmount,
+        estimatedHours,
+        actualHours,
+        actualLabourCost,
+        actualMaterialCost,
+        realProfit,
+        realMarginPercent,
+        hoursVariance,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to compute reconciliation" });
+    }
+  });
+
   // Quotes
   app.get(api.quotes.list.path, requireAuth, async (req: any, res) => {
     const quotes = await storage.getQuotesWithCustomer(req.userId);
@@ -734,7 +791,7 @@ CRITICAL RULES — follow these exactly:
     }
     try {
       const { db } = await import("./db");
-      const { customers, jobs, quotes, quoteItems, invoices, jobTimerEntries } = await import("../shared/schema");
+      const { customers, jobs, quotes, quoteItems, invoices } = await import("../shared/schema");
       const { eq } = await import("drizzle-orm");
 
       // Only delete data belonging to the current user
@@ -753,9 +810,6 @@ CRITICAL RULES — follow these exactly:
       // Delete in dependency order
       for (const qId of userQuoteIds) {
         await db.delete(quoteItems).where(eq(quoteItems.quoteId, qId));
-      }
-      for (const jId of userJobIds) {
-        await db.delete(jobTimerEntries).where(eq(jobTimerEntries.jobId, jId));
       }
       for (const invId of userInvoiceIds) {
         await db.delete(invoices).where(eq(invoices.id, invId));
@@ -797,71 +851,6 @@ CRITICAL RULES — follow these exactly:
         const msg = err instanceof Error ? err.message : "Internal server error";
         res.status(500).json({ message: msg });
       }
-    }
-  });
-
-  // ─── Job Timer Routes ───
-
-  app.get(api.timers.active.path, requireAuth, async (req: any, res) => {
-    try {
-      const entry = await storage.getActiveTimer(req.userId);
-      res.json(entry ?? null);
-    } catch (error: any) {
-      res.status(500).json({ message: error?.message || "Failed to get active timer" });
-    }
-  });
-
-  app.get(api.timers.listForJob.path, requireAuth, async (req: any, res) => {
-    try {
-      const jobId = Number(req.params.jobId);
-      const entries = await storage.getTimerEntries(jobId);
-      res.json(entries);
-    } catch (error: any) {
-      res.status(500).json({ message: error?.message || "Failed to get timer entries" });
-    }
-  });
-
-  app.post(api.timers.start.path, requireAuth, async (req: any, res) => {
-    try {
-      const { jobId } = api.timers.start.input.parse(req.body);
-      const active = await storage.getActiveTimer(req.userId);
-      if (active) {
-        return res.status(409).json({ message: "A timer is already running. Stop it first." });
-      }
-      const entry = await storage.createTimerEntry({ jobId, startTime: new Date(), userId: req.userId });
-      res.status(201).json(entry);
-    } catch (err: any) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      res.status(500).json({ message: err?.message || "Failed to start timer" });
-    }
-  });
-
-  app.post("/api/timers/:id/stop", requireAuth, async (req: any, res) => {
-    try {
-      const id = Number(req.params.id);
-      const { notes } = req.body || {};
-      const endTime = new Date();
-      const active = await storage.getActiveTimer(req.userId);
-      if (!active || active.id !== id) {
-        return res.status(404).json({ message: "Timer not found or already stopped" });
-      }
-      const duration = Math.round((endTime.getTime() - new Date(active.startTime).getTime()) / 1000);
-      const updated = await storage.updateTimerEntry(id, { endTime, duration, notes: notes || null });
-      res.json(updated);
-    } catch (error: any) {
-      res.status(500).json({ message: error?.message || "Failed to stop timer" });
-    }
-  });
-
-  app.delete("/api/timers/:id", requireAuth, async (req: any, res) => {
-    try {
-      const id = Number(req.params.id);
-      await storage.deleteTimerEntry(id);
-      res.json({ ok: true });
-    } catch (error: any) {
-      res.status(500).json({ message: error?.message || "Failed to delete timer entry" });
     }
   });
 

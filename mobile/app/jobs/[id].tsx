@@ -10,9 +10,12 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
 import { useJob } from '@/hooks/use-jobs';
 import { useCustomer } from '@/hooks/use-customers';
-import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Navigation, Play } from 'lucide-react-native';
+import { apiRequest } from '@/lib/api';
+import { api, buildUrl } from '@shared/mobile-routes';
+import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Navigation, CheckCircle2 } from 'lucide-react-native';
 import Svg, { Path, Circle, Polygon } from 'react-native-svg';
 import { format } from 'date-fns';
 
@@ -25,15 +28,30 @@ const PAPER_DEEP  = '#efe9dd';
 const CARD        = '#ffffff';
 const BLACK       = '#0f0e0b';
 const GREEN       = '#2a9d4c';
+const RED         = '#d23b3b';
 const MUTED       = 'rgba(20,19,16,0.55)';
 const MUTED_HI    = 'rgba(20,19,16,0.72)';
 const LINE_SOFT   = 'rgba(20,19,16,0.08)';
 const LINE_MID    = 'rgba(20,19,16,0.14)';
 
+const fmt = (n: number) => `$${Math.round(n).toLocaleString('en-AU')}`;
+
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: job, isLoading } = useJob(id ? Number(id) : 0) as any;
   const { data: customer } = useCustomer(job?.customerId || 0) as any;
+
+  const jobId = id ? Number(id) : 0;
+  const { data: reconciliation } = useQuery({
+    queryKey: [api.jobs.reconciliation.path, jobId],
+    queryFn: async () => {
+      const url = buildUrl(api.jobs.reconciliation.path, { id: jobId });
+      const res = await apiRequest('GET', url);
+      if (!res.ok) throw new Error('Failed to fetch reconciliation');
+      return res.json();
+    },
+    enabled: !!jobId && job?.status === 'completed',
+  }) as any;
 
   if (isLoading) {
     return (
@@ -156,6 +174,73 @@ export default function JobDetailScreen() {
             </View>
           ) : null}
 
+          {/* Profit check */}
+          {reconciliation?.available ? (() => {
+            const r = reconciliation;
+            const actualCost = (r.actualLabourCost || 0) + (r.actualMaterialCost || 0);
+            const profitColor = (r.realProfit ?? 0) > 0 ? GREEN : RED;
+
+            const varianceParts: string[] = [];
+            if (r.hoursVariance != null) {
+              const abs = Math.abs(r.hoursVariance);
+              if (abs > 0.05) {
+                varianceParts.push(
+                  `Took ${abs.toFixed(1)} hrs ${r.hoursVariance > 0 ? 'longer' : 'less'} than quoted`
+                );
+              } else {
+                varianceParts.push('Right on the estimated hours');
+              }
+            }
+            if (r.realMarginPercent != null) {
+              varianceParts.push(`real margin came in at ${r.realMarginPercent.toFixed(0)}%`);
+            }
+            const varianceLine = varianceParts.length
+              ? varianceParts.join(' — ').replace(/^./, c => c.toUpperCase())
+              : null;
+
+            return (
+              <>
+                <Text style={s.sectionEyebrow}>Profit check</Text>
+                <View style={s.card}>
+                  <View style={s.profitStatsRow}>
+                    <View style={s.profitStat}>
+                      <Text style={s.profitStatLabel}>Quoted</Text>
+                      <Text style={s.profitStatValue}>
+                        {r.quotedAmount != null ? fmt(r.quotedAmount) : '—'}
+                      </Text>
+                    </View>
+                    <View style={s.profitStat}>
+                      <Text style={s.profitStatLabel}>Actual cost</Text>
+                      <Text style={s.profitStatValue}>{fmt(actualCost)}</Text>
+                    </View>
+                    <View style={s.profitStat}>
+                      <Text style={s.profitStatLabel}>Real profit</Text>
+                      <Text style={[s.profitStatValue, { color: profitColor }]}>
+                        {r.realProfit != null ? fmt(r.realProfit) : '—'}
+                        {r.realMarginPercent != null && (
+                          <Text style={s.profitStatPct}> ({r.realMarginPercent.toFixed(0)}%)</Text>
+                        )}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={s.profitBreakdownRow}>
+                    <Text style={s.profitBreakdownText}>
+                      Labour {fmt(r.actualLabourCost || 0)}
+                      {r.actualHours != null ? ` (${r.actualHours}h)` : ''}
+                      {'  ·  '}
+                      Materials {fmt(r.actualMaterialCost || 0)}
+                    </Text>
+                  </View>
+
+                  {varianceLine && (
+                    <Text style={s.profitVarianceText}>{varianceLine}.</Text>
+                  )}
+                </View>
+              </>
+            );
+          })() : null}
+
           {/* Notes */}
           {notes ? (
             <>
@@ -185,10 +270,10 @@ export default function JobDetailScreen() {
         <TouchableOpacity
           style={s.startBtn}
           activeOpacity={0.8}
-          onPress={() => router.push(`/jobs/timer?id=${id}`)}
+          onPress={() => router.push(`/jobs/complete?id=${id}`)}
         >
-          <Play size={14} color="#fff" strokeWidth={2.5} fill="#fff" />
-          <Text style={s.startBtnText}>Start job</Text>
+          <CheckCircle2 size={14} color="#fff" strokeWidth={2.5} />
+          <Text style={s.startBtnText}>Finish job</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -372,6 +457,46 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_500Medium',
     color: MUTED_HI,
     lineHeight: 20,
+  },
+  profitStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  profitStat: {
+    flex: 1,
+  },
+  profitStatLabel: {
+    fontSize: 11,
+    fontFamily: 'Manrope_600SemiBold',
+    color: MUTED,
+    marginBottom: 2,
+  },
+  profitStatValue: {
+    fontSize: 15,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: INK,
+    letterSpacing: -0.2,
+  },
+  profitStatPct: {
+    fontSize: 12,
+    fontFamily: 'Manrope_700Bold',
+  },
+  profitBreakdownRow: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: LINE_SOFT,
+  },
+  profitBreakdownText: {
+    fontSize: 11.5,
+    fontFamily: 'Manrope_500Medium',
+    color: MUTED_HI,
+  },
+  profitVarianceText: {
+    fontSize: 12,
+    fontFamily: 'Manrope_600SemiBold',
+    color: MUTED_HI,
+    marginTop: 8,
   },
   photoSlot: {
     flex: 1,

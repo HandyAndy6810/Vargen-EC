@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertCustomerSchema, insertJobSchema, insertQuoteSchema, insertQuoteItemSchema, insertUserSettingsSchema, insertInvoiceSchema, customers, jobs, quotes, quoteItems, userSettings, invoices, jobTimerEntries, portalFeedback } from './schema';
+import { insertCustomerSchema, insertJobSchema, insertQuoteSchema, insertQuoteItemSchema, insertUserSettingsSchema, insertInvoiceSchema, customers, jobs, quotes, quoteItems, userSettings, invoices, portalFeedback } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -93,6 +93,24 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    reconciliation: {
+      method: 'GET' as const,
+      path: '/api/jobs/:id/reconciliation',
+      responses: {
+        200: z.object({
+          available: z.boolean(),
+          quotedAmount: z.number().nullable().optional(),
+          estimatedHours: z.number().nullable().optional(),
+          actualHours: z.number().nullable().optional(),
+          actualLabourCost: z.number().nullable().optional(),
+          actualMaterialCost: z.number().nullable().optional(),
+          realProfit: z.number().nullable().optional(),
+          realMarginPercent: z.number().nullable().optional(),
+          hoursVariance: z.number().nullable().optional(),
+        }),
+        404: errorSchemas.notFound,
+      },
+    },
   },
   quotes: {
     list: {
@@ -161,47 +179,6 @@ export const api = {
       responses: {
         200: z.custom<typeof invoices.$inferSelect>(),
         404: errorSchemas.notFound,
-      },
-    },
-  },
-  timers: {
-    active: {
-      method: 'GET' as const,
-      path: '/api/timers/active',
-      responses: {
-        200: z.custom<typeof jobTimerEntries.$inferSelect>().nullable(),
-      },
-    },
-    listForJob: {
-      method: 'GET' as const,
-      path: '/api/jobs/:jobId/timers',
-      responses: {
-        200: z.array(z.custom<typeof jobTimerEntries.$inferSelect>()),
-      },
-    },
-    start: {
-      method: 'POST' as const,
-      path: '/api/timers/start',
-      input: z.object({ jobId: z.number() }),
-      responses: {
-        201: z.custom<typeof jobTimerEntries.$inferSelect>(),
-        409: z.object({ message: z.string() }),
-      },
-    },
-    stop: {
-      method: 'POST' as const,
-      path: '/api/timers/:id/stop',
-      input: z.object({ notes: z.string().optional() }),
-      responses: {
-        200: z.custom<typeof jobTimerEntries.$inferSelect>(),
-        404: errorSchemas.notFound,
-      },
-    },
-    delete: {
-      method: 'DELETE' as const,
-      path: '/api/timers/:id',
-      responses: {
-        200: z.object({ ok: z.boolean() }),
       },
     },
   },

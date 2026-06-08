@@ -114,7 +114,6 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           />
           <Stack.Screen name="jobs/list" />
           <Stack.Screen name="jobs/[id]" />
-          <Stack.Screen name="jobs/timer" />
           <Stack.Screen name="jobs/complete" />
           <Stack.Screen name="quotes/[id]" />
           <Stack.Screen name="quotes/create" />

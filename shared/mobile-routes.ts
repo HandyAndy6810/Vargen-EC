@@ -11,6 +11,7 @@ export const api = {
     get: { path: '/api/jobs/:id' },
     create: { path: '/api/jobs' },
     update: { path: '/api/jobs/:id' },
+    reconciliation: { path: '/api/jobs/:id/reconciliation' },
   },
   quotes: {
     list: { path: '/api/quotes' },
@@ -24,13 +25,6 @@ export const api = {
     get: { path: '/api/invoices/:id' },
     createFromQuote: { path: '/api/invoices/from-quote/:quoteId' },
     update: { path: '/api/invoices/:id' },
-  },
-  timers: {
-    active: { path: '/api/timers/active' },
-    listForJob: { path: '/api/jobs/:jobId/timers' },
-    start: { path: '/api/timers/start' },
-    stop: { path: '/api/timers/:id/stop' },
-    delete: { path: '/api/timers/:id' },
   },
   settings: {
     get: { path: '/api/settings' },

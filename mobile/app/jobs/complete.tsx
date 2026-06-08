@@ -32,22 +32,13 @@ function formatElapsed(secs: number) {
 }
 
 export default function JobCompleteScreen() {
-  const { id, elapsed } = useLocalSearchParams<{ id: string; elapsed?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { data: job, isLoading } = useJob(id ? Number(id) : 0) as any;
 
-  const elapsedSecs = elapsed ? parseInt(elapsed, 10) : 0;
   const estimatedMins = job?.estimatedDuration || 0;
   const estimatedSecs = estimatedMins * 60;
 
   const title = job?.title || 'Job';
-
-  let diffText = '';
-  if (elapsedSecs > 0 && estimatedSecs > 0) {
-    const diff = elapsedSecs - estimatedSecs;
-    if (Math.abs(diff) < 60) diffText = 'Right on time';
-    else if (diff > 0) diffText = `${formatElapsed(diff)} over estimate`;
-    else diffText = `${formatElapsed(-diff)} under estimate`;
-  }
 
   if (isLoading) {
     return (
@@ -58,7 +49,6 @@ export default function JobCompleteScreen() {
   }
 
   const summaryRows = [
-    elapsedSecs > 0 ? { label: 'Time on job', value: formatElapsed(elapsedSecs) } : null,
     estimatedMins > 0 ? { label: 'Estimated', value: formatElapsed(estimatedSecs) } : null,
     job?.address ? { label: 'Location', value: job.address } : null,
   ].filter(Boolean) as { label: string; value: string }[];
@@ -82,7 +72,6 @@ export default function JobCompleteScreen() {
             {title}{'\n'}
             <Text style={{ color: ORANGE }}>wrapped.</Text>
           </Text>
-          {diffText ? <Text style={s.heroSub}>{elapsedSecs > 0 ? `${formatElapsed(elapsedSecs)} · ` : ''}{diffText}</Text> : null}
         </View>
 
         <View style={{ paddingHorizontal: 20 }}>

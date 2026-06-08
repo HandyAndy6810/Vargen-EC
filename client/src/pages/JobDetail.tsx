@@ -3,17 +3,17 @@ import { useJob, useUpdateJob } from "@/hooks/use-jobs";
 import { useCustomers } from "@/hooks/use-customers";
 import { useRoute, Link } from "wouter";
 import { useState, useEffect } from "react";
-import { Loader2, Calendar, User, MapPin, Phone, CheckCircle2, XCircle, AlertTriangle, TrendingUp, TrendingDown, Play } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { api, buildUrl } from "@shared/routes";
+import { Loader2, Calendar, User, MapPin, Phone, CheckCircle2, XCircle, AlertTriangle, TrendingUp, TrendingDown, Play, DollarSign } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { RunningLateModal } from "@/components/RunningLateModal";
-import { JobTimer } from "@/components/JobTimer";
 import { JobCompletionModal } from "@/components/JobCompletionModal";
 import { useQuotes } from "@/hooks/use-quotes";
-import { formatDuration } from "@/hooks/use-timers";
 
 export default function JobDetail() {
   const [, params] = useRoute("/jobs/:id");
@@ -22,6 +22,16 @@ export default function JobDetail() {
   const { data: customers } = useCustomers();
   const { data: quotes } = useQuotes();
   const { mutate: updateJob, isPending: isUpdating } = useUpdateJob();
+  const { data: reconciliation } = useQuery({
+    queryKey: [api.jobs.reconciliation.path, id],
+    queryFn: async () => {
+      const url = buildUrl(api.jobs.reconciliation.path, { id });
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch reconciliation");
+      return res.json();
+    },
+    enabled: !!id && job?.status === "completed",
+  });
   const [showLateModal, setShowLateModal] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -108,11 +118,6 @@ export default function JobDetail() {
         </div>
       </div>
 
-      {/* Job Timer */}
-      {job.status !== "completed" && job.status !== "cancelled" && (
-        <JobTimer jobId={job.id} />
-      )}
-
       {/* Completion Summary (for completed jobs) */}
       {completionData && (
         <div className="bg-card rounded-3xl p-6 border border-border shadow-sm">
@@ -155,6 +160,66 @@ export default function JobDetail() {
           )}
         </div>
       )}
+
+      {/* Profit check (quote-vs-actual reconciliation) */}
+      {reconciliation?.available && (() => {
+        const r = reconciliation;
+        const actualCost = (r.actualLabourCost || 0) + (r.actualMaterialCost || 0);
+        const profitPositive = (r.realProfit ?? 0) > 0;
+
+        const varianceParts: string[] = [];
+        if (r.hoursVariance != null) {
+          const abs = Math.abs(r.hoursVariance);
+          varianceParts.push(
+            abs > 0.05
+              ? `Took ${abs.toFixed(1)} hrs ${r.hoursVariance > 0 ? "longer" : "less"} than quoted`
+              : "Right on the estimated hours"
+          );
+        }
+        if (r.realMarginPercent != null) {
+          varianceParts.push(`real margin came in at ${r.realMarginPercent.toFixed(0)}%`);
+        }
+        const varianceLine = varianceParts.length ? `${varianceParts.join(" — ")}.` : null;
+
+        return (
+          <div className="bg-card rounded-3xl p-6 border border-border shadow-sm">
+            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-primary" />
+              Profit Check
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-muted/50 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Quoted</p>
+                <p className="text-lg font-bold">
+                  {r.quotedAmount != null ? `$${Math.round(r.quotedAmount).toLocaleString()}` : "—"}
+                </p>
+              </div>
+              <div className="bg-muted/50 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Actual cost</p>
+                <p className="text-lg font-bold">${Math.round(actualCost).toLocaleString()}</p>
+              </div>
+              <div className="bg-muted/50 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Real profit</p>
+                <p className={cn("text-lg font-bold", profitPositive ? "text-green-600" : "text-red-500")}>
+                  {r.realProfit != null ? `$${Math.round(r.realProfit).toLocaleString()}` : "—"}
+                  {r.realMarginPercent != null && (
+                    <span className="text-sm font-semibold"> ({r.realMarginPercent.toFixed(0)}%)</span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-border text-sm text-muted-foreground">
+              Labour ${Math.round(r.actualLabourCost || 0).toLocaleString()}
+              {r.actualHours != null ? ` (${r.actualHours}h)` : ""}
+              {"  ·  "}
+              Materials ${Math.round(r.actualMaterialCost || 0).toLocaleString()}
+            </div>
+            {varianceLine && (
+              <p className="mt-2 text-sm font-medium">{varianceLine}</p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Secondary actions — cancel + running late */}
       {(job.status !== "completed" && job.status !== "cancelled") && (

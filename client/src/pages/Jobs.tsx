@@ -1,7 +1,6 @@
 import { useJobs, useCreateJob, useUpdateJob } from "@/hooks/use-jobs";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useCustomers } from "@/hooks/use-customers";
-import { ActiveTimerBanner } from "@/components/ActiveTimerBanner";
 import { useState } from "react";
 import { Plus, ChevronLeft, ChevronRight, Loader2, Calendar, Briefcase, FileText, Check, AlertTriangle, XCircle, Search } from "lucide-react";
 import { SwipeableRow } from "@/components/SwipeableRow";
@@ -92,8 +91,6 @@ export default function Jobs() {
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      {/* Active Timer Banner */}
-      <ActiveTimerBanner />
       {/* Header */}
       <div className="px-5 pt-12 mb-4">
         <div className="flex items-center justify-between mb-4">
