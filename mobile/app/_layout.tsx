@@ -12,7 +12,7 @@ import {
   Manrope_700Bold,
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useEffect, useRef, useState, Component, type ReactNode } from 'react';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
@@ -82,6 +82,8 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
   }, []);
 
   useEffect(() => {
+    if (Platform.OS === 'web') return;
+
     registerForPushNotifications();
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {

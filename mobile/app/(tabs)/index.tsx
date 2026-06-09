@@ -7,9 +7,10 @@ import {
   RefreshControl,
   Linking,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { format, isToday } from 'date-fns';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -67,9 +68,9 @@ function CyclingPill({ nextJob, pipelineAmt, colors: c, weather }: { nextJob: an
   }, [locked]);
 
   const now = new Date();
-  const weatherLabel = weather?.current ? `${weather.current.icon} ${Math.round(weather.current.temp)}°` : 'Loading weather...';
+  const weatherLabel = weather?.current ? `${weather.current.icon} ${Math.round(weather.current.temp)}°` : '—';
   const states = [
-    { icon: weather?.current?.icon || '☀️', label: weatherLabel },
+    { icon: weather?.current?.icon || '🌤', label: weatherLabel },
     { icon: '🕐', label: format(now, "EEE d · h:mm a") },
     { icon: '📍', label: nextJob ? nextJob.title.slice(0, 22) : 'No jobs' },
     { icon: '💰', label: pipelineAmt >= 1000 ? `$${(pipelineAmt / 1000).toFixed(1)}k out` : `$${pipelineAmt} out` },
@@ -198,6 +199,15 @@ export default function HomeScreen() {
   const { data: weather, locError: weatherLocError, requestLocation: retryWeatherLocation } = useWeather();
   const { data: settings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS === 'web') {
+      window.scrollTo(0, 0);
+    } else {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    }
+  }, []));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -359,12 +369,12 @@ export default function HomeScreen() {
             <Text style={s.eyebrow}>Pipeline</Text>
             <View style={s.pipelineHalfGrid}>
               {[
-                { n: pipeline.draft,    l: 'Draft',    col: c.muted    },
-                { n: pipeline.sent,     l: 'Sent',     col: BLUE       },
-                { n: pipeline.accepted, l: 'Accepted', col: c.green    },
-                { n: pipeline.overdue,  l: 'Overdue',  col: c.orange   },
+                { n: pipeline.draft,    l: 'Draft',    col: c.muted,   f: 'draft'    },
+                { n: pipeline.sent,     l: 'Sent',     col: BLUE,      f: 'sent'     },
+                { n: pipeline.accepted, l: 'Accepted', col: c.green,   f: 'accepted' },
+                { n: pipeline.overdue,  l: 'Overdue',  col: c.orange,  f: 'overdue'  },
               ].map(item => (
-                <TouchableOpacity key={item.l} style={s.pipelineHalfCell} onPress={() => router.push('/(tabs)/quotes')} activeOpacity={0.7}>
+                <TouchableOpacity key={item.l} style={s.pipelineHalfCell} onPress={() => router.push(`/(tabs)/quotes?filter=${item.f}`)} activeOpacity={0.7}>
                   <Text style={[s.pipelineHalfNum, { color: item.col }]}>{item.n}</Text>
                   <Text style={s.pipelineHalfLabel}>{item.l}</Text>
                 </TouchableOpacity>
@@ -382,12 +392,12 @@ export default function HomeScreen() {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
               {[
-                { n: pipeline.draft,    l: 'Draft',    col: c.muted,   bg: c.card,       ring: c.lineSoft    },
-                { n: pipeline.sent,     l: 'Sent',     col: BLUE,      bg: BLUE_SOFT,    ring: '#c8dcff'     },
-                { n: pipeline.accepted, l: 'Accepted', col: c.green,   bg: c.greenSoft,  ring: `${c.green}44` },
-                { n: pipeline.overdue,  l: 'Overdue',  col: c.orange,  bg: c.orangeSoft, ring: `${c.orange}44` },
+                { n: pipeline.draft,    l: 'Draft',    col: c.muted,   bg: c.card,       ring: c.lineSoft,     f: 'draft'    },
+                { n: pipeline.sent,     l: 'Sent',     col: BLUE,      bg: BLUE_SOFT,    ring: '#c8dcff',      f: 'sent'     },
+                { n: pipeline.accepted, l: 'Accepted', col: c.green,   bg: c.greenSoft,  ring: `${c.green}44`, f: 'accepted' },
+                { n: pipeline.overdue,  l: 'Overdue',  col: c.orange,  bg: c.orangeSoft, ring: `${c.orange}44`, f: 'overdue' },
               ].map(st => (
-                <TouchableOpacity key={st.l} onPress={() => router.push('/(tabs)/quotes')} activeOpacity={0.7}>
+                <TouchableOpacity key={st.l} onPress={() => router.push(`/(tabs)/quotes?filter=${st.f}`)} activeOpacity={0.7}>
                   <View style={[s.pipelineChip, { backgroundColor: st.bg, borderColor: st.ring }]}>
                     <Text style={[s.pipelineNum, { color: st.col }]}>{st.n}</Text>
                     <Text style={[s.eyebrow, { color: st.col, marginBottom: 0 }]}>{st.l}</Text>
@@ -616,11 +626,12 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 130 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
       >
-        <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: -80, width: 320, height: 320, borderRadius: 160, backgroundColor: `${c.orange}18` }} />
+        <View style={{ position: 'absolute', top: 0, right: -80, width: 320, height: 320, borderRadius: 160, backgroundColor: `${c.orange}18`, pointerEvents: 'none' }} />
 
         <View style={[s.topBar, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.8}>
