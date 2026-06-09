@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useState, useMemo } from 'react';
@@ -84,13 +85,16 @@ export default function JobCreateScreen() {
       {
         title: title.trim(),
         address: address.trim() || null,
-        notes: notes.trim() || null,
+        description: notes.trim() || null,
         customerId: customerId || null,
         scheduledDate,
         estimatedDuration: Math.round(duration * 60),
         status: 'scheduled',
       } as any,
-      { onSuccess: () => router.back() }
+      {
+        onSuccess: () => router.back(),
+        onError: (err: any) => Alert.alert('Could not save job', err?.message || 'Check your connection and try again.'),
+      }
     );
   };
 

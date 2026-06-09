@@ -526,7 +526,7 @@ export default function QuoteCreateScreen() {
                 <Text style={s.fieldLabel}>Date</Text>
                 <TextInput
                   style={s.fieldInput}
-                  placeholder="Tue 21 Apr · 9:30 am"
+                  placeholder={format(new Date(), "EEE d MMM · h:mm a")}
                   placeholderTextColor={MUTED}
                   value={schedDate}
                   onChangeText={setSchedDate}
@@ -631,7 +631,7 @@ export default function QuoteCreateScreen() {
       <Modal
         visible={editLineIdx !== null}
         animationType="slide"
-        presentationStyle="pageSheet"
+        presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
         onRequestClose={() => setEditLineIdx(null)}
       >
         <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
