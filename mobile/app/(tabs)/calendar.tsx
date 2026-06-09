@@ -415,8 +415,8 @@ export default function CalendarScreen() {
 
       {/* Hour grid */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
-        <View style={{ paddingLeft: 20, paddingRight: 8, position: 'relative' }}>
-          <View style={{ paddingLeft: 44, position: 'relative' }}>
+        <View style={{ paddingLeft: 20, paddingRight: 8, position: 'relative', overflow: 'visible' }}>
+          <View style={{ paddingLeft: 44, position: 'relative', overflow: 'visible' }}>
             {Array.from({ length: END_H - START_H + 1 }, (_, i) => (
               <View key={i} style={[s.hourLine, { top: i * HOUR_H }]}>
                 <Text style={s.hourLabel}>{START_H + i}:00</Text>

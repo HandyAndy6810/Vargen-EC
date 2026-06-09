@@ -8,8 +8,8 @@ import {
   TextInput,
   StyleSheet,
 } from 'react-native';
-import { useState, useCallback, useMemo } from 'react';
-import { router } from 'expo-router';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { queryClient } from '@/lib/queryClient';
@@ -94,9 +94,14 @@ export default function QuotesScreen() {
   };
 
   const { data: quotes, isLoading, isError } = useQuotes();
+  const { filter: filterParam } = useLocalSearchParams<{ filter?: string }>();
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<QuoteFilter>('all');
+  const [filter, setFilter] = useState<QuoteFilter>((filterParam as QuoteFilter) || 'all');
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    setFilter((filterParam as QuoteFilter) || 'all');
+  }, [filterParam]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
