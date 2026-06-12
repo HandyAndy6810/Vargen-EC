@@ -119,6 +119,15 @@ export default function CustomersScreen() {
               <Text style={s.emptyText}>
                 {search ? 'No customers match that search' : 'No customers yet'}
               </Text>
+              {!search && (
+                <TouchableOpacity
+                  style={s.emptyCta}
+                  onPress={() => router.push('/customers/new' as any)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={s.emptyCtaText}>Add your first customer</Text>
+                </TouchableOpacity>
+              )}
             </View>
           }
           style={{ backgroundColor: CARD, borderRadius: 18, borderWidth: 1, borderColor: LINE_SOFT, overflow: 'hidden', marginHorizontal: 20 }}
@@ -213,5 +222,17 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Manrope_500Medium',
     color: MUTED,
+  },
+  emptyCta: {
+    marginTop: 4,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: ORANGE,
+  },
+  emptyCtaText: {
+    fontSize: 13,
+    fontFamily: 'Manrope_700Bold',
+    color: '#fff',
   },
 });

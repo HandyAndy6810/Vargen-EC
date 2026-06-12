@@ -327,7 +327,7 @@ export default function AiChatScreen() {
             <Text style={s.topBarEyebrow}>{stepLabel}</Text>
             <Text style={s.topBarTitle}>{stepTitle}</Text>
           </View>
-          <View style={s.navBtn} />
+          <View style={{ width: 40 }} />
         </View>
 
         {/* Generating overlay */}

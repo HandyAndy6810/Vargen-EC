@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, Zap, CheckCircle, ExternalLink } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { addMonths, format } from 'date-fns';
 
 const PRO_FEATURES = [
   'Unlimited quotes & invoices',
@@ -23,7 +24,7 @@ function makeStyles(c: Colors) {
     group: { paddingHorizontal: 20, paddingTop: 22 },
     groupLabel: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
     card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
-    planCard: { backgroundColor: c.ink, borderRadius: 16, padding: 20, marginHorizontal: 20, marginTop: 22 },
+    planCard: { backgroundColor: '#141310', borderRadius: 16, padding: 20, marginHorizontal: 20, marginTop: 22 },
     planBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
     planBadgeText: { fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.orange, letterSpacing: 1.5, textTransform: 'uppercase' },
     planPrice: { fontSize: 36, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -1 },
@@ -42,6 +43,7 @@ function makeStyles(c: Colors) {
 export default function SubscriptionScreen() {
   const { colors: c } = useTheme();
   const s = makeStyles(c);
+  const nextRenewal = format(addMonths(new Date(), 1), 'd MMM yyyy');
 
   const handleManageBilling = () => {
     Alert.alert(
@@ -74,7 +76,7 @@ export default function SubscriptionScreen() {
             <Text style={s.planPrice}>$39</Text>
             <Text style={[s.planPeriod, { marginBottom: 5 }]}>/month</Text>
           </View>
-          <Text style={s.planRenewal}>Next renewal · 14 May 2026</Text>
+          <Text style={s.planRenewal}>Next renewal · {nextRenewal}</Text>
         </View>
 
         {/* Features */}
