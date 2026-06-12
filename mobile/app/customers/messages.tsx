@@ -111,7 +111,17 @@ export default function CustomerMessagesScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
+          <TouchableOpacity
+            onPress={() => {
+              if (Platform.OS === 'web' && window.history.length <= 1) {
+                router.replace(`/customers/${customerId}` as any);
+              } else {
+                router.back();
+              }
+            }}
+            style={s.backBtn}
+            activeOpacity={0.7}
+          >
             <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
