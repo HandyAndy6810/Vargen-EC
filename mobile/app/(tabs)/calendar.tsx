@@ -52,7 +52,7 @@ function makeStyles(c: Colors, isDark: boolean) {
     dayNum: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
     dayHeadline: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
     daySubhead: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2 },
-    hourLine: { position: 'absolute', left: 0, right: 12, height: 1, borderTopWidth: 1, borderTopColor: c.lineSoft, borderStyle: 'dashed' },
+    hourLine: { position: 'absolute', left: 0, right: 12, height: 1, borderTopWidth: 1, borderTopColor: c.lineSoft, borderStyle: 'dashed', overflow: 'visible' as any },
     hourLabel: { position: 'absolute', left: -44, top: -8, fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, width: 38, textAlign: 'right' },
     nowLabel: { width: 40, textAlign: 'right', paddingRight: 4, fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
     nowDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.orange, marginRight: -4, zIndex: 2 },

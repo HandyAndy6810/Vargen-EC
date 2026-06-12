@@ -158,13 +158,17 @@ export default function InvoiceCreateScreen() {
 
   const handleConvertFromQuote = () => {
     setError(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     convertMutation.mutate(quoteIdNum, {
       onSuccess: (invoice: any) => {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace(`/invoices/${invoice.id}` as any);
       },
-      onError: (err: any) => setError(err.message),
+      onError: (err: any) => {
+        const msg = err?.message || 'Could not create invoice. Try again.';
+        setError(msg);
+        Alert.alert('Error', msg);
+      },
     });
   };
 
@@ -183,7 +187,7 @@ export default function InvoiceCreateScreen() {
       return;
     }
     setError(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     createMutation.mutate({
       customerName: customerName.trim() || undefined,
       items: validLines.map(l => ({
@@ -196,10 +200,14 @@ export default function InvoiceCreateScreen() {
       includeGST: true,
     }, {
       onSuccess: (invoice: any) => {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace(`/invoices/${invoice.id}` as any);
       },
-      onError: (err: any) => setError(err.message),
+      onError: (err: any) => {
+        const msg = err?.message || 'Could not create invoice. Try again.';
+        setError(msg);
+        Alert.alert('Error', msg);
+      },
     });
   };
 
@@ -354,7 +362,7 @@ export default function InvoiceCreateScreen() {
                   <View style={{ flex: 1, alignItems: 'center' }}>
                     <Text style={s.labourLabel}>Total</Text>
                     <Text style={s.labourTotal}>
-                      ${labourTotal > 0 ? labourTotal.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                      ${labourTotal.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Text>
                   </View>
                 </View>

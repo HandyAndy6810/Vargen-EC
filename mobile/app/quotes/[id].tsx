@@ -77,6 +77,24 @@ export default function QuoteDetailScreen() {
   const { data: xeroStatus } = useXeroStatus();
   const createXeroInvoice = useCreateXeroInvoice(quoteId);
 
+  const duplicateQuote = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/quotes', {
+        content: quote?.content,
+        jobTitle: (quote as any)?.jobTitle || `Quote #${id}`,
+        totalAmount: quote?.totalAmount ?? '0',
+        status: 'draft',
+      });
+      if (!res.ok) throw new Error('Failed to duplicate');
+      return res.json();
+    },
+    onSuccess: (newQuote: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+      router.replace(`/quotes/${newQuote.id}` as any);
+    },
+    onError: () => Alert.alert('Could not duplicate', 'Try again.'),
+  });
+
   if (isLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: PAPER, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
@@ -149,24 +167,6 @@ export default function QuoteDetailScreen() {
   const customerPhone = content.customerPhone || null;
   const alreadyInvoiced = status === 'invoiced';
   const terminalStatus = isTerminalStatus(status);
-
-  const duplicateQuote = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest('POST', '/api/quotes', {
-        content: quote?.content,
-        jobTitle: (quote as any)?.jobTitle || title || undefined,
-        totalAmount: quote?.totalAmount ?? '0',
-        status: 'draft',
-      });
-      if (!res.ok) throw new Error('Failed to duplicate');
-      return res.json();
-    },
-    onSuccess: (newQuote: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-      router.replace(`/quotes/${newQuote.id}` as any);
-    },
-    onError: () => Alert.alert('Could not duplicate', 'Try again.'),
-  });
 
   const handleChangeStatus = () => {
     const options: Array<{ label: string; value: string }> = [];

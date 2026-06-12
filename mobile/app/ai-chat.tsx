@@ -241,6 +241,9 @@ export default function AiChatScreen() {
       const res = await apiRequest('POST', '/api/quotes', {
         totalAmount: String(total),
         status,
+        jobTitle: (jobTitleOverride || aiResult.jobTitle) || undefined,
+        customerName: customerName.trim() || undefined,
+        customerId: customerType === 'existing' && selectedCustomer ? selectedCustomer.id : undefined,
         content: JSON.stringify({
           ...aiResult,
           jobTitle: jobTitleOverride || aiResult.jobTitle,
@@ -831,8 +834,9 @@ export default function AiChatScreen() {
 
                 {/* Live margin slider */}
                 {(() => {
-                  const cost = aiResult.totalLabour + aiResult.totalMaterials;
                   const liveSubtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
+                  const markupPercent = userSettings?.markupPercent ?? 30;
+                  const cost = liveSubtotal > 0 ? liveSubtotal / (1 + markupPercent / 100) : 0;
                   return (
                     <MarginSlider
                       cost={cost}
