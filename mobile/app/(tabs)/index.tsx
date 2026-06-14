@@ -450,7 +450,7 @@ export default function HomeScreen() {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
               <View>
                 <Text style={s.eyebrow}>Recent Quotes</Text>
-                <Text style={s.sectionTitle}>Last {recentQuotes.length}</Text>
+                {recentQuotes.length > 0 && <Text style={s.sectionTitle}>Last {recentQuotes.length}</Text>}
               </View>
               <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
             </View>
@@ -750,7 +750,7 @@ export default function HomeScreen() {
             Admin for people who'd rather be on the tools.
           </Text>
           <Text style={{ fontSize: 10, color: c.muted, fontFamily: 'Manrope_800ExtraBold', marginTop: 6, letterSpacing: 2, textTransform: 'uppercase' }}>
-            VARGENEZEY · v1.0
+            VARGEN · v1.0
           </Text>
         </View>
       </ScrollView>

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
+import { useState, useEffect } from 'react';
 
 const DAY_OPTIONS = [3, 7, 14, 21, 30];
 
@@ -47,7 +48,10 @@ export default function RemindersScreen() {
     );
   }
 
-  const enabled = settings?.followUpEnabled ?? false;
+  const serverEnabled = settings?.followUpEnabled ?? false;
+  const [enabled, setEnabled] = useState(serverEnabled);
+  useEffect(() => { setEnabled(serverEnabled); }, [serverEnabled]);
+
   const days: number[] = (() => { try { return JSON.parse(settings?.followUpDays ?? '[3,7,14]'); } catch { return [3, 7, 14]; } })();
   const channel = settings?.followUpChannel ?? 'sms';
 
@@ -86,7 +90,7 @@ export default function RemindersScreen() {
               </View>
               <Switch
                 value={enabled}
-                onValueChange={(v) => save({ followUpEnabled: v })}
+                onValueChange={(v) => { setEnabled(v); save({ followUpEnabled: v }); }}
                 trackColor={{ false: c.lineSoft, true: c.orange }}
                 thumbColor="#fff"
               />
