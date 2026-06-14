@@ -64,7 +64,7 @@ export default function CustomerMessagesScreen() {
   const handleSend = () => {
     const trimmed = body.trim();
     if (!trimmed) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     sendMsg.mutate(
       { body: trimmed, direction, channel },
       {
@@ -111,7 +111,17 @@ export default function CustomerMessagesScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
+          <TouchableOpacity
+            onPress={() => {
+              if (Platform.OS === 'web' && window.history.length <= 1) {
+                router.replace(`/customers/${customerId}` as any);
+              } else {
+                router.back();
+              }
+            }}
+            style={s.backBtn}
+            activeOpacity={0.7}
+          >
             <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
@@ -153,7 +163,7 @@ export default function CustomerMessagesScreen() {
                 <TouchableOpacity
                   key={ch}
                   style={[s.channelBtn, channel === ch && { backgroundColor: INK }]}
-                  onPress={() => { Haptics.selectionAsync(); setChannel(ch); }}
+                  onPress={() => { if (Platform.OS !== 'web') Haptics.selectionAsync(); setChannel(ch); }}
                   activeOpacity={0.75}
                 >
                   <Text style={[s.channelBtnText, channel === ch && { color: '#fff' }]}>
@@ -164,7 +174,7 @@ export default function CustomerMessagesScreen() {
             </View>
             <TouchableOpacity
               style={[s.dirBtn, direction === 'in' && { backgroundColor: BLUE }]}
-              onPress={() => { Haptics.selectionAsync(); setDirection(d => d === 'out' ? 'in' : 'out'); }}
+              onPress={() => { if (Platform.OS !== 'web') Haptics.selectionAsync(); setDirection(d => d === 'out' ? 'in' : 'out'); }}
               activeOpacity={0.75}
             >
               <Text style={[s.dirBtnText, direction === 'in' && { color: '#fff' }]}>
