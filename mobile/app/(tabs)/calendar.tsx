@@ -80,12 +80,6 @@ export default function CalendarScreen() {
   const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('cal_weekOffset').then(v => {
-      if (v !== null) setWeekOffset(Number(v));
-    });
-  }, []);
-
-  useEffect(() => {
     AsyncStorage.setItem('cal_weekOffset', String(weekOffset));
   }, [weekOffset]);
   const [searchQuery, setSearchQuery] = useState('');

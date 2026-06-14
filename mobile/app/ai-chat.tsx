@@ -227,7 +227,10 @@ export default function AiChatScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
     onError: (err: Error) => {
-      setError(err.message);
+      const msg = err.message === 'Failed to fetch' || err.message.includes('NetworkError')
+        ? "Couldn't reach the AI service — check your connection and try again."
+        : err.message || "Something went wrong. Please try again.";
+      setError(msg);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     },
   });
