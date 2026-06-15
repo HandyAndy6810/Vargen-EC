@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  Platform,
 } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
@@ -395,10 +396,14 @@ export default function ProfileScreen() {
   const appearanceSub = mode === 'system' ? 'System default' : mode === 'light' ? 'Light' : 'Dark';
 
   const handleLogout = () => {
-    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: () => logout?.() },
-    ]);
+    if (Platform.OS === 'web') {
+      if (window.confirm('Sign out of Vargen?')) logout?.();
+    } else {
+      Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign out', style: 'destructive', onPress: () => logout?.() },
+      ]);
+    }
   };
 
   const s = makeStyles(c);
@@ -472,7 +477,7 @@ export default function ProfileScreen() {
         ]} />
 
         <SettingsGroup title="Account" items={[
-          { icon: Settings, label: 'Subscription', sub: 'Pro · $39/mo · next renewal 14 May', onPress: () => router.push('/settings/subscription' as any) },
+          { icon: Settings, label: 'Subscription', sub: 'Pro · $39/mo', onPress: () => router.push('/settings/subscription' as any) },
           { icon: LogOut,   label: 'Sign out',     danger: true,                               onPress: handleLogout },
         ]} />
 
@@ -481,7 +486,7 @@ export default function ProfileScreen() {
             Admin for people who'd rather be on the tools.
           </Text>
           <Text style={{ fontSize: 10, color: c.muted, fontFamily: 'Manrope_800ExtraBold', marginTop: 6, letterSpacing: 2, textTransform: 'uppercase' }}>
-            VARGENEZEY · v1.0
+            VARGEN · v1.0
           </Text>
         </View>
       </ScrollView>
