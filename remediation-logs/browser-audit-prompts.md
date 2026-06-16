@@ -1,216 +1,375 @@
-# Vargen Browser Audit Prompt Pack
+# Vargen Browser Audit Prompt Pack — v2
 
-Reusable prompts for Claude-in-Chrome to audit the Vargen app running as a web preview.
-Paste the **Preamble** plus ONE round at a time. Bring the findings back to repo-side
-Claude for triage + fixes, then re-verify before moving to the next round.
+14 focused rounds. Each one covers 2–4 screens or 1–2 flows.
+Paste **Preamble + ONE round** at a time. Copy the output before starting the next round.
+Bring findings back to repo-side Claude for triage + fixes after each round.
 
 ---
 
 ## PREAMBLE (paste before every round)
 
 ```
-You are auditing "Vargen" — a quoting/invoicing app for Australian tradies (plumbers,
-electricians, etc.) running as an Expo React Native web preview at http://localhost:8081.
-The backend API runs at http://localhost:5000.
+You are auditing "Vargen" — a quoting/invoicing app for Australian tradies.
+It runs as a web preview at http://localhost:8081 (API at http://localhost:5000).
+Keep the browser console open throughout.
 
-SCREEN MAP (routes you can visit):
-- / (home dashboard with pipeline, weather, quick actions)
-- /quotes (list with filters), /quotes/[id] (detail), /quotes/create (manual builder)
-- /ai-chat (AI quote generator — describe job → draft with line items + margin slider)
-- /jobs/list, /jobs/[id], /jobs/create, /jobs/complete
-- /invoices/[id], /invoices/create (standalone or convert-from-quote)
-- /calendar (week view with hour grid + outreach tab)
-- /customers, /customers/[id], /customers/new, /customers/messages, /customers/compose
-- /receipts, /receipts/scan
-- /price-book
-- /settings/* (edit-profile, business-details, invoice-settings, working-hours,
-  service-area, ai-quoting, reminders, notifications, sms-templates, subscription,
-  bank, payment-terms, widgets)
-- /onboarding
+SAFETY RULES — non-negotiable:
+1. NEVER complete a real payment — stop at any payment confirmation screen.
+2. Never send real SMS or email — close any composer that opens.
+3. Prefix all test records with "TEST-" so they can be purged later.
+4. Use fake data only: test@example.com, 0400 000 000.
 
-SAFETY RULES — NON-NEGOTIABLE:
-1. NEVER complete a real payment. If you reach any Stripe/Square/payment confirmation
-   screen, STOP and note it — do not click pay/confirm.
-2. Never send real SMS or email. If a flow opens a mail/SMS composer, close it.
-   Use fake contact data only: emails like test@example.com, phones like 0400 000 000.
-3. Prefix every record you create with "TEST-" (e.g. customer "TEST-Bob Smith",
-   job "TEST-Hot water swap") so they can be purged later.
-4. Keep the browser console open and include any errors/warnings you see in findings.
+FEEDBACK FORMAT — use this for every finding:
 
-FEEDBACK FORMAT — report EVERY finding exactly like this, numbered sequentially:
+BUG/ISSUE #N — [CRITICAL | HIGH | MEDIUM | LOW]
+Screen/route:
+What I did:
+What happened: (include any console errors verbatim)
+What should happen:
+Suggested fix:
 
-BUG/ISSUE #N — [SEVERITY: CRITICAL | HIGH | MEDIUM | LOW]
-Screen/route: (e.g. /quotes/create)
-What I did: (exact steps to reproduce)
-What happened: (actual behaviour, including any console errors verbatim)
-What should happen: (expected behaviour)
-Suggested fix: (your concrete suggestion — UI change, copy change, or likely code cause)
-
-Severity guide:
-- CRITICAL = crash, data loss, action silently fails, or user is blocked
-- HIGH = core feature works wrong or produces wrong numbers
+Severity:
+- CRITICAL = crash, data loss, silent failure, user blocked
+- HIGH = feature works wrong or produces wrong numbers
 - MEDIUM = confusing UX, broken layout, dead-end navigation
-- LOW = polish: copy, spacing, minor visual inconsistency
+- LOW = polish: copy, spacing, minor visual issue
 
-At the END of your report, add two short sections:
-✅ WHAT WORKS WELL: (3–6 bullet points — things we must not regress)
-🔍 SUGGESTED NEXT PROBES: (areas you couldn't fully test or want to dig into next round)
+End your report with:
+✅ WHAT WORKS WELL: (2–4 bullets)
 ```
 
 ---
 
-## ROUND A — Visual Design Audit
+## Round 1 of 14 — Home screen
 
 ```
-ROUND A — VISUAL DESIGN AUDIT (look, don't submit)
+ROUND 1 OF 14 — HOME SCREEN VISUAL + QUICK ACTIONS
 
-Walk through EVERY screen in the screen map. Do NOT submit forms or create data this
-round — this is a visual/static pass. Log in first if needed.
+Visit: / (home dashboard)
 
-On each screen, evaluate:
-1. LAYOUT: misaligned elements, inconsistent padding/margins between similar screens,
-   elements overflowing or clipped, horizontal scroll where there shouldn't be any
-2. TYPOGRAPHY: heading hierarchy consistent across screens? Any text truncated with
-   no way to read it? Font sizes that feel off?
-3. COLOR & CONTRAST: text that's hard to read on its background, inconsistent use of
-   the orange brand color, status colors (draft/sent/accepted/overdue) used consistently
-   between quotes, jobs and invoices
-4. TOUCH TARGETS: buttons/links that look too small to tap on a phone (<44px)
-5. EMPTY STATES: visit screens with no data — is there a helpful empty state or just
-   blank space?
-6. LOADING STATES: throttle network in DevTools (Slow 4G) and reload key screens —
-   do you see spinners/skeletons or layout jumps?
-7. RESPONSIVE: resize the window to 375px wide (iPhone SE) and ~430px (iPhone Pro Max).
-   Note anything that breaks, overlaps, or clips at either size.
-8. CONSISTENCY: do cards, buttons, inputs and section headers look like the same
-   design system on every screen, or do some screens feel like a different app?
+Check:
+1. Pipeline stats row — do the numbers (draft/sent/accepted/overdue counts) look
+   correct and readable at 375px wide? Any clipping or overlap?
+2. Weather widget — does it load, or does it show an error/empty state?
+3. Quick-action buttons — are all 4 visible and tappable at 375px?
+4. "Last N quotes" section — does it show the right number in the heading?
+   Does it show at all if there are 0 recent quotes?
+5. Footer at the very bottom — what does it say exactly?
+6. Dark mode: toggle dark mode in Profile → Appearance, come back to home.
+   Any text that becomes unreadable or elements that disappear?
 
-Report every finding in the FEEDBACK FORMAT. Screenshot-worthy issues: describe the
-visual problem precisely enough that a developer can find it without the screenshot.
+Report in the FEEDBACK FORMAT. Short findings only — no need to explore other screens.
 ```
 
 ---
 
-## ROUND B — Functional Testing
+## Round 2 of 14 — Quotes screens
 
 ```
-ROUND B — FUNCTIONAL TESTING (create, edit, verify persistence)
+ROUND 2 OF 14 — QUOTES SCREENS VISUAL
 
-Execute these flows in order, with TEST- prefixed data. After each create/edit,
-RELOAD the page and confirm the data persisted. Watch the console throughout.
+Visit: /quotes (list), /quotes/create (manual builder), and one quote detail /quotes/[id]
 
-1. AUTH: log out, register a new account (TEST- email), log out, log back in
-2. CUSTOMER: create "TEST-Bob Smith" with phone 0400 000 000 / test@example.com,
-   edit him, view his detail page
-3. MANUAL QUOTE: /quotes/create → fill all fields, add 3 line items via the modal,
-   edit one, delete one, save draft → verify it appears in /quotes with the right
-   customer name and total → open it → use "Tweak" to edit → save again
-4. AI QUOTE: /ai-chat → describe "Replace hot water system, Rheem 315L" → generate
-   → on the draft: edit a line item qty and rate, DRAG THE MARGIN SLIDER left and
-   right (verify cost/price/profit numbers update and line items rescale), save
-   draft → verify in /quotes with correct customer name and total
-5. QUOTE STATUS: change a quote draft→sent→accepted via the status controls
-6. CONVERT: accepted quote → Convert → create invoice → verify line items and
-   totals carried over and quote shows "Invoiced"
-7. STANDALONE INVOICE: /invoices/create directly — labour rate/hours + 2 line items
-   → verify totals math (subtotal + 10% GST) is correct before and after save
-8. JOB: /jobs/create → schedule "TEST-job" for tomorrow 9am, 2hr → verify it appears
-   on /calendar in the right slot → open it → complete the job entering actual
-   hours → check the "Profit check" reconciliation card renders
-9. QUOTES FILTERS: from home, tap each pipeline chip (draft/sent/accepted/overdue)
-   → verify /quotes opens pre-filtered correctly each time
-10. SETTINGS: change labour rate and markup % in settings → start a new AI quote →
-    verify the new rate prefills
-11. DELETE: delete one TEST- quote and one TEST- customer — confirm confirmation
-    dialogs appear and the records disappear
+Check:
+1. /quotes list: do status chips (Draft/Sent/Accepted/Overdue) filter the list correctly?
+   Is there a helpful empty state if a filter has no results?
+2. /quotes/create: do all fields have visible labels? Is the line-item modal easy to
+   find and open? Do the total/subtotal/GST numbers update live as you type?
+3. Quote detail: are the line items, totals, and status badge all clearly laid out?
+   Is there an obvious way to change the status from this screen?
+4. At 375px width: does anything in the quote builder overflow or get cut off?
+5. Console: any errors on any of these three screens?
 
-STOP RULES: do not press any final "Pay" button; do not actually send SMS/email.
-
-Report every failure or oddity in the FEEDBACK FORMAT — including wrong math,
-silent failures (button does nothing), and console errors.
+Report in the FEEDBACK FORMAT.
 ```
 
 ---
 
-## ROUND C — Workflow & Journey Testing
+## Round 3 of 14 — Jobs + Calendar screens
 
 ```
-ROUND C — WORKFLOW & JOURNEY TESTING (think like a tradie on the go)
+ROUND 3 OF 14 — JOBS + CALENDAR SCREENS VISUAL
 
-Run these realistic end-to-end journeys. You're hunting for friction: dead ends,
-data you have to re-type, steps that don't flow into each other, missing
-back-navigation, and journeys that take more taps than they should. Count taps.
+Visit: /jobs/list, /jobs/create, /calendar
 
-JOURNEY 1 — "New lead while on a job": from the home screen, a customer calls —
-create the customer AND get a quote to them as fast as possible. How many taps?
-Where did you have to re-enter info that the app already knew?
+Check:
+1. /jobs/list: is there a clear empty state if no jobs exist? Is the list scannable
+   (customer name, date, status all visible at a glance)?
+2. /jobs/create: do the date picker, start-time and end-time dropdowns work? What is
+   the earliest and latest time available in the time picker?
+3. /calendar: does it open on the CURRENT week (not a past week)? Is today
+   highlighted? Does the hour grid show jobs in the correct time slots?
+4. Calendar "Outreach" tab — what is on it? Does it load or error?
+5. At 375px: does the calendar grid clip or scroll correctly?
+6. Console errors on any of these screens?
 
-JOURNEY 2 — "Quote to cash": take an existing TEST- quote through
-sent → accepted → job scheduled → job completed (with actual hours) → invoice →
-(stop before payment). Does each step lead naturally to the next, or do you have
-to go hunting through tabs? Does data (customer, address, line items, amounts)
-flow through automatically at every step?
-
-JOURNEY 3 — "Where's my money?": as a tradie wondering what's owed — can you
-quickly find: overdue quotes to chase, unpaid invoices, this week's booked work,
-and what your real margin was on the last completed job? Note anything that took
-more than ~3 taps to find.
-
-JOURNEY 4 — "Fix a mistake": made a typo on a sent quote — edit it. Quoted the
-wrong customer — can you change the customer? Scheduled a job at the wrong time —
-reschedule it. Note anything that's impossible or destructive (forces delete+recreate).
-
-JOURNEY 5 — "Interrupted flow": halfway through creating an AI quote, navigate
-away (back button, then a tab) — are you warned about losing work? Come back —
-is your work gone? Same test in the manual quote builder and invoice creator.
-
-For each journey, report findings in the FEEDBACK FORMAT, plus a one-line verdict:
-"JOURNEY N: smooth | bumpy | broken — [tap count] taps, [main friction point]"
+Report in the FEEDBACK FORMAT.
 ```
 
 ---
 
-## ROUND D — Ease of Use & Polish
+## Round 4 of 14 — Customers + Invoices screens
 
 ```
-ROUND D — EASE OF USE / FIRST-TIME-USER PASS
+ROUND 4 OF 14 — CUSTOMERS + INVOICES SCREENS VISUAL
 
-Pretend you've never seen this app and you're a 45-year-old plumber, not a tech
-person. Walk the app with fresh eyes.
+Visit: /customers (list), /customers/new, /customers/[id] (a detail page), /invoices/create
 
-1. CLARITY: on each main screen, is it obvious within 2 seconds what the screen is
-   for and what you should tap next? Flag any screen that needs explanation.
-2. JARGON & COPY: any labels/copy that are developer-speak, ambiguous, or
-   un-Australian for the trade context? Any buttons whose outcome you couldn't
-   predict before tapping?
-3. ERROR RECOVERY: trigger validation errors on every form (submit empty, bad
-   email, letters in number fields, negative prices, qty 0, absurd values like
-   $999999999). Are messages clear about WHAT to fix? Can you always recover
-   without losing your other inputs?
-4. FEEDBACK VISIBILITY: after every action (save, delete, status change) — is
-   there clear confirmation it worked? Flag any action with no visible feedback
-   on web.
-5. DESTRUCTIVE ACTIONS: try to delete things — is every destructive action
-   confirmed first? Is anything destructive NOT confirmed?
-6. KEYBOARD & FOCUS: tab through forms — sensible focus order? Enter submits where
-   expected? Do numeric fields show numeric keyboards (check input types)?
-   Does focusing inputs near the bottom get hidden behind sticky buttons?
-7. ACCESSIBILITY BASICS: zoom browser to 150% — does anything break? Any
-   icon-only buttons with unclear meaning?
-8. ONBOARDING: visit /onboarding — does it set up a new user for success? Does it
-   explain the AI quoting (the app's hero feature)?
+Check:
+1. /customers list: empty state — is there a CTA to add the first customer?
+2. /customers/new: all fields visible and labelled? Any required fields that aren't obvious?
+3. Customer detail: are the tabs/sections (info, quotes, jobs, invoices) all navigable?
+   Is there an obvious way to compose a message to the customer?
+4. /invoices/create: do labour hours × rate calculate correctly on screen before saving?
+   Does the GST (10%) show correctly? Can you add line items?
+5. At 375px: anything clipped on the customer detail or invoice creator?
+6. Console errors?
 
-Report in the FEEDBACK FORMAT. End with your TOP 5 changes that would most improve
-the experience for a non-technical tradie, ranked.
+Report in the FEEDBACK FORMAT.
 ```
 
 ---
 
-## Loop protocol (for the human driving this)
+## Round 5 of 14 — Settings screens visual
 
-1. Paste **Preamble + Round A** into Claude-in-Chrome → collect findings
-2. Paste findings into repo-side Claude → it triages, fixes, commits, pushes
-3. Repo-side Claude returns a "re-verify" list + the next round's prompt (augmented
-   with targeted probes based on what was just found)
-4. Re-verify fixes in Claude-in-Chrome, then run the next round
-5. After Round D, loop back to deeper edge-case rounds as needed
+```
+ROUND 5 OF 14 — SETTINGS SCREENS VISUAL
+
+Visit each settings screen via Profile tab:
+Business details · Invoice & quote settings · Working hours · Service area ·
+AI quoting · Price book · Reminders · Appearance · Notifications · Subscription
+
+Check (quickly — don't change anything yet):
+1. Does each screen have a back button that works?
+2. Any screen that looks visually broken, clipped, or unfinished?
+3. Reminders screen: if you toggle "Automatic follow-ups" ON, does the interval
+   config appear immediately without a reload?
+4. Subscription screen: does the plan card show readable text in both light and dark mode?
+5. Appearance modal: does switching Light/Dark/System take effect immediately?
+6. Console errors on any settings screen?
+
+Report in the FEEDBACK FORMAT. Note the screen name for each finding.
+```
+
+---
+
+## Round 6 of 14 — Auth + Customer CRUD
+
+```
+ROUND 6 OF 14 — AUTH + CUSTOMER CRUD FUNCTIONAL TEST
+
+Execute in order. Reload the page after each save to confirm persistence.
+
+1. Sign out (Profile → Sign out). Confirm the dialog appears and you land on login.
+2. Register a NEW account with email test-new@example.com and any password.
+   Does it succeed? Can you log in with those credentials?
+3. Log back in as your MAIN account.
+4. Create customer "TEST-Bob Smith", phone 0400 000 000, email test@example.com.
+   Save → reload → confirm all fields persisted.
+5. Edit TEST-Bob Smith — change the phone number. Save → reload → confirm change saved.
+6. View TEST-Bob Smith's detail page. Is the updated phone showing?
+7. Delete TEST-Bob Smith. Does a confirmation dialog appear? Does he disappear from the list?
+
+Report every failure or oddity in the FEEDBACK FORMAT.
+```
+
+---
+
+## Round 7 of 14 — Manual quote builder
+
+```
+ROUND 7 OF 14 — MANUAL QUOTE BUILDER FUNCTIONAL TEST
+
+1. Go to /quotes/create.
+2. Select customer "TEST-Bob Smith" (create him first if he was deleted last round).
+3. Set a title, date, and expiry.
+4. Open the line-item modal — add 3 items (Labour 2hr @ $120, Materials $80, Call-out $60).
+5. Edit the second line item — change the rate.
+6. Delete the third line item.
+7. Confirm the subtotal, GST (10%), and total are mathematically correct on screen.
+8. Save as draft → verify it appears in /quotes with the right customer name and total.
+9. Open the saved quote → use "Tweak" (or Edit) to change the title → save → reload →
+   confirm the change persisted.
+10. Console errors throughout?
+
+Report in the FEEDBACK FORMAT including the actual vs expected totals if math is wrong.
+```
+
+---
+
+## Round 8 of 14 — AI quote + margin slider
+
+```
+ROUND 8 OF 14 — AI QUOTE FUNCTIONAL TEST
+
+1. Go to /ai-chat.
+2. Describe: "Replace hot water system, Rheem 315L, labour 3 hours" — assign to
+   TEST-Bob Smith if there's a customer selector, otherwise note there isn't one.
+3. Hit generate. How long does it take? Does a loading state show?
+4. On the generated draft:
+   a. Are line items listed with qty, rate, and total?
+   b. DRAG the margin slider all the way left then all the way right — do the
+      cost/price/profit numbers update in real time? Do the line item prices rescale?
+   c. Edit one line item's qty manually — does the total update?
+5. Save the draft → check it appears in /quotes with the right total.
+6. Console errors (especially during generation)?
+
+Report in the FEEDBACK FORMAT. Note the exact slider behaviour (smooth, jumpy, broken).
+```
+
+---
+
+## Round 9 of 14 — Quote status + invoice conversion
+
+```
+ROUND 9 OF 14 — QUOTE STATUS CHANGES + INVOICE CONVERSION
+
+Use one of the TEST- quotes created in rounds 7 or 8.
+
+1. Open the quote → change status Draft → Sent. Does the badge update immediately?
+   Reload — does Sent persist?
+2. Change status Sent → Accepted. Same checks.
+3. From the Accepted quote, find and tap "Convert to Invoice" (or equivalent).
+4. On the invoice creation screen: are all line items carried over? Is the total correct?
+5. Save the invoice → does the original quote now show "Invoiced" status?
+6. Open the new invoice — are the customer, line items, and totals all correct?
+7. Console errors?
+
+Report in the FEEDBACK FORMAT. Note exactly what copy the convert button uses.
+```
+
+---
+
+## Round 10 of 14 — Standalone invoice math + job scheduling
+
+```
+ROUND 10 OF 14 — STANDALONE INVOICE + JOB SCHEDULING
+
+PART A — Standalone invoice:
+1. Go to /invoices/create (direct, not from a quote).
+2. Add: Labour 4hrs @ $110/hr + one line item "TEST-Materials" $250.
+3. Confirm on-screen: subtotal should be $690, GST $69, total $759.
+4. Save → reload → confirm numbers persisted correctly.
+
+PART B — Job scheduling:
+1. Go to /jobs/create.
+2. Create "TEST-Hot water swap", assign TEST-Bob Smith, schedule for tomorrow 9am, 2hr duration.
+3. Save → go to /calendar → confirm the job appears in the correct time slot tomorrow.
+4. Open the job → tap Complete → enter actual hours (3hrs) and any notes → save.
+5. Does a "Profit check" or reconciliation card appear after completing?
+6. Console errors?
+
+Report in the FEEDBACK FORMAT.
+```
+
+---
+
+## Round 11 of 14 — Journey: New lead + Quote to cash
+
+```
+ROUND 11 OF 14 — JOURNEYS: NEW LEAD AND QUOTE TO CASH
+
+JOURNEY 1 — "New lead while on a job" (count every tap):
+Starting from the home screen, a customer just called. Goal: create the customer AND
+get a quote drafted as fast as possible.
+- Note every screen you visit and every tap.
+- Did you have to re-enter anything the app already knew (e.g. customer name on the quote)?
+- Verdict: smooth | bumpy | broken — [tap count] taps, [main friction point]
+
+JOURNEY 2 — "Quote to cash" (use existing TEST- records):
+Take a saved draft quote through: sent → accepted → schedule job → complete job
+(enter actual hours) → convert to invoice → (stop before payment).
+- Does each step naturally prompt the next, or do you have to go hunting through tabs?
+- Does customer/address/line item data carry through automatically at every step?
+- Verdict: smooth | bumpy | broken — [tap count] taps, [main friction point]
+
+Report each friction point in the FEEDBACK FORMAT.
+```
+
+---
+
+## Round 12 of 14 — Journey: Finding money + Fixing mistakes
+
+```
+ROUND 12 OF 14 — JOURNEYS: FINDING MONEY AND FIXING MISTAKES
+
+JOURNEY 3 — "Where's my money?" (goal: ≤3 taps to each answer):
+Can you quickly find:
+a. Overdue quotes to chase?
+b. Unpaid invoices?
+c. This week's scheduled jobs?
+d. The real margin on the last completed job?
+Note how many taps each took and where you got stuck.
+- Verdict: smooth | bumpy | broken
+
+JOURNEY 4 — "Fix a mistake":
+a. Open a sent quote → fix a typo in the title → save. Did it work without
+   changing status or losing data?
+b. Can you change the customer on a quote? Or is it locked after creation?
+c. Open a scheduled job → change the time to 11am. Did the calendar update?
+d. Note anything that forced you to delete and re-create instead of edit.
+- Verdict: smooth | bumpy | broken
+
+Report each friction point in the FEEDBACK FORMAT.
+```
+
+---
+
+## Round 13 of 14 — Interrupted flows + Receipts + Price book
+
+```
+ROUND 13 OF 14 — INTERRUPTED FLOWS + RECEIPTS + PRICE BOOK
+
+PART A — Interrupted flows:
+1. Start creating an AI quote (/ai-chat), type a description, then hit the back button.
+   Are you warned about losing work? Is your text gone when you return?
+2. Start a manual quote (/quotes/create), fill in 2 fields, then tap a bottom-nav tab.
+   Same questions.
+3. Start creating an invoice, fill fields, navigate away — same questions.
+
+PART B — Receipts:
+1. Visit /receipts — what's here? Empty state or existing data?
+2. Try /receipts/scan — does the camera/upload UI appear or does it error?
+
+PART C — Price book:
+1. Visit /price-book — can you add a TEST- item with a name, cost, and price?
+2. Save it → reload → did it persist?
+3. Start a new AI quote — does the AI appear to use your price book items?
+
+Report in the FEEDBACK FORMAT.
+```
+
+---
+
+## Round 14 of 14 — Ease of use + Polish
+
+```
+ROUND 14 OF 14 — EASE OF USE / FIRST-TIME TRADIE PASS
+
+Imagine you're a 50-year-old plumber, not a tech person. Fresh eyes.
+
+1. CLARITY: pick the 3 screens that felt most confusing — what was unclear within
+   the first 2 seconds?
+2. JARGON: any labels that are too technical or un-Australian for a tradie?
+   (e.g. "invoice" vs "bill", anything that sounds like accounting software)
+3. ERRORS: on /quotes/create, try submitting with no customer selected and no title.
+   Are the error messages clear about WHAT to fix?
+4. FEEDBACK: after saving a quote, a job, and an invoice — was there clear on-screen
+   confirmation each time? (toast, alert, screen change)
+5. DESTRUCTIVE ACTIONS: try to delete a quote, a job, and a customer. Is every
+   delete confirmed first? Any delete with NO confirmation?
+6. ZOOM: set browser zoom to 150% — does anything break or overlap?
+7. TOP 5: list the top 5 changes (ranked) that would most improve this app for a
+   non-technical tradie.
+
+Report in the FEEDBACK FORMAT, plus the ranked TOP 5 at the end.
+```
+
+---
+
+## Loop protocol
+
+1. Paste **Preamble + Round N** into Claude-in-Chrome
+2. **Copy the output immediately** before starting the next round
+3. Paste findings here → repo-side Claude triages, fixes, commits, pushes
+4. Move to Round N+1
