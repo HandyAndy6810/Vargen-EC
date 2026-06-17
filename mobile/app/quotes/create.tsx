@@ -601,9 +601,9 @@ export default function QuoteCreateScreen() {
                 <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: '#d23b3b' }}>{error}</Text>
               </View>
             ) : null}
-            <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
               <TouchableOpacity
-                style={s.secondaryBtn}
+                style={[s.secondaryBtn, { minWidth: 120 }]}
                 activeOpacity={0.7}
                 onPress={() => handleSave('draft')}
                 disabled={saveMutation.isPending}
@@ -614,7 +614,7 @@ export default function QuoteCreateScreen() {
                 }
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.primaryBtn, { flex: 2 }]}
+                style={[s.primaryBtn, { flex: 2, minWidth: 160 }]}
                 activeOpacity={0.8}
                 onPress={() => handleSave('sent')}
                 disabled={saveMutation.isPending}

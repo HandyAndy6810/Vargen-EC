@@ -21,7 +21,11 @@ const BLUE        = '#1f6feb';
 const BLUE_SOFT   = '#eaf2ff';
 const BLUE_BORDER = '#c8dcff';
 
-type QuoteFilter = 'all' | 'draft' | 'sent' | 'accepted' | 'overdue';
+function fmtAUD(n: number): string {
+  return n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+type QuoteFilter = 'all' | 'draft' | 'sent' | 'accepted' | 'overdue' | 'invoiced';
 
 type Quote = {
   id: number;
@@ -126,6 +130,7 @@ export default function QuotesScreen() {
   const filtered = useMemo(() => {
     let list = sorted;
     if (filter === 'overdue') list = overdueQuotes;
+    else if (filter === 'sent') list = sorted.filter((q) => q.status === 'sent' || q.status === 'viewed');
     else if (filter !== 'all') list = sorted.filter((q) => q.status === filter);
     if (search) list = list.filter((q) => parseTitle(q).toLowerCase().includes(search.toLowerCase()) || (q.customerName || '').toLowerCase().includes(search.toLowerCase()));
     return list;
@@ -137,6 +142,7 @@ export default function QuotesScreen() {
     sent:     sorted.filter((q) => q.status === 'sent' || q.status === 'viewed').length,
     accepted: sorted.filter((q) => q.status === 'accepted').length,
     overdue:  overdueQuotes.length,
+    invoiced: sorted.filter((q) => q.status === 'invoiced').length,
   }), [sorted]);
 
   const totalPipeline = sorted
@@ -165,15 +171,15 @@ export default function QuotesScreen() {
           <View style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: `${c.orange}88`, opacity: 0.35 }} />
           <Text style={s.heroEyebrow}>Outstanding pipeline</Text>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
-            <Text style={s.heroAmt}>${totalPipeline.toLocaleString()}</Text>
-            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontFamily: 'Manrope_700Bold' }}>/ {counts.all} quotes</Text>
+            <Text style={s.heroAmt}>${fmtAUD(totalPipeline)}</Text>
+            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontFamily: 'Manrope_700Bold' }}>/ {counts.sent + counts.accepted} active</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 16, marginTop: 14 }}>
             <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: '#fff' }}>
-              <Text style={{ color: c.orange }}>● </Text>${overdueTotal.toLocaleString()} overdue
+              <Text style={{ color: c.orange }}>● </Text>${fmtAUD(overdueTotal)} overdue
             </Text>
             <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: 'rgba(255,255,255,0.55)' }}>
-              ●  ${(totalPipeline - overdueTotal).toLocaleString()} awaiting
+              ●  ${fmtAUD(totalPipeline - overdueTotal)} awaiting
             </Text>
           </View>
         </View>
@@ -195,11 +201,12 @@ export default function QuotesScreen() {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow} style={{ maxHeight: 48 }}>
         {([
-          { id: 'all', l: 'All', n: counts.all },
-          { id: 'draft', l: 'Draft', n: counts.draft },
-          { id: 'sent', l: 'Sent', n: counts.sent },
+          { id: 'all',      l: 'All',      n: counts.all },
+          { id: 'draft',    l: 'Draft',    n: counts.draft },
+          { id: 'sent',     l: 'Sent',     n: counts.sent },
           { id: 'accepted', l: 'Accepted', n: counts.accepted },
-          { id: 'overdue', l: 'Overdue', n: counts.overdue },
+          { id: 'overdue',  l: 'Overdue',  n: counts.overdue },
+          { id: 'invoiced', l: 'Invoiced', n: counts.invoiced },
         ] as { id: QuoteFilter; l: string; n: number }[]).map((t) => {
           const active = filter === t.id;
           return (
@@ -220,8 +227,22 @@ export default function QuotesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
       >
         {filtered.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: 48 }}>
-            <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>No quotes here</Text>
+          <View style={{ alignItems: 'center', paddingVertical: 48, gap: 8 }}>
+            <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>
+              {filter === 'draft'    ? 'No drafts' :
+               filter === 'sent'    ? 'Nothing sent yet' :
+               filter === 'accepted' ? 'No accepted quotes' :
+               filter === 'overdue' ? 'Nothing overdue — nice work 👌' :
+               filter === 'invoiced' ? 'No invoiced quotes yet' :
+               'No quotes yet'}
+            </Text>
+            <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, textAlign: 'center', maxWidth: 240 }}>
+              {filter === 'sent'    ? 'Open a draft and send it to a customer' :
+               filter === 'accepted' ? 'Mark a sent quote as Accepted to see it here' :
+               filter === 'overdue' ? 'Quotes past their expiry date appear here' :
+               filter === 'invoiced' ? 'Convert an accepted quote to an invoice' :
+               'Tap + to create your first quote'}
+            </Text>
           </View>
         ) : (
           filtered.map((quote) => {
@@ -245,7 +266,7 @@ export default function QuotesScreen() {
                   </View>
                 </View>
                 <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
-                  <Text style={s.quoteAmt}>${amount > 0 ? amount.toLocaleString() : '—'}</Text>
+                  <Text style={s.quoteAmt}>${amount > 0 ? fmtAUD(amount) : '—'}</Text>
                   <Text style={{ fontSize: 14, color: c.muted, fontFamily: 'Manrope_600SemiBold', marginTop: 4 }}>›</Text>
                 </View>
               </TouchableOpacity>
