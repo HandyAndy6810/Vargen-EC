@@ -29,6 +29,10 @@ const BLUE_SOFT = '#eaf2ff';
 const GREEN_SOFT = '#e5f6eb';
 const PILL_STATES = 4;
 
+function fmtAUD(n: number): string {
+  return n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function parseQuoteTitle(q: any): string {
   if (q.title) return q.title;
   try {
@@ -155,7 +159,7 @@ function makeStyles(c: Colors, isDark: boolean) {
     pipelineHalfGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
     pipelineHalfCell: { width: '47%', backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineSoft, padding: 10, gap: 2 },
     pipelineHalfNum: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.5 },
-    pipelineHalfLabel: { fontSize: 9, fontFamily: 'Manrope_700Bold', color: c.muted, textTransform: 'uppercase', letterSpacing: 1 },
+    pipelineHalfLabel: { fontSize: 9, fontFamily: 'Manrope_700Bold', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.3 },
     rvHalfRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11 },
     rvHalfLabel: { fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: c.muted },
     rvHalfAmt: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.3 },
@@ -257,7 +261,7 @@ export default function HomeScreen() {
   const aiNudge = useMemo(() => {
     if (overdueInvoices.length > 0) {
       const total = overdueInvoices.reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
-      return `${overdueInvoices.length} overdue invoice${overdueInvoices.length > 1 ? 's' : ''} totalling $${total.toLocaleString()} — worth a follow-up today.`;
+      return `${overdueInvoices.length} overdue invoice${overdueInvoices.length > 1 ? 's' : ''} totalling $${fmtAUD(total)} — worth a follow-up today.`;
     }
     if (pipeline.draft > 2) return `${pipeline.draft} quotes sitting in draft — send them before they go cold.`;
     if (pipeline.accepted > 0) return `${pipeline.accepted} quote${pipeline.accepted > 1 ? 's' : ''} accepted — time to raise an invoice.`;
@@ -376,7 +380,7 @@ export default function HomeScreen() {
               ].map(item => (
                 <TouchableOpacity key={item.l} style={s.pipelineHalfCell} onPress={() => router.push(`/(tabs)/quotes?filter=${item.f}`)} activeOpacity={0.7}>
                   <Text style={[s.pipelineHalfNum, { color: item.col }]}>{item.n}</Text>
-                  <Text style={s.pipelineHalfLabel}>{item.l}</Text>
+                  <Text style={s.pipelineHalfLabel} numberOfLines={1}>{item.l}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -386,7 +390,7 @@ export default function HomeScreen() {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginBottom: 12 }}>
               <View>
                 <Text style={s.eyebrow}>Quote Pipeline</Text>
-                <Text style={s.sectionTitle}>{pipelineTotal} on the go · <Text style={{ color: c.orange }}>${pipelineAmt.toLocaleString()}</Text></Text>
+                <Text style={s.sectionTitle}>{pipelineTotal} on the go · <Text style={{ color: c.orange }}>${fmtAUD(pipelineAmt)}</Text></Text>
               </View>
               <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
             </View>
@@ -468,7 +472,7 @@ export default function HomeScreen() {
                           <Text style={s.rqSub} numberOfLines={1}>{q.customerName || '—'}</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end', gap: 5 }}>
-                          <Text style={s.rqAmt}>${Number(q.totalAmount || 0).toLocaleString()}</Text>
+                          <Text style={s.rqAmt}>${fmtAUD(Number(q.totalAmount || 0))}</Text>
                           <View style={[s.rqBadge, { backgroundColor: sc.bg }]}>
                             <Text style={[s.rqBadgeText, { color: sc.text }]}>{q.status}</Text>
                           </View>
@@ -512,7 +516,7 @@ export default function HomeScreen() {
                       <Text style={s.rqTitle} numberOfLines={1}>{inv.customerName || 'Customer'}</Text>
                       <Text style={[s.rqSub, isOverdue && { color: c.orange }]}>{isOverdue ? 'Overdue' : 'Pending'}</Text>
                     </View>
-                    <Text style={[s.rqAmt, { color: isOverdue ? c.orange : c.ink }]}>${Number(inv.totalAmount || 0).toLocaleString()}</Text>
+                    <Text style={[s.rqAmt, { color: isOverdue ? c.orange : c.ink }]}>${fmtAUD(Number(inv.totalAmount || 0))}</Text>
                   </TouchableOpacity>
                 );
               })}
