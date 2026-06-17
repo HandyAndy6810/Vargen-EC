@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   Share,
+  Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
@@ -52,6 +53,7 @@ const STATUS_PILL: Record<string, { bg: string; fg: string; bd: string; label: s
 };
 
 const PROGRESS_STEPS = ['Draft', 'Sent', 'Viewed', 'Accepted'];
+const PROGRESS_STATUSES = ['draft', 'sent', 'viewed', 'accepted'];
 
 function getProgressIndex(status: string): number {
   const map: Record<string, number> = { draft: 0, sent: 1, viewed: 2, accepted: 3, invoiced: 3 };
@@ -203,13 +205,31 @@ export default function QuoteDetailScreen() {
       actions.unshift({
         text: 'Delete quote',
         style: 'destructive',
-        onPress: () => Alert.alert('Delete quote?', 'This cannot be undone.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => deleteQuote.mutate(quoteId, { onSuccess: () => router.back() }) },
-        ]),
+        onPress: () => {
+          if (Platform.OS === 'web') {
+            if (window.confirm('Delete this quote? This cannot be undone.')) {
+              deleteQuote.mutate(quoteId, { onSuccess: () => router.back() });
+            }
+          } else {
+            Alert.alert('Delete quote?', 'This cannot be undone.', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete', style: 'destructive', onPress: () => deleteQuote.mutate(quoteId, { onSuccess: () => router.back() }) },
+            ]);
+          }
+        },
       });
     }
-    Alert.alert(title, '', actions);
+    if (Platform.OS === 'web') {
+      const opts = actions.filter(a => a.style !== 'cancel');
+      const list = opts.map((a, i) => `${i + 1}. ${a.text}`).join('\n');
+      const input = window.prompt(`${title}\n\n${list}\n\nType a number:`, '');
+      if (input) {
+        const idx = parseInt(input, 10) - 1;
+        if (idx >= 0 && idx < opts.length) opts[idx].onPress?.();
+      }
+    } else {
+      Alert.alert(title, '', actions);
+    }
   };
 
   const handleConvert = () => {
@@ -326,11 +346,19 @@ export default function QuoteDetailScreen() {
                 {PROGRESS_STEPS.map((step, i) => {
                   const done = i < progressIdx;
                   const cur = i === progressIdx;
+                  const targetStatus = PROGRESS_STATUSES[i];
                   return (
-                    <View key={step} style={{ flex: 1 }}>
+                    <TouchableOpacity
+                      key={step}
+                      style={{ flex: 1 }}
+                      activeOpacity={cur ? 1 : 0.65}
+                      onPress={() => {
+                        if (!cur) updateQuote.mutate({ id: quoteId, status: targetStatus } as any);
+                      }}
+                    >
                       <View style={[s.railBar, done ? { backgroundColor: ORANGE } : cur ? { backgroundColor: ORANGE_SOFT } : { backgroundColor: PAPER_DEEP }]} />
                       <Text style={[s.railLabel, done ? { color: ORANGE_DEEP } : cur ? { color: ORANGE } : { color: MUTED }]}>{step}</Text>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
