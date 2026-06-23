@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -77,7 +77,9 @@ export default function BusinessDetailsScreen() {
       await update.mutateAsync(form);
       router.back();
     } catch {
-      Alert.alert('Error', 'Could not save changes. Please try again.');
+      const msg = 'Could not save changes. Please try again.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Error', msg);
     }
   };
 

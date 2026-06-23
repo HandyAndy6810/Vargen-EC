@@ -173,7 +173,7 @@ function makeXeroStyles(c: Colors) {
     connectBtn: {
       height: 40,
       borderRadius: 12,
-      backgroundColor: c.teal,
+      backgroundColor: c.orange,
       alignItems: 'center',
       justifyContent: 'center',
     },
