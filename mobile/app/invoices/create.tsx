@@ -165,9 +165,12 @@ export default function InvoiceCreateScreen() {
         router.replace(`/invoices/${invoice.id}` as any);
       },
       onError: (err: any) => {
-        const msg = err?.message || 'Could not create invoice. Try again.';
+        const raw = err?.message || '';
+        const msg = raw.toLowerCase().includes('unauthorized') || raw === '401'
+          ? 'Your session has expired — please log in again.'
+          : raw || 'Could not create invoice. Try again.';
         setError(msg);
-        Alert.alert('Error', msg);
+        if (Platform.OS !== 'web') Alert.alert('Error', msg);
       },
     });
   };
@@ -204,9 +207,12 @@ export default function InvoiceCreateScreen() {
         router.replace(`/invoices/${invoice.id}` as any);
       },
       onError: (err: any) => {
-        const msg = err?.message || 'Could not create invoice. Try again.';
+        const raw = err?.message || '';
+        const msg = raw.toLowerCase().includes('unauthorized') || raw === '401'
+          ? 'Your session has expired — please log in again.'
+          : raw || 'Could not create invoice. Try again.';
         setError(msg);
-        Alert.alert('Error', msg);
+        if (Platform.OS !== 'web') Alert.alert('Error', msg);
       },
     });
   };
@@ -370,6 +376,14 @@ export default function InvoiceCreateScreen() {
 
               <Text style={s.sectionEyebrow}>Line items</Text>
               <View style={[s.card, { padding: 0 }]}>
+                <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: LINE_SOFT }}>
+                  <Text style={{ fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>Description</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <Text style={{ flex: 1, fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase' }}>Qty</Text>
+                    <Text style={{ flex: 2, fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase' }}>Unit price</Text>
+                    <Text style={{ flex: 1, fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase' }}>Total</Text>
+                  </View>
+                </View>
                 {lines.map((line, i) => (
                   <View key={i} style={[s.lineEditRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
                     <View style={{ flex: 1, gap: 6 }}>
