@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -51,7 +51,9 @@ export default function EditProfileScreen() {
       await update.mutateAsync(form);
       router.back();
     } catch {
-      Alert.alert('Error', 'Could not save changes. Please try again.');
+      const msg = 'Could not save changes. Please try again.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Error', msg);
     }
   };
 
@@ -83,7 +85,7 @@ export default function EditProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
         <View style={s.group}>
           <Text style={s.groupLabel}>Your name</Text>
-          <View style={s.card}>
+          <View style={[s.card, { backgroundColor: c.paperDeep }]}>
             <View style={s.row}>
               <Text style={s.label}>First name</Text>
               <Text style={s.readOnly}>{user?.firstName || '—'}</Text>
@@ -94,7 +96,7 @@ export default function EditProfileScreen() {
             </View>
           </View>
           <Text style={{ fontSize: 11, color: c.muted, fontFamily: 'Manrope_500Medium', marginTop: 6, paddingHorizontal: 2 }}>
-            To change your name, contact support.
+            Read-only · To change your name, contact support.
           </Text>
         </View>
 

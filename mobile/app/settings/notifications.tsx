@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, FileText, Receipt, Briefcase, Star, Bell } from 'lucide-react-native';
@@ -60,7 +60,10 @@ export default function NotificationsScreen() {
   const toggle = (key: keyof NotifPrefs, val: boolean) => {
     const next = { ...prefs, [key]: val };
     update.mutate({ notificationPrefs: JSON.stringify(next) }, {
-      onError: () => Alert.alert('Error', 'Could not save. Please try again.'),
+      onError: () => {
+        if (Platform.OS === 'web') window.alert('Could not save notification preferences. Please try again.');
+        else Alert.alert('Error', 'Could not save. Please try again.');
+      },
     });
   };
 

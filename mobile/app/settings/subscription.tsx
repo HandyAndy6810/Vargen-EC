@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, Zap, CheckCircle, ExternalLink } from 'lucide-react-native';
@@ -24,7 +24,7 @@ function makeStyles(c: Colors) {
     group: { paddingHorizontal: 20, paddingTop: 22 },
     groupLabel: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
     card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
-    planCard: { backgroundColor: '#141310', borderRadius: 16, padding: 20, marginHorizontal: 20, marginTop: 22 },
+    planCard: { backgroundColor: '#141310', borderRadius: 16, padding: 20, marginHorizontal: 20, marginTop: 22, borderWidth: 1, borderColor: 'rgba(242,106,42,0.35)' },
     planBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
     planBadgeText: { fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.orange, letterSpacing: 1.5, textTransform: 'uppercase' },
     planPrice: { fontSize: 36, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -1 },
@@ -46,11 +46,9 @@ export default function SubscriptionScreen() {
   const nextRenewal = format(addMonths(new Date(), 1), 'd MMM yyyy');
 
   const handleManageBilling = () => {
-    Alert.alert(
-      'Manage billing',
-      'To update your payment method, cancel, or upgrade your plan, visit the web portal at vargen.app.',
-      [{ text: 'OK' }],
-    );
+    const msg = 'To update your payment method, cancel, or upgrade your plan, visit the web portal at vargen.app.';
+    if (Platform.OS === 'web') window.alert(msg);
+    else Alert.alert('Manage billing', msg, [{ text: 'OK' }]);
   };
 
   return (
