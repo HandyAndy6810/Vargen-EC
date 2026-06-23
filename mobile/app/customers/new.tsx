@@ -47,7 +47,10 @@ export default function CustomerNewScreen() {
         address: address.trim() || null,
         notes: notes.trim() || null,
       },
-      { onSuccess: (newCustomer: any) => router.replace(`/customers/${newCustomer.id}` as any) }
+      {
+        onSuccess: (newCustomer: any) => router.replace(`/customers/${newCustomer.id}` as any),
+        onError: (err: any) => setError(err?.message || 'Could not save customer. Check your connection and try again.'),
+      }
     );
   };
 
@@ -81,14 +84,15 @@ export default function CustomerNewScreen() {
             <View style={s.fieldGroup}>
               <Text style={s.fieldLabel}>Full name *</Text>
               <TextInput
-                style={s.input}
+                style={[s.input, error ? { borderColor: '#d23b3b', borderWidth: 1 } : null]}
                 placeholder="e.g. Sarah Johnson"
                 placeholderTextColor={MUTED}
                 value={name}
-                onChangeText={setName}
+                onChangeText={v => { setName(v); if (error) setError(null); }}
                 autoCapitalize="words"
                 returnKeyType="next"
               />
+              {error ? <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 12, color: '#d23b3b', marginTop: 4 }}>{error}</Text> : null}
             </View>
 
             {/* Phone */}
@@ -146,9 +150,6 @@ export default function CustomerNewScreen() {
               />
             </View>
 
-            {error && (
-              <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 13, color: '#d23b3b', textAlign: 'center' }}>{error}</Text>
-            )}
           </View>
         </ScrollView>
 
