@@ -46,7 +46,7 @@ function makeStyles(c: Colors, isDark: boolean) {
     addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', shadowColor: c.orange, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.33, shadowRadius: 14, elevation: 6 },
     searchBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 10, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, gap: 8 },
     searchInput: { flex: 1, fontSize: 14, fontFamily: 'Manrope_500Medium', color: c.ink, paddingVertical: 0 },
-    dayCell: { flex: 1, paddingVertical: 10, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', gap: 2 },
+    dayCell: { flex: 1, minWidth: 0, paddingVertical: 10, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', gap: 2 },
     dayCellActive: { backgroundColor: c.orange, borderColor: c.orange },
     dayLabel: { fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: 1, opacity: 0.55, textTransform: 'uppercase' },
     dayNum: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
@@ -179,9 +179,9 @@ export default function CalendarScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.eyebrow}>Week {format(weekStart, 'w')} · {format(weekStart, 'MMMM yyyy')}</Text>
-          <Text style={s.title}>Your week</Text>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={s.eyebrow} numberOfLines={1}>Week {format(weekStart, 'w')} · {format(weekStart, 'MMMM yyyy')}</Text>
+          <Text style={s.title} numberOfLines={1}>Your week</Text>
         </View>
         <TouchableOpacity
           style={[s.iconBtn, showSearch && s.iconBtnActive]}
@@ -409,7 +409,7 @@ export default function CalendarScreen() {
 
       {/* Hour grid */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
-        <View style={{ paddingLeft: 20, paddingRight: 8, position: 'relative', overflow: 'visible' }}>
+        <View style={{ paddingLeft: 52, paddingRight: 8, position: 'relative', overflow: 'visible' }}>
           <View style={{ paddingLeft: 44, position: 'relative', overflow: 'visible' }}>
             {Array.from({ length: END_H - START_H + 1 }, (_, i) => (
               <View key={i} style={[s.hourLine, { top: i * HOUR_H }]}>

@@ -57,7 +57,7 @@ export default function JobCreateScreen() {
 
   const today = startOfDay(new Date());
   const dayOptions = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(today, i)),
+    () => Array.from({ length: 30 }, (_, i) => addDays(today, i)),
     []
   );
 
@@ -119,13 +119,14 @@ export default function JobCreateScreen() {
             <View style={s.fieldGroup}>
               <Text style={s.fieldLabel}>Job title *</Text>
               <TextInput
-                style={s.input}
+                style={[s.input, error ? { borderColor: '#d23b3b', borderWidth: 1 } : null]}
                 placeholder="e.g. Replace hot water system"
                 placeholderTextColor={MUTED}
                 value={title}
-                onChangeText={setTitle}
+                onChangeText={v => { setTitle(v); if (error) setError(null); }}
                 returnKeyType="next"
               />
+              {error ? <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 12, color: '#d23b3b', marginTop: 4 }}>{error}</Text> : null}
             </View>
 
             {/* Customer */}
@@ -252,9 +253,6 @@ export default function JobCreateScreen() {
               />
             </View>
 
-            {error && (
-              <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 13, color: '#d23b3b', textAlign: 'center' }}>{error}</Text>
-            )}
           </View>
         </ScrollView>
 
