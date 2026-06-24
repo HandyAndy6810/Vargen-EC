@@ -110,6 +110,33 @@ export async function setupAuth(app: Express) {
     });
   });
 
+  // Dev-only: create a real session without a password (never exposed in production)
+  if (process.env.NODE_ENV !== 'production') {
+    app.post('/api/dev-login', async (req, res) => {
+      try {
+        let user = await authStorage.getUserByEmail('dev@vargen.app');
+        if (!user) {
+          user = await authStorage.upsertUser({
+            email: 'dev@vargen.app',
+            firstName: 'Dev',
+            lastName: 'User',
+            phone: null,
+            password: null,
+          } as any);
+        }
+        (req.session as any).localUserId = user.id;
+        req.session.save((err) => {
+          if (err) return res.status(500).json({ message: 'Session error' });
+          const { password: _pw, ...safeUser } = user as any;
+          res.json(safeUser);
+        });
+      } catch (error) {
+        console.error('Dev login error:', error);
+        res.status(500).json({ message: 'Dev login failed' });
+      }
+    });
+  }
+
   // Forgot password — generate reset token and (stub) send email
   app.post("/api/auth/forgot-password", async (req, res) => {
     try {
