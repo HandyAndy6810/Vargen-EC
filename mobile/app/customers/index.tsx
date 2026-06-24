@@ -48,7 +48,7 @@ function CustomerRow({ item, onPress }: { item: Customer; onPress: () => void })
 }
 
 export default function CustomersScreen() {
-  const { data, isLoading, refetch } = useCustomers();
+  const { data, isLoading, isError, refetch } = useCustomers();
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -99,6 +99,18 @@ export default function CustomersScreen() {
         />
       </View>
 
+      {isError && !refreshing && (
+        <TouchableOpacity
+          onPress={onRefresh}
+          activeOpacity={0.7}
+          style={{ marginHorizontal: 20, marginBottom: 12, backgroundColor: '#fde5e5', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#f0a0a0' }}
+        >
+          <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: '#d23b3b' }}>
+            Couldn't load customers — tap to retry
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {isLoading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={ORANGE} />
@@ -119,7 +131,7 @@ export default function CustomersScreen() {
               <Text style={s.emptyText}>
                 {search ? 'No customers match that search' : 'No customers yet'}
               </Text>
-              {!search && (
+              {!search && !isError && (
                 <TouchableOpacity
                   style={s.emptyCta}
                   onPress={() => router.push('/customers/new' as any)}

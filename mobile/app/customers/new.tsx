@@ -62,9 +62,9 @@ export default function CustomerNewScreen() {
           <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
             <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
           </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={s.eyebrow}>New customer</Text>
-            <Text style={s.title}>Add a customer</Text>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.eyebrow} numberOfLines={1}>New customer</Text>
+            <Text style={s.title} numberOfLines={1}>Add a customer</Text>
           </View>
         </View>
 
@@ -158,7 +158,7 @@ export default function CustomerNewScreen() {
           <TouchableOpacity style={s.saveBtn} activeOpacity={0.85} onPress={handleSave} disabled={isPending}>
             {isPending
               ? <ActivityIndicator color="#fff" />
-              : <Text style={s.saveBtnText}>Add customer</Text>}
+              : <Text style={s.saveBtnText} numberOfLines={1}>Add customer</Text>}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
