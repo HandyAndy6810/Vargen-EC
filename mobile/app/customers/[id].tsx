@@ -62,7 +62,7 @@ function openMaps(address: string) {
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: customer, isLoading } = useCustomer(Number(id));
+  const { data: customer, isLoading, isError, refetch } = useCustomer(Number(id));
   const { mutate: updateCustomer, isPending: isSaving } = useUpdateCustomer();
   const { mutate: deleteCustomer } = useDeleteCustomer();
 
@@ -127,8 +127,19 @@ export default function CustomerDetailScreen() {
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 20 }}>
           <Text style={{ color: ORANGE, fontFamily: 'Manrope_700Bold' }}>← Back</Text>
         </TouchableOpacity>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: MUTED, fontFamily: 'Manrope_500Medium' }}>Customer not found</Text>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <Text style={{ color: MUTED, fontFamily: 'Manrope_500Medium' }}>
+            {isError ? 'Couldn\'t load customer — check your connection' : 'Customer not found'}
+          </Text>
+          {isError && (
+            <TouchableOpacity
+              onPress={() => refetch()}
+              style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: ORANGE }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: '#fff' }}>Retry</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
     );
