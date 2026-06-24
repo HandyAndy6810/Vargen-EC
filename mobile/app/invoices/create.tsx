@@ -225,10 +225,15 @@ export default function InvoiceCreateScreen() {
       const hasWork = jobTitle.trim() || customerName.trim() || notes.trim() || labourRate.trim() || labourHours.trim() || lines.some(l => l.description.trim() || l.qty !== '1' || l.unitPrice.trim());
       if (!hasWork) return;
       e.preventDefault();
-      Alert.alert('Leave without saving?', 'Your invoice details will be lost.', [
-        { text: 'Stay', style: 'cancel' },
-        { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
-      ]);
+      if (Platform.OS === 'web') {
+        const leave = window.confirm('Leave without saving? Your invoice details will be lost.');
+        if (leave) navigation.dispatch(e.data.action);
+      } else {
+        Alert.alert('Leave without saving?', 'Your invoice details will be lost.', [
+          { text: 'Stay', style: 'cancel' },
+          { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+        ]);
+      }
     });
     return unsub;
   }, [navigation, jobTitle, customerName, notes, labourRate, labourHours, lines]);

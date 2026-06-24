@@ -180,19 +180,25 @@ export default function LoginScreen() {
           {(__DEV__ || DEV_BYPASS) && (
             <TouchableOpacity
               onPress={async () => {
+                try {
+                  const res = await apiRequest('POST', '/api/dev-login', {});
+                  if (res.ok) {
+                    const user = await res.json();
+                    await saveCachedUser(user);
+                    queryClient.setQueryData(['/api/auth/user'], user);
+                    router.replace('/(tabs)');
+                    return;
+                  }
+                } catch {}
+                // Fallback if server unreachable
                 const mockUser = {
-                  id: 'dev-user-001',
-                  email: 'dev@vargen.app',
-                  firstName: 'Dev',
-                  lastName: 'User',
-                  profileImageUrl: null,
-                  phone: null,
-                  password: null,
-                  resetToken: null,
-                  resetTokenExpiry: null,
+                  id: 'dev-user-001', email: 'dev@vargen.app',
+                  firstName: 'Dev', lastName: 'User',
+                  profileImageUrl: null, phone: null, password: null,
+                  resetToken: null, resetTokenExpiry: null,
                 };
                 await saveCachedUser(mockUser as any);
-                queryClient.setQueryData(["/api/auth/user"], mockUser);
+                queryClient.setQueryData(['/api/auth/user'], mockUser);
                 router.replace('/(tabs)');
               }}
               style={s.devBtn}

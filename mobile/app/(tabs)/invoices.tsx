@@ -7,6 +7,7 @@ import {
   RefreshControl,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import { useState, useCallback, useMemo } from 'react';
 import { router } from 'expo-router';
@@ -139,7 +140,7 @@ export default function InvoicesScreen() {
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow} style={{ maxHeight: 48 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={Platform.OS === 'web'} contentContainerStyle={s.tabsRow} style={{ maxHeight: 48 }}>
         {([
           { id: 'all', l: 'All', n: counts.all },
           { id: 'draft', l: 'Draft', n: counts.draft },
