@@ -244,7 +244,9 @@ export type InsertReceipt = z.infer<typeof insertReceiptSchema>;
 
 // Schemas
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
-export const insertJobSchema = createInsertSchema(jobs).omit({ id: true, createdAt: true });
+export const insertJobSchema = createInsertSchema(jobs)
+  .omit({ id: true, createdAt: true })
+  .extend({ scheduledDate: z.coerce.date().nullable().optional() });
 export const insertQuoteSchema = createInsertSchema(quotes).omit({ id: true, createdAt: true });
 export const insertQuoteItemSchema = createInsertSchema(quoteItems).omit({ id: true });
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
