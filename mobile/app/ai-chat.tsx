@@ -249,6 +249,16 @@ export default function AiChatScreen() {
         customerId: customerType === 'existing' && selectedCustomer ? selectedCustomer.id : undefined,
         content: JSON.stringify({
           ...aiResult,
+          // Override with slider-adjusted figures so saved content matches what the user sees
+          subtotal,
+          gstAmount: gst,
+          totalAmount: total,
+          items: editableItems.map(it => ({
+            description: it.description,
+            quantity: parseFloat(it.qty) || 0,
+            unit: it.unit,
+            unitPrice: parseFloat(it.rate) || 0,
+          })),
           jobTitle: jobTitleOverride || aiResult.jobTitle,
           jobType,
           expiryDate,
@@ -279,7 +289,7 @@ export default function AiChatScreen() {
       setQuoteStatus(status as string);
       queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // Don't navigate — show status management UI
+      router.push(`/quotes/${quote.id}` as any);
     },
     onError: (err: Error) => {
       setError(err.message);
@@ -792,6 +802,7 @@ export default function AiChatScreen() {
                       onChangeText={setJobTitleOverride}
                       placeholder="Job title…"
                       placeholderTextColor={MUTED}
+                      multiline
                     />
                     {customerName.trim() ? (
                       <Text style={s.quoteMeta}>For {customerName.trim()}</Text>
@@ -888,7 +899,7 @@ export default function AiChatScreen() {
                           <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_600SemiBold' }}>@</Text>
                           <Text style={{ fontSize: 11, color: MUTED_HI, fontFamily: 'Manrope_700Bold' }}>$</Text>
                           <TextInput
-                            style={s.editLineMeta}
+                            style={[s.editLineMeta, { width: 72, flexShrink: 0 }]}
                             value={item.rate}
                             onChangeText={(v) => setEditableItems(prev => prev.map((it, idx) => idx === i ? { ...it, rate: v } : it))}
                             keyboardType="numeric"

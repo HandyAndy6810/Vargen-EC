@@ -317,7 +317,7 @@ export default function QuoteDetailScreen() {
           <View style={s.statusCard}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View style={{ flex: 1, marginRight: 12 }}>
-                <Text style={s.statusCardTitle} numberOfLines={1}>{title}</Text>
+                <Text style={s.statusCardTitle} numberOfLines={2}>{title}</Text>
                 <Text style={s.statusCardSub}>
                   {customerName ? `For ${customerName}` : 'No customer'}{issueDate ? ` · ${issueDate}` : ''}
                 </Text>
