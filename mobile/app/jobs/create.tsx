@@ -93,7 +93,11 @@ export default function JobCreateScreen() {
       } as any,
       {
         onSuccess: () => router.back(),
-        onError: (err: any) => Alert.alert('Could not save job', err?.message || 'Check your connection and try again.'),
+        onError: (err: any) => {
+          const msg = err?.message || 'Check your connection and try again.';
+          if (Platform.OS === 'web') window.alert(`Could not save job\n${msg}`);
+          else Alert.alert('Could not save job', msg);
+        },
       }
     );
   };
@@ -190,7 +194,7 @@ export default function JobCreateScreen() {
             {/* Day picker */}
             <View style={s.fieldGroup}>
               <Text style={s.fieldLabel}>Date</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={Platform.OS === 'web'} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
                 {dayOptions.map((d, i) => {
                   const active = dayOffset === i;
                   return (
@@ -209,7 +213,7 @@ export default function JobCreateScreen() {
             {/* Time picker */}
             <View style={s.fieldGroup}>
               <Text style={s.fieldLabel}>Start time</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={Platform.OS === 'web'} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
                 {TIMES.map(t => {
                   const active = timeSlot === t;
                   const [h] = t.split(':').map(Number);
