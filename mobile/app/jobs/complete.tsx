@@ -3,13 +3,20 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   ActivityIndicator,
+  Platform,
+  Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Check, Sparkles, ChevronRight } from 'lucide-react-native';
-import { useJob } from '@/hooks/use-jobs';
+import { useJob, useUpdateJob } from '@/hooks/use-jobs';
+import { useQueryClient } from '@tanstack/react-query';
+import { api, buildUrl } from '@shared/mobile-routes';
+import { useState } from 'react';
 
 const ORANGE     = '#f26a2a';
 const INK        = '#141310';
@@ -19,26 +26,24 @@ const CARD       = '#ffffff';
 const GREEN      = '#2a9d4c';
 const GREEN_SOFT = '#e5f6eb';
 const MUTED      = 'rgba(20,19,16,0.55)';
+const MUTED_HI   = 'rgba(20,19,16,0.72)';
 const LINE_SOFT  = 'rgba(20,19,16,0.08)';
 const LINE_MID   = 'rgba(20,19,16,0.14)';
-
-function formatElapsed(secs: number) {
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  if (h > 0 && m > 0) return `${h}h ${m}m`;
-  if (h > 0) return `${h}h`;
-  if (m > 0) return `${m}m`;
-  return `${secs}s`;
-}
 
 export default function JobCompleteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: job, isLoading } = useJob(id ? Number(id) : 0) as any;
+  const { mutate: updateJob, isPending } = useUpdateJob();
+  const queryClient = useQueryClient();
 
-  const estimatedMins = job?.estimatedDuration || 0;
-  const estimatedSecs = estimatedMins * 60;
+  const [step, setStep] = useState<'form' | 'done'>('form');
+  const [hoursWorked, setHoursWorked] = useState('');
+  const [completionNotes, setCompletionNotes] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const title = job?.title || 'Job';
+  const estimatedMins = job?.estimatedDuration || 0;
+  const estimatedHrs = estimatedMins / 60;
 
   if (isLoading) {
     return (
@@ -48,8 +53,111 @@ export default function JobCompleteScreen() {
     );
   }
 
+  const handleFinish = () => {
+    const hours = parseFloat(hoursWorked);
+    if (hoursWorked && isNaN(hours)) {
+      setError('Hours must be a number (e.g. 2.5)');
+      return;
+    }
+    setError(null);
+
+    const completionData = JSON.stringify({
+      actualHours: hoursWorked ? hours : null,
+      extraNotes: completionNotes.trim() || null,
+      completedAt: new Date().toISOString(),
+      estimatedHours: estimatedMins ? estimatedMins / 60 : null,
+      quotedAmount: null,
+    });
+
+    updateJob(
+      {
+        id: Number(id),
+        status: 'completed',
+        completionData,
+      } as any,
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: [api.jobs.get.path, Number(id)] });
+          queryClient.invalidateQueries({ queryKey: [api.jobs.list.path] });
+          setStep('done');
+        },
+        onError: (err: any) => {
+          const msg = err?.message || 'Could not complete job. Please try again.';
+          if (Platform.OS === 'web') window.alert(msg);
+          else Alert.alert('Error', msg);
+        },
+      }
+    );
+  };
+
+  if (step === 'form') {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
+            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+              <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: 20, paddingTop: 24 }} keyboardShouldPersistTaps="handled">
+            <Text style={s.formEyebrow}>Finishing up</Text>
+            <Text style={s.formTitle}>{title}</Text>
+
+            {estimatedMins > 0 && (
+              <Text style={s.formSub}>
+                Estimated {estimatedHrs % 1 === 0 ? estimatedHrs : estimatedHrs.toFixed(1)}h
+              </Text>
+            )}
+
+            <View style={{ marginTop: 28, gap: 14 }}>
+              <View style={s.fieldGroup}>
+                <Text style={s.fieldLabel}>Hours worked</Text>
+                <TextInput
+                  style={[s.input, error ? { borderColor: '#d23b3b', borderWidth: 1 } : null]}
+                  placeholder="e.g. 2.5"
+                  placeholderTextColor={MUTED}
+                  value={hoursWorked}
+                  onChangeText={v => { setHoursWorked(v); if (error) setError(null); }}
+                  keyboardType="decimal-pad"
+                  returnKeyType="next"
+                />
+                {error ? <Text style={s.errorText}>{error}</Text> : null}
+              </View>
+
+              <View style={s.fieldGroup}>
+                <Text style={s.fieldLabel}>Completion notes</Text>
+                <TextInput
+                  style={[s.input, { height: 100, textAlignVertical: 'top', paddingTop: 14 }]}
+                  placeholder="What was done, any issues found…"
+                  placeholderTextColor={MUTED}
+                  value={completionNotes}
+                  onChangeText={setCompletionNotes}
+                  multiline
+                />
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={s.bottomBar}>
+            <TouchableOpacity style={s.finishBtn} activeOpacity={0.7} onPress={() => router.back()}>
+              <Text style={s.finishBtnText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.makeInvoiceBtn} activeOpacity={0.8} onPress={handleFinish} disabled={isPending}>
+              {isPending
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={s.makeInvoiceBtnText}>Mark complete ›</Text>}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  const actualHours = hoursWorked ? parseFloat(hoursWorked) : null;
   const summaryRows = [
-    estimatedMins > 0 ? { label: 'Estimated', value: formatElapsed(estimatedSecs) } : null,
+    actualHours != null ? { label: 'Hours worked', value: `${actualHours}h` } : null,
+    estimatedMins > 0 ? { label: 'Estimated', value: `${estimatedHrs % 1 === 0 ? estimatedHrs : estimatedHrs.toFixed(1)}h` } : null,
     job?.address ? { label: 'Location', value: job.address } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
@@ -62,7 +170,6 @@ export default function JobCompleteScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
-        {/* Completion hero */}
         <View style={s.hero}>
           <View style={s.checkCircle}>
             <Check size={40} color={GREEN} strokeWidth={2.5} />
@@ -89,7 +196,6 @@ export default function JobCompleteScreen() {
             </View>
           )}
 
-          {/* Next step */}
           <Text style={s.sectionEyebrow}>Next step</Text>
           <TouchableOpacity
             style={s.invoiceNudge}
@@ -108,7 +214,6 @@ export default function JobCompleteScreen() {
         </View>
       </ScrollView>
 
-      {/* Bottom CTAs */}
       <View style={s.bottomBar}>
         <TouchableOpacity style={s.finishBtn} activeOpacity={0.7} onPress={() => router.replace('/')}>
           <Text style={s.finishBtnText}>Finish</Text>
@@ -131,6 +236,31 @@ const s = StyleSheet.create({
     backgroundColor: CARD, borderWidth: 1, borderColor: LINE_SOFT,
     alignItems: 'center', justifyContent: 'center',
   },
+  formEyebrow: {
+    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    color: MUTED, letterSpacing: 2, textTransform: 'uppercase',
+  },
+  formTitle: {
+    fontSize: 24, fontFamily: 'Manrope_800ExtraBold',
+    color: INK, letterSpacing: -0.5, marginTop: 4,
+  },
+  formSub: {
+    fontSize: 13, fontFamily: 'Manrope_500Medium',
+    color: MUTED, marginTop: 4,
+  },
+  fieldGroup: { gap: 8 },
+  fieldLabel: {
+    fontSize: 11, fontFamily: 'Manrope_800ExtraBold',
+    color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase',
+  },
+  input: {
+    backgroundColor: CARD, borderRadius: 14, paddingHorizontal: 16,
+    paddingVertical: 14, fontSize: 14, fontFamily: 'Manrope_500Medium',
+    color: INK, borderWidth: 1, borderColor: LINE_MID,
+  },
+  errorText: {
+    fontFamily: 'Manrope_600SemiBold', fontSize: 12, color: '#d23b3b', marginTop: 4,
+  },
   hero: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8, alignItems: 'center' },
   checkCircle: {
     width: 88, height: 88, borderRadius: 44,
@@ -144,7 +274,6 @@ const s = StyleSheet.create({
     fontSize: 30, fontFamily: 'Manrope_800ExtraBold',
     color: INK, letterSpacing: -1, textAlign: 'center', marginTop: 4, lineHeight: 34,
   },
-  heroSub: { fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED, marginTop: 8 },
   summaryCard: {
     backgroundColor: CARD, borderRadius: 18, borderWidth: 1,
     borderColor: LINE_SOFT, marginTop: 22, overflow: 'hidden',

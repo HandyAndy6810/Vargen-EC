@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,6 +29,7 @@ const PAPER_DEEP  = '#efe9dd';
 const CARD        = '#ffffff';
 const BLACK       = '#0f0e0b';
 const GREEN       = '#2a9d4c';
+const GREEN_SOFT  = '#e5f6eb';
 const RED         = '#d23b3b';
 const MUTED       = 'rgba(20,19,16,0.55)';
 const MUTED_HI    = 'rgba(20,19,16,0.72)';
@@ -102,12 +104,19 @@ export default function JobDetailScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/calendar')} activeOpacity={0.7} style={s.backBtn}>
           <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.eyebrow}>Job · J-{String(id).slice(-2)}</Text>
           <Text style={s.title} numberOfLines={1}>{title}</Text>
+          {job?.status && (
+            <View style={[s.statusBadge, job.status === 'completed' && s.statusBadgeDone, job.status === 'cancelled' && s.statusBadgeCancelled]}>
+              <Text style={[s.statusBadgeText, job.status === 'completed' && { color: GREEN }, job.status === 'cancelled' && { color: RED }]}>
+                {job.status === 'completed' ? 'Completed' : job.status === 'cancelled' ? 'Cancelled' : 'Scheduled'}
+              </Text>
+            </View>
+          )}
         </View>
         <TouchableOpacity style={s.moreBtn} activeOpacity={0.7}>
           <MoreHorizontal size={18} color={INK} strokeWidth={2} />
@@ -267,14 +276,25 @@ export default function JobDetailScreen() {
           <Navigation size={15} color={INK} strokeWidth={2.2} />
           <Text style={s.navBtnText}>Navigate</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={s.startBtn}
-          activeOpacity={0.8}
-          onPress={() => router.push(`/jobs/complete?id=${id}`)}
-        >
-          <CheckCircle2 size={14} color="#fff" strokeWidth={2.5} />
-          <Text style={s.startBtnText}>Finish job</Text>
-        </TouchableOpacity>
+        {job?.status === 'completed' ? (
+          <TouchableOpacity
+            style={[s.startBtn, { backgroundColor: GREEN }]}
+            activeOpacity={0.8}
+            onPress={() => router.push(`/invoices/create?jobId=${id}` as any)}
+          >
+            <CheckCircle2 size={14} color="#fff" strokeWidth={2.5} />
+            <Text style={s.startBtnText}>Make invoice</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={s.startBtn}
+            activeOpacity={0.8}
+            onPress={() => router.push(`/jobs/complete?id=${id}`)}
+          >
+            <CheckCircle2 size={14} color="#fff" strokeWidth={2.5} />
+            <Text style={s.startBtnText}>Finish job</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -321,6 +341,23 @@ const s = StyleSheet.create({
     color: INK,
     letterSpacing: -0.4,
     marginTop: 2,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: ORANGE_SOFT,
+  },
+  statusBadgeDone: { backgroundColor: GREEN_SOFT },
+  statusBadgeCancelled: { backgroundColor: '#fde5e5' },
+  statusBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: ORANGE_DEEP,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   mapCard: {
     height: 150,
