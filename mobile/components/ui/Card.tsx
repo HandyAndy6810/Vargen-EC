@@ -1,24 +1,19 @@
-import React from 'react';
-import { View, type ViewProps } from 'react-native';
+import { View, type ViewStyle } from 'react-native';
+import type { ReactNode } from 'react';
+import { useTheme } from '@/hooks/use-theme';
+import { radius, space } from '@/theme/tokens';
 
-interface CardProps extends ViewProps {
-  children: React.ReactNode;
-}
-
-export function Card({ children, style, ...rest }: CardProps) {
+export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+  const { colors: c } = useTheme();
   return (
     <View
-      style={[
-        {
-          backgroundColor: '#ffffff',
-          borderRadius: 16,
-          borderWidth: 1,
-          borderColor: '#e7e5e4',
-          padding: 16,
-        },
-        style,
-      ]}
-      {...rest}
+      style={[{
+        backgroundColor: c.card,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: c.lineSoft,
+        padding: space.lg,
+      }, style]}
     >
       {children}
     </View>

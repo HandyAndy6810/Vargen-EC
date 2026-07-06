@@ -1,32 +1,30 @@
-import React from 'react';
-import { View, Text, type ViewProps } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { useTheme } from '@/hooks/use-theme';
+import { type as t, space } from '@/theme/tokens';
 
-interface SectionHeaderProps extends ViewProps {
+export function SectionHeader({ title, actionLabel, onAction }: {
   title: string;
-  action?: React.ReactNode;
-}
-
-export function SectionHeader({ title, action, style, ...rest }: SectionHeaderProps) {
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  const { colors: c } = useTheme();
   return (
-    <View
-      style={[
-        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-        style,
-      ]}
-      {...rest}
-    >
-      <Text
-        style={{
-          fontSize: 11,
-          fontFamily: 'Manrope_800ExtraBold',
-          color: '#a8a29e',
-          letterSpacing: 1.2,
-          textTransform: 'uppercase',
-        }}
-      >
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm }}>
+      <Text style={{ fontSize: t.title, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3 }}>
         {title}
       </Text>
-      {action}
+      {actionLabel && onAction ? (
+        <TouchableOpacity
+          onPress={onAction}
+          hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+        >
+          <Text style={{ fontSize: t.small, fontFamily: 'Manrope_800ExtraBold', color: c.orange }}>
+            {actionLabel} →
+          </Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }

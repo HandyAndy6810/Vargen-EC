@@ -357,8 +357,11 @@ export default function AiChatScreen() {
   // Send-to-customer channel picker (ActionSheet — Alert caps at 3 buttons on
   // Android and is a no-op on web). Quote is only flagged "sent" once a channel
   // with a valid destination is actually chosen.
-  const sendSubtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
-  const sendTotal = sendSubtotal * 1.1;
+  const liveSubtotal = useMemo(
+    () => editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0),
+    [editableItems]
+  );
+  const sendTotal = liveSubtotal * 1.1;
   const sendEmail = customerType === 'existing' ? (overrideEmail || selectedCustomer?.email || '') : email;
   const sendPhone = customerType === 'existing' ? (overridePhone || selectedCustomer?.phone || '') : phone;
   const sendName  = customerType === 'existing' ? (selectedCustomer?.name || '') : `${firstName} ${lastName}`.trim();
@@ -940,7 +943,6 @@ export default function AiChatScreen() {
 
                 {/* Live margin slider */}
                 {(() => {
-                  const liveSubtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
                   const markupPercent = userSettings?.markupPercent ?? 30;
                   const cost = liveSubtotal > 0 ? liveSubtotal / (1 + markupPercent / 100) : 0;
                   return (
@@ -1021,7 +1023,7 @@ export default function AiChatScreen() {
 
                 {/* Computed totals */}
                 {(() => {
-                  const subtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
+                  const subtotal = liveSubtotal;
                   const gst = subtotal * 0.1;
                   const total = subtotal + gst;
                   return (

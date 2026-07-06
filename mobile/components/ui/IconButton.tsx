@@ -1,27 +1,32 @@
-import React from 'react';
-import { TouchableOpacity, type TouchableOpacityProps } from 'react-native';
+import { TouchableOpacity } from 'react-native';
+import type { ReactNode } from 'react';
+import { useTheme } from '@/hooks/use-theme';
+import { radius, HIT } from '@/theme/tokens';
 
-interface IconButtonProps extends TouchableOpacityProps {
-  children: React.ReactNode;
-  size?: number;
-}
-
-export function IconButton({ children, size = 40, style, ...rest }: IconButtonProps) {
+// label is required — icon-only controls are unnameable to screen readers without it
+export function IconButton({ children, onPress, label, accent }: {
+  children: ReactNode;
+  onPress: () => void;
+  label: string;
+  accent?: boolean;
+}) {
+  const { colors: c } = useTheme();
   return (
     <TouchableOpacity
+      onPress={onPress}
       activeOpacity={0.7}
-      style={[
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 4,
-          backgroundColor: '#f0ece4',
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-        style,
-      ]}
-      {...rest}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={{
+        width: HIT,
+        height: HIT,
+        borderRadius: radius.sm,
+        backgroundColor: accent ? c.orange : c.card,
+        borderWidth: accent ? 0 : 1,
+        borderColor: c.lineSoft,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
     >
       {children}
     </TouchableOpacity>

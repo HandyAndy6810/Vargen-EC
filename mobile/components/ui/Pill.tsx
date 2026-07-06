@@ -1,53 +1,30 @@
-import React from 'react';
-import { TouchableOpacity, Text, type TouchableOpacityProps } from 'react-native';
+import { View, Text } from 'react-native';
+import { useTheme } from '@/hooks/use-theme';
+import { radius, type as t } from '@/theme/tokens';
 
-interface PillProps extends TouchableOpacityProps {
-  label: string;
-  active?: boolean;
-  count?: number;
-}
-
-export function Pill({ label, active = false, count, style, ...rest }: PillProps) {
+export function Pill({ label, color, bg }: { label: string; color?: string; bg?: string }) {
+  const { colors: c } = useTheme();
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      style={[
-        {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 4,
-          paddingHorizontal: 14,
-          paddingVertical: 7,
-          borderRadius: 999,
-          backgroundColor: active ? '#1c1917' : '#f0ece4',
-          borderWidth: 1,
-          borderColor: active ? '#1c1917' : 'transparent',
-        },
-        style,
-      ]}
-      {...rest}
+    <View
+      style={{
+        alignSelf: 'flex-start',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: radius.pill,
+        backgroundColor: bg ?? c.paperDeep,
+      }}
     >
       <Text
         style={{
-          fontSize: 13,
-          fontFamily: 'Manrope_700Bold',
-          color: active ? '#ffffff' : '#57534e',
-          letterSpacing: -0.1,
+          fontSize: t.caption,
+          fontFamily: 'Manrope_800ExtraBold',
+          letterSpacing: 0.8,
+          textTransform: 'uppercase',
+          color: color ?? c.mutedHi,
         }}
       >
         {label}
       </Text>
-      {count !== undefined && (
-        <Text
-          style={{
-            fontSize: 11,
-            fontFamily: 'Manrope_700Bold',
-            color: active ? 'rgba(255,255,255,0.7)' : '#a8a29e',
-          }}
-        >
-          {count}
-        </Text>
-      )}
-    </TouchableOpacity>
+    </View>
   );
 }
