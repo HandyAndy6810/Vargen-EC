@@ -78,6 +78,7 @@ export default function QuoteDetailScreen() {
   const updateQuote = useUpdateQuote();
   const [showPDF, setShowPDF] = useState(false);
   const [pdfPending, setPdfPending] = useState(false);
+  const [sheetMode, setSheetMode] = useState<null | 'more' | 'status'>(null);
   const { data: xeroStatus } = useXeroStatus();
   const createXeroInvoice = useCreateXeroInvoice(quoteId);
 
@@ -171,8 +172,6 @@ export default function QuoteDetailScreen() {
   const customerPhone = content.customerPhone || null;
   const alreadyInvoiced = status === 'invoiced';
   const terminalStatus = isTerminalStatus(status);
-
-  const [sheetMode, setSheetMode] = useState<null | 'more' | 'status'>(null);
 
   const statusActions: SheetAction[] = [
     status !== 'sent'     ? { label: 'Mark as Sent',     onPress: () => updateQuote.mutate({ id: quoteId, status: 'sent' } as any) } : null,
