@@ -145,7 +145,7 @@ export default function JobCreateScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
             <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
@@ -193,8 +193,20 @@ export default function JobCreateScreen() {
                     onChangeText={v => { setCustSearch(v); setShowCustList(true); }}
                     onFocus={() => setShowCustList(true)}
                   />
-                  {showCustList && filteredCustomers.length > 0 && (
+                  {showCustList && (
                     <View style={s.custDropdown}>
+                      <TouchableOpacity
+                        style={[s.custRow, { borderTopWidth: 0 }]}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Add new customer"
+                        onPress={() => router.push('/customers/new' as any)}
+                      >
+                        <View style={[s.custAvatar, { backgroundColor: c.orangeSoft }]}>
+                          <Text style={[s.custAvatarText, { color: c.orangeDeep }]}>＋</Text>
+                        </View>
+                        <Text style={[s.custName, { color: c.orange }]}>New customer</Text>
+                      </TouchableOpacity>
                       {filteredCustomers.map((c: any) => (
                         <TouchableOpacity
                           key={c.id}
@@ -373,7 +385,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   dayChipActive: { backgroundColor: c.ink, borderColor: c.ink },
   dayChipTop: {
-    fontSize: 9, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
     color: c.muted, letterSpacing: 0.5, textTransform: 'uppercase',
   },
   dayChipNum: { fontSize: 20, fontFamily: 'Manrope_800ExtraBold', color: c.ink, lineHeight: 24 },

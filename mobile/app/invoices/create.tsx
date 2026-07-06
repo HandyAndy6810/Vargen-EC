@@ -256,7 +256,7 @@ export default function InvoiceCreateScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
             <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
@@ -395,11 +395,11 @@ export default function InvoiceCreateScreen() {
               <Text style={s.sectionEyebrow}>Line items</Text>
               <View style={[s.card, { padding: 0 }]}>
                 <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: c.lineSoft }}>
-                  <Text style={{ fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>Description</Text>
+                  <Text style={{ fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>Description</Text>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <Text style={{ flex: 1, fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Qty</Text>
-                    <Text style={{ flex: 2, fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Unit price</Text>
-                    <Text style={{ flex: 1, fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Total</Text>
+                    <Text style={{ flex: 1, fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Qty</Text>
+                    <Text style={{ flex: 2, fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Unit price</Text>
+                    <Text style={{ flex: 1, fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Total</Text>
                   </View>
                 </View>
                 {lines.map((line, i) => (

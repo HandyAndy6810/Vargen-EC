@@ -192,7 +192,7 @@ export default function InvoiceDetailScreen() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 14 }}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' }}>
             <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
         </View>
@@ -253,7 +253,7 @@ export default function InvoiceDetailScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.iconBtn}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={s.iconBtn}>
           <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>

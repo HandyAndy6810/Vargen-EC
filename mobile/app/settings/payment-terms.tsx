@@ -57,7 +57,7 @@ export default function PaymentTermsScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
           <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>

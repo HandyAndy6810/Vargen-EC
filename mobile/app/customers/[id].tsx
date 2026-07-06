@@ -115,7 +115,7 @@ export default function CustomerDetailScreen() {
   if (!customer) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-        <TouchableOpacity onPress={() => router.back()} style={{ padding: 20 }}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={{ padding: 20 }}>
           <Text style={{ color: c.orange, fontFamily: 'Manrope_700Bold' }}>← Back</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
@@ -152,7 +152,7 @@ export default function CustomerDetailScreen() {
               <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.muted }}>Cancel</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity onPress={() => router.back()} style={s.navBtn}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={s.navBtn}>
               <ChevronLeft size={18} color={c.ink} strokeWidth={2.1} />
             </TouchableOpacity>
           )}

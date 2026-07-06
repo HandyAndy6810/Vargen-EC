@@ -113,7 +113,7 @@ export default function WidgetsScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.navBtn} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={s.navBtn} activeOpacity={0.7}>
           <ChevronLeft size={18} color={c.ink} strokeWidth={2.1} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Customise Widgets</Text>

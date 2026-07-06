@@ -71,7 +71,7 @@ export default function RemindersScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" style={s.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
           <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
         </TouchableOpacity>
         <View style={s.titleWrap}>

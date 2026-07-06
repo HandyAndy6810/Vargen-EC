@@ -87,7 +87,7 @@ export default function JobCompleteScreen() {
       <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
               <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
             </TouchableOpacity>
           </View>
@@ -132,7 +132,7 @@ export default function JobCompleteScreen() {
           </ScrollView>
 
           <View style={s.bottomBar}>
-            <TouchableOpacity style={s.finishBtn} activeOpacity={0.7} onPress={() => router.back()}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" style={s.finishBtn} activeOpacity={0.7} onPress={() => router.back()}>
               <Text style={s.finishBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.makeInvoiceBtn} activeOpacity={0.8} onPress={handleFinish} disabled={isPending}>
@@ -156,7 +156,7 @@ export default function JobCompleteScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
           <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
         </TouchableOpacity>
       </View>
