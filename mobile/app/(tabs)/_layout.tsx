@@ -17,7 +17,6 @@ const TABS = [
   { name: 'profile',  label: 'Profile',  Icon: User },
 ];
 
-const ORANGE = '#E8541A';
 
 // Leading edge springs fast, trailing edge drags → squash-and-stretch feel
 const FAST = { damping: 18, stiffness: 300, mass: 0.5,  useNativeDriver: false } as const;
@@ -85,7 +84,7 @@ function TabBar({ state, navigation }: any) {
             style={[styles.indicatorSlider, { left: leftEdge, width: indicatorWidth }]}
           >
             <LinearGradient
-              colors={['rgba(232,84,26,0)', ORANGE, ORANGE, 'rgba(232,84,26,0)']}
+              colors={['rgba(242,106,42,0)', c.orange, c.orange, 'rgba(242,106,42,0)']}
               locations={[0, 0.25, 0.75, 1]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -99,7 +98,7 @@ function TabBar({ state, navigation }: any) {
       <View style={styles.tabsRow}>
         {TABS.map((tab, i) => {
           const isFocused = state.index === i;
-          const color = isFocused ? ORANGE : iconInactive;
+          const color = isFocused ? c.orange : iconInactive;
           return (
             <Pressable
               key={tab.name}
