@@ -23,10 +23,8 @@ import { useSettings } from '@/hooks/use-settings';
 import { queryClient } from '@/lib/queryClient';
 import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { showAlert } from '@/lib/dialogs';
 
-const BLUE      = '#1f6feb';
-const BLUE_SOFT = '#eaf2ff';
-const GREEN_SOFT = '#e5f6eb';
 const PILL_STATES = 4;
 
 function fmtAUD(n: number): string {
@@ -42,21 +40,10 @@ function parseQuoteTitle(q: any): string {
   return `Quote #${q.id}`;
 }
 
+// Static render — the old 28-tick setInterval count-up churned the JS thread
+// on every data refresh for a decorative effect
 function AnimatedNumber({ value, prefix = '$', style }: { value: number; prefix?: string; style?: any }) {
-  const [displayed, setDisplayed] = useState(0);
-  useEffect(() => {
-    if (value === 0) { setDisplayed(0); return; }
-    const steps = 28;
-    const ms = 800 / steps;
-    let step = 0;
-    const t = setInterval(() => {
-      step++;
-      setDisplayed(Math.round((value * step) / steps));
-      if (step >= steps) clearInterval(t);
-    }, ms);
-    return () => clearInterval(t);
-  }, [value]);
-  const fmt = displayed >= 1000 ? `${(displayed / 1000).toFixed(1)}k` : displayed.toLocaleString();
+  const fmt = value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toLocaleString();
   return <Text style={style}>{prefix}{fmt}</Text>;
 }
 
@@ -185,12 +172,12 @@ function makeStyles(c: Colors, isDark: boolean) {
 export default function HomeScreen() {
   const { colors: c, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const s = makeStyles(c, isDark);
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
 
   const QUOTE_STATUS: Record<string, { bg: string; text: string }> = {
     draft:    { bg: c.paperDeep,  text: c.muted    },
-    sent:     { bg: BLUE_SOFT,    text: BLUE        },
-    viewed:   { bg: BLUE_SOFT,    text: BLUE        },
+    sent:     { bg: c.blueSoft,    text: c.blue        },
+    viewed:   { bg: c.blueSoft,    text: c.blue        },
     accepted: { bg: c.greenSoft,  text: c.green     },
     declined: { bg: c.redSoft,    text: c.red       },
     expired:  { bg: c.paperDeep,  text: c.muted     },
@@ -325,7 +312,7 @@ export default function HomeScreen() {
             <View style={s.qaRow}>
               {([
                 { Icon: Sparkles,  label: 'New Quote',    color: c.orange, bg: c.orangeSoft, route: '/ai-chat' },
-                { Icon: Briefcase, label: 'New Job',      color: BLUE,     bg: isDark ? 'rgba(31,111,235,0.15)' : BLUE_SOFT,    route: '/jobs/create' },
+                { Icon: Briefcase, label: 'New Job',      color: c.blue,     bg: isDark ? 'rgba(31,111,235,0.15)' : c.blueSoft,    route: '/jobs/create' },
                 { Icon: Users,     label: 'Customers',    color: c.green,  bg: c.greenSoft,  route: '/customers' },
               ] as const).map(({ Icon, label, color, bg, route }) => (
                 <TouchableOpacity key={label} style={[s.qaBtn, { backgroundColor: bg }]} onPress={() => router.push(route as any)} activeOpacity={0.75}>
@@ -345,7 +332,7 @@ export default function HomeScreen() {
                 <Text style={s.eyebrow}>Today's Schedule</Text>
                 <Text style={s.sectionTitle}>{todayJobs.length} {todayJobs.length === 1 ? 'stop' : 'stops'} today</Text>
               </View>
-              <TouchableOpacity onPress={() => router.push('/jobs/list')}><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/jobs/list')} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }} accessibilityRole="button" accessibilityLabel="See all jobs"><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
             </View>
             {jobsLoading ? (
               <View style={{ paddingHorizontal: 20 }}><View style={[s.emptyCard, { paddingVertical: 24 }]}><ActivityIndicator color={c.orange} /></View></View>
@@ -356,7 +343,7 @@ export default function HomeScreen() {
                 {todayJobs.map((job: any, i: number) => (
                   <TouchableOpacity key={job.id} style={s.scheduleCard} onPress={() => router.push(`/jobs/${job.id}`)} activeOpacity={0.75}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i === 0 ? c.orange : BLUE }} />
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i === 0 ? c.orange : c.blue }} />
                       <Text style={s.scheduleTime}>{job.scheduledDate ? format(new Date(job.scheduledDate), 'h:mm a') : 'TBC'}</Text>
                     </View>
                     <Text style={s.scheduleTitle} numberOfLines={2}>{job.title}</Text>
@@ -375,7 +362,7 @@ export default function HomeScreen() {
             <View style={s.pipelineHalfGrid}>
               {[
                 { n: pipeline.draft,    l: 'Draft',    col: c.muted,   f: 'draft'    },
-                { n: pipeline.sent,     l: 'Sent',     col: BLUE,      f: 'sent'     },
+                { n: pipeline.sent,     l: 'Sent',     col: c.blue,      f: 'sent'     },
                 { n: pipeline.accepted, l: 'Accepted', col: c.green,   f: 'accepted' },
                 { n: pipeline.overdue,  l: 'Overdue',  col: c.orange,  f: 'overdue'  },
               ].map(item => (
@@ -393,12 +380,12 @@ export default function HomeScreen() {
                 <Text style={s.eyebrow}>Quote Pipeline</Text>
                 <Text style={s.sectionTitle}>{pipelineTotal} on the go · <Text style={{ color: c.orange }}>${fmtAUD(pipelineAmt)}</Text></Text>
               </View>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }} accessibilityRole="button" accessibilityLabel="See all quotes"><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
               {[
                 { n: pipeline.draft,    l: 'Draft',    col: c.muted,   bg: c.card,       ring: c.lineSoft,     f: 'draft'    },
-                { n: pipeline.sent,     l: 'Sent',     col: BLUE,      bg: BLUE_SOFT,    ring: '#c8dcff',      f: 'sent'     },
+                { n: pipeline.sent,     l: 'Sent',     col: c.blue,      bg: c.blueSoft,    ring: c.blueBorder,      f: 'sent'     },
                 { n: pipeline.accepted, l: 'Accepted', col: c.green,   bg: c.greenSoft,  ring: `${c.green}44`, f: 'accepted' },
                 { n: pipeline.overdue,  l: 'Overdue',  col: c.orange,  bg: c.orangeSoft, ring: `${c.orange}44`, f: 'overdue' },
               ].map(st => (
@@ -420,7 +407,7 @@ export default function HomeScreen() {
             <View style={[s.card, { marginTop: 10 }]}>
               {([
                 { label: 'Paid',    amount: totalPaid,    color: c.green  },
-                { label: 'Pending', amount: totalPending, color: BLUE     },
+                { label: 'Pending', amount: totalPending, color: c.blue     },
                 { label: 'Overdue', amount: totalOverdue, color: c.orange },
               ] as const).map((row, i) => (
                 <View key={row.label} style={[s.rvHalfRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
@@ -436,7 +423,7 @@ export default function HomeScreen() {
             <View style={s.rvCard}>
               {([
                 { label: 'Paid',    amount: totalPaid,    color: c.green,  bg: c.greenSoft  },
-                { label: 'Pending', amount: totalPending, color: BLUE,     bg: BLUE_SOFT    },
+                { label: 'Pending', amount: totalPending, color: c.blue,     bg: c.blueSoft    },
                 { label: 'Overdue', amount: totalOverdue, color: c.orange, bg: c.orangeSoft },
               ] as const).map((col, i) => (
                 <View key={col.label} style={[s.rvCol, i > 0 && { borderLeftWidth: 1, borderLeftColor: c.lineSoft }]}>
@@ -457,7 +444,7 @@ export default function HomeScreen() {
                 <Text style={s.eyebrow}>Recent Quotes</Text>
                 {recentQuotes.length > 0 && <Text style={s.sectionTitle}>Last {recentQuotes.length}</Text>}
               </View>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')}><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }} accessibilityRole="button" accessibilityLabel="See all quotes"><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
             </View>
             {recentQuotes.length === 0 ? (
               <View style={s.emptyCard}><Text style={s.emptyText}>No quotes yet — start one above</Text></View>
@@ -510,8 +497,8 @@ export default function HomeScreen() {
                     onPress={() => router.push(`/invoices/${inv.id}`)}
                     activeOpacity={0.7}
                   >
-                    <View style={[s.invIcon, { backgroundColor: isOverdue ? c.orangeSoft : BLUE_SOFT }]}>
-                      <AlertTriangle size={14} color={isOverdue ? c.orange : BLUE} strokeWidth={2.5} />
+                    <View style={[s.invIcon, { backgroundColor: isOverdue ? c.orangeSoft : c.blueSoft }]}>
+                      <AlertTriangle size={14} color={isOverdue ? c.orange : c.blue} strokeWidth={2.5} />
                     </View>
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text style={s.rqTitle} numberOfLines={1}>{inv.customerName || 'Customer'}</Text>
@@ -571,7 +558,7 @@ export default function HomeScreen() {
                     <Text style={s.weatherHiLo}>↑ {Math.round(weather.forecast[0]?.temp_max)}°</Text>
                     <Text style={s.weatherHiLo}>↓ {Math.round(weather.forecast[0]?.temp_min)}°</Text>
                     {weather.forecast[0]?.precipitation > 0 && (
-                      <Text style={[s.weatherHiLo, { color: BLUE }]}>💧 {weather.forecast[0].precipitation.toFixed(1)}mm</Text>
+                      <Text style={[s.weatherHiLo, { color: c.blue }]}>💧 {weather.forecast[0].precipitation.toFixed(1)}mm</Text>
                     )}
                   </View>
                 </View>
@@ -690,11 +677,13 @@ export default function HomeScreen() {
                     </View>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={s.heroIconBtn}
+                    style={[s.heroIconBtn, !(nextJob as any).address && { opacity: 0.35 }]}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Navigate to job"
                     onPress={() => {
                       const addr = (nextJob as any).address;
-                      if (!addr) return;
+                      if (!addr) { showAlert('No address', 'This job has no address on file.'); return; }
                       const encoded = encodeURIComponent(addr);
                       // maps:// is iOS-only; fall back to Google Maps everywhere else
                       Linking.openURL(`maps://?q=${encoded}`).catch(() =>
@@ -705,11 +694,14 @@ export default function HomeScreen() {
                     <Navigation size={18} color="#fff" strokeWidth={2} />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={s.heroIconBtn}
+                    style={[s.heroIconBtn, !(nextJob as any).customerPhone && { opacity: 0.35 }]}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Message customer"
                     onPress={() => {
                       const phone = (nextJob as any).customerPhone;
-                      if (phone) Linking.openURL(`sms:${phone}`);
+                      if (!phone) { showAlert('No phone number', 'This job has no customer phone on file.'); return; }
+                      Linking.openURL(`sms:${phone}`);
                     }}
                   >
                     <MessageCircle size={18} color="#fff" strokeWidth={2} />

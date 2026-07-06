@@ -445,6 +445,16 @@ export default function CalendarScreen() {
               const endH_ = startH + durationHrs;
               const top = (startH - START_H) * HOUR_H;
               const height = Math.max(durationHrs * HOUR_H, 36);
+              // Same-time jobs render side-by-side instead of stacking invisibly
+              const overlapIdxs = dayJobs
+                .map((other: any, j: number) => {
+                  const oStart = getJobHour(other.scheduledDate);
+                  const oEnd = oStart + (other.estimatedDuration || 60) / 60;
+                  return oStart < endH_ && oEnd > startH ? j : -1;
+                })
+                .filter((j: number) => j >= 0);
+              const cols = overlapIdxs.length;
+              const col = overlapIdxs.indexOf(i);
               const isCompleted = job.status === 'completed';
               const isNext = i === 0 && !isCompleted;
               const bg = isNext ? (isDark ? c.card : '#0f0e0b') : c.card;
@@ -458,8 +468,11 @@ export default function CalendarScreen() {
                   onPress={() => router.push(`/jobs/${job.id}`)}
                   activeOpacity={0.8}
                   style={[{
-                    position: 'absolute', left: 0, right: 12, borderRadius: 12,
-                    paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, overflow: 'hidden',
+                    position: 'absolute', borderRadius: 12,
+                    left: cols > 1 ? (`${(100 / cols) * col}%` as any) : 0,
+                    width: cols > 1 ? (`${100 / cols}%` as any) : undefined,
+                    right: cols > 1 ? undefined : 12,
+                    paddingHorizontal: cols > 1 ? 8 : 12, paddingVertical: 8, borderWidth: 1, overflow: 'hidden',
                     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.03, shadowRadius: 6, elevation: 2,
                     top, height, backgroundColor: bg, borderColor: border,
