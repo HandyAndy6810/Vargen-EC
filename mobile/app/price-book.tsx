@@ -36,12 +36,15 @@ export default function PriceBookScreen() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
 
-  const grouped = items.reduce<Record<string, PriceBookItem[]>>((acc, item) => {
-    const key = item.category || 'Uncategorised';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
-    return acc;
-  }, {});
+  const grouped = useMemo(() =>
+    items.reduce<Record<string, PriceBookItem[]>>((acc, item) => {
+      const key = item.category || 'Uncategorised';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item);
+      return acc;
+    }, {}),
+    [items]
+  );
 
   const startAdd = () => {
     setEditingId(null);
@@ -135,7 +138,7 @@ export default function PriceBookScreen() {
             <Text style={s.eyebrow}>Settings</Text>
             <Text style={s.title}>Price book</Text>
           </View>
-          <TouchableOpacity onPress={startAdd} activeOpacity={0.7} style={s.addBtn}>
+          <TouchableOpacity onPress={startAdd} activeOpacity={0.7} style={s.addBtn} accessibilityRole="button" accessibilityLabel="Add price book item">
             <Plus size={18} color={c.orange} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
@@ -240,10 +243,10 @@ export default function PriceBookScreen() {
                           </Text>
                         </View>
                         <Text style={s.itemPrice}>${parseFloat(item.price).toFixed(2)}</Text>
-                        <TouchableOpacity onPress={() => startEdit(item)} style={s.iconBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <TouchableOpacity onPress={() => startEdit(item)} style={s.iconBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={`Edit ${item.description}`}>
                           <Pencil size={14} color={c.muted} strokeWidth={2} />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => confirmDelete(item)} style={s.iconBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <TouchableOpacity onPress={() => confirmDelete(item)} style={s.iconBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={`Delete ${item.description}`}>
                           <Trash2 size={14} color={c.red} strokeWidth={2} />
                         </TouchableOpacity>
                       </View>

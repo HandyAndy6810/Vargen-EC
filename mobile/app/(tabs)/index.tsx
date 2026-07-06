@@ -709,9 +709,19 @@ export default function HomeScreen() {
                 </View>
               </>
             ) : (
-              <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, fontFamily: 'Manrope_500Medium' }}>
-                Nothing scheduled — enjoy the arvo.
-              </Text>
+              <TouchableOpacity
+                onPress={() => router.push('/ai-chat')}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Create a quote"
+              >
+                <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, fontFamily: 'Manrope_500Medium' }}>
+                  Nothing scheduled.
+                </Text>
+                <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Manrope_800ExtraBold', marginTop: 6 }}>
+                  Fire off a quote while it's quiet →
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
         </View>
