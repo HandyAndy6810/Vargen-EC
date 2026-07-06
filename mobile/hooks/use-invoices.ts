@@ -43,8 +43,9 @@ export function useUpdateInvoice() {
       }
       return res.json() as Promise<Invoice>;
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: [api.invoices.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.invoices.get.path, vars.id] });
       toast({ title: 'Invoice Updated' });
     },
     onError: (error: Error) => {
@@ -117,9 +118,10 @@ export function useConvertQuoteToInvoice() {
       }
       return res.json() as Promise<Invoice>;
     },
-    onSuccess: () => {
+    onSuccess: (_data, quoteId) => {
       queryClient.invalidateQueries({ queryKey: [api.invoices.list.path] });
       queryClient.invalidateQueries({ queryKey: [api.quotes.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.quotes.get.path, quoteId] });
       toast({ title: 'Invoice created from quote' });
     },
     onError: (error: Error) => {

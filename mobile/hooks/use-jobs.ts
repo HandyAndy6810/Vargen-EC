@@ -84,8 +84,9 @@ export function useUpdateJob() {
       if (!res.ok) throw new Error("Failed to update job");
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: [api.jobs.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.jobs.get.path, vars.id] });
       toast({ title: "Job Updated", description: "Changes saved." });
     },
     onError: (error: Error) => {

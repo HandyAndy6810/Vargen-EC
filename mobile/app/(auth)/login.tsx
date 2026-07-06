@@ -55,7 +55,9 @@ export default function LoginScreen() {
       }
       return res.json();
     },
-    onSuccess: (user) => {
+    onSuccess: async (user) => {
+      // Persist so the offline bootstrap in _layout can restore the session
+      await saveCachedUser(user);
       queryClient.setQueryData(["/api/auth/user"], user);
       router.replace("/(tabs)");
     },

@@ -69,7 +69,6 @@ function ThemedStatusBar() {
 function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
   const { ready: themeReady, colors } = useTheme();
   const [authReady, setAuthReady] = useState(false);
-  const notifListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
   // Pre-populate auth cache before any screen renders so previously-logged-in
@@ -99,7 +98,6 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
     });
 
     return () => {
-      notifListener.current?.remove();
       responseListener.current?.remove();
     };
   }, []);
@@ -185,7 +183,12 @@ async function registerForPushNotifications() {
       finalStatus = status;
     }
     if (finalStatus !== 'granted') return;
-    await Notifications.getExpoPushTokenAsync();
+    const token = await Notifications.getExpoPushTokenAsync();
+    if (token?.data) {
+      // Register with the backend so the server can actually target this device
+      const { apiRequest } = await import('@/lib/api');
+      await apiRequest('PATCH', '/api/settings', { expoPushToken: token.data });
+    }
   } catch {
     // Silently fail — push notifications are non-critical
   }
