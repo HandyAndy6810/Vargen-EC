@@ -8,28 +8,14 @@ import {
   StyleSheet,
   Linking,
 } from 'react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { ChevronLeft, Phone, MessageSquare, Mail, MapPin, FileText, Pencil, Trash2 } from 'lucide-react-native';
 import { useCustomer, useUpdateCustomer, useDeleteCustomer } from '@/hooks/use-customers';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const BLACK       = '#0f0e0b';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const GREEN       = '#2a9d4c';
-const GREEN_SOFT  = '#e5f6eb';
-const BLUE        = '#1f6feb';
-const BLUE_SOFT   = '#eaf2ff';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
 
 function initials(name: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -61,6 +47,8 @@ function openMaps(address: string) {
 }
 
 export default function CustomerDetailScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: customer, isLoading, isError, refetch } = useCustomer(Number(id));
   const { mutate: updateCustomer, isPending: isSaving } = useUpdateCustomer();
@@ -116,9 +104,9 @@ export default function CustomerDetailScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: MUTED, fontFamily: 'Manrope_500Medium' }}>Loading…</Text>
+          <Text style={{ color: c.muted, fontFamily: 'Manrope_500Medium' }}>Loading…</Text>
         </View>
       </SafeAreaView>
     );
@@ -126,18 +114,18 @@ export default function CustomerDetailScreen() {
 
   if (!customer) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 20 }}>
-          <Text style={{ color: ORANGE, fontFamily: 'Manrope_700Bold' }}>← Back</Text>
+          <Text style={{ color: c.orange, fontFamily: 'Manrope_700Bold' }}>← Back</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-          <Text style={{ color: MUTED, fontFamily: 'Manrope_500Medium' }}>
+          <Text style={{ color: c.muted, fontFamily: 'Manrope_500Medium' }}>
             {isError ? 'Couldn\'t load customer — check your connection' : 'Customer not found'}
           </Text>
           {isError && (
             <TouchableOpacity
               onPress={() => refetch()}
-              style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: ORANGE }}
+              style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: c.orange }}
               activeOpacity={0.8}
             >
               <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: '#fff' }}>Retry</Text>
@@ -151,7 +139,7 @@ export default function CustomerDetailScreen() {
   const avatarLabel = initials(isEditing ? (editName || customer.name) : customer.name);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
 
         {/* Header */}
@@ -161,11 +149,11 @@ export default function CustomerDetailScreen() {
               onPress={() => setIsEditing(false)}
               style={[s.navBtn, { width: 'auto', paddingHorizontal: 14 }]}
             >
-              <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: MUTED }}>Cancel</Text>
+              <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.muted }}>Cancel</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity onPress={() => router.back()} style={s.navBtn}>
-              <ChevronLeft size={18} color={INK} strokeWidth={2.1} />
+              <ChevronLeft size={18} color={c.ink} strokeWidth={2.1} />
             </TouchableOpacity>
           )}
           <Text style={s.headerTitle}>{isEditing ? 'Edit customer' : 'Customer'}</Text>
@@ -173,7 +161,7 @@ export default function CustomerDetailScreen() {
             <TouchableOpacity
               onPress={handleSaveEdit}
               disabled={isSaving || !editName.trim()}
-              style={[s.navBtn, { width: 'auto', paddingHorizontal: 14, backgroundColor: ORANGE, borderColor: ORANGE }]}
+              style={[s.navBtn, { width: 'auto', paddingHorizontal: 14, backgroundColor: c.orange, borderColor: c.orange }]}
             >
               {isSaving
                 ? <ActivityIndicator size="small" color="#fff" />
@@ -182,10 +170,10 @@ export default function CustomerDetailScreen() {
           ) : (
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity onPress={startEditing} style={s.navBtn}>
-                <Pencil size={15} color={INK} strokeWidth={2} />
+                <Pencil size={15} color={c.ink} strokeWidth={2} />
               </TouchableOpacity>
               <TouchableOpacity onPress={handleDelete} style={s.navBtn}>
-                <Trash2 size={15} color={ORANGE} strokeWidth={2} />
+                <Trash2 size={15} color={c.orange} strokeWidth={2} />
               </TouchableOpacity>
             </View>
           )}
@@ -203,7 +191,7 @@ export default function CustomerDetailScreen() {
               value={editName}
               onChangeText={setEditName}
               placeholder="Customer name"
-              placeholderTextColor={MUTED}
+              placeholderTextColor={c.muted}
               autoCapitalize="words"
               autoFocus
               textAlign="center"
@@ -224,36 +212,36 @@ export default function CustomerDetailScreen() {
             <Text style={s.sectionEyebrow}>Contact details</Text>
             <View style={s.card}>
               <View style={s.editRow}>
-                <View style={s.detailIcon}><Phone size={15} color={ORANGE} strokeWidth={2} /></View>
+                <View style={s.detailIcon}><Phone size={15} color={c.orange} strokeWidth={2} /></View>
                 <TextInput
                   style={s.editInput}
                   value={editPhone}
                   onChangeText={setEditPhone}
                   placeholder="Phone"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                   keyboardType="phone-pad"
                 />
               </View>
-              <View style={[s.editRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                <View style={s.detailIcon}><Mail size={15} color={BLUE} strokeWidth={2} /></View>
+              <View style={[s.editRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
+                <View style={s.detailIcon}><Mail size={15} color={c.blue} strokeWidth={2} /></View>
                 <TextInput
                   style={s.editInput}
                   value={editEmail}
                   onChangeText={setEditEmail}
                   placeholder="Email"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
               </View>
-              <View style={[s.editRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                <View style={s.detailIcon}><MapPin size={15} color={MUTED} strokeWidth={2} /></View>
+              <View style={[s.editRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
+                <View style={s.detailIcon}><MapPin size={15} color={c.muted} strokeWidth={2} /></View>
                 <TextInput
                   style={s.editInput}
                   value={editAddress}
                   onChangeText={setEditAddress}
                   placeholder="Address"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                 />
               </View>
             </View>
@@ -261,11 +249,11 @@ export default function CustomerDetailScreen() {
             <Text style={[s.sectionEyebrow, { marginTop: 18 }]}>Notes</Text>
             <View style={[s.card, { padding: 14 }]}>
               <TextInput
-                style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: INK, minHeight: 80, textAlignVertical: 'top' }}
+                style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.ink, minHeight: 80, textAlignVertical: 'top' }}
                 value={editNotes}
                 onChangeText={setEditNotes}
                 placeholder="Gate codes, preferences, parking…"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
                 multiline
               />
             </View>
@@ -276,32 +264,32 @@ export default function CustomerDetailScreen() {
             {/* Quick actions */}
             <View style={s.actionsRow}>
               {customer.phone ? (
-                <TouchableOpacity style={[s.actionBtn, { backgroundColor: GREEN_SOFT }]} onPress={() => openCall(customer.phone!)}>
-                  <Phone size={20} color={GREEN} strokeWidth={2} />
-                  <Text style={[s.actionLabel, { color: GREEN }]}>Call</Text>
+                <TouchableOpacity style={[s.actionBtn, { backgroundColor: c.greenSoft }]} onPress={() => openCall(customer.phone!)}>
+                  <Phone size={20} color={c.green} strokeWidth={2} />
+                  <Text style={[s.actionLabel, { color: c.green }]}>Call</Text>
                 </TouchableOpacity>
               ) : null}
               {(customer.phone || customer.email) ? (
                 <TouchableOpacity
-                  style={[s.actionBtn, { backgroundColor: ORANGE_SOFT }]}
+                  style={[s.actionBtn, { backgroundColor: c.orangeSoft }]}
                   onPress={() => router.push(`/customers/compose?customerId=${id}&customerName=${encodeURIComponent(customer.name)}&customerPhone=${encodeURIComponent(customer.phone ?? '')}&customerEmail=${encodeURIComponent(customer.email ?? '')}` as any)}
                 >
-                  <MessageSquare size={20} color={ORANGE} strokeWidth={2} />
-                  <Text style={[s.actionLabel, { color: ORANGE }]}>Message</Text>
+                  <MessageSquare size={20} color={c.orange} strokeWidth={2} />
+                  <Text style={[s.actionLabel, { color: c.orange }]}>Message</Text>
                 </TouchableOpacity>
               ) : null}
               {customer.email ? (
-                <TouchableOpacity style={[s.actionBtn, { backgroundColor: BLUE_SOFT }]} onPress={() => openEmail(customer.email!)}>
-                  <Mail size={20} color={BLUE} strokeWidth={2} />
-                  <Text style={[s.actionLabel, { color: BLUE }]}>Email</Text>
+                <TouchableOpacity style={[s.actionBtn, { backgroundColor: c.blueSoft }]} onPress={() => openEmail(customer.email!)}>
+                  <Mail size={20} color={c.blue} strokeWidth={2} />
+                  <Text style={[s.actionLabel, { color: c.blue }]}>Email</Text>
                 </TouchableOpacity>
               ) : null}
               <TouchableOpacity
-                style={[s.actionBtn, { backgroundColor: PAPER_DEEP }]}
+                style={[s.actionBtn, { backgroundColor: c.paperDeep }]}
                 onPress={() => router.push(`/quotes/create?customerName=${encodeURIComponent(customer.name)}&customerId=${customer.id}` as any)}
               >
-                <FileText size={20} color={INK} strokeWidth={2} />
-                <Text style={[s.actionLabel, { color: INK }]}>Quote</Text>
+                <FileText size={20} color={c.ink} strokeWidth={2} />
+                <Text style={[s.actionLabel, { color: c.ink }]}>Quote</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.actionBtn, { backgroundColor: '#f3e8ff' }]}
@@ -318,28 +306,28 @@ export default function CustomerDetailScreen() {
               <View style={s.card}>
                 {customer.phone ? (
                   <TouchableOpacity style={s.detailRow} onPress={() => openCall(customer.phone!)}>
-                    <View style={s.detailIcon}><Phone size={15} color={ORANGE} strokeWidth={2} /></View>
+                    <View style={s.detailIcon}><Phone size={15} color={c.orange} strokeWidth={2} /></View>
                     <Text style={s.detailText}>{customer.phone}</Text>
                     <Text style={s.detailAction}>Call</Text>
                   </TouchableOpacity>
                 ) : null}
                 {customer.email ? (
-                  <TouchableOpacity style={[s.detailRow, { borderTopWidth: customer.phone ? 1 : 0, borderTopColor: LINE_SOFT }]} onPress={() => openEmail(customer.email!)}>
-                    <View style={s.detailIcon}><Mail size={15} color={BLUE} strokeWidth={2} /></View>
+                  <TouchableOpacity style={[s.detailRow, { borderTopWidth: customer.phone ? 1 : 0, borderTopColor: c.lineSoft }]} onPress={() => openEmail(customer.email!)}>
+                    <View style={s.detailIcon}><Mail size={15} color={c.blue} strokeWidth={2} /></View>
                     <Text style={s.detailText}>{customer.email}</Text>
-                    <Text style={[s.detailAction, { color: BLUE }]}>Email</Text>
+                    <Text style={[s.detailAction, { color: c.blue }]}>Email</Text>
                   </TouchableOpacity>
                 ) : null}
                 {customer.address ? (
-                  <TouchableOpacity style={[s.detailRow, { borderTopWidth: (customer.phone || customer.email) ? 1 : 0, borderTopColor: LINE_SOFT }]} onPress={() => openMaps(customer.address!)}>
-                    <View style={s.detailIcon}><MapPin size={15} color={MUTED} strokeWidth={2} /></View>
+                  <TouchableOpacity style={[s.detailRow, { borderTopWidth: (customer.phone || customer.email) ? 1 : 0, borderTopColor: c.lineSoft }]} onPress={() => openMaps(customer.address!)}>
+                    <View style={s.detailIcon}><MapPin size={15} color={c.muted} strokeWidth={2} /></View>
                     <Text style={[s.detailText, { flex: 1 }]}>{customer.address}</Text>
-                    <Text style={[s.detailAction, { color: MUTED }]}>Maps</Text>
+                    <Text style={[s.detailAction, { color: c.muted }]}>Maps</Text>
                   </TouchableOpacity>
                 ) : null}
                 {!customer.phone && !customer.email && !customer.address ? (
                   <View style={s.detailRow}>
-                    <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED }}>No contact details on file</Text>
+                    <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted }}>No contact details on file</Text>
                   </View>
                 ) : null}
               </View>
@@ -350,7 +338,7 @@ export default function CustomerDetailScreen() {
               <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
                 <Text style={s.sectionEyebrow}>Notes</Text>
                 <View style={[s.card, { padding: 14 }]}>
-                  <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED_HI, lineHeight: 20 }}>{customer.notes}</Text>
+                  <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.mutedHi, lineHeight: 20 }}>{customer.notes}</Text>
                 </View>
               </View>
             ) : null}
@@ -361,7 +349,7 @@ export default function CustomerDetailScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -374,9 +362,9 @@ const s = StyleSheet.create({
     height: 40,
     minWidth: 40,
     borderRadius: 12,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -385,7 +373,7 @@ const s = StyleSheet.create({
     textAlign: 'center',
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.2,
   },
   hero: {
@@ -402,16 +390,16 @@ const s = StyleSheet.create({
     width: 240,
     height: 240,
     borderRadius: 120,
-    backgroundColor: `${ORANGE}20`,
+    backgroundColor: `${c.orange}20`,
   },
   avatarWrap: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: BLACK,
+    backgroundColor: c.ink,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 20,
@@ -421,28 +409,28 @@ const s = StyleSheet.create({
   avatarText: {
     fontSize: 28,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
+    color: c.orange,
   },
   name: {
     fontSize: 26,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.6,
   },
   heroSub: {
     fontSize: 13,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginTop: 4,
     textAlign: 'center',
   },
   editNameInput: {
     fontSize: 24,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.5,
     borderBottomWidth: 2,
-    borderBottomColor: ORANGE,
+    borderBottomColor: c.orange,
     paddingBottom: 4,
     paddingHorizontal: 8,
     minWidth: 200,
@@ -469,16 +457,16 @@ const s = StyleSheet.create({
   sectionEyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
   card: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     overflow: 'hidden',
   },
   detailRow: {
@@ -499,7 +487,7 @@ const s = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -508,18 +496,18 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: 'Manrope_600SemiBold',
-    color: INK,
+    color: c.ink,
   },
   detailAction: {
     fontSize: 12,
     fontFamily: 'Manrope_700Bold',
-    color: ORANGE,
+    color: c.orange,
   },
   editInput: {
     flex: 1,
     fontSize: 13,
     fontFamily: 'Manrope_600SemiBold',
-    color: INK,
+    color: c.ink,
     paddingVertical: 2,
   },
 });

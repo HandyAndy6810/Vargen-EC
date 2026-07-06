@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useTheme, type Colors } from '@/hooks/use-theme';
+import { useState, useEffect, useMemo } from 'react';
 import { router } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryClient as globalQueryClient } from "@/lib/queryClient";
@@ -20,22 +21,10 @@ import { saveCachedUser } from "@/lib/auth-cache";
 
 const DEV_BYPASS = process.env.EXPO_PUBLIC_DEV_BYPASS === 'true';
 
-const ORANGE      = '#FF5C00';
-const ORANGE_DEEP = '#E64500';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const BLACK       = '#0f0e0b';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.18)';
-const RED_SOFT    = '#fde5e5';
-const RED         = '#d23b3b';
 
 export default function LoginScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { isAuthenticated, isLoading } = useAuth();
   const queryClient = useQueryClient();
   const [username, setUsername] = useState("");
@@ -66,14 +55,14 @@ export default function LoginScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: PAPER }}>
-        <ActivityIndicator size="large" color={ORANGE} />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.paper }}>
+        <ActivityIndicator size="large" color={c.orange} />
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1, backgroundColor: BLACK }}>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1, backgroundColor: c.ink }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
 
         {/* Hero */}
@@ -88,7 +77,7 @@ export default function LoginScreen() {
 
           <Text style={s.heroHeading}>
             {"Admin for\n"}
-            <Text style={{ color: ORANGE }}>Tradies</Text>
+            <Text style={{ color: c.orange }}>Tradies</Text>
             {"\nWho Hate Admin."}
           </Text>
 
@@ -119,7 +108,7 @@ export default function LoginScreen() {
             <TextInput
               style={s.input}
               placeholder="you@example.com"
-              placeholderTextColor={MUTED}
+              placeholderTextColor={c.muted}
               value={username}
               onChangeText={(v) => { setUsername(v); setError(null); }}
               autoCapitalize="none"
@@ -133,7 +122,7 @@ export default function LoginScreen() {
             <TextInput
               style={s.input}
               placeholder="Enter your password"
-              placeholderTextColor={MUTED}
+              placeholderTextColor={c.muted}
               value={password}
               onChangeText={(v) => { setPassword(v); setError(null); }}
               secureTextEntry
@@ -156,7 +145,7 @@ export default function LoginScreen() {
             style={{ alignItems: 'center', paddingVertical: 14 }}
             activeOpacity={0.7}
           >
-            <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: ORANGE }}>
+            <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.orange }}>
               Forgot your password?
             </Text>
           </TouchableOpacity>
@@ -227,9 +216,9 @@ function Feature({ emoji, text }: { emoji: string; text: string }) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   hero: {
-    backgroundColor: BLACK,
+    backgroundColor: c.ink,
     paddingHorizontal: 28,
     paddingTop: 72,
     paddingBottom: 48,
@@ -243,7 +232,7 @@ const s = StyleSheet.create({
     width: 320,
     height: 320,
     borderRadius: 160,
-    backgroundColor: `${ORANGE}40`,
+    backgroundColor: `${c.orange}40`,
   },
   logoRow: {
     flexDirection: 'row',
@@ -255,7 +244,7 @@ const s = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 13,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -280,7 +269,7 @@ const s = StyleSheet.create({
     lineHeight: 20,
   },
   formCard: {
-    backgroundColor: PAPER,
+    backgroundColor: c.paper,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: 28,
@@ -291,18 +280,18 @@ const s = StyleSheet.create({
   formTitle: {
     fontSize: 26,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.6,
     marginBottom: 4,
   },
   formSub: {
     fontSize: 13,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginBottom: 24,
   },
   errorBox: {
-    backgroundColor: RED_SOFT,
+    backgroundColor: c.redSoft,
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
@@ -310,7 +299,7 @@ const s = StyleSheet.create({
   errorText: {
     fontSize: 13,
     fontFamily: 'Manrope_600SemiBold',
-    color: RED,
+    color: c.red,
   },
   fieldWrap: {
     marginBottom: 16,
@@ -318,28 +307,28 @@ const s = StyleSheet.create({
   label: {
     fontSize: 12,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED_HI,
+    color: c.mutedHi,
     marginBottom: 6,
     letterSpacing: 0.2,
   },
   input: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
     fontFamily: 'Manrope_500Medium',
-    color: INK,
+    color: c.ink,
   },
   primaryBtn: {
     height: 56,
     borderRadius: 16,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 20,
@@ -360,31 +349,31 @@ const s = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: LINE_MID,
+    backgroundColor: c.lineMid,
   },
   dividerText: {
     fontSize: 11,
     fontFamily: 'Manrope_600SemiBold',
-    color: MUTED,
+    color: c.muted,
   },
   secondaryBtn: {
     height: 52,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: ORANGE,
+    borderColor: c.orange,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryBtnText: {
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
+    color: c.orange,
     letterSpacing: -0.2,
   },
   legal: {
     fontSize: 11,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     textAlign: 'center',
     marginTop: 20,
     lineHeight: 16,
