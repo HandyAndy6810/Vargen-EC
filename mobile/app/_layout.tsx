@@ -18,6 +18,7 @@ import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { ThemeProvider, useTheme } from '@/hooks/use-theme';
 import { loadCachedUser } from '@/lib/auth-cache';
+import { Snackbar } from '@/components/Snackbar';
 
 // ── Push notification handler config ────────────────────────────────────────
 Notifications.setNotificationHandler({
@@ -150,6 +151,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="price-book" />
           <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
         </Stack>
+        <Snackbar />
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

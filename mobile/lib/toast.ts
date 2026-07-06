@@ -1,23 +1,30 @@
 import { Alert, Platform } from "react-native";
 
-// Simple toast-compatible interface matching the web app's useToast API.
-// Upgrade to a library like react-native-toast-message when needed.
-export function toast({
-  title,
-  description,
-  variant,
-}: {
+export interface ToastPayload {
   title: string;
   description?: string;
   variant?: "default" | "destructive";
-}) {
-  if (Platform.OS === 'web') {
-    const msg = [title, description].filter(Boolean).join('\n');
-    window.alert(msg);
-  } else if (variant === "destructive") {
-    Alert.alert(`\u26A0\uFE0F ${title}`, description);
+}
+
+// The Snackbar host (components/Snackbar.tsx, mounted in the root layout)
+// registers itself here. When mounted, toasts are non-blocking slide-ups;
+// if it hasn't mounted yet we fall back to a blocking alert so nothing is lost.
+let listener: ((t: ToastPayload) => void) | null = null;
+
+export function setToastListener(l: ((t: ToastPayload) => void) | null) {
+  listener = l;
+}
+
+export function toast(t: ToastPayload) {
+  if (listener) {
+    listener(t);
+    return;
+  }
+  // Fallback — Snackbar not mounted (e.g. very early in boot)
+  if (Platform.OS === "web") {
+    window.alert([t.title, t.description].filter(Boolean).join("\n"));
   } else {
-    Alert.alert(`\u2705 ${title}`, description);
+    Alert.alert(t.title, t.description);
   }
 }
 
