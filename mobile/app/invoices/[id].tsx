@@ -373,13 +373,13 @@ export default function InvoiceDetailScreen() {
                   {settings.accountName ? <Text style={s.pmDetail}>{settings.accountName}</Text> : null}
                   {settings.bankName ? <Text style={s.pmDetail}>{settings.bankName}</Text> : null}
                   {settings.bsb ? (
-                    <TouchableOpacity style={s.copyRow} onPress={() => copyToClipboard(settings.bsb, 'BSB')} activeOpacity={0.7}>
+                    <TouchableOpacity style={s.copyRow} onPress={() => copyToClipboard(settings.bsb, 'BSB')} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy BSB">
                       <Text style={s.pmDetail}>BSB: <Text style={s.pmDetailBold}>{settings.bsb}</Text></Text>
                       <Copy size={12} color={c.muted} strokeWidth={2} />
                     </TouchableOpacity>
                   ) : null}
                   {settings.accountNumber ? (
-                    <TouchableOpacity style={s.copyRow} onPress={() => copyToClipboard(settings.accountNumber, 'Account number')} activeOpacity={0.7}>
+                    <TouchableOpacity style={s.copyRow} onPress={() => copyToClipboard(settings.accountNumber, 'Account number')} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy account number">
                       <Text style={s.pmDetail}>Account: <Text style={s.pmDetailBold}>{settings.accountNumber}</Text></Text>
                       <Copy size={12} color={c.muted} strokeWidth={2} />
                     </TouchableOpacity>
@@ -749,6 +749,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     marginTop: 1,
+    minHeight: 44,
   },
   bottomBar: {
     position: 'absolute',
