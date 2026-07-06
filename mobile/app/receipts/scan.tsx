@@ -136,9 +136,11 @@ export default function ScanReceiptScreen() {
         notes: notes || undefined,
         items: lineItems.length > 0 ? JSON.stringify(lineItems) : undefined,
       });
-      router.replace('/receipts/index');
+      router.replace('/receipts' as any);
     } catch (err: any) {
-      Alert.alert('Save failed', err?.message || 'Could not save receipt. Please try again.');
+      const msg = err?.message || 'Could not save receipt. Please try again.';
+      if (Platform.OS === 'web') window.alert(`Save failed\n${msg}`);
+      else Alert.alert('Save failed', msg);
     }
   };
 

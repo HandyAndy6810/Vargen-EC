@@ -210,6 +210,13 @@ export default function QuoteCreateScreen() {
         qty: String(l.qty || 1),
         price: String(l.price || ''),
       })));
+    } else if (c.items?.length > 0) {
+      // AI-generated quotes store `items` ({description, quantity, unitPrice}), not `lines`
+      setLines(c.items.map((it: any) => ({
+        name: it.description || '',
+        qty: String(it.quantity || 1),
+        price: String(it.unitPrice || ''),
+      })));
     }
     setPopulated(true);
   }, [editQuote]);
@@ -219,7 +226,7 @@ export default function QuoteCreateScreen() {
     const p = parseFloat(l.price) || 0;
     return s + q * p;
   }, 0);
-  const gst   = Math.round(subtotal * 0.1);
+  const gst   = Math.round(subtotal * 0.1 * 100) / 100;
   const total = subtotal + gst;
 
   const addLine = () => {
@@ -250,12 +257,34 @@ export default function QuoteCreateScreen() {
 
   const saveMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent') => {
+      // When editing, merge over the original content so AI fields
+      // (summary, customer phone/email, gst breakdown…) survive the edit
+      let originalContent: any = {};
+      if (isEditing) {
+        try { originalContent = JSON.parse((editQuote as any)?.content || '{}'); } catch {}
+      }
+      const mergedContent: any = {
+        ...originalContent,
+        customerName: customer, jobTitle, schedDate, expiryDate, notes, lines,
+      };
+      if (originalContent.items) {
+        // Keep the AI `items` shape in sync with the edited lines
+        mergedContent.items = lines.map(l => ({
+          description: l.name,
+          quantity: parseFloat(l.qty) || 1,
+          unit: 'ea',
+          unitPrice: parseFloat(l.price) || 0,
+        }));
+        mergedContent.subtotal = subtotal;
+        mergedContent.gstAmount = gst;
+        mergedContent.totalAmount = total;
+      }
       const body = {
         totalAmount: String(total),
         status,
         customerId: customerId ?? undefined,
         jobTitle: jobTitle.trim() || undefined,
-        content: JSON.stringify({ customerName: customer, jobTitle, schedDate, expiryDate, notes, lines }),
+        content: JSON.stringify(mergedContent),
       };
       const res = isEditing
         ? await apiRequest('PATCH', `/api/quotes/${editId}`, body)

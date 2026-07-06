@@ -93,6 +93,7 @@ export default function QuotesScreen() {
     viewed:   { bg: BLUE_SOFT,    fg: BLUE,          bd: BLUE_BORDER,             label: 'Viewed' },
     accepted: { bg: c.greenSoft,  fg: c.green,       bd: `${c.green}44`,          label: 'Accepted' },
     overdue:  { bg: c.orangeSoft, fg: c.orangeDeep,  bd: `${c.orange}44`,         label: 'Overdue' },
+    declined: { bg: c.redSoft,    fg: c.red,         bd: `${c.red}44`,            label: 'Declined' },
     rejected: { bg: c.redSoft,    fg: c.red,         bd: `${c.red}44`,            label: 'Declined' },
     invoiced: { bg: c.greenSoft,  fg: c.green,       bd: `${c.green}44`,          label: 'Invoiced' },
   };

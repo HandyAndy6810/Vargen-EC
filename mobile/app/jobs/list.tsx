@@ -66,7 +66,7 @@ export default function JobsListScreen() {
     return [...allJobs].sort((a: any, b: any) => new Date(b.scheduledDate || 0).getTime() - new Date(a.scheduledDate || 0).getTime());
   }, [filter, allJobs, todayJobs, upcomingJobs, pastJobs]);
 
-  const totalHours = todayJobs.length * 1.75;
+  const totalHours = todayJobs.reduce((sum: number, j: any) => sum + (j.estimatedDuration || 0), 0) / 60;
   const hh = Math.floor(totalHours);
   const mm = Math.round((totalHours - hh) * 60);
 

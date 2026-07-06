@@ -15,6 +15,8 @@ import { useState, useRef, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Sparkles, Send, Plus, Trash2 } from 'lucide-react-native';
 import { useQuote } from '@/hooks/use-quotes';
+import { useJob } from '@/hooks/use-jobs';
+import { useCustomer } from '@/hooks/use-customers';
 import { useCreateInvoice, useConvertQuoteToInvoice } from '@/hooks/use-invoices';
 import { useSettings } from '@/hooks/use-settings';
 import { addDays, format } from 'date-fns';
@@ -49,12 +51,17 @@ interface AiSuggestion {
 }
 
 export default function InvoiceCreateScreen() {
-  const { quoteId } = useLocalSearchParams<{ quoteId?: string }>();
+  const { quoteId, jobId } = useLocalSearchParams<{ quoteId?: string; jobId?: string }>();
   const quoteIdNum = quoteId ? Number(quoteId) : 0;
   const isFromQuote = !!quoteIdNum;
+  const jobIdNum = jobId ? Number(jobId) : 0;
 
   // Fetch quote if converting
   const { data: quote, isLoading: quoteLoading } = useQuote(quoteIdNum) as any;
+
+  // Fetch job if arriving from the finish-job flow — prefill title, customer, and labour hours
+  const { data: sourceJob } = useJob(jobIdNum) as any;
+  const { data: sourceJobCustomer } = useCustomer(sourceJob?.customerId || 0) as any;
 
   // Parse quote content for preview
   let quoteContent: any = {};
@@ -74,6 +81,22 @@ export default function InvoiceCreateScreen() {
     { description: '', qty: '1', unitPrice: '' },
   ]);
   const [error, setError] = useState<string | null>(null);
+
+  // Prefill from the source job once it loads (only into untouched fields)
+  const jobPrefilled = useRef(false);
+  useEffect(() => {
+    if (!sourceJob || jobPrefilled.current) return;
+    jobPrefilled.current = true;
+    if (sourceJob.title) setJobTitle(prev => prev || sourceJob.title);
+    let completion: any = {};
+    try { completion = JSON.parse(sourceJob.completionData || '{}'); } catch {}
+    const hours = completion.actualHours ?? (sourceJob.estimatedDuration ? sourceJob.estimatedDuration / 60 : null);
+    if (hours) setLabourHours(prev => prev || String(hours));
+    if (sourceJob.description) setNotes(prev => prev || sourceJob.description);
+  }, [sourceJob]);
+  useEffect(() => {
+    if (sourceJobCustomer?.name) setCustomerName(prev => prev || sourceJobCustomer.name);
+  }, [sourceJobCustomer]);
 
   // AI suggestions
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
@@ -202,7 +225,11 @@ export default function InvoiceCreateScreen() {
       notes: [jobTitle.trim() ? `Job: ${jobTitle.trim()}` : '', notes.trim()].filter(Boolean).join('\n') || undefined,
       includeGST: true,
     }, {
-      onSuccess: (invoice: any) => {
+      onSuccess: async (invoice: any) => {
+        // Server always creates as draft; promote to sent when that button was used
+        if (status === 'sent') {
+          try { await apiRequest('PATCH', `/api/invoices/${invoice.id}`, { status: 'sent' }); } catch {}
+        }
         if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace(`/invoices/${invoice.id}` as any);
       },
