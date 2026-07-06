@@ -23,6 +23,8 @@ import { loadCachedUser } from '@/lib/auth-cache';
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -67,7 +69,6 @@ function ThemedStatusBar() {
 function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
   const { ready: themeReady, colors } = useTheme();
   const [authReady, setAuthReady] = useState(false);
-  const notifListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
   // Pre-populate auth cache before any screen renders so previously-logged-in
@@ -88,11 +89,15 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as any;
-      if (data?.screen) router.push(data.screen);
+      // Only navigate to known route prefixes — payload is server-controlled
+      // but defense-in-depth against a malformed push
+      const ALLOWED = ['/quotes', '/invoices', '/jobs', '/customers', '/(tabs)', '/calendar', '/receipts'];
+      if (typeof data?.screen === 'string' && ALLOWED.some((p) => data.screen.startsWith(p))) {
+        router.push(data.screen);
+      }
     });
 
     return () => {
-      notifListener.current?.remove();
       responseListener.current?.remove();
     };
   }, []);
@@ -178,7 +183,12 @@ async function registerForPushNotifications() {
       finalStatus = status;
     }
     if (finalStatus !== 'granted') return;
-    await Notifications.getExpoPushTokenAsync();
+    const token = await Notifications.getExpoPushTokenAsync();
+    if (token?.data) {
+      // Register with the backend so the server can actually target this device
+      const { apiRequest } = await import('@/lib/api');
+      await apiRequest('PATCH', '/api/settings', { expoPushToken: token.data });
+    }
   } catch {
     // Silently fail — push notifications are non-critical
   }

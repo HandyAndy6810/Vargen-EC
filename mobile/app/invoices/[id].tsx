@@ -112,12 +112,10 @@ export default function InvoiceDetailScreen() {
   const handleRecordPartial = () => {
     const amount = parseFloat(partialAmt);
     if (!amount || amount <= 0) { showAlert('Enter a valid amount'); return; }
-    const total = invoice?.totalAmount ? parseFloat(invoice.totalAmount) : 0;
-    if (amount >= total) {
-      updateInvoice.mutate({ id: invoiceId, status: 'paid', paidDate: new Date().toISOString() as any });
-    } else {
-      updateInvoice.mutate({ id: invoiceId, status: 'partial', paidAmount: amount.toString() } as any);
-    }
+    // Send payAmount and let the server accumulate against prior partials and
+    // decide paid vs partial — sending paidAmount directly would overwrite
+    // earlier payments
+    updateInvoice.mutate({ id: invoiceId, payAmount: amount } as any);
     setPartialMode(false);
     setPartialAmt('');
   };

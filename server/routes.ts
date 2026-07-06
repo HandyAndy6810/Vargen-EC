@@ -758,12 +758,22 @@ CRITICAL RULES — follow these exactly:
         return res.status(500).json({ message: "AI returned invalid JSON", raw });
       }
 
-      // Post-generation filter: strip call-out/travel items when no call-out fee was requested
-      if (callOutNum === 0 && Array.isArray(parsed.items)) {
-        const callOutPattern = /call.?out|site.?visit|travel.?fee|call.?in|mobilisation/i;
-        parsed.items = parsed.items.filter((item: any) => !callOutPattern.test(item.description || ""));
-        // Recalculate totals after filtering
-        if (parsed.items.length > 0) {
+      // Post-generation reconciliation of the call-out fee — never trust the
+      // LLM to include or exclude it correctly
+      const callOutPattern = /call.?out|site.?visit|travel.?fee|call.?in|mobilisation/i;
+      if (Array.isArray(parsed.items)) {
+        let itemsChanged = false;
+        if (callOutNum === 0) {
+          // Strip call-out/travel items when no fee was requested
+          const before = parsed.items.length;
+          parsed.items = parsed.items.filter((item: any) => !callOutPattern.test(item.description || ""));
+          itemsChanged = parsed.items.length !== before;
+        } else if (!parsed.items.some((item: any) => callOutPattern.test(item.description || ""))) {
+          // Fee was requested but the model omitted it — append deterministically
+          parsed.items.push({ description: "Call-out fee", quantity: 1, unit: "ea", unitPrice: callOutNum });
+          itemsChanged = true;
+        }
+        if (itemsChanged && parsed.items.length > 0) {
           const subtotal = parsed.items.reduce((sum: number, item: any) => sum + (item.quantity || 0) * (item.unitPrice || 0), 0);
           parsed.subtotal = Math.round(subtotal * 100) / 100;
           parsed.gstAmount = gstEnabled ? Math.round(subtotal * 0.1 * 100) / 100 : 0;
@@ -924,7 +934,7 @@ CRITICAL RULES — follow these exactly:
       const quote = await storage.getQuoteByShareToken(token);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
-      await storage.updateQuote(quote.id, { status: "rejected" });
+      await storage.updateQuote(quote.id, { status: "declined" });
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to decline quote" });
@@ -972,7 +982,7 @@ CRITICAL RULES — follow these exactly:
   // Standalone invoice creation (no quote required)
   app.post("/api/invoices", requireAuth, async (req: any, res) => {
     try {
-      const { customerId, customerName, items, dueDate, notes, includeGST } = req.body;
+      const { customerId, customerName, items, dueDate, notes, includeGST, status } = req.body;
       if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: "At least one line item is required" });
       const combinedNotes = customerName && !customerId
         ? `Customer: ${customerName}${notes ? `\n\n${notes}` : ''}`
@@ -996,7 +1006,7 @@ CRITICAL RULES — follow these exactly:
       const invoice = await storage.createInvoice({
         customerId: customerId ? Number(customerId) : null,
         invoiceNumber,
-        status: "draft",
+        status: status === "sent" ? "sent" : "draft",
         items: JSON.stringify(items),
         subtotal: subtotal.toFixed(2),
         gstAmount: gstAmount.toFixed(2),
@@ -1045,8 +1055,22 @@ CRITICAL RULES — follow these exactly:
           unitPrice: item.unitPrice,
           total: (item.quantity || 1) * (item.unitPrice || 0),
         }));
-        subtotal = content.subtotal || Number(quote.totalAmount) || 0;
-        gstAmount = content.gstAmount || 0;
+        // Older manual quotes stored `lines` ({name, qty, price}) without an
+        // `items` array — convert those so the invoice isn't created empty
+        if (items.length === 0 && Array.isArray(content.lines)) {
+          items = content.lines.map((l: any) => ({
+            description: l.name,
+            quantity: Number(l.qty) || 1,
+            unit: "each",
+            unitPrice: Number(l.price) || 0,
+            total: (Number(l.qty) || 1) * (Number(l.price) || 0),
+          }));
+          subtotal = items.reduce((s: number, i: any) => s + i.total, 0);
+          gstAmount = +(subtotal * 0.1).toFixed(2);
+        } else {
+          subtotal = content.subtotal || Number(quote.totalAmount) || 0;
+          gstAmount = content.gstAmount || 0;
+        }
         notes = content.notes || "";
       } catch {
         subtotal = Number(quote.totalAmount) || 0;

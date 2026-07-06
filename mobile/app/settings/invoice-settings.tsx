@@ -199,7 +199,8 @@ export default function InvoiceSettingsScreen() {
                         const biz = settings?.businessName ?? 'my business';
                         const trade = settings?.tradeType ?? 'trade';
                         const prompt = `Minimal professional logo mark for '${biz}', a ${trade} trade business. Simple bold icon, no text, clean vector style, white background, suitable for printing on business documents and invoices.`;
-                        const data = await apiRequest('POST', '/api/generate-image', { prompt, size: '256x256' });
+                        const res = await apiRequest('POST', '/api/generate-image', { prompt, size: '256x256' });
+                        const data = res.ok ? await res.json().catch(() => null) : null;
                         if (data?.b64_json) {
                           save({ logoUrl: `data:image/png;base64,${data.b64_json}` });
                         } else {

@@ -41,7 +41,6 @@ const MUTED       = 'rgba(20,19,16,0.55)';
 const MUTED_HI    = 'rgba(20,19,16,0.72)';
 const LINE_SOFT   = 'rgba(20,19,16,0.08)';
 const LINE_MID    = 'rgba(20,19,16,0.14)';
-const GREEN       = '#2a9d4c';
 const RED_SOFT    = '#fde5e5';
 const RED         = '#d23b3b';
 
@@ -125,10 +124,16 @@ export default function AiChatScreen() {
     const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     return d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
   });
+  // Machine-readable companion — the display string above is user-editable
+  // free text, which breaks overdue detection the moment it's touched
+  const [expiryDateISO, setExpiryDateISO] = useState(() =>
+    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  );
   const pickExpiryDays = (days: number) => {
     setExpiryDays(days);
     const d = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
     setExpiryDate(d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }));
+    setExpiryDateISO(d.toISOString());
   };
   const [internalNotes, setInternalNotes] = useState('');
 
@@ -144,7 +149,11 @@ export default function AiChatScreen() {
 
   useEffect(() => {
     if (userSettings) {
-      if (userSettings.tradeType) setTradeType(userSettings.tradeType);
+      if (userSettings.tradeType) {
+        setTradeType(userSettings.tradeType);
+        // jobType was seeded from the pre-settings default; follow the real trade
+        setJobType(prev => prev === 'Plumbing' ? userSettings.tradeType : prev);
+      }
       if (userSettings.labourRate) setLabourRate(String(userSettings.labourRate));
     }
   }, [userSettings]);
@@ -255,11 +264,13 @@ export default function AiChatScreen() {
             notes: description.trim(),
             jobType,
             expiryDate,
+            expiryDateISO,
             internalNotes,
             customerName: customerName.trim() || undefined,
             customerPhone: customerType === 'new' ? phone.trim() || undefined : overridePhone || selectedCustomer?.phone || undefined,
             customerEmail: customerType === 'new' ? email.trim() || undefined : overrideEmail || selectedCustomer?.email || undefined,
             customerAddress: customerAddress || undefined,
+            billingAddress: customerType === 'new' && !billingSameAsSite ? billingAddress.trim() || undefined : undefined,
           }),
         });
         if (!res.ok) {
@@ -292,11 +303,13 @@ export default function AiChatScreen() {
           jobTitle: jobTitleOverride || aiResult.jobTitle,
           jobType,
           expiryDate,
+          expiryDateISO,
           internalNotes,
           customerName: customerName.trim() || undefined,
           customerPhone: customerType === 'new' ? phone.trim() || undefined : overridePhone || selectedCustomer?.phone || undefined,
           customerEmail: customerType === 'new' ? email.trim() || undefined : overrideEmail || selectedCustomer?.email || undefined,
           customerAddress: customerAddress || undefined,
+          billingAddress: customerType === 'new' && !billingSameAsSite ? billingAddress.trim() || undefined : undefined,
           customerNotes: customerType === 'new' ? custNotes.trim() || undefined : undefined,
         }),
       });
@@ -305,12 +318,23 @@ export default function AiChatScreen() {
         throw new Error(body?.message || 'Failed to save quote');
       }
       const quote = await res.json();
+      // Set immediately so a retry after an item failure updates this quote
+      // instead of creating a duplicate
+      setSavedQuoteId(quote.id);
+      const failedItems: string[] = [];
       for (const item of editableItems) {
-        await apiRequest('POST', `/api/quotes/${quote.id}/items`, {
-          description: item.description,
-          quantity: parseFloat(item.qty) || 1,
-          price: String(Math.round((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0) * 100) / 100),
-        });
+        try {
+          await apiRequest('POST', `/api/quotes/${quote.id}/items`, {
+            description: item.description,
+            quantity: parseFloat(item.qty) || 1,
+            price: String(Math.round((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0) * 100) / 100),
+          });
+        } catch {
+          failedItems.push(item.description || 'unnamed item');
+        }
+      }
+      if (failedItems.length) {
+        showAlert('Some items did not save', `Open the quote and re-add: ${failedItems.join(', ')}`);
       }
       return quote;
     },
@@ -886,8 +910,8 @@ export default function AiChatScreen() {
                       <Text style={s.quoteMeta}>For {customerName.trim()}</Text>
                     ) : null}
                   </View>
-                  <View style={[s.statusPill, savedQuoteId && { backgroundColor: STATUS_COLORS[quoteStatus]?.bg ?? PAPER_DEEP }]}>
-                    <Text style={[s.statusPillText, savedQuoteId && { color: STATUS_COLORS[quoteStatus]?.text ?? MUTED_HI }]}>
+                  <View style={[s.statusPill, savedQuoteId != null ? { backgroundColor: STATUS_COLORS[quoteStatus]?.bg ?? PAPER_DEEP } : null]}>
+                    <Text style={[s.statusPillText, savedQuoteId != null ? { color: STATUS_COLORS[quoteStatus]?.text ?? MUTED_HI } : null]}>
                       {savedQuoteId ? quoteStatus.toUpperCase() : 'DRAFT'}
                     </Text>
                   </View>
@@ -1275,24 +1299,6 @@ const s = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  heroHeading: {
-    fontSize: 30,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -1,
-    lineHeight: 34,
-    marginTop: 18,
-    textAlign: 'center',
-  },
-  heroSub: {
-    fontSize: 13,
-    fontFamily: 'Manrope_600SemiBold',
-    color: MUTED_HI,
-    marginTop: 10,
-    lineHeight: 20,
-    textAlign: 'center',
-    maxWidth: 280,
-  },
   heroHeadingSmall: {
     fontSize: 18,
     fontFamily: 'Manrope_800ExtraBold',
@@ -1421,25 +1427,6 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_600SemiBold',
     color: RED,
   },
-  fieldLabel: {
-    fontSize: 12,
-    fontFamily: 'Manrope_700Bold',
-    color: MUTED_HI,
-    marginBottom: 6,
-    letterSpacing: 0.2,
-  },
-  customerInput: {
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: LINE_MID,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    fontSize: 15,
-    fontFamily: 'Manrope_500Medium',
-    color: INK,
-    marginBottom: 22,
-  },
   eyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
@@ -1447,27 +1434,6 @@ const s = StyleSheet.create({
     color: MUTED,
     textTransform: 'uppercase',
     marginBottom: 10,
-  },
-  suggestionRow: {
-    padding: 14,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: LINE_SOFT,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-  },
-  suggestionText: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: 'Manrope_600SemiBold',
-    color: INK,
   },
   promptFooter: {
     flexDirection: 'row',
@@ -1513,39 +1479,6 @@ const s = StyleSheet.create({
     elevation: 12,
     gap: 8,
   },
-  composer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: LINE_MID,
-    borderRadius: 26,
-    paddingLeft: 18,
-    paddingRight: 6,
-    paddingVertical: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 28,
-    elevation: 8,
-  },
-  composerInput: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: 'Manrope_500Medium',
-    color: INK,
-    paddingVertical: 10,
-    maxHeight: 100,
-  },
-  composerSend: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: ORANGE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   quotePaper: {
     backgroundColor: CARD,
     borderRadius: 22,
@@ -1567,13 +1500,6 @@ const s = StyleSheet.create({
     height: 160,
     borderRadius: 80,
     backgroundColor: `${ORANGE}1f`,
-  },
-  quoteTitle: {
-    fontSize: 20,
-    fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
-    letterSpacing: -0.5,
-    marginTop: 2,
   },
   quoteMeta: {
     fontSize: 12,
@@ -1608,25 +1534,6 @@ const s = StyleSheet.create({
     fontFamily: 'Manrope_500Medium',
     color: MUTED_HI,
     lineHeight: 19,
-  },
-  lineRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 10,
-    gap: 8,
-  },
-  lineDesc: {
-    fontSize: 13,
-    fontFamily: 'Manrope_700Bold',
-    color: INK,
-    lineHeight: 18,
-  },
-  lineMeta: {
-    fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
-    color: MUTED,
-    marginTop: 2,
   },
   lineTotal: {
     fontSize: 13,

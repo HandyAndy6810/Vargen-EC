@@ -439,7 +439,7 @@ export class DatabaseStorage implements IStorage {
 
       if (q.status === "accepted") {
         activities.push({ type: "quote_accepted", description: `Quote accepted: ${jobTitle} ($${Number(q.totalAmount).toLocaleString()})`, timestamp: q.createdAt || new Date(), entityId: q.id, entityType: "quote" });
-      } else if (q.status === "rejected") {
+      } else if (q.status === "rejected" || q.status === "declined") {
         activities.push({ type: "quote_rejected", description: `Quote rejected: ${jobTitle}`, timestamp: q.createdAt || new Date(), entityId: q.id, entityType: "quote" });
       } else {
         activities.push({ type: "quote_created", description: `Quote created: ${jobTitle} ($${Number(q.totalAmount).toLocaleString()})`, timestamp: q.createdAt || new Date(), entityId: q.id, entityType: "quote" });

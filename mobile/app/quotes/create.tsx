@@ -7,10 +7,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Modal,
+  Share,
 } from 'react-native';
+import * as Linking from 'expo-linking';
+import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
 import { useState, useEffect, useMemo } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
@@ -268,18 +270,18 @@ export default function QuoteCreateScreen() {
         ...originalContent,
         customerName: customer, jobTitle, schedDate, expiryDate, notes, lines,
       };
-      if (originalContent.items) {
-        // Keep the AI `items` shape in sync with the edited lines
-        mergedContent.items = lines.map(l => ({
-          description: l.name,
-          quantity: parseFloat(l.qty) || 1,
-          unit: 'ea',
-          unitPrice: parseFloat(l.price) || 0,
-        }));
-        mergedContent.subtotal = subtotal;
-        mergedContent.gstAmount = gst;
-        mergedContent.totalAmount = total;
-      }
+      // Always emit the canonical `items` shape + totals — quote→invoice
+      // conversion reads content.items and would otherwise produce an
+      // invoice with zero line items from a manual quote
+      mergedContent.items = lines.map(l => ({
+        description: l.name,
+        quantity: parseFloat(l.qty) || 1,
+        unit: 'ea',
+        unitPrice: parseFloat(l.price) || 0,
+      }));
+      mergedContent.subtotal = subtotal;
+      mergedContent.gstAmount = gst;
+      mergedContent.totalAmount = total;
       const body = {
         totalAmount: String(total),
         status,
@@ -311,23 +313,57 @@ export default function QuoteCreateScreen() {
         message: 'Your quote details will be lost.',
         confirmLabel: 'Leave',
         destructive: true,
-        onConfirm: () => navigation.dispatch(e.data.action),
+        onConfirm: () => router.back(),
       });
     } else {
       router.back();
     }
   };
 
-  const handleSave = (status: 'draft' | 'sent') => {
-    if (!jobTitle.trim()) { setError('Job title is required'); return; }
+  const validateForm = (): boolean => {
+    if (!jobTitle.trim()) { setError('Job title is required'); return false; }
     if (lines.every(l => !l.price || parseFloat(l.price) <= 0)) {
-      setError('Add at least one line item with a price'); return;
+      setError('Add at least one line item with a price'); return false;
     }
     const hasBlankPricedLine = lines.some(l => parseFloat(l.price) > 0 && !l.name.trim());
-    if (hasBlankPricedLine) { setError('All priced line items need a description'); return; }
+    if (hasBlankPricedLine) { setError('All priced line items need a description'); return false; }
     setError(null);
+    return true;
+  };
+
+  const handleSave = (status: 'draft' | 'sent') => {
+    if (!validateForm()) return;
     saveMutation.mutate(status);
   };
+
+  // "Send to customer" must actually deliver something — save as sent, then
+  // open the chosen channel. Email/SMS need a linked customer with contact info.
+  const [showSendSheet, setShowSendSheet] = useState(false);
+  const handleSendPress = () => {
+    if (!validateForm()) return;
+    setShowSendSheet(true);
+  };
+
+  const sendViaChannel = (open: () => void) => {
+    saveMutation.mutate('sent', { onSuccess: open });
+  };
+
+  const sendActions: SheetAction[] = [
+    selectedCustomer?.email ? {
+      label: 'Email customer',
+      onPress: () => sendViaChannel(() =>
+        Linking.openURL(`mailto:${selectedCustomer.email}?subject=Your quote&body=Hi ${customer || 'there'},\n\nPlease find your quote attached.\n\nTotal: $${total.toFixed(2)} inc. GST\n\nThanks`)
+      ),
+    } : null,
+    selectedCustomer?.phone ? {
+      label: 'Send SMS',
+      onPress: () => sendViaChannel(() => Linking.openURL(`sms:${selectedCustomer.phone}`)),
+    } : null,
+    {
+      label: 'Share link',
+      onPress: () => sendViaChannel(() => Share.share({ message: `Quote — $${total.toFixed(2)} (inc. GST)` })),
+    },
+  ].filter(Boolean) as SheetAction[];
 
   const handleStartWithAI = () => {
     const desc = aiDescription.trim();
@@ -649,7 +685,7 @@ export default function QuoteCreateScreen() {
               <TouchableOpacity
                 style={[s.primaryBtn, { flex: 2, minWidth: 160 }]}
                 activeOpacity={0.8}
-                onPress={() => handleSave('sent')}
+                onPress={handleSendPress}
                 disabled={saveMutation.isPending}
               >
                 <Send size={16} color="#fff" strokeWidth={2} />
@@ -659,6 +695,13 @@ export default function QuoteCreateScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
+
+      <ActionSheetModal
+        visible={showSendSheet}
+        title={`Send quote — $${total.toFixed(2)} inc. GST`}
+        actions={sendActions}
+        onClose={() => setShowSendSheet(false)}
+      />
 
       {/* ── Line item edit modal ── */}
       <Modal

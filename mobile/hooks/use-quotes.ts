@@ -43,8 +43,10 @@ export function useUpdateQuote() {
       }
       return res.json() as Promise<Quote>;
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: [api.quotes.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.quotes.get.path, vars.id] });
+      queryClient.invalidateQueries({ queryKey: [`/api/quotes/${vars.id}/items`] });
       toast({ title: "Quote Updated", description: "Status changed successfully." });
     },
     onError: (error: Error) => {

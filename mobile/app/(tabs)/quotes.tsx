@@ -120,13 +120,22 @@ export default function QuotesScreen() {
     () => [...allQuotes]
       .map((q) => {
         let expiryDate: string | null = null;
-        try { expiryDate = q.content ? (JSON.parse(q.content).expiryDate ?? null) : null; } catch {}
+        try {
+          const c = q.content ? JSON.parse(q.content) : {};
+          // Prefer the machine-readable ISO stamp — the display string is
+          // user-editable free text and often unparseable
+          expiryDate = c.expiryDateISO ?? c.expiryDate ?? null;
+        } catch {}
         return { ...q, expiryDate };
       })
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
     [allQuotes]
   );
-  const overdueQuotes = sorted.filter((q) => q.status === 'sent' && q.expiryDate && new Date(q.expiryDate) < new Date());
+  const overdueQuotes = sorted.filter((q) => {
+    if (q.status !== 'sent' || !q.expiryDate) return false;
+    const exp = new Date(q.expiryDate);
+    return !isNaN(exp.getTime()) && exp < new Date();
+  });
 
   const filtered = useMemo(() => {
     let list = sorted;

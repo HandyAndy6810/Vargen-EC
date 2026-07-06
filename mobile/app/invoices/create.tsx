@@ -224,12 +224,9 @@ export default function InvoiceCreateScreen() {
       })),
       notes: [jobTitle.trim() ? `Job: ${jobTitle.trim()}` : '', notes.trim()].filter(Boolean).join('\n') || undefined,
       includeGST: true,
+      status,
     }, {
-      onSuccess: async (invoice: any) => {
-        // Server always creates as draft; promote to sent when that button was used
-        if (status === 'sent') {
-          try { await apiRequest('PATCH', `/api/invoices/${invoice.id}`, { status: 'sent' }); } catch {}
-        }
+      onSuccess: (invoice: any) => {
         if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace(`/invoices/${invoice.id}` as any);
       },

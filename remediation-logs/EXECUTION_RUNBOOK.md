@@ -1,5 +1,12 @@
 # Vargen Execution Runbook — post-Batch-A
 
+## DECISIONS RESOLVED (2026-07-06) — supersede the choice text inside entries
+- **Backend edits ALLOWED** for F1, F10, F11, F12, B5, D5, D10: apply the "backend option" halves. After F11's backend fix, remove the create-then-PATCH workaround in mobile/app/invoices/create.tsx (search `// Server always creates as draft`).
+- **F9 → Option A** (channel ActionSheet, mirror ai-chat sendActions).
+- **D5 → EXPANDED**: full job edit mode in jobs/create.tsx via `?editId=` (prefill from useJob, save via useUpdateJob) + Cancel job + Delete job (add DELETE /api/jobs/:id — verify absent first). Wire all three into the job-detail ... ActionSheet.
+- **D9 → split** into PromptStep/DraftStep + useAiQuoteForm hook, own commit AFTER the file's C3 migration.
+- Defaults: D2 title → "Invoices"; D10 → build receipt detail/edit + PATCH endpoint, DEFER image storage; D12 → keep CyclingPill (13px + a11y label only); D13 → defer plan data.
+
 Executor notes: work top-to-bottom. Anchors are unique code snippets — find by search, never line number. All paths relative to repo root. `c.` = theme colors from `useTheme()`. Batch A is DONE (commits 3a1fc9d…44373b6) — do not revisit except where an entry explicitly extends a Batch A file.
 
 Already fixed during audit (do not redo): quotes/[id].tsx `sheetMode` useState moved above early returns (44373b6).
