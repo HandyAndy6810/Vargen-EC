@@ -6,11 +6,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Linking,
-  Alert,
   Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert } from '@/lib/dialogs';
 import { useQuery } from '@tanstack/react-query';
 import { useJob } from '@/hooks/use-jobs';
 import { useCustomer } from '@/hooks/use-customers';
@@ -81,19 +81,19 @@ export default function JobDetailScreen() {
 
   const handlePhone = () => {
     const phone = customer?.phone;
-    if (!phone) { Alert.alert('No phone number', 'This customer has no phone number on file.'); return; }
+    if (!phone) { showAlert('No phone number', 'This customer has no phone number on file.'); return; }
     Linking.openURL(`tel:${phone}`);
   };
 
   const handleMessage = () => {
     const phone = customer?.phone;
-    if (!phone) { Alert.alert('No phone number', 'This customer has no phone number on file.'); return; }
+    if (!phone) { showAlert('No phone number', 'This customer has no phone number on file.'); return; }
     Linking.openURL(`sms:${phone}`);
   };
 
   const handleNavigate = () => {
     const dest = address;
-    if (!dest) { Alert.alert('No address', 'This job has no address on file.'); return; }
+    if (!dest) { showAlert('No address', 'This job has no address on file.'); return; }
     const encoded = encodeURIComponent(dest);
     Linking.openURL(`maps://?q=${encoded}`).catch(() =>
       Linking.openURL(`https://maps.google.com/?q=${encoded}`)

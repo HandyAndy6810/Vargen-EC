@@ -18,6 +18,7 @@ import { apiRequest } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { format, addDays } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert, showConfirm } from '@/lib/dialogs';
 import { ChevronLeft, ChevronRight, Sparkles, FileText, Plus, Trash2, Camera, Send, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuote } from '@/hooks/use-quotes';
@@ -240,7 +241,7 @@ export default function QuoteCreateScreen() {
   const handlePickReceipt = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Allow access to your photo library to attach a receipt.');
+      showAlert('Permission needed', 'Allow access to your photo library to attach a receipt.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -296,7 +297,7 @@ export default function QuoteCreateScreen() {
       queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
       router.back();
     },
-    onError: () => Alert.alert('Could not save', 'Check your connection and try again.'),
+    onError: () => showAlert('Could not save', 'Check your connection and try again.'),
   });
 
   const hasWork = () =>
@@ -305,10 +306,13 @@ export default function QuoteCreateScreen() {
 
   const handleBack = () => {
     if (hasWork() && !isEditing) {
-      Alert.alert('Leave without saving?', 'Your quote details will be lost.', [
-        { text: 'Stay', style: 'cancel' },
-        { text: 'Leave', style: 'destructive', onPress: () => router.back() },
-      ]);
+      showConfirm({
+        title: 'Leave without saving?',
+        message: 'Your quote details will be lost.',
+        confirmLabel: 'Leave',
+        destructive: true,
+        onConfirm: () => navigation.dispatch(e.data.action),
+      });
     } else {
       router.back();
     }
@@ -438,7 +442,7 @@ export default function QuoteCreateScreen() {
               <TouchableOpacity
                 style={[s.quickBtn, { flex: 1 }]}
                 activeOpacity={0.7}
-                onPress={() => Alert.alert('Templates', "Quote templates are coming soon.\n\nYou'll be able to save any quote as a template and reuse it with one tap.", [{ text: 'Got it' }])}
+                onPress={() => showAlert('Templates', "Quote templates are coming soon.\n\nYou'll be able to save any quote as a template and reuse it with one tap.")}
               >
                 <FileText size={18} color={INK} strokeWidth={2} />
                 <Text style={s.quickBtnText}>From template</Text>
@@ -738,10 +742,12 @@ export default function QuoteCreateScreen() {
                 <TouchableOpacity
                   style={s.deleteLineBtn}
                   activeOpacity={0.7}
-                  onPress={() => Alert.alert('Remove item?', '', [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Remove', style: 'destructive', onPress: deleteLineFromModal },
-                  ])}
+                  onPress={() => showConfirm({
+                    title: 'Remove item?',
+                    confirmLabel: 'Remove',
+                    destructive: true,
+                    onConfirm: deleteLineFromModal,
+                  })}
                 >
                   <Trash2 size={16} color="#d23b3b" strokeWidth={2} />
                   <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: '#d23b3b' }}>Remove item</Text>

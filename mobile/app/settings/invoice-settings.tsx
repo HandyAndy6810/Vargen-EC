@@ -2,6 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, ActivityI
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert } from '@/lib/dialogs';
 import { ChevronLeft, Image as ImageIcon, X, Sparkles, Type } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme, type Colors } from '@/hooks/use-theme';
@@ -75,7 +76,7 @@ export default function InvoiceSettingsScreen() {
 
   const save = (patch: object) => {
     update.mutate(patch as any, {
-      onError: () => Alert.alert('Error', 'Could not save. Please try again.'),
+      onError: () => showAlert('Error', 'Could not save. Please try again.'),
     });
   };
 
@@ -89,7 +90,7 @@ export default function InvoiceSettingsScreen() {
   const pickLogo = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Allow access to your photo library to pick a logo.');
+      showAlert('Permission needed', 'Allow access to your photo library to pick a logo.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -202,10 +203,10 @@ export default function InvoiceSettingsScreen() {
                         if (data?.b64_json) {
                           save({ logoUrl: `data:image/png;base64,${data.b64_json}` });
                         } else {
-                          Alert.alert('Logo generation unavailable', 'Try picking from your camera roll instead.');
+                          showAlert('Logo generation unavailable', 'Try picking from your camera roll instead.');
                         }
                       } catch {
-                        Alert.alert('Logo generation unavailable', 'Try picking from your camera roll instead.');
+                        showAlert('Logo generation unavailable', 'Try picking from your camera roll instead.');
                       } finally {
                         setGenerating(false);
                       }

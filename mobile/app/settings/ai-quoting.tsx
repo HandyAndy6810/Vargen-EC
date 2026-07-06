@@ -2,6 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, Switch, StyleSheet
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert } from '@/lib/dialogs';
 import { ChevronLeft, Save, Info } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
@@ -68,7 +69,7 @@ export default function AiQuotingScreen() {
       tradeType: next.tradeType,
       callOutFeeEnabled: next.callOutFeeEnabled,
       includeGST: next.includeGST,
-    }, { onError: () => Alert.alert('Error', 'Could not save.') });
+    }, { onError: () => showAlert('Error', 'Could not save.') });
   };
 
   const handleSave = async () => {
@@ -83,7 +84,7 @@ export default function AiQuotingScreen() {
       });
       router.back();
     } catch {
-      Alert.alert('Error', 'Could not save changes. Please try again.');
+      showAlert('Error', 'Could not save changes. Please try again.');
     }
   };
 

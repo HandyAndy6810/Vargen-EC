@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useState, useEffect } from 'react';
@@ -18,6 +17,7 @@ import * as Linking from 'expo-linking';
 import { useSettings } from '@/hooks/use-settings';
 import { useSendMessage } from '@/hooks/use-messages';
 import { apiRequest } from '@/lib/api';
+import { showAlert, showConfirm } from '@/lib/dialogs';
 import { queryClient } from '@/lib/queryClient';
 
 const ORANGE      = '#f26a2a';
@@ -133,10 +133,10 @@ export default function ComposeScreen() {
         const { message } = await res.json();
         setBody(message);
       } else {
-        Alert.alert('AI unavailable', 'Could not generate a draft. Try a template instead.');
+        showAlert('AI unavailable', 'Could not generate a draft. Try a template instead.');
       }
     } catch {
-      Alert.alert('AI unavailable', 'Check your connection and try again.');
+      showAlert('AI unavailable', 'Check your connection and try again.');
     } finally {
       setAiLoading(false);
     }
@@ -150,46 +150,60 @@ export default function ComposeScreen() {
     } catch { /* non-blocking */ }
   };
 
+  const confirmFollowUpSent = () => {
+    if (!quoteId) return;
+    showConfirm({
+      title: 'Did you send it?',
+      message: 'Mark this follow-up as done so it stops nagging you.',
+      confirmLabel: 'Yes, sent',
+      onConfirm: () => { markFollowUpSent(); },
+    });
+  };
+
   const sendSMS = () => {
     if (!phone) {
-      Alert.alert('No phone number', 'This customer has no phone number on file.');
+      showAlert('No phone number', 'This customer has no phone number on file.');
       return;
     }
     if (!body.trim()) {
-      Alert.alert('Nothing to send', 'Write a message first.');
+      showAlert('Nothing to send', 'Write a message first.');
       return;
     }
     const sep = Platform.OS === 'ios' ? '&' : '?';
-    Linking.openURL(`sms:${phone}${sep}body=${encodeURIComponent(body)}`).catch(() =>
-      Alert.alert('Cannot open Messages', 'Make sure a SIM is installed.')
+    Linking.openURL(`sms:${phone}${sep}body=${encodeURIComponent(body)}`).then(() => {
+      // The composer opening doesn't mean the message went out — confirm before
+      // ticking off the follow-up, otherwise cancelled sends get marked done.
+      confirmFollowUpSent();
+    }).catch(() =>
+      showAlert('Cannot open Messages', 'Make sure a SIM is installed.')
     );
-    markFollowUpSent();
   };
 
   const sendEmail = () => {
     if (!email) {
-      Alert.alert('No email address', 'This customer has no email address on file.');
+      showAlert('No email address', 'This customer has no email address on file.');
       return;
     }
     if (!body.trim()) {
-      Alert.alert('Nothing to send', 'Write a message first.');
+      showAlert('Nothing to send', 'Write a message first.');
       return;
     }
     const bizName = settings?.businessName || 'Your tradie';
     const subject = encodeURIComponent(`Message from ${bizName}`);
-    Linking.openURL(`mailto:${email}?subject=${subject}&body=${encodeURIComponent(body)}`).catch(() =>
-      Alert.alert('Cannot open Mail', 'No mail app found.')
+    Linking.openURL(`mailto:${email}?subject=${subject}&body=${encodeURIComponent(body)}`).then(() => {
+      confirmFollowUpSent();
+    }).catch(() =>
+      showAlert('Cannot open Mail', 'No mail app found.')
     );
-    markFollowUpSent();
   };
 
   const logNote = async () => {
     if (!body.trim()) {
-      Alert.alert('Nothing to log', 'Write a message first.');
+      showAlert('Nothing to log', 'Write a message first.');
       return;
     }
     if (!customerId) {
-      Alert.alert('No customer', 'Cannot log a note without a customer.');
+      showAlert('No customer', 'Cannot log a note without a customer.');
       return;
     }
     setIsSaving(true);
@@ -198,7 +212,7 @@ export default function ComposeScreen() {
       await markFollowUpSent();
       router.back();
     } catch {
-      Alert.alert('Could not save', 'Check your connection and try again.');
+      showAlert('Could not save', 'Check your connection and try again.');
     } finally {
       setIsSaving(false);
     }

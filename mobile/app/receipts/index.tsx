@@ -5,12 +5,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showConfirm } from '@/lib/dialogs';
 import { ChevronLeft, Plus, Camera, Trash2, Tag } from 'lucide-react-native';
 import { useReceipts, useDeleteReceipt } from '@/hooks/use-receipts';
 
@@ -54,18 +54,13 @@ export default function ReceiptsScreen() {
   const totalSpend = receipts.reduce((sum: number, r: any) => sum + (Number(r.totalAmount) || 0), 0);
 
   const onDelete = useCallback((id: number, vendor: string) => {
-    Alert.alert(
-      'Delete Receipt',
-      `Delete receipt from "${vendor || 'Unknown vendor'}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => deleteMutation.mutate(id),
-        },
-      ]
-    );
+    showConfirm({
+      title: 'Delete Receipt',
+      message: `Delete receipt from "${vendor || 'Unknown vendor'}"?`,
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: () => deleteMutation.mutate(id),
+    });
   }, [deleteMutation]);
 
   const renderItem = ({ item }: { item: any }) => {
