@@ -8,7 +8,6 @@ import {
   Platform,
   TextInput,
   ActivityIndicator,
-  Alert,
   Switch,
   Linking,
   Share,
@@ -26,6 +25,8 @@ import { apiRequest, API_BASE_URL } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { useCustomers } from '@/hooks/use-customers';
 import { MarginSlider } from '@/components/MarginSlider';
+import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
+import { showAlert, showConfirm } from '@/lib/dialogs';
 import type { Customer } from '@shared/mobile-types';
 
 const ORANGE      = '#f26a2a';
@@ -151,6 +152,7 @@ export default function AiChatScreen() {
   const [editableItems, setEditableItems] = useState<{ description: string; qty: string; unit: string; rate: string }[]>([]);
   const [savedQuoteId, setSavedQuoteId] = useState<number | null>(null);
   const [quoteStatus, setQuoteStatus] = useState<string>('draft');
+  const [showSendSheet, setShowSendSheet] = useState(false);
 
   // Intercept swipe-down dismiss on modal — show "Leave without saving?" when there's unsaved work
   useEffect(() => {
@@ -158,10 +160,13 @@ export default function AiChatScreen() {
       const hasWork = description.trim() || firstName.trim() || phone.trim();
       if (!hasWork || savedQuoteId) return;
       e.preventDefault();
-      Alert.alert('Leave without saving?', 'Your quote details will be lost.', [
-        { text: 'Stay', style: 'cancel' },
-        { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
-      ]);
+      showConfirm({
+        title: 'Leave without saving?',
+        message: 'Your quote details will be lost.',
+        confirmLabel: 'Leave',
+        destructive: true,
+        onConfirm: () => navigation.dispatch(e.data.action),
+      });
     });
     return unsub;
   }, [navigation, description, firstName, phone, savedQuoteId]);
@@ -237,7 +242,32 @@ export default function AiChatScreen() {
 
   const saveMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent') => {
-      if (!aiResult) throw new Error('No quote to save');
+      if (!aiResult) {
+        // Pre-generation save: capture what the tradie has typed as a bare draft
+        const res = await apiRequest('POST', '/api/quotes', {
+          totalAmount: '0',
+          status: 'draft',
+          jobTitle: jobTitleOverride || description.trim().slice(0, 60) || undefined,
+          customerName: customerName.trim() || undefined,
+          customerId: customerType === 'existing' && selectedCustomer ? selectedCustomer.id : undefined,
+          content: JSON.stringify({
+            jobTitle: jobTitleOverride || description.trim().slice(0, 60),
+            notes: description.trim(),
+            jobType,
+            expiryDate,
+            internalNotes,
+            customerName: customerName.trim() || undefined,
+            customerPhone: customerType === 'new' ? phone.trim() || undefined : overridePhone || selectedCustomer?.phone || undefined,
+            customerEmail: customerType === 'new' ? email.trim() || undefined : overrideEmail || selectedCustomer?.email || undefined,
+            customerAddress: customerAddress || undefined,
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.message || 'Failed to save draft');
+        }
+        return res.json();
+      }
       const subtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
       const gst = subtotal * 0.1;
       const total = subtotal + gst;
@@ -310,12 +340,60 @@ export default function AiChatScreen() {
     generateMutation.mutate({ description: desc, customerName: customerName + businessContext });
   };
 
+  // Send-to-customer channel picker (ActionSheet — Alert caps at 3 buttons on
+  // Android and is a no-op on web). Quote is only flagged "sent" once a channel
+  // with a valid destination is actually chosen.
+  const sendSubtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
+  const sendTotal = sendSubtotal * 1.1;
+  const sendEmail = customerType === 'existing' ? (overrideEmail || selectedCustomer?.email || '') : email;
+  const sendPhone = customerType === 'existing' ? (overridePhone || selectedCustomer?.phone || '') : phone;
+  const sendName  = customerType === 'existing' ? (selectedCustomer?.name || '') : `${firstName} ${lastName}`.trim();
+
+  const markAsSent = async (afterSend?: () => void) => {
+    if (savedQuoteId) {
+      // Quote already saved — just PATCH it to "sent", don't create a duplicate
+      await apiRequest('PATCH', `/api/quotes/${savedQuoteId}`, { status: 'sent' });
+      setQuoteStatus('sent');
+      queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      afterSend?.();
+    } else {
+      saveMutation.mutate('sent', { onSuccess: afterSend ? () => afterSend() : undefined });
+    }
+  };
+
+  const sendActions: SheetAction[] = [
+    {
+      label: 'Email customer',
+      onPress: () => {
+        if (!sendEmail) { showAlert('No email on file', 'Add an email address for this customer first.'); return; }
+        markAsSent();
+        Linking.openURL(`mailto:${sendEmail}?subject=Your quote&body=Hi ${sendName || 'there'},\n\nPlease find your quote attached.\n\nTotal: $${sendTotal.toFixed(2)}\n\nThanks`);
+      },
+    },
+    {
+      label: 'Send SMS',
+      onPress: () => {
+        if (!sendPhone) { showAlert('No phone on file', 'Add a phone number for this customer first.'); return; }
+        markAsSent();
+        Linking.openURL(`sms:${sendPhone}`);
+      },
+    },
+    {
+      label: 'Share link',
+      onPress: () => markAsSent(() => Share.share({ message: `Quote — $${sendTotal.toFixed(2)} (inc. GST)` })),
+    },
+  ];
+
   const goBack = () => {
     if (step === 'draft' && !savedQuoteId) {
-      Alert.alert('Discard draft?', 'Your generated quote will be lost.', [
-        { text: 'Keep editing', style: 'cancel' },
-        { text: 'Discard', style: 'destructive', onPress: () => { setStep('prompt'); setAiResult(null); setError(null); } },
-      ]);
+      showConfirm({
+        title: 'Discard draft?',
+        message: 'Your generated quote will be lost.',
+        confirmLabel: 'Discard',
+        destructive: true,
+        onConfirm: () => { setStep('prompt'); setAiResult(null); setError(null); },
+      });
     } else if (step === 'draft') {
       setStep('prompt');
       setAiResult(null);
@@ -1064,52 +1142,7 @@ export default function AiChatScreen() {
               <TouchableOpacity
                 style={s.sendBtn}
                 activeOpacity={0.85}
-                onPress={() => {
-                  const subtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
-                  const total = subtotal * 1.1;
-                  const custEmail = customerType === 'existing' ? (overrideEmail || selectedCustomer?.email || '') : email;
-                  const custPhone = customerType === 'existing' ? (overridePhone || selectedCustomer?.phone || '') : phone;
-                  const custName  = customerType === 'existing' ? (selectedCustomer?.name || '') : `${firstName} ${lastName}`.trim();
-
-                  const markAsSent = async (afterSend?: () => void) => {
-                    if (savedQuoteId) {
-                      // Quote already saved — just PATCH it to "sent", don't create a duplicate
-                      await apiRequest('PATCH', `/api/quotes/${savedQuoteId}`, { status: 'sent' });
-                      setQuoteStatus('sent');
-                      queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      afterSend?.();
-                    } else {
-                      saveMutation.mutate('sent', { onSuccess: afterSend ? () => afterSend() : undefined });
-                    }
-                  };
-
-                  Alert.alert('Send quote', `Total: $${total.toFixed(2)}`, [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: '📧 Email customer',
-                      onPress: () => {
-                        markAsSent();
-                        if (custEmail) Linking.openURL(`mailto:${custEmail}?subject=Your quote&body=Hi ${custName || 'there'},\n\nPlease find your quote attached.\n\nTotal: $${total.toFixed(2)}\n\nThanks`);
-                        else Alert.alert('No email on file', 'Add an email address for this customer first.');
-                      },
-                    },
-                    {
-                      text: '📱 Send SMS',
-                      onPress: () => {
-                        markAsSent();
-                        if (custPhone) Linking.openURL(`sms:${custPhone}`);
-                        else Alert.alert('No phone on file', 'Add a phone number for this customer first.');
-                      },
-                    },
-                    {
-                      text: '🔗 Share link',
-                      onPress: () => {
-                        markAsSent(() => Share.share({ message: `Quote — $${total.toFixed(2)} (inc. GST)` }));
-                      },
-                    },
-                  ]);
-                }}
+                onPress={() => setShowSendSheet(true)}
                 disabled={saveMutation.isPending}
               >
                 <Send size={17} color="#fff" strokeWidth={2} />
@@ -1117,7 +1150,7 @@ export default function AiChatScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={s.templateBtn}
-                onPress={() => Alert.alert('Save as template', 'Quote templates are coming soon.', [{ text: 'Got it' }])}
+                onPress={() => showAlert('Save as template', 'Quote templates are coming soon.')}
               >
                 <Bookmark size={15} color={MUTED_HI} strokeWidth={2} />
                 <Text style={s.templateBtnText}>Save as template</Text>
@@ -1126,6 +1159,13 @@ export default function AiChatScreen() {
           </>
         )}
       </KeyboardAvoidingView>
+
+      <ActionSheetModal
+        visible={showSendSheet}
+        title={`Send quote — $${sendTotal.toFixed(2)} inc. GST`}
+        actions={sendActions}
+        onClose={() => setShowSendSheet(false)}
+      />
 
       {/* Trade type dropdown modal */}
       <Modal visible={showTradeDropdown} transparent animationType="slide" onRequestClose={() => setShowTradeDropdown(false)}>
