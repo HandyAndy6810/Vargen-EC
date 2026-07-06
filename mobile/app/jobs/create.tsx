@@ -11,11 +11,12 @@ import {
   Alert,
 } from 'react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
-import { router } from 'expo-router';
-import { useState, useMemo } from 'react';
+import { router, useNavigation } from 'expo-router';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import { useCreateJob } from '@/hooks/use-jobs';
+import { showConfirm } from '@/lib/dialogs';
 import { useCustomers } from '@/hooks/use-customers';
 import { addDays, format, setHours, setMinutes, startOfDay } from 'date-fns';
 
@@ -46,6 +47,25 @@ export default function JobCreateScreen() {
   const [custSearch, setCustSearch] = useState('');
   const [showCustList, setShowCustList] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Unsaved-changes guard — fat-thumbing back should never eat a filled form
+  const savedRef = useRef(false);
+  const navigation = useNavigation();
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove' as any, (e: any) => {
+      const hasWork = title.trim() || address.trim() || notes.trim() || customerId !== null;
+      if (!hasWork || savedRef.current) return;
+      e.preventDefault();
+      showConfirm({
+        title: 'Leave without saving?',
+        message: 'Your job details will be lost.',
+        confirmLabel: 'Leave',
+        destructive: true,
+        onConfirm: () => navigation.dispatch(e.data.action),
+      });
+    });
+    return unsub;
+  }, [navigation, title, address, notes, customerId]);
 
   const today = startOfDay(new Date());
   const dayOptions = useMemo(
@@ -84,7 +104,7 @@ export default function JobCreateScreen() {
         status: 'scheduled',
       } as any,
       {
-        onSuccess: () => router.back(),
+        onSuccess: () => { savedRef.current = true; router.back(); },
         onError: (err: any) => {
           const msg = err?.message || 'Check your connection and try again.';
           if (Platform.OS === 'web') window.alert(`Could not save job\n${msg}`);

@@ -13,6 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { queryClient } from '@/lib/queryClient';
+import { api } from '@shared/mobile-routes';
 import { useQuotes } from '@/hooks/use-quotes';
 import { Plus, Search, Filter } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
@@ -110,7 +111,9 @@ export default function QuotesScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await queryClient.invalidateQueries();
+    // Only refetch the quotes list — a bare invalidateQueries() refetched
+    // every query in the app on each pull
+    await queryClient.invalidateQueries({ queryKey: [api.quotes.list.path] });
     setRefreshing(false);
   }, []);
 
@@ -236,6 +239,17 @@ export default function QuotesScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 130, gap: 10 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
       >
+        {isError && !refreshing && (
+          <TouchableOpacity
+            onPress={onRefresh}
+            activeOpacity={0.7}
+            style={{ backgroundColor: c.redSoft, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: c.red, marginBottom: 4 }}
+          >
+            <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.red }}>
+              Couldn't load quotes — tap to retry
+            </Text>
+          </TouchableOpacity>
+        )}
         {filtered.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 48, gap: 8 }}>
             <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>

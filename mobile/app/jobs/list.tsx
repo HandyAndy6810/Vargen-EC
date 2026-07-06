@@ -41,11 +41,20 @@ export default function JobsListScreen() {
     [allJobs]
   );
   const upcomingJobs = useMemo(() =>
-    allJobs.filter((j: any) => j.scheduledDate && isFuture(new Date(j.scheduledDate)) && !isToday(new Date(j.scheduledDate)) && j.status !== 'completed' && j.status !== 'cancelled'),
+    // Includes overdue: past-dated jobs that were never completed/cancelled
+    // must stay in the tradie's face, not vanish between filters
+    allJobs.filter((j: any) =>
+      j.status !== 'completed' && j.status !== 'cancelled' &&
+      (
+        (j.scheduledDate && isFuture(new Date(j.scheduledDate)) && !isToday(new Date(j.scheduledDate))) ||
+        (j.scheduledDate && isPast(new Date(j.scheduledDate)) && !isToday(new Date(j.scheduledDate))) ||
+        !j.scheduledDate
+      )
+    ),
     [allJobs]
   );
   const pastJobs = useMemo(() =>
-    allJobs.filter((j: any) => !j.scheduledDate || isPast(new Date(j.scheduledDate))).filter((j: any) => j.status === 'completed' || j.status === 'cancelled'),
+    allJobs.filter((j: any) => j.status === 'completed' || j.status === 'cancelled'),
     [allJobs]
   );
 

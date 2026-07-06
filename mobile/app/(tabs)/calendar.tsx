@@ -2,17 +2,18 @@ import {
   View,
   Text,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   TextInput,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import { useState, useMemo, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { format, startOfWeek, addDays, addWeeks, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
+import { api } from '@shared/mobile-routes';
 import { useWeather } from '@/hooks/use-weather';
 import { Plus, Search, X, ChevronLeft, ChevronRight, Send, SkipForward } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
@@ -68,7 +69,12 @@ export default function CalendarScreen() {
   const s = makeStyles(c, isDark);
   const qc = useQueryClient();
 
-  const now = new Date();
+  // Tick every minute so the now-line and today detection stay live
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
   const [segment, setSegment] = useState<'calendar' | 'outreach'>('calendar');
   const [weekOffset, setWeekOffset] = useState(0);
   const [dayIdx, setDayIdx] = useState(() => {
@@ -78,15 +84,18 @@ export default function CalendarScreen() {
     return todayIdx >= 0 ? todayIdx : 0;
   });
   const [showSearch, setShowSearch] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await qc.invalidateQueries({ queryKey: [api.jobs.list.path] });
+    setRefreshing(false);
+  };
 
-  useEffect(() => {
-    AsyncStorage.setItem('cal_weekOffset', String(weekOffset));
-  }, [weekOffset]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const weekStart = useMemo(
     () => startOfWeek(addWeeks(now, weekOffset), { weekStartsOn: 1 }),
-    [weekOffset]
+    [weekOffset, now]
   );
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -318,7 +327,7 @@ export default function CalendarScreen() {
       <View style={{ paddingHorizontal: 20, paddingBottom: 0 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
           <TouchableOpacity
-            style={[s.iconBtn, { width: 32, height: 32, borderRadius: 10 }]}
+            style={[s.iconBtn, { width: 44, height: 44, borderRadius: 12 }]}
             onPress={() => { setWeekOffset(o => o - 1); setDayIdx(0); }}
             activeOpacity={0.7}
           >
@@ -335,7 +344,7 @@ export default function CalendarScreen() {
           )}
           <View style={{ flex: 1 }} />
           <TouchableOpacity
-            style={[s.iconBtn, { width: 32, height: 32, borderRadius: 10 }]}
+            style={[s.iconBtn, { width: 44, height: 44, borderRadius: 12 }]}
             onPress={() => { setWeekOffset(o => o + 1); setDayIdx(0); }}
             activeOpacity={0.7}
           >
@@ -408,7 +417,12 @@ export default function CalendarScreen() {
       )}
 
       {/* Hour grid */}
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 130 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
+      >
         <View style={{ paddingLeft: 52, paddingRight: 8, position: 'relative', overflow: 'visible' }}>
           <View style={{ paddingLeft: 44, position: 'relative', overflow: 'visible' }}>
             {Array.from({ length: END_H - START_H + 1 }, (_, i) => (
