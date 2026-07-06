@@ -38,6 +38,7 @@ export default function ScanReceiptScreen() {
   const s = useMemo(() => makeStyles(c), [c]);
   const [step, setStep] = useState<Step>('capture');
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [scanFailed, setScanFailed] = useState(false);
 
   // Review form fields
   const [vendor, setVendor] = useState('');
@@ -72,14 +73,17 @@ export default function ScanReceiptScreen() {
       if (res.ok) {
         const data: ScanResult = await res.json();
         setScanResult(data);
+        setScanFailed(false);
         populateForm(data);
       } else {
-        // Scan failed — go to review with empty fields
+        // Scan failed — go to review with empty fields, but say so
         setScanResult(null);
+        setScanFailed(true);
       }
     } catch {
-      // Network error — go to review with empty fields
+      // Network error — go to review with empty fields, but say so
       setScanResult(null);
+      setScanFailed(true);
     }
     setStep('review');
   };
@@ -119,6 +123,10 @@ export default function ScanReceiptScreen() {
   const handleSave = async () => {
     if (!amount || isNaN(Number(amount))) {
       showAlert('Invalid amount', 'Please enter a valid total amount.');
+      return;
+    }
+    if (date && isNaN(new Date(date).getTime())) {
+      showAlert('Invalid date', 'Use the format 2026-07-06, or leave it blank.');
       return;
     }
     try {
@@ -237,6 +245,16 @@ export default function ScanReceiptScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {scanFailed && (
+            <View style={{ backgroundColor: c.orangeSoft, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: c.orange, marginBottom: 12 }}>
+              <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.orangeDeep }}>
+                Couldn't read the receipt
+              </Text>
+              <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.orangeDeep, marginTop: 2 }}>
+                The fields below are blank — enter the details manually, or go back and try a clearer photo.
+              </Text>
+            </View>
+          )}
           {/* Vendor */}
           <View style={s.fieldCard}>
             <Text style={s.fieldLabel}>Vendor / Supplier</Text>

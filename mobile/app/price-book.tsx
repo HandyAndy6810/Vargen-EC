@@ -290,7 +290,7 @@ function ItemForm({ form, setForm }: { form: FormState; setForm: (f: FormState) 
           <Text style={s.inputLabel}>Unit</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 2 }}>
             <View style={{ flexDirection: 'row', gap: 6 }}>
-              {['each', 'hr', 'm', 'lm', 'sqm', 'm³', 'kg', 'lot'].map((u) => (
+              {UNITS.map((u) => (
                 <TouchableOpacity
                   key={u}
                   onPress={() => setForm({ ...form, unit: u })}
