@@ -5,13 +5,13 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert } from '@/lib/dialogs';
 import { ChevronLeft, Check, Building2 } from 'lucide-react-native';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 import * as Haptics from 'expo-haptics';
@@ -53,7 +53,7 @@ export default function BankDetailsScreen() {
   const handleSave = () => {
     const rawBsb = bsb.replace(/\D/g, '');
     if (rawBsb.length > 0 && rawBsb.length !== 6) {
-      Alert.alert('Invalid BSB', 'BSB must be 6 digits (e.g. 062-001)');
+      showAlert('Invalid BSB', 'BSB must be 6 digits (e.g. 062-001)');
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -65,7 +65,7 @@ export default function BankDetailsScreen() {
           setSaved(true);
           setTimeout(() => setSaved(false), 2500);
         },
-        onError: (err: any) => Alert.alert('Error', err.message),
+        onError: (err: any) => showAlert('Error', err.message),
       }
     );
   };

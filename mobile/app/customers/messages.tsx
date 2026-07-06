@@ -7,11 +7,11 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useState, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert, showConfirm } from '@/lib/dialogs';
 import { ChevronLeft, Send, Phone, MessageSquare, FileText, Trash2 } from 'lucide-react-native';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useCustomer } from '@/hooks/use-customers';
@@ -72,16 +72,19 @@ export default function CustomerMessagesScreen() {
           setBody('');
           setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
         },
-        onError: (err: any) => Alert.alert('Error', err.message),
+        onError: (err: any) => showAlert('Error', err.message),
       }
     );
   };
 
   const handleDelete = (msgId: number) => {
-    Alert.alert('Delete message?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteMsg.mutate(msgId) },
-    ]);
+    showConfirm({
+      title: 'Delete message?',
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: () => deleteMsg.mutate(msgId),
+    });
   };
 
   const renderMessage = ({ item }: { item: any }) => {

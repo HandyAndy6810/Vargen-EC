@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert } from '@/lib/dialogs';
 import { ChevronLeft } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
@@ -57,7 +58,7 @@ export default function RemindersScreen() {
 
   const save = (patch: object) => {
     update.mutate(patch as any, {
-      onError: () => Alert.alert('Error', 'Could not save. Please try again.'),
+      onError: () => showAlert('Error', 'Could not save. Please try again.'),
     });
   };
 

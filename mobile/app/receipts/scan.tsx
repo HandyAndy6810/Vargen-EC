@@ -6,13 +6,13 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert } from '@/lib/dialogs';
 import { ChevronLeft, Camera, ImageIcon, RotateCw, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { apiRequest } from '@/lib/api';
@@ -93,7 +93,7 @@ export default function ScanReceiptScreen() {
   const handleCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission required', 'Camera access is needed to scan receipts.');
+      showAlert('Permission required', 'Camera access is needed to scan receipts.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -109,7 +109,7 @@ export default function ScanReceiptScreen() {
   const handleLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission required', 'Photo library access is needed to choose a receipt image.');
+      showAlert('Permission required', 'Photo library access is needed to choose a receipt image.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -124,7 +124,7 @@ export default function ScanReceiptScreen() {
 
   const handleSave = async () => {
     if (!amount || isNaN(Number(amount))) {
-      Alert.alert('Invalid amount', 'Please enter a valid total amount.');
+      showAlert('Invalid amount', 'Please enter a valid total amount.');
       return;
     }
     try {
@@ -136,9 +136,10 @@ export default function ScanReceiptScreen() {
         notes: notes || undefined,
         items: lineItems.length > 0 ? JSON.stringify(lineItems) : undefined,
       });
-      router.replace('/receipts/index');
+      router.replace('/receipts' as any);
     } catch (err: any) {
-      Alert.alert('Save failed', err?.message || 'Could not save receipt. Please try again.');
+      const msg = err?.message || 'Could not save receipt. Please try again.';
+      showAlert('Save failed', msg);
     }
   };
 

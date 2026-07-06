@@ -2,6 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, Switch, StyleSheet
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert } from '@/lib/dialogs';
 import { ChevronLeft, Save } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
@@ -68,7 +69,7 @@ export default function WorkingHoursScreen() {
     try {
       await update.mutateAsync({ workingHours: JSON.stringify(next) });
     } catch {
-      Alert.alert('Error', 'Could not save. Please try again.');
+      showAlert('Error', 'Could not save. Please try again.');
     }
   };
 
@@ -81,7 +82,7 @@ export default function WorkingHoursScreen() {
       await update.mutateAsync({ workingHours: JSON.stringify(hours) });
       router.back();
     } catch {
-      Alert.alert('Error', 'Could not save. Please try again.');
+      showAlert('Error', 'Could not save. Please try again.');
     }
   };
 

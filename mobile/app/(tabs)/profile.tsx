@@ -17,6 +17,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme, type Colors, type ThemeMode } from '@/hooks/use-theme';
 import { useXeroStatus, useXeroDisconnect, useXeroSyncAll } from '@/hooks/use-xero';
+import { showAlert, showConfirm } from '@/lib/dialogs';
 import { API_BASE_URL } from '@/lib/api';
 import { useCustomers } from '@/hooks/use-customers';
 import { useJobs } from '@/hooks/use-jobs';
@@ -261,16 +262,19 @@ function XeroSection() {
   const handleConnect = () => Linking.openURL(`${API_BASE_URL}/api/xero/connect`);
 
   const handleDisconnect = () => {
-    Alert.alert('Disconnect Xero', 'Remove the Xero connection? Customer and invoice sync will stop.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Disconnect', style: 'destructive', onPress: () => disconnect.mutate() },
-    ]);
+    showConfirm({
+      title: 'Disconnect Xero',
+      message: 'Remove the Xero connection? Customer and invoice sync will stop.',
+      confirmLabel: 'Disconnect',
+      destructive: true,
+      onConfirm: () => disconnect.mutate(),
+    });
   };
 
   const handleSyncAll = () => {
     syncAll.mutate(undefined, {
-      onSuccess: (r) => Alert.alert('Sync complete', `${r.synced} customers synced${r.failed > 0 ? `, ${r.failed} failed` : ''}.`),
-      onError: () => Alert.alert('Sync failed', 'Could not reach Xero. Try again.'),
+      onSuccess: (r) => showAlert('Sync complete', `${r.synced} customers synced${r.failed > 0 ? `, ${r.failed} failed` : ''}.`),
+      onError: () => showAlert('Sync failed', 'Could not reach Xero. Try again.'),
     });
   };
 
@@ -388,10 +392,11 @@ export default function ProfileScreen() {
   })();
   const [showAppearance, setShowAppearance] = useState(false);
 
-  const firstName = user?.firstName || 'Andy';
-  const lastName  = user?.lastName  || 'Hollister';
-  const initials  = ((firstName[0] || '') + (lastName[0] || '')).toUpperCase() || 'AH';
-  const fullName  = `${firstName} ${lastName}`.trim() || 'Andy Hollister';
+  const firstName = user?.firstName || '';
+  const lastName  = user?.lastName  || '';
+  const fullName  = `${firstName} ${lastName}`.trim() || user?.email?.split('@')[0] || 'Your profile';
+  const initials  = ((firstName[0] || '') + (lastName[0] || '')).toUpperCase()
+    || (user?.email?.[0] || '?').toUpperCase();
 
   const appearanceSub = mode === 'system' ? 'System default' : mode === 'light' ? 'Light' : 'Dark';
 
@@ -421,9 +426,6 @@ export default function ProfileScreen() {
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={s.name}>{fullName}</Text>
               <Text style={s.biz}>{user?.email || ''}</Text>
-              <View style={s.proBadge}>
-                <Text style={s.proBadgeText}>✦ Pro plan</Text>
-              </View>
             </View>
             <TouchableOpacity style={s.editBtn} activeOpacity={0.7} onPress={() => router.push('/settings/edit-profile' as any)}>
               <Pencil size={18} color={c.ink} strokeWidth={2.1} />
@@ -457,15 +459,15 @@ export default function ProfileScreen() {
         <SettingsGroup title="Business" items={[
           { icon: FileText,  label: 'Business details',         sub: 'ABN, logo, invoice footer',       onPress: () => router.push('/settings/business-details' as any) },
           { icon: Receipt,   label: 'Invoice & quote settings', sub: 'Numbering, GST, payment terms',   onPress: () => router.push('/settings/invoice-settings' as any) },
-          { icon: Calendar,  label: 'Working hours',            sub: 'Mon–Fri · 7:30 am – 4:00 pm',    onPress: () => router.push('/settings/working-hours' as any) },
-          { icon: MapPin,    label: 'Service area',             sub: 'Inner West Sydney · 15 km',       onPress: () => router.push('/settings/service-area' as any) },
+          { icon: Calendar,  label: 'Working hours',            sub: 'Set your available days & times',    onPress: () => router.push('/settings/working-hours' as any) },
+          { icon: MapPin,    label: 'Service area',             sub: 'Suburbs you cover',       onPress: () => router.push('/settings/service-area' as any) },
         ]} />
 
         <SettingsGroup title="AI & automations" items={[
           { icon: Sparkles,      label: 'AI quoting',    sub: 'Tone, default margins, templates', badge: 'Pro', onPress: () => router.push('/settings/ai-quoting' as any) },
           { icon: BookOpen,      label: 'Price book',    sub: 'Your material prices for AI quotes',             onPress: () => router.push('/price-book' as any) },
           { icon: Bell,          label: 'Reminders',     sub: 'Overdue nudges, review requests',                onPress: () => router.push('/settings/reminders' as any) },
-          { icon: MessageSquare, label: 'SMS templates', sub: '3 default templates',                            onPress: () => router.push('/settings/sms-templates' as any) },
+          { icon: MessageSquare, label: 'SMS templates', sub: 'Quick replies for follow-ups',                            onPress: () => router.push('/settings/sms-templates' as any) },
         ]} />
 
         <XeroSection />
@@ -477,7 +479,7 @@ export default function ProfileScreen() {
         ]} />
 
         <SettingsGroup title="Account" items={[
-          { icon: Settings, label: 'Subscription', sub: 'Pro · $39/mo', onPress: () => router.push('/settings/subscription' as any) },
+          { icon: Settings, label: 'Subscription', sub: 'Manage your plan', onPress: () => router.push('/settings/subscription' as any) },
           { icon: LogOut,   label: 'Sign out',     danger: true,                               onPress: handleLogout },
         ]} />
 

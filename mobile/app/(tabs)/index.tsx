@@ -219,8 +219,9 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, []);
 
-  const firstName = user?.firstName || user?.email?.split('@')[0] || 'Andy';
-  const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase() || 'AH';
+  const firstName = user?.firstName || user?.email?.split('@')[0] || 'there';
+  const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase()
+    || (user?.email?.[0] || '?').toUpperCase();
   const now = new Date();
   const dayName = format(now, 'EEE d MMM');
   const timeStr = format(now, 'HH:mm');
@@ -693,7 +694,12 @@ export default function HomeScreen() {
                     activeOpacity={0.7}
                     onPress={() => {
                       const addr = (nextJob as any).address;
-                      if (addr) Linking.openURL(`maps://?q=${encodeURIComponent(addr)}`);
+                      if (!addr) return;
+                      const encoded = encodeURIComponent(addr);
+                      // maps:// is iOS-only; fall back to Google Maps everywhere else
+                      Linking.openURL(`maps://?q=${encoded}`).catch(() =>
+                        Linking.openURL(`https://maps.google.com/?q=${encoded}`)
+                      );
                     }}
                   >
                     <Navigation size={18} color="#fff" strokeWidth={2} />

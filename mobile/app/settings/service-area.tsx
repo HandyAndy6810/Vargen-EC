@@ -2,6 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Activi
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert } from '@/lib/dialogs';
 import { ChevronLeft, Save } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
@@ -50,7 +51,7 @@ export default function ServiceAreaScreen() {
   const saveArea = (next: ServiceArea) => {
     setArea(next);
     update.mutate({ serviceArea: JSON.stringify(next) }, {
-      onError: () => Alert.alert('Error', 'Could not save. Please try again.'),
+      onError: () => showAlert('Error', 'Could not save. Please try again.'),
     });
   };
 
@@ -59,7 +60,7 @@ export default function ServiceAreaScreen() {
       await update.mutateAsync({ serviceArea: JSON.stringify(area) });
       router.back();
     } catch {
-      Alert.alert('Error', 'Could not save. Please try again.');
+      showAlert('Error', 'Could not save. Please try again.');
     }
   };
 

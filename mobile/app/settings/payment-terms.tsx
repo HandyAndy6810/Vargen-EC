@@ -4,12 +4,12 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Alert,
   Switch,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert } from '@/lib/dialogs';
 import { ChevronLeft, Check, CreditCard } from 'lucide-react-native';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 import * as Haptics from 'expo-haptics';
@@ -56,7 +56,7 @@ export default function PaymentTermsScreen() {
           setSaved(true);
           setTimeout(() => setSaved(false), 2500);
         },
-        onError: (err: any) => Alert.alert('Error', err.message),
+        onError: (err: any) => showAlert('Error', err.message),
       }
     );
   };

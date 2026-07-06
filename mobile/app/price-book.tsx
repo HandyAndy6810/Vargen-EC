@@ -5,6 +5,7 @@ import {
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showConfirm } from '@/lib/dialogs';
 import { ChevronLeft, Plus, Trash2, Pencil, Check, X, BookOpen } from 'lucide-react-native';
 import { usePriceBook, useCreatePriceBookItem, useUpdatePriceBookItem, useDeletePriceBookItem, PriceBookItem } from '@/hooks/use-price-book';
 
@@ -84,15 +85,19 @@ export default function PriceBookScreen() {
     if (!form.description.trim()) return setError('Description is required');
     if (!form.price.trim() || isNaN(parseFloat(form.price))) return setError('Enter a valid price');
     setError(null);
-    await createMutation.mutateAsync({
-      description: form.description.trim(),
-      unit: form.unit,
-      price: form.price.trim(),
-      supplier: form.supplier.trim() || undefined,
-      category: form.category.trim() || undefined,
-    });
-    setShowAddForm(false);
-    setForm(EMPTY_FORM);
+    try {
+      await createMutation.mutateAsync({
+        description: form.description.trim(),
+        unit: form.unit,
+        price: form.price.trim(),
+        supplier: form.supplier.trim() || undefined,
+        category: form.category.trim() || undefined,
+      });
+      setShowAddForm(false);
+      setForm(EMPTY_FORM);
+    } catch (err: any) {
+      setError(err?.message || 'Could not save — check your connection and try again.');
+    }
   };
 
   const saveEdit = async () => {
@@ -100,27 +105,30 @@ export default function PriceBookScreen() {
     if (!form.description.trim()) return setError('Description is required');
     if (!form.price.trim() || isNaN(parseFloat(form.price))) return setError('Enter a valid price');
     setError(null);
-    await updateMutation.mutateAsync({
-      id: editingId,
-      description: form.description.trim(),
-      unit: form.unit,
-      price: form.price.trim(),
-      supplier: form.supplier.trim() || undefined,
-      category: form.category.trim() || undefined,
-    });
-    setEditingId(null);
-    setForm(EMPTY_FORM);
+    try {
+      await updateMutation.mutateAsync({
+        id: editingId,
+        description: form.description.trim(),
+        unit: form.unit,
+        price: form.price.trim(),
+        supplier: form.supplier.trim() || undefined,
+        category: form.category.trim() || undefined,
+      });
+      setEditingId(null);
+      setForm(EMPTY_FORM);
+    } catch (err: any) {
+      setError(err?.message || 'Could not save — check your connection and try again.');
+    }
   };
 
   const confirmDelete = (item: PriceBookItem) => {
-    Alert.alert(
-      'Delete item',
-      `Remove "${item.description}" from your price book?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteMutation.mutate(item.id) },
-      ],
-    );
+    showConfirm({
+      title: 'Delete item',
+      message: `Remove "${item.description}" from your price book?`,
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: () => deleteMutation.mutate(item.id),
+    });
   };
 
   const isSaving = createMutation.isPending || updateMutation.isPending;

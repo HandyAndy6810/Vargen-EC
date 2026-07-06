@@ -7,10 +7,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Linking,
-  Alert,
-  Clipboard,
   Share,
 } from 'react-native';
+import { copyText } from '@/lib/clipboard';
+import { showAlert, showConfirm } from '@/lib/dialogs';
+import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import PDFComposeModal from '@/components/PDFComposeModal';
@@ -60,8 +61,8 @@ export default function InvoiceDetailScreen() {
   const sharePaymentLink = (url: string, label: string) => {
     Share.share({ message: `Pay your invoice here: ${url}`, url }).catch(() => {
       // Fallback: copy to clipboard
-      Clipboard.setString(url);
-      Alert.alert('Copied', `${label} payment link copied to clipboard`);
+      copyText(url);
+      showAlert('Copied', `${label} payment link copied to clipboard`);
     });
   };
 
@@ -73,7 +74,7 @@ export default function InvoiceDetailScreen() {
     }
     stripeLink.mutate(invoiceId, {
       onSuccess: (data: any) => sharePaymentLink(data.url, 'Stripe'),
-      onError: (err: any) => Alert.alert('Card payment unavailable', err.message),
+      onError: (err: any) => showAlert('Card payment unavailable', err.message),
     });
   };
 
@@ -85,33 +86,32 @@ export default function InvoiceDetailScreen() {
     }
     squareLink.mutate(invoiceId, {
       onSuccess: (data: any) => sharePaymentLink(data.url, 'Square'),
-      onError: (err: any) => Alert.alert('Square payment unavailable', err.message),
+      onError: (err: any) => showAlert('Square payment unavailable', err.message),
     });
   };
 
   const copyToClipboard = (value: string, label: string) => {
-    Clipboard.setString(value);
-    Alert.alert('Copied', `${label} copied to clipboard`);
+    copyText(value);
+    showAlert('Copied', `${label} copied to clipboard`);
   };
 
   const handleMarkPaid = () => {
     if (!invoiceId) return;
-    Alert.alert('Mark as paid?', 'This will update the invoice status to Paid.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Mark paid',
-        onPress: () => updateInvoice.mutate({
-          id: invoiceId,
-          status: 'paid',
-          paidDate: new Date().toISOString() as any,
-        }),
-      },
-    ]);
+    showConfirm({
+      title: 'Mark as paid?',
+      message: 'This will update the invoice status to Paid.',
+      confirmLabel: 'Mark paid',
+      onConfirm: () => updateInvoice.mutate({
+        id: invoiceId,
+        status: 'paid',
+        paidDate: new Date().toISOString() as any,
+      }),
+    });
   };
 
   const handleRecordPartial = () => {
     const amount = parseFloat(partialAmt);
-    if (!amount || amount <= 0) { Alert.alert('Enter a valid amount'); return; }
+    if (!amount || amount <= 0) { showAlert('Enter a valid amount'); return; }
     const total = invoice?.totalAmount ? parseFloat(invoice.totalAmount) : 0;
     if (amount >= total) {
       updateInvoice.mutate({ id: invoiceId, status: 'paid', paidDate: new Date().toISOString() as any });
@@ -123,14 +123,13 @@ export default function InvoiceDetailScreen() {
   };
 
   const handleMarkUnpaid = () => {
-    Alert.alert('Mark as unpaid?', 'This will revert the invoice back to Sent.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Mark unpaid',
-        style: 'destructive',
-        onPress: () => updateInvoice.mutate({ id: invoiceId, status: 'sent', paidDate: null } as any),
-      },
-    ]);
+    showConfirm({
+      title: 'Mark as unpaid?',
+      message: 'This will revert the invoice back to Sent.',
+      confirmLabel: 'Mark unpaid',
+      destructive: true,
+      onConfirm: () => updateInvoice.mutate({ id: invoiceId, status: 'sent', paidDate: null } as any),
+    });
   };
 
   const generateAndSharePDF = async (customMessage: string, notes: string) => {
@@ -172,37 +171,30 @@ export default function InvoiceDetailScreen() {
         dialogTitle: `Invoice ${invoice?.invoiceNumber || id}`,
       });
     } catch (err: any) {
-      Alert.alert('Could not generate PDF', err?.message ?? 'Please try again.');
+      showAlert('Could not generate PDF', err?.message ?? 'Please try again.');
     } finally {
       setPdfPending(false);
     }
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete invoice?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => deleteInvoice.mutate(invoiceId, { onSuccess: () => router.back() }),
-      },
-    ]);
+    showConfirm({
+      title: 'Delete invoice?',
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: () => deleteInvoice.mutate(invoiceId, { onSuccess: () => router.back() }),
+    });
   };
 
-  const handleMore = () => {
-    const actions: Array<{ text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }> = [
-      { text: 'Cancel', style: 'cancel' },
-    ];
-    actions.push({ text: 'Record partial payment', onPress: () => setPartialMode(true) });
-    if (invoice?.stripePaymentLinkUrl) {
-      actions.push({ text: 'Copy Stripe link', onPress: () => { Clipboard.setString(invoice.stripePaymentLinkUrl!); Alert.alert('Copied', 'Stripe payment link copied'); } });
-    }
-    if (invoice?.squarePaymentLinkUrl) {
-      actions.push({ text: 'Copy Square link', onPress: () => { Clipboard.setString(invoice.squarePaymentLinkUrl!); Alert.alert('Copied', 'Square payment link copied'); } });
-    }
-    actions.push({ text: 'Delete invoice', style: 'destructive', onPress: handleDelete });
-    Alert.alert('Invoice options', '', actions);
-  };
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
+  const moreActions: SheetAction[] = [
+    { label: 'Record partial payment', onPress: () => setPartialMode(true) },
+    invoice?.stripePaymentLinkUrl ? { label: 'Copy Stripe link', onPress: () => copyToClipboard(invoice.stripePaymentLinkUrl, 'Stripe payment link') } : null,
+    invoice?.squarePaymentLinkUrl ? { label: 'Copy Square link', onPress: () => copyToClipboard(invoice.squarePaymentLinkUrl, 'Square payment link') } : null,
+    { label: 'Delete invoice', destructive: true, onPress: handleDelete },
+  ].filter(Boolean) as SheetAction[];
+  const handleMore = () => setShowMoreSheet(true);
 
   if (isLoading) {
     return (
@@ -572,6 +564,13 @@ export default function InvoiceDetailScreen() {
       totalAmount={totalAmount}
       initialNotes={invoice?.notes}
       isPending={pdfPending}
+    />
+
+    <ActionSheetModal
+      visible={showMoreSheet}
+      title="Invoice options"
+      actions={moreActions}
+      onClose={() => setShowMoreSheet(false)}
     />
     </>
   );

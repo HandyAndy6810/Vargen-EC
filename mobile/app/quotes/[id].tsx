@@ -5,9 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   Share,
-  Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
@@ -25,6 +23,8 @@ import * as Linking from 'expo-linking';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import PDFComposeModal from '@/components/PDFComposeModal';
+import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
+import { showAlert, showConfirm } from '@/lib/dialogs';
 
 const ORANGE      = '#f26a2a';
 const ORANGE_DEEP = '#d94d0e';
@@ -50,6 +50,8 @@ const STATUS_PILL: Record<string, { bg: string; fg: string; bd: string; label: s
   accepted: { bg: GREEN_SOFT, fg: GREEN,        bd: `${GREEN}44`,      label: 'Accepted' },
   overdue:  { bg: ORANGE_SOFT, fg: ORANGE_DEEP, bd: `${ORANGE}44`,    label: 'Overdue' },
   invoiced: { bg: GREEN_SOFT, fg: GREEN,        bd: `${GREEN}44`,      label: 'Invoiced' },
+  declined: { bg: '#fde5e5',  fg: '#d23b3b',    bd: '#d23b3b44',       label: 'Declined' },
+  rejected: { bg: '#fde5e5',  fg: '#d23b3b',    bd: '#d23b3b44',       label: 'Declined' },
 };
 
 const PROGRESS_STEPS = ['Draft', 'Sent', 'Viewed', 'Accepted'];
@@ -94,7 +96,7 @@ export default function QuoteDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
       router.replace(`/quotes/${newQuote.id}` as any);
     },
-    onError: () => Alert.alert('Could not duplicate', 'Try again.'),
+    onError: () => showAlert('Could not duplicate', 'Try again.'),
   });
 
   if (isLoading) {
@@ -170,71 +172,42 @@ export default function QuoteDetailScreen() {
   const alreadyInvoiced = status === 'invoiced';
   const terminalStatus = isTerminalStatus(status);
 
-  const handleChangeStatus = () => {
-    const options: Array<{ label: string; value: string }> = [];
-    if (status !== 'sent')     options.push({ label: 'Mark as Sent',     value: 'sent' });
-    if (status !== 'accepted') options.push({ label: 'Mark as Accepted', value: 'accepted' });
-    if (status !== 'declined') options.push({ label: 'Mark as Declined', value: 'declined' });
-    if (status !== 'draft')    options.push({ label: 'Revert to Draft',  value: 'draft' });
-    Alert.alert('Change status', '', [
-      { text: 'Cancel', style: 'cancel' },
-      ...options.map(({ label, value }) => ({
-        text: label,
-        onPress: () => updateQuote.mutate({ id: quoteId, status: value } as any),
-      })),
-    ]);
-  };
+  const [sheetMode, setSheetMode] = useState<null | 'more' | 'status'>(null);
 
-  const handleMore = () => {
-    const actions: Array<{ text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }> = [
-      { text: 'Cancel', style: 'cancel' },
-    ];
-    if (customerPhone) {
-      actions.unshift({ text: 'Call customer', onPress: () => Linking.openURL(`tel:${customerPhone}`) });
-      actions.unshift({ text: 'SMS customer', onPress: () => Linking.openURL(`sms:${customerPhone}`) });
-    }
-    actions.unshift({
-      text: 'Share quote',
+  const statusActions: SheetAction[] = [
+    status !== 'sent'     ? { label: 'Mark as Sent',     onPress: () => updateQuote.mutate({ id: quoteId, status: 'sent' } as any) } : null,
+    status !== 'accepted' ? { label: 'Mark as Accepted', onPress: () => updateQuote.mutate({ id: quoteId, status: 'accepted' } as any) } : null,
+    status !== 'declined' ? { label: 'Mark as Declined', onPress: () => updateQuote.mutate({ id: quoteId, status: 'declined' } as any) } : null,
+    status !== 'draft'    ? { label: 'Revert to Draft',  onPress: () => updateQuote.mutate({ id: quoteId, status: 'draft' } as any) } : null,
+  ].filter(Boolean) as SheetAction[];
+
+  const moreActions: SheetAction[] = [
+    !alreadyInvoiced ? {
+      label: 'Delete quote',
+      destructive: true,
+      onPress: () => showConfirm({
+        title: 'Delete quote?',
+        message: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        destructive: true,
+        onConfirm: () => deleteQuote.mutate(quoteId, { onSuccess: () => router.back() }),
+      }),
+    } : null,
+    status !== 'invoiced' ? { label: 'Change status', onPress: () => setSheetMode('status') } : null,
+    { label: 'Duplicate quote', onPress: () => duplicateQuote.mutate() },
+    {
+      label: 'Share quote',
       onPress: () => Share.share({ message: `Quote ${num} — $${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2 })} inc. GST` }),
-    });
-    actions.unshift({ text: 'Duplicate quote', onPress: () => duplicateQuote.mutate() });
-    if (status !== 'invoiced') {
-      actions.unshift({ text: 'Change status', onPress: handleChangeStatus });
-    }
-    if (!alreadyInvoiced) {
-      actions.unshift({
-        text: 'Delete quote',
-        style: 'destructive',
-        onPress: () => {
-          if (Platform.OS === 'web') {
-            if (window.confirm('Delete this quote? This cannot be undone.')) {
-              deleteQuote.mutate(quoteId, { onSuccess: () => router.back() });
-            }
-          } else {
-            Alert.alert('Delete quote?', 'This cannot be undone.', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Delete', style: 'destructive', onPress: () => deleteQuote.mutate(quoteId, { onSuccess: () => router.back() }) },
-            ]);
-          }
-        },
-      });
-    }
-    if (Platform.OS === 'web') {
-      const opts = actions.filter(a => a.style !== 'cancel');
-      const list = opts.map((a, i) => `${i + 1}. ${a.text}`).join('\n');
-      const input = window.prompt(`${title}\n\n${list}\n\nType a number:`, '');
-      if (input) {
-        const idx = parseInt(input, 10) - 1;
-        if (idx >= 0 && idx < opts.length) opts[idx].onPress?.();
-      }
-    } else {
-      Alert.alert(title, '', actions);
-    }
-  };
+    },
+    customerPhone ? { label: 'SMS customer', onPress: () => Linking.openURL(`sms:${customerPhone}`) } : null,
+    customerPhone ? { label: 'Call customer', onPress: () => Linking.openURL(`tel:${customerPhone}`) } : null,
+  ].filter(Boolean) as SheetAction[];
+
+  const handleMore = () => setSheetMode('more');
 
   const handleConvert = () => {
     if (alreadyInvoiced) {
-      Alert.alert('Already invoiced', 'An invoice has already been created for this quote.');
+      showAlert('Already invoiced', 'An invoice has already been created for this quote.');
       return;
     }
     router.push(`/invoices/create?quoteId=${id}` as any);
@@ -287,7 +260,7 @@ export default function QuoteDetailScreen() {
         dialogTitle: `Quote ${num}`,
       });
     } catch (err: any) {
-      Alert.alert('Could not generate PDF', err?.message ?? 'Please try again.');
+      showAlert('Could not generate PDF', err?.message ?? 'Please try again.');
     } finally {
       setPdfPending(false);
     }
@@ -478,8 +451,8 @@ export default function QuoteDetailScreen() {
               disabled={createXeroInvoice.isPending}
               onPress={() => {
                 createXeroInvoice.mutate(undefined, {
-                  onSuccess: (r) => Alert.alert('Xero invoice created', `Invoice ${r.invoiceNumber} created in Xero.`),
-                  onError: (e: any) => Alert.alert('Xero sync failed', e.message || 'Try again.'),
+                  onSuccess: (r) => showAlert('Xero invoice created', `Invoice ${r.invoiceNumber} created in Xero.`),
+                  onError: (e: any) => showAlert('Xero sync failed', e.message || 'Try again.'),
                 });
               }}
             >
@@ -535,6 +508,13 @@ export default function QuoteDetailScreen() {
       totalAmount={totalAmount}
       initialNotes={content.notes}
       isPending={pdfPending}
+    />
+
+    <ActionSheetModal
+      visible={sheetMode !== null}
+      title={sheetMode === 'status' ? 'Change status' : title}
+      actions={sheetMode === 'status' ? statusActions : moreActions}
+      onClose={() => setSheetMode(null)}
     />
     </>
   );

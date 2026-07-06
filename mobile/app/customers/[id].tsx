@@ -7,11 +7,11 @@ import {
   ActivityIndicator,
   StyleSheet,
   Linking,
-  Alert,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showAlert, showConfirm } from '@/lib/dialogs';
 import { ChevronLeft, Phone, MessageSquare, Mail, MapPin, FileText, Pencil, Trash2 } from 'lucide-react-native';
 import { useCustomer, useUpdateCustomer, useDeleteCustomer } from '@/hooks/use-customers';
 
@@ -37,19 +37,19 @@ function initials(name: string) {
 
 function openSMS(phone: string) {
   Linking.openURL(`sms:${phone}`).catch(() =>
-    Alert.alert('Cannot open Messages', 'Make sure a SIM is installed.')
+    showAlert('Cannot open Messages', 'Could not open your messages app.')
   );
 }
 
 function openCall(phone: string) {
   Linking.openURL(`tel:${phone}`).catch(() =>
-    Alert.alert('Cannot make call', 'Make sure a SIM is installed.')
+    showAlert('Cannot make call', 'Could not open the dialler.')
   );
 }
 
 function openEmail(email: string) {
   Linking.openURL(`mailto:${email}`).catch(() =>
-    Alert.alert('Cannot open Mail', 'No mail app found.')
+    showAlert('Cannot open Mail', 'No mail app found.')
   );
 }
 
@@ -93,22 +93,25 @@ export default function CustomerDetailScreen() {
         address: editAddress.trim() || null,
         notes: editNotes.trim() || null,
       }},
-      { onSuccess: () => setIsEditing(false) }
+      {
+        onSuccess: () => setIsEditing(false),
+        onError: (err: any) => showAlert('Could not save changes', err?.message || 'Check your connection and try again.'),
+      }
     );
   };
 
   const handleDelete = () => {
     if (!customer) return;
-    Alert.alert(
-      'Delete customer?',
-      `Remove ${customer.name} and all their contact history? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => {
-          deleteCustomer(Number(id), { onSuccess: () => router.back() });
-        }},
-      ]
-    );
+    showConfirm({
+      title: 'Delete customer?',
+      message: `Remove ${customer.name} and all their contact history? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: () => deleteCustomer(Number(id), {
+        onSuccess: () => router.back(),
+        onError: (err: any) => showAlert('Could not delete', err?.message || 'Try again.'),
+      }),
+    });
   };
 
   if (isLoading) {

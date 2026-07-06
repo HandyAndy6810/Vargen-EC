@@ -58,7 +58,7 @@ const SECTIONS = [
     color: '#0891b2',
     bg: '#e0f7fb',
     label: 'Customers',
-    route: '/customers/index',
+    route: '/customers',
     description: 'Your full client list — contact details, job history, and messaging.',
   },
   {
@@ -81,7 +81,13 @@ export default function OnboardingScreen() {
 
   const goTo = async (route: string) => {
     await AsyncStorage.setItem('onboarding_seen', 'true');
-    router.replace(route as any);
+    if (route.startsWith('/(tabs)')) {
+      router.replace(route as any);
+    } else {
+      // Land on the tab root first so non-tab screens keep a back destination
+      router.replace('/(tabs)');
+      router.push(route as any);
+    }
   };
 
   return (
