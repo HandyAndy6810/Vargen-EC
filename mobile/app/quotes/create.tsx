@@ -7,10 +7,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Modal,
+  Share,
 } from 'react-native';
+import * as Linking from 'expo-linking';
+import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
 import { useState, useEffect, useMemo } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
@@ -318,16 +320,50 @@ export default function QuoteCreateScreen() {
     }
   };
 
-  const handleSave = (status: 'draft' | 'sent') => {
-    if (!jobTitle.trim()) { setError('Job title is required'); return; }
+  const validateForm = (): boolean => {
+    if (!jobTitle.trim()) { setError('Job title is required'); return false; }
     if (lines.every(l => !l.price || parseFloat(l.price) <= 0)) {
-      setError('Add at least one line item with a price'); return;
+      setError('Add at least one line item with a price'); return false;
     }
     const hasBlankPricedLine = lines.some(l => parseFloat(l.price) > 0 && !l.name.trim());
-    if (hasBlankPricedLine) { setError('All priced line items need a description'); return; }
+    if (hasBlankPricedLine) { setError('All priced line items need a description'); return false; }
     setError(null);
+    return true;
+  };
+
+  const handleSave = (status: 'draft' | 'sent') => {
+    if (!validateForm()) return;
     saveMutation.mutate(status);
   };
+
+  // "Send to customer" must actually deliver something — save as sent, then
+  // open the chosen channel. Email/SMS need a linked customer with contact info.
+  const [showSendSheet, setShowSendSheet] = useState(false);
+  const handleSendPress = () => {
+    if (!validateForm()) return;
+    setShowSendSheet(true);
+  };
+
+  const sendViaChannel = (open: () => void) => {
+    saveMutation.mutate('sent', { onSuccess: open });
+  };
+
+  const sendActions: SheetAction[] = [
+    selectedCustomer?.email ? {
+      label: 'Email customer',
+      onPress: () => sendViaChannel(() =>
+        Linking.openURL(`mailto:${selectedCustomer.email}?subject=Your quote&body=Hi ${customer || 'there'},\n\nPlease find your quote attached.\n\nTotal: $${total.toFixed(2)} inc. GST\n\nThanks`)
+      ),
+    } : null,
+    selectedCustomer?.phone ? {
+      label: 'Send SMS',
+      onPress: () => sendViaChannel(() => Linking.openURL(`sms:${selectedCustomer.phone}`)),
+    } : null,
+    {
+      label: 'Share link',
+      onPress: () => sendViaChannel(() => Share.share({ message: `Quote — $${total.toFixed(2)} (inc. GST)` })),
+    },
+  ].filter(Boolean) as SheetAction[];
 
   const handleStartWithAI = () => {
     const desc = aiDescription.trim();
@@ -649,7 +685,7 @@ export default function QuoteCreateScreen() {
               <TouchableOpacity
                 style={[s.primaryBtn, { flex: 2, minWidth: 160 }]}
                 activeOpacity={0.8}
-                onPress={() => handleSave('sent')}
+                onPress={handleSendPress}
                 disabled={saveMutation.isPending}
               >
                 <Send size={16} color="#fff" strokeWidth={2} />
@@ -659,6 +695,13 @@ export default function QuoteCreateScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
+
+      <ActionSheetModal
+        visible={showSendSheet}
+        title={`Send quote — $${total.toFixed(2)} inc. GST`}
+        actions={sendActions}
+        onClose={() => setShowSendSheet(false)}
+      />
 
       {/* ── Line item edit modal ── */}
       <Modal

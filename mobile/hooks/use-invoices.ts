@@ -63,6 +63,7 @@ export function useCreateInvoice() {
       notes?: string;
       includeGST?: boolean;
       dueDate?: string;
+      status?: 'draft' | 'sent';
     }) => {
       const res = await apiRequest('POST', api.invoices.list.path, data);
       if (!res.ok) {
