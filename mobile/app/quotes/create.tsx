@@ -311,7 +311,7 @@ export default function QuoteCreateScreen() {
         message: 'Your quote details will be lost.',
         confirmLabel: 'Leave',
         destructive: true,
-        onConfirm: () => navigation.dispatch(e.data.action),
+        onConfirm: () => router.back(),
       });
     } else {
       router.back();

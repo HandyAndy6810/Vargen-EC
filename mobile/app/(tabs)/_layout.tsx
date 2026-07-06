@@ -154,8 +154,7 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <TabBar {...props} />}
-      screenOptions={{ headerShown: false }}
-      sceneContainerStyle={{ backgroundColor: c.paper }}
+      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.paper } }}
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="quotes" />

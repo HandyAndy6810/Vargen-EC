@@ -886,8 +886,8 @@ export default function AiChatScreen() {
                       <Text style={s.quoteMeta}>For {customerName.trim()}</Text>
                     ) : null}
                   </View>
-                  <View style={[s.statusPill, savedQuoteId && { backgroundColor: STATUS_COLORS[quoteStatus]?.bg ?? PAPER_DEEP }]}>
-                    <Text style={[s.statusPillText, savedQuoteId && { color: STATUS_COLORS[quoteStatus]?.text ?? MUTED_HI }]}>
+                  <View style={[s.statusPill, savedQuoteId != null ? { backgroundColor: STATUS_COLORS[quoteStatus]?.bg ?? PAPER_DEEP } : null]}>
+                    <Text style={[s.statusPillText, savedQuoteId != null ? { color: STATUS_COLORS[quoteStatus]?.text ?? MUTED_HI } : null]}>
                       {savedQuoteId ? quoteStatus.toUpperCase() : 'DRAFT'}
                     </Text>
                   </View>
