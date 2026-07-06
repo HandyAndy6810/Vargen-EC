@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router } from 'expo-router';
 import { useState, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,17 +19,6 @@ import { useCreateJob } from '@/hooks/use-jobs';
 import { useCustomers } from '@/hooks/use-customers';
 import { addDays, format, setHours, setMinutes, startOfDay } from 'date-fns';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
 
 const TIMES = ['7:00', '8:00', '9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
 const DURATIONS = [
@@ -41,6 +31,8 @@ const DURATIONS = [
 ];
 
 export default function JobCreateScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { mutate: createJob, isPending } = useCreateJob();
   const { data: customers } = useCustomers() as any;
 
@@ -103,12 +95,12 @@ export default function JobCreateScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={s.header}>
           <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-            <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+            <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.eyebrow}>New job</Text>
@@ -125,7 +117,7 @@ export default function JobCreateScreen() {
               <TextInput
                 style={[s.input, error ? { borderColor: '#d23b3b', borderWidth: 1 } : null]}
                 placeholder="e.g. Replace hot water system"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
                 value={title}
                 onChangeText={v => { setTitle(v); if (error) setError(null); }}
                 returnKeyType="next"
@@ -142,15 +134,15 @@ export default function JobCreateScreen() {
                   activeOpacity={0.7}
                   onPress={() => { setCustomerId(null); setCustSearch(''); setShowCustList(true); }}
                 >
-                  <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 14, color: INK }}>{selectedCustomer.name}</Text>
-                  <Text style={{ fontFamily: 'Manrope_500Medium', fontSize: 12, color: MUTED }}>Change</Text>
+                  <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 14, color: c.ink }}>{selectedCustomer.name}</Text>
+                  <Text style={{ fontFamily: 'Manrope_500Medium', fontSize: 12, color: c.muted }}>Change</Text>
                 </TouchableOpacity>
               ) : (
                 <>
                   <TextInput
                     style={s.input}
                     placeholder="Search customers…"
-                    placeholderTextColor={MUTED}
+                    placeholderTextColor={c.muted}
                     value={custSearch}
                     onChangeText={v => { setCustSearch(v); setShowCustList(true); }}
                     onFocus={() => setShowCustList(true)}
@@ -185,7 +177,7 @@ export default function JobCreateScreen() {
               <TextInput
                 style={s.input}
                 placeholder="Job site address"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
                 value={address}
                 onChangeText={setAddress}
               />
@@ -250,7 +242,7 @@ export default function JobCreateScreen() {
               <TextInput
                 style={[s.input, { height: 88, textAlignVertical: 'top', paddingTop: 14 }]}
                 placeholder="Gate codes, special instructions…"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
                 value={notes}
                 onChangeText={setNotes}
                 multiline
@@ -281,7 +273,7 @@ export default function JobCreateScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -291,79 +283,79 @@ const s = StyleSheet.create({
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: CARD, borderWidth: 1, borderColor: LINE_SOFT,
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft,
     alignItems: 'center', justifyContent: 'center',
   },
   eyebrow: {
     fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED, letterSpacing: 2, textTransform: 'uppercase',
+    color: c.muted, letterSpacing: 2, textTransform: 'uppercase',
   },
   title: {
     fontSize: 18, fontFamily: 'Manrope_800ExtraBold',
-    color: INK, letterSpacing: -0.4, marginTop: 2,
+    color: c.ink, letterSpacing: -0.4, marginTop: 2,
   },
   fieldGroup: { gap: 8 },
   fieldLabel: {
     fontSize: 11, fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase',
+    color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase',
   },
   input: {
-    backgroundColor: CARD, borderRadius: 14, paddingHorizontal: 16,
+    backgroundColor: c.card, borderRadius: 14, paddingHorizontal: 16,
     paddingVertical: 14, fontSize: 14, fontFamily: 'Manrope_500Medium',
-    color: INK, borderWidth: 1, borderColor: LINE_MID,
+    color: c.ink, borderWidth: 1, borderColor: c.lineMid,
   },
   custDropdown: {
-    backgroundColor: CARD, borderRadius: 14, borderWidth: 1,
-    borderColor: LINE_MID, overflow: 'hidden', marginTop: -4,
+    backgroundColor: c.card, borderRadius: 14, borderWidth: 1,
+    borderColor: c.lineMid, overflow: 'hidden', marginTop: -4,
   },
   custRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    borderTopWidth: 1, borderTopColor: LINE_SOFT,
+    borderTopWidth: 1, borderTopColor: c.lineSoft,
   },
   custAvatar: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: INK, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center',
   },
-  custAvatarText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: ORANGE },
-  custName: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: INK },
-  custSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: MUTED, marginTop: 1 },
+  custAvatarText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+  custName: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: c.ink },
+  custSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 1 },
   dayChip: {
     width: 56, height: 64, borderRadius: 16,
-    backgroundColor: CARD, borderWidth: 1, borderColor: LINE_MID,
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
     alignItems: 'center', justifyContent: 'center', gap: 2,
   },
-  dayChipActive: { backgroundColor: INK, borderColor: INK },
+  dayChipActive: { backgroundColor: c.ink, borderColor: c.ink },
   dayChipTop: {
     fontSize: 9, fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED, letterSpacing: 0.5, textTransform: 'uppercase',
+    color: c.muted, letterSpacing: 0.5, textTransform: 'uppercase',
   },
-  dayChipNum: { fontSize: 20, fontFamily: 'Manrope_800ExtraBold', color: INK, lineHeight: 24 },
+  dayChipNum: { fontSize: 20, fontFamily: 'Manrope_800ExtraBold', color: c.ink, lineHeight: 24 },
   timeChip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
-    backgroundColor: CARD, borderWidth: 1, borderColor: LINE_MID,
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
   },
-  timeChipActive: { backgroundColor: ORANGE, borderColor: ORANGE },
-  timeChipText: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: INK },
+  timeChipActive: { backgroundColor: c.orange, borderColor: c.orange },
+  timeChipText: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink },
   durationChip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
-    backgroundColor: CARD, borderWidth: 1, borderColor: LINE_MID,
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
   },
-  durationChipActive: { backgroundColor: INK, borderColor: INK },
-  durationChipText: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: INK },
+  durationChipActive: { backgroundColor: c.ink, borderColor: c.ink },
+  durationChipText: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink },
   saveBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: PAPER, borderTopWidth: 1, borderTopColor: LINE_MID,
+    backgroundColor: c.paper, borderTopWidth: 1, borderTopColor: c.lineMid,
     paddingTop: 14, paddingHorizontal: 20, paddingBottom: 34,
   },
   saveSummary: {
     fontSize: 12, fontFamily: 'Manrope_600SemiBold',
-    color: MUTED, textAlign: 'center', marginBottom: 10,
+    color: c.muted, textAlign: 'center', marginBottom: 10,
   },
   saveBtn: {
-    backgroundColor: ORANGE, borderRadius: 18, height: 54,
+    backgroundColor: c.orange, borderRadius: 18, height: 54,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: ORANGE, shadowOffset: { width: 0, height: 8 },
+    shadowColor: c.orange, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35, shadowRadius: 20, elevation: 6,
   },
   saveBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },

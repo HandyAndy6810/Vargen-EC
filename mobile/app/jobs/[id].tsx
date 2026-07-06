@@ -8,6 +8,8 @@ import {
   Linking,
   Platform,
 } from 'react-native';
+import { useMemo } from 'react';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '@/lib/dialogs';
@@ -20,25 +22,12 @@ import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Navigation, CheckCir
 import Svg, { Path, Circle, Polygon } from 'react-native-svg';
 import { format } from 'date-fns';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const BLACK       = '#0f0e0b';
-const GREEN       = '#2a9d4c';
-const GREEN_SOFT  = '#e5f6eb';
-const RED         = '#d23b3b';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
 
 const fmt = (n: number) => `$${Math.round(n).toLocaleString('en-AU')}`;
 
 export default function JobDetailScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: job, isLoading } = useJob(id ? Number(id) : 0) as any;
   const { data: customer } = useCustomer(job?.customerId || 0) as any;
@@ -57,8 +46,8 @@ export default function JobDetailScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
-        <ActivityIndicator size="large" color={ORANGE} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: c.paper, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
+        <ActivityIndicator size="large" color={c.orange} />
       </SafeAreaView>
     );
   }
@@ -101,25 +90,25 @@ export default function JobDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/calendar')} activeOpacity={0.7} style={s.backBtn}>
-          <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+          <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.eyebrow}>Job · J-{String(id).slice(-2)}</Text>
           <Text style={s.title} numberOfLines={1}>{title}</Text>
           {job?.status && (
             <View style={[s.statusBadge, job.status === 'completed' && s.statusBadgeDone, job.status === 'cancelled' && s.statusBadgeCancelled]}>
-              <Text style={[s.statusBadgeText, job.status === 'completed' && { color: GREEN }, job.status === 'cancelled' && { color: RED }]}>
+              <Text style={[s.statusBadgeText, job.status === 'completed' && { color: c.green }, job.status === 'cancelled' && { color: c.red }]}>
                 {job.status === 'completed' ? 'Completed' : job.status === 'cancelled' ? 'Cancelled' : 'Scheduled'}
               </Text>
             </View>
           )}
         </View>
         <TouchableOpacity style={s.moreBtn} activeOpacity={0.7}>
-          <MoreHorizontal size={18} color={INK} strokeWidth={2} />
+          <MoreHorizontal size={18} color={c.ink} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -131,9 +120,9 @@ export default function JobDetailScreen() {
             <Svg width="100%" height="150" viewBox="0 0 400 150" style={StyleSheet.absoluteFillObject}>
               <Path d="M0 80 Q 100 60, 200 90 T 400 100" stroke="#b4c4c8" strokeWidth="28" fill="none" />
               <Path d="M0 80 Q 100 60, 200 90 T 400 100" stroke="white" strokeWidth="3" fill="none" strokeDasharray="8,6" />
-              <Circle cx="60" cy="95" r="10" fill={ORANGE} />
+              <Circle cx="60" cy="95" r="10" fill={c.orange} />
               <Circle cx="60" cy="95" r="10" fill="none" stroke="white" strokeWidth="2" />
-              <Polygon points="330,60 340,90 350,60" fill={INK} />
+              <Polygon points="330,60 340,90 350,60" fill={c.ink} />
             </Svg>
             {address && (
               <View style={s.mapDistPill}>
@@ -171,10 +160,10 @@ export default function JobDetailScreen() {
                 {address && <Text style={s.custAddr} numberOfLines={1}>{address}</Text>}
               </View>
               <TouchableOpacity style={s.iconAction} activeOpacity={0.7} onPress={handlePhone}>
-                <Phone size={16} color={INK} strokeWidth={2} />
+                <Phone size={16} color={c.ink} strokeWidth={2} />
               </TouchableOpacity>
               <TouchableOpacity style={s.iconAction} activeOpacity={0.7} onPress={handleMessage}>
-                <MessageSquare size={16} color={INK} strokeWidth={2} />
+                <MessageSquare size={16} color={c.ink} strokeWidth={2} />
               </TouchableOpacity>
             </View>
           ) : address ? (
@@ -187,7 +176,7 @@ export default function JobDetailScreen() {
           {reconciliation?.available ? (() => {
             const r = reconciliation;
             const actualCost = (r.actualLabourCost || 0) + (r.actualMaterialCost || 0);
-            const profitColor = (r.realProfit ?? 0) > 0 ? GREEN : RED;
+            const profitColor = (r.realProfit ?? 0) > 0 ? c.green : c.red;
 
             const varianceParts: string[] = [];
             if (r.hoursVariance != null) {
@@ -273,12 +262,12 @@ export default function JobDetailScreen() {
       {/* Bottom CTA bar */}
       <View style={s.bottomBar}>
         <TouchableOpacity style={s.navBtn} activeOpacity={0.7} onPress={handleNavigate}>
-          <Navigation size={15} color={INK} strokeWidth={2.2} />
+          <Navigation size={15} color={c.ink} strokeWidth={2.2} />
           <Text style={s.navBtnText}>Navigate</Text>
         </TouchableOpacity>
         {job?.status === 'completed' ? (
           <TouchableOpacity
-            style={[s.startBtn, { backgroundColor: GREEN }]}
+            style={[s.startBtn, { backgroundColor: c.green }]}
             activeOpacity={0.8}
             onPress={() => router.push(`/invoices/create?jobId=${id}` as any)}
           >
@@ -300,7 +289,7 @@ export default function JobDetailScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -312,9 +301,9 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -322,23 +311,23 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   eyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   title: {
     fontSize: 18,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.4,
     marginTop: 2,
   },
@@ -348,14 +337,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
-    backgroundColor: ORANGE_SOFT,
+    backgroundColor: c.orangeSoft,
   },
-  statusBadgeDone: { backgroundColor: GREEN_SOFT },
+  statusBadgeDone: { backgroundColor: c.greenSoft },
   statusBadgeCancelled: { backgroundColor: '#fde5e5' },
   statusBadgeText: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE_DEEP,
+    color: c.orangeDeep,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
@@ -365,7 +354,7 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#dce6e9',
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     position: 'relative',
   },
   mapPlaceholderPill: {
@@ -380,7 +369,7 @@ const s = StyleSheet.create({
   mapPlaceholderText: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
@@ -396,94 +385,94 @@ const s = StyleSheet.create({
   mapDistText: {
     fontSize: 11,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   card: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
   },
   calIcon: {
     width: 52,
     height: 52,
     borderRadius: 14,
-    backgroundColor: ORANGE_SOFT,
+    backgroundColor: c.orangeSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   calDay: {
     fontSize: 9,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE_DEEP,
+    color: c.orangeDeep,
     letterSpacing: 1,
   },
   calNum: {
     fontSize: 18,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE_DEEP,
+    color: c.orangeDeep,
     letterSpacing: -0.4,
     lineHeight: 20,
   },
   schedTime: {
     fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   schedSub: {
     fontSize: 11,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginTop: 2,
   },
   reschedBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
   },
   reschedText: {
     fontSize: 12,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   custAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: INK,
+    backgroundColor: c.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
   custAvatarText: {
     fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
+    color: c.orange,
   },
   custName: {
     fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   custAddr: {
     fontSize: 11,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginTop: 1,
   },
   iconAction: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sectionEyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginTop: 22,
@@ -492,7 +481,7 @@ const s = StyleSheet.create({
   notesText: {
     fontSize: 13,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED_HI,
+    color: c.mutedHi,
     lineHeight: 20,
   },
   profitStatsRow: {
@@ -506,13 +495,13 @@ const s = StyleSheet.create({
   profitStatLabel: {
     fontSize: 11,
     fontFamily: 'Manrope_600SemiBold',
-    color: MUTED,
+    color: c.muted,
     marginBottom: 2,
   },
   profitStatValue: {
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.2,
   },
   profitStatPct: {
@@ -522,26 +511,26 @@ const s = StyleSheet.create({
   profitBreakdownRow: {
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: LINE_SOFT,
+    borderTopColor: c.lineSoft,
   },
   profitBreakdownText: {
     fontSize: 11.5,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED_HI,
+    color: c.mutedHi,
   },
   profitVarianceText: {
     fontSize: 12,
     fontFamily: 'Manrope_600SemiBold',
-    color: MUTED_HI,
+    color: c.mutedHi,
     marginTop: 8,
   },
   photoSlot: {
     flex: 1,
     aspectRatio: 1,
     borderRadius: 12,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     borderStyle: 'dashed',
   },
   bottomBar: {
@@ -568,9 +557,9 @@ const s = StyleSheet.create({
     flex: 1,
     height: 54,
     borderRadius: 18,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -579,18 +568,18 @@ const s = StyleSheet.create({
   navBtnText: {
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   startBtn: {
     flex: 2,
     height: 54,
     borderRadius: 18,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.4,
     shadowRadius: 24,
