@@ -268,18 +268,18 @@ export default function QuoteCreateScreen() {
         ...originalContent,
         customerName: customer, jobTitle, schedDate, expiryDate, notes, lines,
       };
-      if (originalContent.items) {
-        // Keep the AI `items` shape in sync with the edited lines
-        mergedContent.items = lines.map(l => ({
-          description: l.name,
-          quantity: parseFloat(l.qty) || 1,
-          unit: 'ea',
-          unitPrice: parseFloat(l.price) || 0,
-        }));
-        mergedContent.subtotal = subtotal;
-        mergedContent.gstAmount = gst;
-        mergedContent.totalAmount = total;
-      }
+      // Always emit the canonical `items` shape + totals — quote→invoice
+      // conversion reads content.items and would otherwise produce an
+      // invoice with zero line items from a manual quote
+      mergedContent.items = lines.map(l => ({
+        description: l.name,
+        quantity: parseFloat(l.qty) || 1,
+        unit: 'ea',
+        unitPrice: parseFloat(l.price) || 0,
+      }));
+      mergedContent.subtotal = subtotal;
+      mergedContent.gstAmount = gst;
+      mergedContent.totalAmount = total;
       const body = {
         totalAmount: String(total),
         status,

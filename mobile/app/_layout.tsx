@@ -90,7 +90,12 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as any;
-      if (data?.screen) router.push(data.screen);
+      // Only navigate to known route prefixes — payload is server-controlled
+      // but defense-in-depth against a malformed push
+      const ALLOWED = ['/quotes', '/invoices', '/jobs', '/customers', '/(tabs)', '/calendar', '/receipts'];
+      if (typeof data?.screen === 'string' && ALLOWED.some((p) => data.screen.startsWith(p))) {
+        router.push(data.screen);
+      }
     });
 
     return () => {

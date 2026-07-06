@@ -1045,8 +1045,22 @@ CRITICAL RULES — follow these exactly:
           unitPrice: item.unitPrice,
           total: (item.quantity || 1) * (item.unitPrice || 0),
         }));
-        subtotal = content.subtotal || Number(quote.totalAmount) || 0;
-        gstAmount = content.gstAmount || 0;
+        // Older manual quotes stored `lines` ({name, qty, price}) without an
+        // `items` array — convert those so the invoice isn't created empty
+        if (items.length === 0 && Array.isArray(content.lines)) {
+          items = content.lines.map((l: any) => ({
+            description: l.name,
+            quantity: Number(l.qty) || 1,
+            unit: "each",
+            unitPrice: Number(l.price) || 0,
+            total: (Number(l.qty) || 1) * (Number(l.price) || 0),
+          }));
+          subtotal = items.reduce((s: number, i: any) => s + i.total, 0);
+          gstAmount = +(subtotal * 0.1).toFixed(2);
+        } else {
+          subtotal = content.subtotal || Number(quote.totalAmount) || 0;
+          gstAmount = content.gstAmount || 0;
+        }
         notes = content.notes || "";
       } catch {
         subtotal = Number(quote.totalAmount) || 0;
