@@ -59,7 +59,13 @@ export default function ReceiptsScreen() {
   const renderItem = ({ item }: { item: any }) => {
     const catStyle = CATEGORY_COLORS[item.category] ?? CATEGORY_COLORS.Other;
     return (
-      <View style={s.receiptCard}>
+      <TouchableOpacity
+        style={s.receiptCard}
+        activeOpacity={0.7}
+        onPress={() => router.push(`/receipts/${item.id}` as any)}
+        accessibilityRole="button"
+        accessibilityLabel={`Open receipt from ${item.vendor || 'unknown vendor'}`}
+      >
         <View style={s.cardTop}>
           <View style={{ flex: 1 }}>
             <Text style={s.vendorText} numberOfLines={1}>
@@ -105,7 +111,7 @@ export default function ReceiptsScreen() {
             <Trash2 size={15} color={c.muted} strokeWidth={2} />
           </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 

@@ -47,3 +47,34 @@ export function useDeleteReceipt() {
     },
   });
 }
+
+export function useReceipt(id: number) {
+  return useQuery({
+    queryKey: ['/api/receipts', id],
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/receipts/${id}`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error('Failed to fetch receipt');
+      return res.json();
+    },
+    enabled: !!id,
+  });
+}
+
+export function useUpdateReceipt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: number } & Record<string, any>) => {
+      const res = await apiRequest('PATCH', `/api/receipts/${id}`, updates);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || 'Failed to update receipt');
+      }
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/receipts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/receipts', vars.id] });
+    },
+  });
+}

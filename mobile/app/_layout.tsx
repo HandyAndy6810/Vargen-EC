@@ -147,6 +147,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="customers/compose" />
           <Stack.Screen name="receipts/index" />
           <Stack.Screen name="receipts/scan" />
+          <Stack.Screen name="receipts/[id]" />
           <Stack.Screen name="jobs/create" />
           <Stack.Screen name="price-book" />
           <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
