@@ -10,8 +10,9 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Sparkles, Send, Plus, Trash2 } from 'lucide-react-native';
 import { useQuote } from '@/hooks/use-quotes';
@@ -23,20 +24,6 @@ import { addDays, format } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 import { apiRequest } from '@/lib/api';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const BLACK       = '#0f0e0b';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
-const RED_SOFT    = '#fde5e5';
-const RED         = '#d23b3b';
 
 interface LineItem {
   description: string;
@@ -51,6 +38,8 @@ interface AiSuggestion {
 }
 
 export default function InvoiceCreateScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { quoteId, jobId } = useLocalSearchParams<{ quoteId?: string; jobId?: string }>();
   const quoteIdNum = quoteId ? Number(quoteId) : 0;
   const isFromQuote = !!quoteIdNum;
@@ -263,12 +252,12 @@ export default function InvoiceCreateScreen() {
   }, [navigation, jobTitle, customerName, notes, labourRate, labourHours, lines]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={s.header}>
           <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-            <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+            <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.eyebrow}>{isFromQuote ? 'Convert quote' : 'New invoice'}</Text>
@@ -294,7 +283,7 @@ export default function InvoiceCreateScreen() {
             <>
               {quoteLoading ? (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                  <ActivityIndicator color={ORANGE} />
+                  <ActivityIndicator color={c.orange} />
                 </View>
               ) : (
                 <>
@@ -322,7 +311,7 @@ export default function InvoiceCreateScreen() {
                       `Due date: ${dueDateStr} (${paymentTermsDays}-day terms)`,
                       'Quote status updated to "Invoiced"',
                     ].map((item, i) => (
-                      <View key={i} style={[s.infoRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                      <View key={i} style={[s.infoRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                         <Text style={s.infoDot}>✓</Text>
                         <Text style={s.infoText}>{item}</Text>
                       </View>
@@ -341,7 +330,7 @@ export default function InvoiceCreateScreen() {
               <TextInput
                 style={s.input}
                 placeholder="e.g. Bathroom renovation — supply & install"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
                 value={jobTitle}
                 onChangeText={v => { setJobTitle(v); setSuggestedForTitle(''); }}
                 onBlur={onJobTitleBlur}
@@ -352,7 +341,7 @@ export default function InvoiceCreateScreen() {
               <TextInput
                 style={s.input}
                 placeholder="Customer name (optional)"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
                 value={customerName}
                 onChangeText={setCustomerName}
                 returnKeyType="next"
@@ -371,7 +360,7 @@ export default function InvoiceCreateScreen() {
                         value={labourRate}
                         onChangeText={setLabourRate}
                         placeholder="0"
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         keyboardType="decimal-pad"
                         selectTextOnFocus
                       />
@@ -387,7 +376,7 @@ export default function InvoiceCreateScreen() {
                         value={labourHours}
                         onChangeText={setLabourHours}
                         placeholder="0"
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         keyboardType="decimal-pad"
                         selectTextOnFocus
                       />
@@ -405,21 +394,21 @@ export default function InvoiceCreateScreen() {
 
               <Text style={s.sectionEyebrow}>Line items</Text>
               <View style={[s.card, { padding: 0 }]}>
-                <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: LINE_SOFT }}>
-                  <Text style={{ fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>Description</Text>
+                <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: c.lineSoft }}>
+                  <Text style={{ fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>Description</Text>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <Text style={{ flex: 1, fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase' }}>Qty</Text>
-                    <Text style={{ flex: 2, fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase' }}>Unit price</Text>
-                    <Text style={{ flex: 1, fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase' }}>Total</Text>
+                    <Text style={{ flex: 1, fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Qty</Text>
+                    <Text style={{ flex: 2, fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Unit price</Text>
+                    <Text style={{ flex: 1, fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>Total</Text>
                   </View>
                 </View>
                 {lines.map((line, i) => (
-                  <View key={i} style={[s.lineEditRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                  <View key={i} style={[s.lineEditRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                     <View style={{ flex: 1, gap: 6 }}>
                       <TextInput
                         style={s.lineInput}
                         placeholder="Description"
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         value={line.description}
                         onChangeText={v => updateLine(i, 'description', v)}
                       />
@@ -427,7 +416,7 @@ export default function InvoiceCreateScreen() {
                         <TextInput
                           style={[s.lineInput, { flex: 1 }]}
                           placeholder="Qty"
-                          placeholderTextColor={MUTED}
+                          placeholderTextColor={c.muted}
                           value={line.qty}
                           onChangeText={v => updateLine(i, 'qty', v)}
                           keyboardType="decimal-pad"
@@ -435,7 +424,7 @@ export default function InvoiceCreateScreen() {
                         <TextInput
                           style={[s.lineInput, { flex: 2 }]}
                           placeholder="Unit price"
-                          placeholderTextColor={MUTED}
+                          placeholderTextColor={c.muted}
                           value={line.unitPrice}
                           onChangeText={v => updateLine(i, 'unitPrice', v)}
                           keyboardType="decimal-pad"
@@ -449,13 +438,13 @@ export default function InvoiceCreateScreen() {
                     </View>
                     {lines.length > 1 ? (
                       <TouchableOpacity onPress={() => removeLine(i)} style={s.removeBtn} activeOpacity={0.7}>
-                        <Trash2 size={14} color={MUTED} strokeWidth={2} />
+                        <Trash2 size={14} color={c.muted} strokeWidth={2} />
                       </TouchableOpacity>
                     ) : null}
                   </View>
                 ))}
                 <TouchableOpacity style={s.addLineBtn} onPress={addLine} activeOpacity={0.7}>
-                  <Plus size={14} color={ORANGE_DEEP} strokeWidth={2.5} />
+                  <Plus size={14} color={c.orangeDeep} strokeWidth={2.5} />
                   <Text style={s.addLineBtnText}>Add line item</Text>
                 </TouchableOpacity>
               </View>
@@ -463,14 +452,14 @@ export default function InvoiceCreateScreen() {
               {/* AI suggestions */}
               {loadingSuggestions && (
                 <View style={s.suggestionsLoading}>
-                  <ActivityIndicator size="small" color={ORANGE} />
+                  <ActivityIndicator size="small" color={c.orange} />
                   <Text style={s.suggestionsLoadingText}>AI is generating line item suggestions…</Text>
                 </View>
               )}
               {!loadingSuggestions && aiSuggestions.length > 0 && (
                 <View style={{ marginTop: 12 }}>
                   <View style={s.suggestionsHeader}>
-                    <Sparkles size={13} color={ORANGE} strokeWidth={2} />
+                    <Sparkles size={13} color={c.orange} strokeWidth={2} />
                     <Text style={s.suggestionsTitle}>AI suggestions — tap to add</Text>
                   </View>
                   <View style={s.suggestionsCard}>
@@ -478,7 +467,7 @@ export default function InvoiceCreateScreen() {
                       <TouchableOpacity
                         key={i}
                         activeOpacity={0.7}
-                        style={[s.suggestionRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}
+                        style={[s.suggestionRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}
                         onPress={() => addSuggestion(sug)}
                       >
                         <View style={{ flex: 1 }}>
@@ -488,7 +477,7 @@ export default function InvoiceCreateScreen() {
                           </Text>
                         </View>
                         <View style={s.suggestionAddBtn}>
-                          <Plus size={12} color={ORANGE_DEEP} strokeWidth={2.5} />
+                          <Plus size={12} color={c.orangeDeep} strokeWidth={2.5} />
                         </View>
                       </TouchableOpacity>
                     ))}
@@ -513,7 +502,7 @@ export default function InvoiceCreateScreen() {
               <TextInput
                 style={[s.input, { minHeight: 80, textAlignVertical: 'top', paddingTop: 14 }]}
                 placeholder="Payment terms, job details, etc."
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
                 value={notes}
                 onChangeText={setNotes}
                 multiline
@@ -569,7 +558,7 @@ export default function InvoiceCreateScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -581,28 +570,28 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   eyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   title: {
     fontSize: 20,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.5,
     marginTop: 2,
   },
   errorBox: {
-    backgroundColor: RED_SOFT,
+    backgroundColor: c.redSoft,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
@@ -610,10 +599,10 @@ const s = StyleSheet.create({
   errorText: {
     fontSize: 13,
     fontFamily: 'Manrope_600SemiBold',
-    color: RED,
+    color: c.red,
   },
   prefillCard: {
-    backgroundColor: ORANGE_SOFT,
+    backgroundColor: c.orangeSoft,
     borderRadius: 18,
     padding: 16,
     flexDirection: 'row',
@@ -627,43 +616,43 @@ const s = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     alignItems: 'center',
     justifyContent: 'center',
   },
   prefillEyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE_DEEP,
+    color: c.orangeDeep,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   prefillTitle: {
     fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     marginTop: 2,
   },
   prefillSub: {
     fontSize: 11,
     fontFamily: 'Manrope_700Bold',
-    color: ORANGE_DEEP,
+    color: c.orangeDeep,
     marginTop: 1,
   },
   sectionEyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginTop: 22,
     marginBottom: 8,
   },
   infoCard: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     overflow: 'hidden',
   },
   infoRow: {
@@ -675,31 +664,31 @@ const s = StyleSheet.create({
   },
   infoDot: {
     fontSize: 13,
-    color: ORANGE,
+    color: c.orange,
     fontFamily: 'Manrope_800ExtraBold',
   },
   infoText: {
     flex: 1,
     fontSize: 13,
     fontFamily: 'Manrope_600SemiBold',
-    color: INK,
+    color: c.ink,
   },
   input: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
     fontFamily: 'Manrope_500Medium',
-    color: INK,
+    color: c.ink,
   },
   card: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     overflow: 'hidden',
   },
   labourRow: {
@@ -709,13 +698,13 @@ const s = StyleSheet.create({
   },
   labourDivider: {
     width: 1,
-    backgroundColor: LINE_SOFT,
+    backgroundColor: c.lineSoft,
     marginVertical: 4,
   },
   labourLabel: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     textAlign: 'center',
@@ -730,19 +719,19 @@ const s = StyleSheet.create({
   labourUnit: {
     fontSize: 11,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED,
+    color: c.muted,
   },
   labourInput: {
     fontSize: 20,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     textAlign: 'center',
     minWidth: 50,
   },
   labourTotal: {
     fontSize: 17,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
+    color: c.orange,
     marginTop: 2,
   },
   lineEditRow: {
@@ -752,20 +741,20 @@ const s = StyleSheet.create({
     padding: 14,
   },
   lineInput: {
-    backgroundColor: PAPER,
+    backgroundColor: c.paper,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 13,
     fontFamily: 'Manrope_500Medium',
-    color: INK,
+    color: c.ink,
   },
   lineTotal: {
     flex: 1,
     height: 40,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -774,13 +763,13 @@ const s = StyleSheet.create({
   lineTotalText: {
     fontSize: 12,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   removeBtn: {
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -792,12 +781,12 @@ const s = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: LINE_SOFT,
+    borderTopColor: c.lineSoft,
   },
   addLineBtnText: {
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE_DEEP,
+    color: c.orangeDeep,
   },
   suggestionsLoading: {
     flexDirection: 'row',
@@ -809,7 +798,7 @@ const s = StyleSheet.create({
   suggestionsLoadingText: {
     fontSize: 12,
     fontFamily: 'Manrope_600SemiBold',
-    color: MUTED,
+    color: c.muted,
   },
   suggestionsHeader: {
     flexDirection: 'row',
@@ -821,12 +810,12 @@ const s = StyleSheet.create({
   suggestionsTitle: {
     fontSize: 11,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE_DEEP,
+    color: c.orangeDeep,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   suggestionsCard: {
-    backgroundColor: ORANGE_SOFT,
+    backgroundColor: c.orangeSoft,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(242,106,42,0.2)',
@@ -842,19 +831,19 @@ const s = StyleSheet.create({
   suggestionDesc: {
     fontSize: 13,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
     marginBottom: 2,
   },
   suggestionMeta: {
     fontSize: 11,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED_HI,
+    color: c.mutedHi,
   },
   suggestionAddBtn: {
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: ORANGE_SOFT,
+    backgroundColor: c.orangeSoft,
     borderWidth: 1,
     borderColor: 'rgba(242,106,42,0.35)',
     alignItems: 'center',
@@ -866,7 +855,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 16,
     borderRadius: 18,
-    backgroundColor: BLACK,
+    backgroundColor: c.ink,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -887,7 +876,7 @@ const s = StyleSheet.create({
   totalBandAmount: {
     fontSize: 28,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
+    color: c.orange,
     letterSpacing: -1,
   },
   bottomBar: {
@@ -909,27 +898,27 @@ const s = StyleSheet.create({
     flex: 1,
     height: 54,
     borderRadius: 18,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     alignItems: 'center',
     justifyContent: 'center',
   },
   draftBtnText: {
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   sendBtn: {
     flex: 2,
     height: 54,
     borderRadius: 18,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.4,
     shadowRadius: 24,

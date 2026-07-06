@@ -102,7 +102,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
     };
   }, []);
 
-  if (!fontsLoaded || !themeReady || !authReady) return <View style={{ flex: 1, backgroundColor: '#0F0905' }} />;
+  if (!fontsLoaded || !themeReady || !authReady) return <View style={{ flex: 1, backgroundColor: '#0D0E11' }} />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
