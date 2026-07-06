@@ -1,5 +1,6 @@
 import { Modal, View, Text, TouchableOpacity, TouchableWithoutFeedback, StyleSheet } from 'react-native';
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 
 export interface SheetAction {
   label: string;
@@ -23,6 +24,8 @@ export function ActionSheetModal({
   actions: SheetAction[];
   onClose: () => void;
 }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose} accessibilityLabel="Close menu">
@@ -56,13 +59,13 @@ export function ActionSheetModal({
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   sheet: {
-    backgroundColor: '#ffffff',
+    backgroundColor: c.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 16,
@@ -73,14 +76,14 @@ const s = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(20,19,16,0.15)',
+    backgroundColor: c.lineMid,
     alignSelf: 'center',
     marginBottom: 10,
   },
   title: {
     fontSize: 13,
     fontFamily: 'Manrope_700Bold',
-    color: 'rgba(20,19,16,0.55)',
+    color: c.muted,
     textAlign: 'center',
     paddingVertical: 8,
   },
@@ -93,27 +96,27 @@ const s = StyleSheet.create({
   },
   rowBorder: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(20,19,16,0.08)',
+    borderTopColor: c.lineSoft,
   },
   rowText: {
     fontSize: 15,
     fontFamily: 'Manrope_700Bold',
-    color: '#141310',
+    color: c.ink,
   },
   rowTextDestructive: {
-    color: '#d23b3b',
+    color: c.red,
   },
   cancelBtn: {
     marginTop: 10,
     height: 52,
     borderRadius: 16,
-    backgroundColor: 'rgba(20,19,16,0.06)',
+    backgroundColor: c.paperDeep,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelText: {
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
-    color: '#141310',
+    color: c.ink,
   },
 });

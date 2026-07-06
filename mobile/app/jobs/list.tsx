@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useState, useMemo } from 'react';
 import { router } from 'expo-router';
 import { format, isToday, isFuture, isPast } from 'date-fns';
@@ -13,34 +14,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
 import { ChevronLeft, Plus } from 'lucide-react-native';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
 const CREAM       = '#fff8ef';
-const CARD        = '#ffffff';
-const BLACK       = '#0f0e0b';
-const BLUE        = '#1f6feb';
-const GREEN       = '#2a9d4c';
-const GREEN_SOFT  = '#e5f6eb';
 const GREEN_BORDER = '#bde2c9';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
 
 type FilterKey = 'today' | 'upcoming' | 'past' | 'all';
 
-const STATUS_PILL: Record<string, { bg: string; fg: string; label: string }> = {
-  scheduled:   { bg: PAPER_DEEP,  fg: MUTED_HI, label: 'Scheduled' },
-  pending:     { bg: ORANGE_SOFT, fg: ORANGE_DEEP, label: 'Pending' },
-  in_progress: { bg: ORANGE_SOFT, fg: ORANGE_DEEP, label: 'In progress' },
-  completed:   { bg: GREEN_SOFT,  fg: GREEN,    label: 'Completed' },
-  cancelled:   { bg: PAPER_DEEP,  fg: MUTED,    label: 'Cancelled' },
-};
+const statusPillFor = (c: Colors): Record<string, { bg: string; fg: string; label: string }> => ({
+  scheduled:   { bg: c.paperDeep,  fg: c.mutedHi, label: 'Scheduled' },
+  pending:     { bg: c.orangeSoft, fg: c.orangeDeep, label: 'Pending' },
+  in_progress: { bg: c.orangeSoft, fg: c.orangeDeep, label: 'In progress' },
+  completed:   { bg: c.greenSoft,  fg: c.green,    label: 'Completed' },
+  cancelled:   { bg: c.paperDeep,  fg: c.muted,    label: 'Cancelled' },
+});
 
 export default function JobsListScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
+  const STATUS_PILL = useMemo(() => statusPillFor(c), [c]);
   const [filter, setFilter] = useState<FilterKey>('today');
   const { data: jobs, isLoading } = useJobs();
 
@@ -51,11 +41,20 @@ export default function JobsListScreen() {
     [allJobs]
   );
   const upcomingJobs = useMemo(() =>
-    allJobs.filter((j: any) => j.scheduledDate && isFuture(new Date(j.scheduledDate)) && !isToday(new Date(j.scheduledDate)) && j.status !== 'completed' && j.status !== 'cancelled'),
+    // Includes overdue: past-dated jobs that were never completed/cancelled
+    // must stay in the tradie's face, not vanish between filters
+    allJobs.filter((j: any) =>
+      j.status !== 'completed' && j.status !== 'cancelled' &&
+      (
+        (j.scheduledDate && isFuture(new Date(j.scheduledDate)) && !isToday(new Date(j.scheduledDate))) ||
+        (j.scheduledDate && isPast(new Date(j.scheduledDate)) && !isToday(new Date(j.scheduledDate))) ||
+        !j.scheduledDate
+      )
+    ),
     [allJobs]
   );
   const pastJobs = useMemo(() =>
-    allJobs.filter((j: any) => !j.scheduledDate || isPast(new Date(j.scheduledDate))).filter((j: any) => j.status === 'completed' || j.status === 'cancelled'),
+    allJobs.filter((j: any) => j.status === 'completed' || j.status === 'cancelled'),
     [allJobs]
   );
 
@@ -72,23 +71,23 @@ export default function JobsListScreen() {
 
   const timeDots = todayJobs.slice(0, 3).map((j: any, i: number) => ({
     t: j.scheduledDate ? format(new Date(j.scheduledDate), 'h:mm') : '--',
-    c: i === 0 ? ORANGE : i === 1 ? INK : BLUE,
+    c: i === 0 ? c.orange : i === 1 ? c.ink : c.blue,
   }));
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
-        <ActivityIndicator size="large" color={ORANGE} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: c.paper, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
+        <ActivityIndicator size="large" color={c.orange} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-          <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+          <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.eyebrow}>Jobs</Text>
@@ -118,7 +117,7 @@ export default function JobsListScreen() {
                     <Text style={s.timePillText}>{dot.t}</Text>
                   </View>
                   {i < timeDots.length - 1 && (
-                    <View style={{ flex: 1, height: 2, backgroundColor: PAPER_DEEP, borderRadius: 999 }} />
+                    <View style={{ flex: 1, height: 2, backgroundColor: c.paperDeep, borderRadius: 999 }} />
                   )}
                 </View>
               ))}
@@ -151,18 +150,18 @@ export default function JobsListScreen() {
       >
         {filtered.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 56, paddingHorizontal: 24 }}>
-            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: PAPER_DEEP, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: c.paperDeep, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <Text style={{ fontSize: 28 }}>{filter === 'past' ? '📦' : '🔧'}</Text>
             </View>
-            <Text style={{ fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: INK, textAlign: 'center' }}>
+            <Text style={{ fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: c.ink, textAlign: 'center' }}>
               {filter === 'today' ? 'Nothing on today' : filter === 'upcoming' ? 'No upcoming jobs' : filter === 'past' ? 'No past jobs' : 'No jobs yet'}
             </Text>
-            <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+            <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
               {filter === 'past' ? 'Completed jobs will appear here.' : 'Schedule a job to see it on the calendar and get directions.'}
             </Text>
             {filter !== 'past' && (
               <TouchableOpacity
-                style={{ marginTop: 20, backgroundColor: ORANGE, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12 }}
+                style={{ marginTop: 20, backgroundColor: c.orange, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12 }}
                 activeOpacity={0.85}
                 onPress={() => router.push('/jobs/create' as any)}
               >
@@ -186,7 +185,7 @@ export default function JobsListScreen() {
                 <View style={[s.jobCard, isNext && s.jobCardNext]}>
                   {isNext && <View style={s.jobCardGlow} />}
 
-                  <View style={[s.timeCol, { borderRightColor: isNext ? 'rgba(255,255,255,0.12)' : LINE_SOFT }]}>
+                  <View style={[s.timeCol, { borderRightColor: isNext ? 'rgba(255,255,255,0.12)' : c.lineSoft }]}>
                     {timeStr ? (
                       <>
                         <Text style={[s.timeColMain, isNext && { color: '#fff' }]}>
@@ -231,7 +230,7 @@ export default function JobsListScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -243,16 +242,16 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   eyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 2,
@@ -260,7 +259,7 @@ const s = StyleSheet.create({
   title: {
     fontSize: 22,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.5,
     marginTop: 2,
   },
@@ -268,10 +267,10 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.33,
     shadowRadius: 14,
@@ -280,28 +279,28 @@ const s = StyleSheet.create({
   heroCard: {
     backgroundColor: CREAM,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     borderRadius: 22,
     padding: 18,
   },
   heroEyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   heroCount: {
     fontSize: 42,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -1.4,
     lineHeight: 46,
   },
   heroMeta: {
     fontSize: 14,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED_HI,
+    color: c.mutedHi,
   },
   timePill: {
     paddingHorizontal: 10,
@@ -324,26 +323,26 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
   },
   tabActive: {
-    backgroundColor: INK,
-    borderColor: INK,
+    backgroundColor: c.ink,
+    borderColor: c.ink,
   },
   tabText: {
     fontSize: 12,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED_HI,
+    color: c.mutedHi,
   },
   tabTextActive: {
     color: '#fff',
   },
   jobCard: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
@@ -356,7 +355,7 @@ const s = StyleSheet.create({
     elevation: 1,
   },
   jobCardNext: {
-    backgroundColor: BLACK,
+    backgroundColor: c.ink,
     borderColor: 'transparent',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 14 },
@@ -371,7 +370,7 @@ const s = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: `${ORANGE}88`,
+    backgroundColor: `${c.orange}88`,
     opacity: 0.4,
   },
   timeCol: {
@@ -384,13 +383,13 @@ const s = StyleSheet.create({
   timeColMain: {
     fontSize: 16,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.3,
   },
   timeColSub: {
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginTop: 2,
@@ -405,13 +404,13 @@ const s = StyleSheet.create({
   jobTitle: {
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.3,
   },
   jobMeta: {
     fontSize: 11,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginTop: 2,
   },
   statusPill: {

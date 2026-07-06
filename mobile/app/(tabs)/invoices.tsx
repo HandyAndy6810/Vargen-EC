@@ -2,6 +2,7 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -57,7 +58,7 @@ function makeStyles(c: Colors) {
 
 export default function InvoicesScreen() {
   const { colors: c } = useTheme();
-  const s = makeStyles(c);
+  const s = useMemo(() => makeStyles(c), [c]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
@@ -115,7 +116,7 @@ export default function InvoicesScreen() {
       <View style={s.header}>
         <View style={{ flex: 1 }}>
           <Text style={s.eyebrow}>Invoices</Text>
-          <Text style={s.title}>$ getting paid</Text>
+          <Text style={s.title}>Invoices</Text>
         </View>
         <TouchableOpacity style={s.addBtn} onPress={() => router.push('/invoices/create')} activeOpacity={0.8}>
           <Plus size={20} color="#fff" strokeWidth={2.5} />
@@ -158,23 +159,24 @@ export default function InvoicesScreen() {
         })}
       </ScrollView>
 
-      <ScrollView
+      <FlatList
+        data={filtered}
+        keyExtractor={(inv: any) => String(inv.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 130, gap: 10 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
-      >
-        {isError && (
+        ListHeaderComponent={isError ? (
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={onRefresh}
-            style={{ backgroundColor: '#fde5e5', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#f0a0a0' }}
+            style={{ backgroundColor: c.redSoft, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.red }}
           >
-            <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: '#d23b3b' }}>
+            <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.red }}>
               Couldn't load invoices — tap to retry
             </Text>
           </TouchableOpacity>
-        )}
-        {filtered.length === 0 ? (
+        ) : null}
+        ListEmptyComponent={
           <View style={{ alignItems: 'center', paddingVertical: 56, paddingHorizontal: 24 }}>
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: c.paperDeep, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <Text style={{ fontSize: 28 }}>🧾</Text>
@@ -195,8 +197,8 @@ export default function InvoicesScreen() {
               </TouchableOpacity>
             )}
           </View>
-        ) : (
-          filtered.map((inv: any) => {
+        }
+        renderItem={({ item: inv }: { item: any }) => {
             const pill = STATUS_PILL[inv.status] ?? STATUS_PILL.draft;
             const amount = parseFloat(inv.totalAmount || '0');
             const num = inv.invoiceNumber || String(inv.id).slice(-3);
@@ -221,9 +223,8 @@ export default function InvoicesScreen() {
                 </View>
               </TouchableOpacity>
             );
-          })
-        )}
-      </ScrollView>
+          }}
+      />
     </SafeAreaView>
   );
 }

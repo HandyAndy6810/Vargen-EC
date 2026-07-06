@@ -1,29 +1,37 @@
-import React from 'react';
-import { TouchableOpacity, Text, type TouchableOpacityProps } from 'react-native';
+import { TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { useTheme } from '@/hooks/use-theme';
+import { radius, type as t, HIT } from '@/theme/tokens';
 
-interface SecondaryButtonProps extends TouchableOpacityProps {
+export function SecondaryButton({ label, onPress, disabled, loading }: {
   label: string;
-}
-
-export function SecondaryButton({ label, style, ...rest }: SecondaryButtonProps) {
+  onPress: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+}) {
+  const { colors: c } = useTheme();
   return (
     <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled || loading}
       activeOpacity={0.7}
-      style={[
-        {
-          backgroundColor: '#f0ece4',
-          borderRadius: 14,
-          paddingVertical: 15,
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-        style,
-      ]}
-      {...rest}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
+      style={{
+        minHeight: HIT + 10,
+        borderRadius: radius.lg,
+        backgroundColor: c.card,
+        borderWidth: 1,
+        borderColor: c.lineMid,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: disabled ? 0.5 : 1,
+        paddingHorizontal: 20,
+      }}
     >
-      <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: '#1c1917', letterSpacing: -0.2 }}>
-        {label}
-      </Text>
+      {loading
+        ? <ActivityIndicator color={c.orange} />
+        : <Text style={{ fontSize: t.body, fontFamily: 'Manrope_700Bold', color: c.ink }}>{label}</Text>}
     </TouchableOpacity>
   );
 }

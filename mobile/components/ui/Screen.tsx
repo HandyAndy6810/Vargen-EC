@@ -1,28 +1,13 @@
-import React from 'react';
-import { ScrollView, View, type ScrollViewProps } from 'react-native';
+import { View, type ViewStyle } from 'react-native';
+import type { ReactNode } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '@/hooks/use-theme';
 
-interface ScreenProps extends ScrollViewProps {
-  children: React.ReactNode;
-  scroll?: boolean;
-  padBottom?: boolean;
-}
-
-export function Screen({ children, scroll = true, padBottom = true, style, ...rest }: ScreenProps) {
-  const inner = (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#faf9f7' }} edges={['top']}>
-      {scroll ? (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[{ paddingBottom: padBottom ? 120 : 24 }, style]}
-          {...rest}
-        >
-          {children}
-        </ScrollView>
-      ) : (
-        <View style={[{ flex: 1 }, style]}>{children}</View>
-      )}
+export function Screen({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+  const { colors: c } = useTheme();
+  return (
+    <SafeAreaView style={[{ flex: 1, backgroundColor: c.paper }, style]} edges={['top']}>
+      <View style={{ flex: 1 }}>{children}</View>
     </SafeAreaView>
   );
-  return inner;
 }

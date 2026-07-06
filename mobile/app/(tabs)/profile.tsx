@@ -11,7 +11,7 @@ import {
   Pressable,
   Platform,
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
@@ -216,7 +216,7 @@ type SettingItem = {
 
 function SettingsGroup({ title, items }: { title: string; items: SettingItem[] }) {
   const { colors: c } = useTheme();
-  const s = makeStyles(c);
+  const s = useMemo(() => makeStyles(c), [c]);
   return (
     <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
       <Text style={s.groupEyebrow}>{title}</Text>
@@ -253,7 +253,7 @@ function SettingsGroup({ title, items }: { title: string; items: SettingItem[] }
 // ── Xero section ──────────────────────────────────────────────────────────────
 function XeroSection() {
   const { colors: c } = useTheme();
-  const s = makeStyles(c);
+  const s = useMemo(() => makeStyles(c), [c]);
   const xs = makeXeroStyles(c);
   const { data: xero, isLoading } = useXeroStatus();
   const disconnect = useXeroDisconnect();
@@ -411,7 +411,7 @@ export default function ProfileScreen() {
     }
   };
 
-  const s = makeStyles(c);
+  const s = useMemo(() => makeStyles(c), [c]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>

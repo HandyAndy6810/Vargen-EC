@@ -10,27 +10,19 @@ import {
   Alert,
   KeyboardAvoidingView,
 } from 'react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Check, Sparkles, ChevronRight } from 'lucide-react-native';
 import { useJob, useUpdateJob } from '@/hooks/use-jobs';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, buildUrl } from '@shared/mobile-routes';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
-const ORANGE     = '#f26a2a';
-const INK        = '#141310';
-const PAPER      = '#f7f4ee';
-const PAPER_DEEP = '#efe9dd';
-const CARD       = '#ffffff';
-const GREEN      = '#2a9d4c';
-const GREEN_SOFT = '#e5f6eb';
-const MUTED      = 'rgba(20,19,16,0.55)';
-const MUTED_HI   = 'rgba(20,19,16,0.72)';
-const LINE_SOFT  = 'rgba(20,19,16,0.08)';
-const LINE_MID   = 'rgba(20,19,16,0.14)';
 
 export default function JobCompleteScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: job, isLoading } = useJob(id ? Number(id) : 0) as any;
   const { mutate: updateJob, isPending } = useUpdateJob();
@@ -47,8 +39,8 @@ export default function JobCompleteScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
-        <ActivityIndicator size="large" color={ORANGE} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: c.paper, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
+        <ActivityIndicator size="large" color={c.orange} />
       </SafeAreaView>
     );
   }
@@ -92,11 +84,11 @@ export default function JobCompleteScreen() {
 
   if (step === 'form') {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-              <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+              <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
             </TouchableOpacity>
           </View>
 
@@ -116,7 +108,7 @@ export default function JobCompleteScreen() {
                 <TextInput
                   style={[s.input, error ? { borderColor: '#d23b3b', borderWidth: 1 } : null]}
                   placeholder="e.g. 2.5"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                   value={hoursWorked}
                   onChangeText={v => { setHoursWorked(v); if (error) setError(null); }}
                   keyboardType="decimal-pad"
@@ -130,7 +122,7 @@ export default function JobCompleteScreen() {
                 <TextInput
                   style={[s.input, { height: 100, textAlignVertical: 'top', paddingTop: 14 }]}
                   placeholder="What was done, any issues found…"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                   value={completionNotes}
                   onChangeText={setCompletionNotes}
                   multiline
@@ -140,7 +132,7 @@ export default function JobCompleteScreen() {
           </ScrollView>
 
           <View style={s.bottomBar}>
-            <TouchableOpacity style={s.finishBtn} activeOpacity={0.7} onPress={() => router.back()}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" style={s.finishBtn} activeOpacity={0.7} onPress={() => router.back()}>
               <Text style={s.finishBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.makeInvoiceBtn} activeOpacity={0.8} onPress={handleFinish} disabled={isPending}>
@@ -162,22 +154,22 @@ export default function JobCompleteScreen() {
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-          <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+          <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
         <View style={s.hero}>
           <View style={s.checkCircle}>
-            <Check size={40} color={GREEN} strokeWidth={2.5} />
+            <Check size={40} color={c.green} strokeWidth={2.5} />
           </View>
           <Text style={s.heroEyebrow}>Job complete</Text>
           <Text style={s.heroTitle}>
             {title}{'\n'}
-            <Text style={{ color: ORANGE }}>wrapped.</Text>
+            <Text style={{ color: c.orange }}>wrapped.</Text>
           </Text>
         </View>
 
@@ -187,7 +179,7 @@ export default function JobCompleteScreen() {
               {summaryRows.map((row, i) => (
                 <View
                   key={row.label}
-                  style={[s.summaryRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}
+                  style={[s.summaryRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}
                 >
                   <Text style={s.summaryLabel}>{row.label}</Text>
                   <Text style={s.summaryValue}>{row.value}</Text>
@@ -230,33 +222,33 @@ export default function JobCompleteScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: CARD, borderWidth: 1, borderColor: LINE_SOFT,
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft,
     alignItems: 'center', justifyContent: 'center',
   },
   formEyebrow: {
     fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED, letterSpacing: 2, textTransform: 'uppercase',
+    color: c.muted, letterSpacing: 2, textTransform: 'uppercase',
   },
   formTitle: {
     fontSize: 24, fontFamily: 'Manrope_800ExtraBold',
-    color: INK, letterSpacing: -0.5, marginTop: 4,
+    color: c.ink, letterSpacing: -0.5, marginTop: 4,
   },
   formSub: {
     fontSize: 13, fontFamily: 'Manrope_500Medium',
-    color: MUTED, marginTop: 4,
+    color: c.muted, marginTop: 4,
   },
   fieldGroup: { gap: 8 },
   fieldLabel: {
     fontSize: 11, fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase',
+    color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase',
   },
   input: {
-    backgroundColor: CARD, borderRadius: 14, paddingHorizontal: 16,
+    backgroundColor: c.card, borderRadius: 14, paddingHorizontal: 16,
     paddingVertical: 14, fontSize: 14, fontFamily: 'Manrope_500Medium',
-    color: INK, borderWidth: 1, borderColor: LINE_MID,
+    color: c.ink, borderWidth: 1, borderColor: c.lineMid,
   },
   errorText: {
     fontFamily: 'Manrope_600SemiBold', fontSize: 12, color: '#d23b3b', marginTop: 4,
@@ -264,34 +256,34 @@ const s = StyleSheet.create({
   hero: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8, alignItems: 'center' },
   checkCircle: {
     width: 88, height: 88, borderRadius: 44,
-    backgroundColor: GREEN_SOFT, alignItems: 'center', justifyContent: 'center', marginBottom: 18,
+    backgroundColor: c.greenSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 18,
   },
   heroEyebrow: {
     fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED, letterSpacing: 2, textTransform: 'uppercase',
+    color: c.muted, letterSpacing: 2, textTransform: 'uppercase',
   },
   heroTitle: {
     fontSize: 30, fontFamily: 'Manrope_800ExtraBold',
-    color: INK, letterSpacing: -1, textAlign: 'center', marginTop: 4, lineHeight: 34,
+    color: c.ink, letterSpacing: -1, textAlign: 'center', marginTop: 4, lineHeight: 34,
   },
   summaryCard: {
-    backgroundColor: CARD, borderRadius: 18, borderWidth: 1,
-    borderColor: LINE_SOFT, marginTop: 22, overflow: 'hidden',
+    backgroundColor: c.card, borderRadius: 18, borderWidth: 1,
+    borderColor: c.lineSoft, marginTop: 22, overflow: 'hidden',
   },
   summaryRow: {
     flexDirection: 'row', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 14,
   },
-  summaryLabel: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: MUTED },
-  summaryValue: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: INK },
+  summaryLabel: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.muted },
+  summaryValue: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
   sectionEyebrow: {
     fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED, letterSpacing: 2, textTransform: 'uppercase', marginTop: 22, marginBottom: 8,
+    color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginTop: 22, marginBottom: 8,
   },
   invoiceNudge: {
-    borderRadius: 18, padding: 16, backgroundColor: ORANGE,
+    borderRadius: 18, padding: 16, backgroundColor: c.orange,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    shadowColor: ORANGE, shadowOffset: { width: 0, height: 8 },
+    shadowColor: c.orange, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3, shadowRadius: 20, elevation: 6,
   },
   nudgeIcon: {
@@ -330,14 +322,14 @@ const s = StyleSheet.create({
   },
   finishBtn: {
     flex: 1, height: 54, borderRadius: 18,
-    backgroundColor: CARD, borderWidth: 1, borderColor: LINE_MID,
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
     alignItems: 'center', justifyContent: 'center',
   },
-  finishBtnText: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: INK },
+  finishBtnText: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
   makeInvoiceBtn: {
-    flex: 2, height: 54, borderRadius: 18, backgroundColor: ORANGE,
+    flex: 2, height: 54, borderRadius: 18, backgroundColor: c.orange,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: ORANGE, shadowOffset: { width: 0, height: 10 },
+    shadowColor: c.orange, shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.4, shadowRadius: 24, elevation: 8,
   },
   makeInvoiceBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },

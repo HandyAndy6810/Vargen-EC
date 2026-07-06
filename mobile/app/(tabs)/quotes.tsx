@@ -2,6 +2,7 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -13,13 +14,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { queryClient } from '@/lib/queryClient';
+import { api } from '@shared/mobile-routes';
 import { useQuotes } from '@/hooks/use-quotes';
 import { Plus, Search, Filter } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 
-const BLUE        = '#1f6feb';
-const BLUE_SOFT   = '#eaf2ff';
-const BLUE_BORDER = '#c8dcff';
 
 function fmtAUD(n: number): string {
   return n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -85,12 +84,12 @@ function makeStyles(c: Colors, isDark: boolean) {
 
 export default function QuotesScreen() {
   const { colors: c, isDark } = useTheme();
-  const s = makeStyles(c, isDark);
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
 
   const STATUS_PILL: Record<string, { bg: string; fg: string; bd: string; label: string }> = {
     draft:    { bg: c.paperDeep,  fg: c.mutedHi,    bd: c.lineSoft,              label: 'Draft' },
-    sent:     { bg: BLUE_SOFT,    fg: BLUE,          bd: BLUE_BORDER,             label: 'Sent' },
-    viewed:   { bg: BLUE_SOFT,    fg: BLUE,          bd: BLUE_BORDER,             label: 'Viewed' },
+    sent:     { bg: c.blueSoft,    fg: c.blue,          bd: c.blueBorder,             label: 'Sent' },
+    viewed:   { bg: c.blueSoft,    fg: c.blue,          bd: c.blueBorder,             label: 'Viewed' },
     accepted: { bg: c.greenSoft,  fg: c.green,       bd: `${c.green}44`,          label: 'Accepted' },
     overdue:  { bg: c.orangeSoft, fg: c.orangeDeep,  bd: `${c.orange}44`,         label: 'Overdue' },
     declined: { bg: c.redSoft,    fg: c.red,         bd: `${c.red}44`,            label: 'Declined' },
@@ -110,7 +109,9 @@ export default function QuotesScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await queryClient.invalidateQueries();
+    // Only refetch the quotes list — a bare invalidateQueries() refetched
+    // every query in the app on each pull
+    await queryClient.invalidateQueries({ queryKey: [api.quotes.list.path] });
     setRefreshing(false);
   }, []);
 
@@ -231,12 +232,24 @@ export default function QuotesScreen() {
         })}
       </ScrollView>
 
-      <ScrollView
+      <FlatList
+        data={filtered}
+        keyExtractor={(q) => String(q.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 130, gap: 10 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
-      >
-        {filtered.length === 0 ? (
+        ListHeaderComponent={isError && !refreshing ? (
+          <TouchableOpacity
+            onPress={onRefresh}
+            activeOpacity={0.7}
+            style={{ backgroundColor: c.redSoft, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: c.red, marginBottom: 4 }}
+          >
+            <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.red }}>
+              Couldn't load quotes — tap to retry
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+        ListEmptyComponent={
           <View style={{ alignItems: 'center', paddingVertical: 48, gap: 8 }}>
             <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>
               {filter === 'draft'    ? 'No drafts' :
@@ -254,8 +267,8 @@ export default function QuotesScreen() {
                'Tap + to create your first quote'}
             </Text>
           </View>
-        ) : (
-          filtered.map((quote) => {
+        }
+        renderItem={({ item: quote }) => {
             const pill = STATUS_PILL[quote.status ?? 'draft'] ?? STATUS_PILL.draft;
             const title = parseTitle(quote);
             const amount = parseFloat(String(quote.totalAmount || '0'));
@@ -281,9 +294,8 @@ export default function QuotesScreen() {
                 </View>
               </TouchableOpacity>
             );
-          })
-        )}
-      </ScrollView>
+          }}
+      />
     </SafeAreaView>
   );
 }

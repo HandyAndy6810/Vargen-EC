@@ -76,7 +76,10 @@ export default function OnboardingScreen() {
 
   const dismiss = async () => {
     await AsyncStorage.setItem('onboarding_seen', 'true');
+    // Land on home, then open the AI quote screen — the first thing a new
+    // tradie should do is see a quote build itself
     router.replace('/(tabs)');
+    router.push('/ai-chat' as any);
   };
 
   const goTo = async (route: string) => {
@@ -136,12 +139,12 @@ export default function OnboardingScreen() {
 
         {/* CTA */}
         <TouchableOpacity
-          style={[s.cta, { backgroundColor: '#E8541A' }]}
+          style={[s.cta, { backgroundColor: c.orange }]}
           activeOpacity={0.85}
           onPress={dismiss}
         >
           <Text style={[s.ctaText, { fontFamily: 'Manrope_800ExtraBold' }]}>
-            Get Started
+            Create your first quote
           </Text>
         </TouchableOpacity>
 

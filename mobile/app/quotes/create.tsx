@@ -11,6 +11,7 @@ import {
   Modal,
   Share,
 } from 'react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import * as Linking from 'expo-linking';
 import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
 import { useState, useEffect, useMemo } from 'react';
@@ -28,18 +29,6 @@ import { useSettings } from '@/hooks/use-settings';
 import { MarginSlider } from '@/components/MarginSlider';
 import { useCustomers } from '@/hooks/use-customers';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const BLACK       = '#0f0e0b';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
 
 type Mode = 'ai' | 'form';
 type LineItem = { name: string; qty: string; price: string };
@@ -132,6 +121,8 @@ function getTradeKey(tradeType?: string | null): string {
 const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
 
 export default function QuoteCreateScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const {
     customerName: prefillName,
     customerId: prefillCustomerId,
@@ -377,13 +368,13 @@ export default function QuoteCreateScreen() {
   const editLineTotal = (parseFloat(editLineDraft.qty) || 0) * (parseFloat(editLineDraft.price) || 0);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
         {/* Header */}
         <View style={s.header}>
           <TouchableOpacity onPress={handleBack} activeOpacity={0.7} style={s.backBtn}>
-            <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+            <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.eyebrow}>Quotes</Text>
@@ -407,7 +398,7 @@ export default function QuoteCreateScreen() {
                     activeOpacity={0.7}
                     style={[s.modeBtn, active && s.modeBtnActive]}
                   >
-                    <t.Icon size={14} color={active ? INK : MUTED} strokeWidth={2} />
+                    <t.Icon size={14} color={active ? c.ink : c.muted} strokeWidth={2} />
                     <Text style={[s.modeBtnText, active && s.modeBtnTextActive]}>{t.label}</Text>
                   </TouchableOpacity>
                 );
@@ -427,7 +418,7 @@ export default function QuoteCreateScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.aiHeadline}>
-                    What are you <Text style={{ color: ORANGE }}>quoting today?</Text>
+                    What are you <Text style={{ color: c.orange }}>quoting today?</Text>
                   </Text>
                   <Text style={s.aiSubtitle}>Describe the job — I'll price and build it.</Text>
                 </View>
@@ -457,21 +448,21 @@ export default function QuoteCreateScreen() {
                   activeOpacity={0.7}
                   style={s.sugRow}
                 >
-                  <Sparkles size={15} color={ORANGE} strokeWidth={2} />
+                  <Sparkles size={15} color={c.orange} strokeWidth={2} />
                   <Text style={s.sugText}>{sug}</Text>
-                  <Text style={{ fontSize: 14, color: MUTED }}>›</Text>
+                  <Text style={{ fontSize: 14, color: c.muted }}>›</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
               <TouchableOpacity
-                style={[s.quickBtn, { flex: 1, borderColor: receiptBase64 ? ORANGE : LINE_SOFT }]}
+                style={[s.quickBtn, { flex: 1, borderColor: receiptBase64 ? c.orange : c.lineSoft }]}
                 activeOpacity={0.7}
                 onPress={handlePickReceipt}
               >
-                <Camera size={18} color={receiptBase64 ? ORANGE : INK} strokeWidth={2} />
-                <Text style={[s.quickBtnText, receiptBase64 && { color: ORANGE }]}>
+                <Camera size={18} color={receiptBase64 ? c.orange : c.ink} strokeWidth={2} />
+                <Text style={[s.quickBtnText, receiptBase64 && { color: c.orange }]}>
                   {receiptBase64 ? 'Receipt attached' : 'Photo / receipt'}
                 </Text>
               </TouchableOpacity>
@@ -480,7 +471,7 @@ export default function QuoteCreateScreen() {
                 activeOpacity={0.7}
                 onPress={() => showAlert('Templates', "Quote templates are coming soon.\n\nYou'll be able to save any quote as a template and reuse it with one tap.")}
               >
-                <FileText size={18} color={INK} strokeWidth={2} />
+                <FileText size={18} color={c.ink} strokeWidth={2} />
                 <Text style={s.quickBtnText}>From template</Text>
               </TouchableOpacity>
             </View>
@@ -535,14 +526,14 @@ export default function QuoteCreateScreen() {
                 <View style={{ flex: 1 }}>
                   {selectedCustomer ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: PAPER_DEEP, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 }}>
-                        <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: ORANGE }}>{selectedCustomer.name?.slice(0, 2).toUpperCase()}</Text>
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.paperDeep, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 }}>
+                        <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.orange }}>{selectedCustomer.name?.slice(0, 2).toUpperCase()}</Text>
                         </View>
-                        <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: INK, flex: 1 }} numberOfLines={1}>{selectedCustomer.name}</Text>
+                        <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink, flex: 1 }} numberOfLines={1}>{selectedCustomer.name}</Text>
                       </View>
                       <TouchableOpacity onPress={() => { setCustomerId(null); setCustomer(''); setCustSearch(''); }} activeOpacity={0.7}>
-                        <X size={16} color={MUTED} strokeWidth={2} />
+                        <X size={16} color={c.muted} strokeWidth={2} />
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -550,27 +541,27 @@ export default function QuoteCreateScreen() {
                       <TextInput
                         style={s.fieldInput}
                         placeholder="Search or type name…"
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         value={custSearch || customer}
                         onChangeText={v => { setCustSearch(v); setCustomer(v); setCustomerId(null); setShowCustList(true); }}
                         onFocus={() => setShowCustList(true)}
                         returnKeyType="next"
                       />
                       {showCustList && filteredCustomers.length > 0 && (
-                        <View style={{ position: 'absolute', top: 38, left: 0, right: 0, backgroundColor: CARD, borderRadius: 12, borderWidth: 1, borderColor: LINE_MID, zIndex: 99, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 8 }}>
+                        <View style={{ position: 'absolute', top: 38, left: 0, right: 0, backgroundColor: c.card, borderRadius: 12, borderWidth: 1, borderColor: c.lineMid, zIndex: 99, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 8 }}>
                           {filteredCustomers.map((c: any) => (
                             <TouchableOpacity
                               key={c.id}
-                              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: LINE_SOFT }}
+                              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: c.lineSoft }}
                               activeOpacity={0.7}
                               onPress={() => { setCustomerId(c.id); setCustomer(c.name); setCustSearch(''); setShowCustList(false); }}
                             >
-                              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' }}>
-                                <Text style={{ fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: ORANGE }}>{c.name?.slice(0, 2).toUpperCase()}</Text>
+                              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.orange }}>{c.name?.slice(0, 2).toUpperCase()}</Text>
                               </View>
                               <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: INK }}>{c.name}</Text>
-                                {c.phone && <Text style={{ fontSize: 11, fontFamily: 'Manrope_500Medium', color: MUTED }}>{c.phone}</Text>}
+                                <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink }}>{c.name}</Text>
+                                {c.phone && <Text style={{ fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted }}>{c.phone}</Text>}
                               </View>
                             </TouchableOpacity>
                           ))}
@@ -580,45 +571,45 @@ export default function QuoteCreateScreen() {
                   )}
                 </View>
               </View>
-              <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+              <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                 <Text style={s.fieldLabel}>Job title</Text>
                 <TextInput
                   style={s.fieldInput}
                   placeholder="e.g. Hot water swap"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                   value={jobTitle}
                   onChangeText={setJobTitle}
                   returnKeyType="next"
                 />
               </View>
-              <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+              <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                 <Text style={s.fieldLabel}>Date</Text>
                 <TextInput
                   style={s.fieldInput}
                   placeholder={format(new Date(), "EEE d MMM · h:mm a")}
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                   value={schedDate}
                   onChangeText={setSchedDate}
                   returnKeyType="next"
                 />
               </View>
-              <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+              <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                 <Text style={s.fieldLabel}>Expires</Text>
                 <TextInput
                   style={s.fieldInput}
                   placeholder="e.g. 30 Jun 2026"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                   value={expiryDate}
                   onChangeText={setExpiryDate}
                   returnKeyType="next"
                 />
               </View>
-              <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+              <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                 <Text style={s.fieldLabel}>Notes</Text>
                 <TextInput
                   style={[s.fieldInput, { flex: 1 }]}
                   placeholder="Visible to customer…"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                   value={notes}
                   onChangeText={setNotes}
                   multiline
@@ -637,10 +628,10 @@ export default function QuoteCreateScreen() {
                     key={i}
                     activeOpacity={0.7}
                     onPress={() => openLineEdit(i)}
-                    style={[s.lineItemRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}
+                    style={[s.lineItemRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={[s.lineNameText, !item.name && { color: MUTED }]} numberOfLines={1}>
+                      <Text style={[s.lineNameText, !item.name && { color: c.muted }]} numberOfLines={1}>
                         {item.name || 'Tap to describe item…'}
                       </Text>
                       <Text style={s.lineMetaText}>
@@ -650,12 +641,12 @@ export default function QuoteCreateScreen() {
                     <Text style={s.lineTotalText}>
                       ${lineTotal.toLocaleString()}
                     </Text>
-                    <ChevronRight size={16} color={MUTED} strokeWidth={2} />
+                    <ChevronRight size={16} color={c.muted} strokeWidth={2} />
                   </TouchableOpacity>
                 );
               })}
               <TouchableOpacity style={s.addLineBtn} activeOpacity={0.7} onPress={addLine}>
-                <Plus size={16} color={ORANGE_DEEP} strokeWidth={2.5} />
+                <Plus size={16} color={c.orangeDeep} strokeWidth={2.5} />
                 <Text style={s.addLineBtnText}>Add line item</Text>
               </TouchableOpacity>
             </View>
@@ -710,7 +701,7 @@ export default function QuoteCreateScreen() {
         presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
         onRequestClose={() => setEditLineIdx(null)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             {/* Modal header */}
             <View style={s.modalHeader}>
@@ -730,7 +721,7 @@ export default function QuoteCreateScreen() {
                 <TextInput
                   style={s.modalTextArea}
                   placeholder="What does this item cover?"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                   value={editLineDraft.name}
                   onChangeText={v => setEditLineDraft(d => ({ ...d, name: v }))}
                   multiline
@@ -752,7 +743,7 @@ export default function QuoteCreateScreen() {
                       keyboardType="numeric"
                       selectTextOnFocus
                       placeholder="1"
-                      placeholderTextColor={MUTED}
+                      placeholderTextColor={c.muted}
                     />
                   </View>
                 </View>
@@ -766,7 +757,7 @@ export default function QuoteCreateScreen() {
                       keyboardType="numeric"
                       selectTextOnFocus
                       placeholder="0"
-                      placeholderTextColor={MUTED}
+                      placeholderTextColor={c.muted}
                     />
                   </View>
                 </View>
@@ -804,7 +795,7 @@ export default function QuoteCreateScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -816,29 +807,29 @@ const s = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   eyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   title: {
     fontSize: 22,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.5,
     marginTop: 2,
   },
   modeToggle: {
     flexDirection: 'row',
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     borderRadius: 14,
     padding: 4,
   },
@@ -852,7 +843,7 @@ const s = StyleSheet.create({
     gap: 6,
   },
   modeBtnActive: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -862,15 +853,15 @@ const s = StyleSheet.create({
   modeBtnText: {
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
   },
   modeBtnTextActive: {
-    color: INK,
+    color: c.ink,
   },
 
   /* AI mode */
   aiHero: {
-    backgroundColor: BLACK,
+    backgroundColor: c.ink,
     borderRadius: 24,
     padding: 22,
     overflow: 'hidden',
@@ -884,18 +875,18 @@ const s = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: `${ORANGE}88`,
+    backgroundColor: `${c.orange}88`,
     opacity: 0.5,
   },
   aiAvatar: {
     width: 48,
     height: 48,
     borderRadius: 16,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.5,
     shadowRadius: 16,
@@ -923,8 +914,8 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   descInputWrapActive: {
-    borderColor: ORANGE,
-    shadowColor: ORANGE,
+    borderColor: c.orange,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.55,
     shadowRadius: 14,
@@ -944,9 +935,9 @@ const s = StyleSheet.create({
     gap: 10,
     padding: 16,
     borderRadius: 16,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
@@ -956,12 +947,12 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: 'Manrope_600SemiBold',
-    color: INK,
+    color: c.ink,
   },
   quickBtn: {
     height: 56,
     borderRadius: 16,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -971,12 +962,12 @@ const s = StyleSheet.create({
   quickBtnText: {
     fontSize: 13,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
   },
 
   /* Form mode */
   totalHero: {
-    backgroundColor: BLACK,
+    backgroundColor: c.ink,
     borderRadius: 20,
     padding: 20,
     overflow: 'hidden',
@@ -989,7 +980,7 @@ const s = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: `${ORANGE}88`,
+    backgroundColor: `${c.orange}88`,
     opacity: 0.35,
   },
   totalEyebrow: {
@@ -1010,16 +1001,16 @@ const s = StyleSheet.create({
   sectionEyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
   fieldGroup: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     overflow: 'hidden',
     marginBottom: 20,
   },
@@ -1033,7 +1024,7 @@ const s = StyleSheet.create({
   fieldLabel: {
     fontSize: 13,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED_HI,
+    color: c.mutedHi,
     width: 72,
     flexShrink: 0,
   },
@@ -1041,7 +1032,7 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
     paddingVertical: 2,
   },
 
@@ -1056,18 +1047,18 @@ const s = StyleSheet.create({
   lineNameText: {
     fontSize: 15,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
     marginBottom: 3,
   },
   lineMetaText: {
     fontSize: 12,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
   },
   lineTotalText: {
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   addLineBtn: {
     flexDirection: 'row',
@@ -1076,12 +1067,12 @@ const s = StyleSheet.create({
     gap: 6,
     paddingVertical: 20,
     borderTopWidth: 1,
-    borderTopColor: LINE_MID,
+    borderTopColor: c.lineMid,
   },
   addLineBtnText: {
     fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE_DEEP,
+    color: c.orangeDeep,
   },
 
   /* Bottom bar */
@@ -1106,12 +1097,12 @@ const s = StyleSheet.create({
   primaryBtn: {
     height: 60,
     borderRadius: 20,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.4,
     shadowRadius: 24,
@@ -1126,7 +1117,7 @@ const s = StyleSheet.create({
     flex: 1,
     height: 60,
     borderRadius: 20,
-    backgroundColor: BLACK,
+    backgroundColor: c.ink,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -1149,7 +1140,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: LINE_SOFT,
+    borderBottomColor: c.lineSoft,
   },
   modalCancelBtn: {
     paddingVertical: 4,
@@ -1159,12 +1150,12 @@ const s = StyleSheet.create({
   modalCancelText: {
     fontSize: 15,
     fontFamily: 'Manrope_600SemiBold',
-    color: MUTED_HI,
+    color: c.mutedHi,
   },
   modalTitle: {
     fontSize: 16,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   modalDoneBtn: {
     paddingVertical: 4,
@@ -1175,39 +1166,39 @@ const s = StyleSheet.create({
   modalDoneText: {
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
+    color: c.orange,
   },
   modalLabel: {
     fontSize: 11,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
   modalInputWrap: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     overflow: 'hidden',
   },
   modalTextArea: {
     padding: 16,
     fontSize: 16,
     fontFamily: 'Manrope_600SemiBold',
-    color: INK,
+    color: c.ink,
     minHeight: 100,
   },
   modalInput: {
     padding: 16,
     fontSize: 22,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   modalTotalCard: {
     marginTop: 24,
-    backgroundColor: BLACK,
+    backgroundColor: c.ink,
     borderRadius: 18,
     padding: 20,
     flexDirection: 'row',

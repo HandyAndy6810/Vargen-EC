@@ -358,6 +358,18 @@ export async function registerRoutes(
   });
 
   // Quote-vs-actual profit reconciliation for a completed job
+  app.delete("/api/jobs/:id", requireAuth, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const existing = await storage.getJob(id, req.userId);
+      if (!existing) return res.status(404).json({ message: "Job not found" });
+      await storage.deleteJob(id, req.userId);
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to delete job" });
+    }
+  });
+
   app.get('/api/jobs/:id/reconciliation', requireAuth, async (req: any, res) => {
     try {
       const id = Number(req.params.id);
@@ -2083,6 +2095,26 @@ If you cannot read the image clearly, return your best guess. Always return vali
     const receipt = await storage.getReceipt(Number(req.params.id), req.userId);
     if (!receipt) return res.status(404).json({ message: "Not found" });
     res.json(receipt);
+  });
+
+  app.patch("/api/receipts/:id", requireAuth, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const existing = await storage.getReceipt(id, req.userId);
+      if (!existing) return res.status(404).json({ message: "Not found" });
+      const { vendor, receiptDate, totalAmount, category, notes, items } = req.body;
+      const updated = await storage.updateReceipt(id, req.userId, {
+        ...(vendor !== undefined && { vendor }),
+        ...(receiptDate !== undefined && { receiptDate }),
+        ...(totalAmount !== undefined && { totalAmount }),
+        ...(category !== undefined && { category }),
+        ...(notes !== undefined && { notes }),
+        ...(items !== undefined && { items }),
+      });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to update receipt" });
+    }
   });
 
   app.delete("/api/receipts/:id", requireAuth, async (req: any, res) => {

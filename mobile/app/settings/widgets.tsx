@@ -6,22 +6,13 @@ import {
   StyleSheet,
   Switch,
 } from 'react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router } from 'expo-router';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronUp, ChevronDown } from 'lucide-react-native';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 
-const ORANGE      = '#f26a2a';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const GREEN       = '#2a9d4c';
-const GREEN_SOFT  = '#e5f6eb';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
 
 type WidgetMeta = {
   id: string;
@@ -43,6 +34,8 @@ const WIDGET_META: WidgetMeta[] = [
 const DEFAULT_ORDER = WIDGET_META.map(w => w.id);
 
 export default function WidgetsScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { data: settings } = useSettings();
   const updateSettings = useUpdateSettings();
 
@@ -117,11 +110,11 @@ export default function WidgetsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.navBtn} activeOpacity={0.7}>
-          <ChevronLeft size={18} color={INK} strokeWidth={2.1} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={s.navBtn} activeOpacity={0.7}>
+          <ChevronLeft size={18} color={c.ink} strokeWidth={2.1} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Customise Widgets</Text>
         <View style={{ width: 40 }} />
@@ -143,7 +136,7 @@ export default function WidgetsScreen() {
               return (
                 <View
                   key={id}
-                  style={[s.row, index > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }, !visible && s.rowHidden]}
+                  style={[s.row, index > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }, !visible && s.rowHidden]}
                 >
                   {/* Reorder buttons */}
                   <View style={s.reorderCol}>
@@ -153,7 +146,7 @@ export default function WidgetsScreen() {
                       disabled={index === 0}
                       activeOpacity={0.6}
                     >
-                      <ChevronUp size={14} color={index === 0 ? MUTED : INK} strokeWidth={2.2} />
+                      <ChevronUp size={14} color={index === 0 ? c.muted : c.ink} strokeWidth={2.2} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => moveDown(index)}
@@ -161,7 +154,7 @@ export default function WidgetsScreen() {
                       disabled={index === order.length - 1}
                       activeOpacity={0.6}
                     >
-                      <ChevronDown size={14} color={index === order.length - 1 ? MUTED : INK} strokeWidth={2.2} />
+                      <ChevronDown size={14} color={index === order.length - 1 ? c.muted : c.ink} strokeWidth={2.2} />
                     </TouchableOpacity>
                   </View>
 
@@ -175,9 +168,9 @@ export default function WidgetsScreen() {
                   <Switch
                     value={visible}
                     onValueChange={() => toggleVisible(index)}
-                    trackColor={{ false: LINE_MID, true: GREEN_SOFT }}
-                    thumbColor={visible ? GREEN : MUTED}
-                    ios_backgroundColor={LINE_MID}
+                    trackColor={{ false: c.lineMid, true: c.greenSoft }}
+                    thumbColor={visible ? c.green : c.muted}
+                    ios_backgroundColor={c.lineMid}
                   />
                 </View>
               );
@@ -212,7 +205,7 @@ export default function WidgetsScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -225,9 +218,9 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -236,28 +229,28 @@ const s = StyleSheet.create({
     textAlign: 'center',
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.2,
   },
   subText: {
     fontSize: 13,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     lineHeight: 19,
   },
   eyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
   list: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     overflow: 'hidden',
   },
   row: {
@@ -277,7 +270,7 @@ const s = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 7,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -287,21 +280,21 @@ const s = StyleSheet.create({
   widgetLabel: {
     fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   mutedLabel: {
-    color: MUTED,
+    color: c.muted,
   },
   widgetDesc: {
     fontSize: 11,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginTop: 2,
   },
   resetText: {
     fontSize: 12,
     fontFamily: 'Manrope_700Bold',
-    color: ORANGE,
+    color: c.orange,
     textDecorationLine: 'underline',
   },
   bottomBar: {
@@ -315,7 +308,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 32,
-    shadowColor: INK,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.07,
     shadowRadius: 12,
@@ -324,10 +317,10 @@ const s = StyleSheet.create({
   saveBtn: {
     height: 52,
     borderRadius: 16,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -342,16 +335,16 @@ const s = StyleSheet.create({
   savedRow: {
     height: 52,
     borderRadius: 16,
-    backgroundColor: GREEN_SOFT,
+    backgroundColor: c.greenSoft,
     borderWidth: 1,
-    borderColor: GREEN,
+    borderColor: c.green,
     alignItems: 'center',
     justifyContent: 'center',
   },
   savedText: {
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
-    color: GREEN,
+    color: c.green,
     letterSpacing: 0.2,
   },
 });

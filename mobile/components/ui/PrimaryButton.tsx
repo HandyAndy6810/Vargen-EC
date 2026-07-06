@@ -1,36 +1,36 @@
-import React from 'react';
-import { TouchableOpacity, Text, ActivityIndicator, type TouchableOpacityProps } from 'react-native';
+import { TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { useTheme } from '@/hooks/use-theme';
+import { radius, type as t, HIT } from '@/theme/tokens';
 
-interface PrimaryButtonProps extends TouchableOpacityProps {
+export function PrimaryButton({ label, onPress, disabled, loading, destructive }: {
   label: string;
+  onPress: () => void;
+  disabled?: boolean;
   loading?: boolean;
-}
-
-export function PrimaryButton({ label, loading, style, disabled, ...rest }: PrimaryButtonProps) {
+  destructive?: boolean;
+}) {
+  const { colors: c } = useTheme();
   return (
     <TouchableOpacity
-      activeOpacity={0.85}
+      onPress={onPress}
       disabled={disabled || loading}
-      style={[
-        {
-          backgroundColor: '#ea580c',
-          borderRadius: 14,
-          paddingVertical: 15,
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: disabled || loading ? 0.6 : 1,
-        },
-        style,
-      ]}
-      {...rest}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
+      style={{
+        minHeight: HIT + 10,
+        borderRadius: radius.lg,
+        backgroundColor: destructive ? c.red : c.orange,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: disabled ? 0.5 : 1,
+        paddingHorizontal: 20,
+      }}
     >
-      {loading ? (
-        <ActivityIndicator color="#fff" />
-      ) : (
-        <Text style={{ fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.2 }}>
-          {label}
-        </Text>
-      )}
+      {loading
+        ? <ActivityIndicator color="#fff" />
+        : <Text style={{ fontSize: t.bodyLg, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>{label}</Text>}
     </TouchableOpacity>
   );
 }

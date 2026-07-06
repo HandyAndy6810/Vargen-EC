@@ -28,6 +28,7 @@ export interface IStorage {
   getJob(id: number, userId?: string): Promise<Job | undefined>;
   createJob(job: InsertJob): Promise<Job>;
   updateJob(id: number, job: Partial<InsertJob>, userId?: string): Promise<Job>;
+  deleteJob(id: number, userId: string): Promise<void>;
 
   // Quotes (userId-scoped)
   getQuotes(userId: string): Promise<Quote[]>;
@@ -92,6 +93,7 @@ export interface IStorage {
   getReceipts(userId: string): Promise<Receipt[]>;
   getReceipt(id: number, userId: string): Promise<Receipt | undefined>;
   createReceipt(receipt: InsertReceipt): Promise<Receipt>;
+  updateReceipt(id: number, userId: string, updates: Partial<InsertReceipt>): Promise<Receipt>;
   deleteReceipt(id: number, userId: string): Promise<void>;
   getReceiptsByJobId(jobId: number, userId: string): Promise<Receipt[]>;
 
@@ -183,6 +185,10 @@ export class DatabaseStorage implements IStorage {
       : eq(jobs.id, id);
     const [updatedJob] = await db.update(jobs).set(job).where(conditions).returning();
     return updatedJob;
+  }
+
+  async deleteJob(id: number, userId: string): Promise<void> {
+    await db.delete(jobs).where(and(eq(jobs.id, id), eq(jobs.userId, userId)));
   }
 
   // ── Quotes ────────────────────────────────────────────────────────────
@@ -525,6 +531,14 @@ export class DatabaseStorage implements IStorage {
   async createReceipt(receipt: InsertReceipt): Promise<Receipt> {
     const [newReceipt] = await db.insert(receipts).values(receipt).returning();
     return newReceipt;
+  }
+
+  async updateReceipt(id: number, userId: string, updates: Partial<InsertReceipt>): Promise<Receipt> {
+    const [updated] = await db.update(receipts)
+      .set(updates)
+      .where(and(eq(receipts.id, id), eq(receipts.userId, userId)))
+      .returning();
+    return updated;
   }
 
   async deleteReceipt(id: number, userId: string): Promise<void> {

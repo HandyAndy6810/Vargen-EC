@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import { useState } from 'react';
+import { useTheme, type Colors } from '@/hooks/use-theme';
+import { useState, useMemo } from 'react';
 import { router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
@@ -18,19 +19,10 @@ import { saveCachedUser } from '@/lib/auth-cache';
 import { ChevronLeft } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const ORANGE     = '#f26a2a';
-const ORANGE_SOFT = '#ffe6d3';
-const INK        = '#141310';
-const PAPER      = '#f7f4ee';
-const PAPER_DEEP = '#efe9dd';
-const CARD       = '#ffffff';
-const MUTED      = 'rgba(20,19,16,0.55)';
-const MUTED_HI   = 'rgba(20,19,16,0.72)';
-const LINE_MID   = 'rgba(20,19,16,0.18)';
-const RED        = '#d23b3b';
-const RED_SOFT   = '#fde5e5';
 
 export default function RegisterScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [firstName, setFirstName]               = useState('');
   const [lastName, setLastName]                 = useState('');
   const [email, setEmail]                       = useState('');
@@ -68,7 +60,7 @@ export default function RegisterScreen() {
   });
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -80,8 +72,8 @@ export default function RegisterScreen() {
       >
         <View style={s.container}>
           {/* Back */}
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-            <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+            <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
 
           {/* Heading */}
@@ -103,7 +95,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={s.input}
                 placeholder="Jane"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
                 value={firstName}
                 onChangeText={v => { setFirstName(v); setError(null); }}
                 autoCapitalize="words"
@@ -115,7 +107,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={s.input}
                 placeholder="Smith"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
                 value={lastName}
                 onChangeText={setLastName}
                 autoCapitalize="words"
@@ -129,7 +121,7 @@ export default function RegisterScreen() {
             <TextInput
               style={s.input}
               placeholder="you@example.com"
-              placeholderTextColor={MUTED}
+              placeholderTextColor={c.muted}
               value={email}
               onChangeText={v => { setEmail(v); setError(null); }}
               autoCapitalize="none"
@@ -141,12 +133,12 @@ export default function RegisterScreen() {
           <View style={s.fieldGroup}>
             <Text style={s.fieldLabel}>
               Mobile{' '}
-              <Text style={{ fontFamily: 'Manrope_500Medium', color: MUTED }}>(optional)</Text>
+              <Text style={{ fontFamily: 'Manrope_500Medium', color: c.muted }}>(optional)</Text>
             </Text>
             <TextInput
               style={s.input}
               placeholder="+61 4XX XXX XXX"
-              placeholderTextColor={MUTED}
+              placeholderTextColor={c.muted}
               value={phone}
               onChangeText={v => { setPhone(v); setError(null); }}
               keyboardType="phone-pad"
@@ -159,7 +151,7 @@ export default function RegisterScreen() {
             <TextInput
               style={s.input}
               placeholder="Min 8 characters"
-              placeholderTextColor={MUTED}
+              placeholderTextColor={c.muted}
               value={password}
               onChangeText={v => { setPassword(v); setError(null); }}
               secureTextEntry
@@ -171,7 +163,7 @@ export default function RegisterScreen() {
             <TextInput
               style={s.input}
               placeholder="Repeat password"
-              placeholderTextColor={MUTED}
+              placeholderTextColor={c.muted}
               value={confirmPassword}
               onChangeText={v => { setConfirmPassword(v); setError(null); }}
               secureTextEntry
@@ -199,41 +191,41 @@ export default function RegisterScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   container: { paddingHorizontal: 24, paddingTop: 64, paddingBottom: 40 },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: CARD, borderWidth: 1, borderColor: LINE_MID,
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
     alignItems: 'center', justifyContent: 'center', marginBottom: 28,
   },
   heading: { marginBottom: 28 },
-  title: { fontSize: 30, fontFamily: 'Manrope_800ExtraBold', color: INK, letterSpacing: -1 },
-  sub: { fontSize: 14, fontFamily: 'Manrope_500Medium', color: MUTED, marginTop: 6 },
+  title: { fontSize: 30, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -1 },
+  sub: { fontSize: 14, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 6 },
   errorBox: {
-    backgroundColor: RED_SOFT, borderRadius: 12, padding: 14, marginBottom: 16,
+    backgroundColor: c.redSoft, borderRadius: 12, padding: 14, marginBottom: 16,
   },
-  errorText: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: RED },
+  errorText: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.red },
   fieldGroup: { marginBottom: 14 },
   fieldLabel: {
     fontSize: 11, fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED_HI, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8,
+    color: c.mutedHi, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8,
   },
   input: {
-    backgroundColor: CARD, borderRadius: 14,
+    backgroundColor: c.card, borderRadius: 14,
     paddingHorizontal: 16, paddingVertical: 14,
     fontSize: 14, fontFamily: 'Manrope_500Medium',
-    color: INK, borderWidth: 1, borderColor: LINE_MID,
+    color: c.ink, borderWidth: 1, borderColor: c.lineMid,
   },
   submitBtn: {
-    backgroundColor: ORANGE, borderRadius: 18, height: 56,
+    backgroundColor: c.orange, borderRadius: 18, height: 56,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: ORANGE, shadowOffset: { width: 0, height: 10 },
+    shadowColor: c.orange, shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.35, shadowRadius: 20, elevation: 6,
   },
   submitBtnDisabled: { opacity: 0.5, shadowOpacity: 0 },
   submitBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
   terms: {
     fontSize: 11, fontFamily: 'Manrope_500Medium',
-    color: MUTED, textAlign: 'center', marginTop: 20, lineHeight: 17,
+    color: c.muted, textAlign: 'center', marginTop: 20, lineHeight: 17,
   },
 });

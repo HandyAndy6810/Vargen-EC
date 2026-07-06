@@ -7,8 +7,9 @@ import {
   ActivityIndicator,
   Share,
 } from 'react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
@@ -26,33 +27,17 @@ import PDFComposeModal from '@/components/PDFComposeModal';
 import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const BLUE        = '#1f6feb';
-const BLUE_SOFT   = '#eaf2ff';
-const BLUE_BORDER = '#c8dcff';
-const GREEN       = '#2a9d4c';
-const GREEN_SOFT  = '#e5f6eb';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
 
-const STATUS_PILL: Record<string, { bg: string; fg: string; bd: string; label: string }> = {
-  draft:    { bg: PAPER_DEEP, fg: MUTED_HI,    bd: LINE_MID,          label: 'Draft' },
-  sent:     { bg: BLUE_SOFT,  fg: BLUE,         bd: BLUE_BORDER,       label: 'Sent' },
-  viewed:   { bg: BLUE_SOFT,  fg: BLUE,         bd: BLUE_BORDER,       label: 'Viewed' },
-  accepted: { bg: GREEN_SOFT, fg: GREEN,        bd: `${GREEN}44`,      label: 'Accepted' },
-  overdue:  { bg: ORANGE_SOFT, fg: ORANGE_DEEP, bd: `${ORANGE}44`,    label: 'Overdue' },
-  invoiced: { bg: GREEN_SOFT, fg: GREEN,        bd: `${GREEN}44`,      label: 'Invoiced' },
+const statusPillFor = (c: Colors): Record<string, { bg: string; fg: string; bd: string; label: string }> => ({
+  draft:    { bg: c.paperDeep, fg: c.mutedHi,    bd: c.lineMid,          label: 'Draft' },
+  sent:     { bg: c.blueSoft,  fg: c.blue,         bd: c.blueBorder,       label: 'Sent' },
+  viewed:   { bg: c.blueSoft,  fg: c.blue,         bd: c.blueBorder,       label: 'Viewed' },
+  accepted: { bg: c.greenSoft, fg: c.green,        bd: `${c.green}44`,      label: 'Accepted' },
+  overdue:  { bg: c.orangeSoft, fg: c.orangeDeep, bd: `${c.orange}44`,    label: 'Overdue' },
+  invoiced: { bg: c.greenSoft, fg: c.green,        bd: `${c.green}44`,      label: 'Invoiced' },
   declined: { bg: '#fde5e5',  fg: '#d23b3b',    bd: '#d23b3b44',       label: 'Declined' },
   rejected: { bg: '#fde5e5',  fg: '#d23b3b',    bd: '#d23b3b44',       label: 'Declined' },
-};
+});
 
 const PROGRESS_STEPS = ['Draft', 'Sent', 'Viewed', 'Accepted'];
 const PROGRESS_STATUSES = ['draft', 'sent', 'viewed', 'accepted'];
@@ -69,6 +54,9 @@ function isTerminalStatus(status: string): { terminal: true; label: string; colo
 }
 
 export default function QuoteDetailScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
+  const STATUS_PILL = useMemo(() => statusPillFor(c), [c]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const quoteId = id ? Number(id) : 0;
   const { data: quote, isLoading } = useQuote(quoteId) as any;
@@ -102,23 +90,23 @@ export default function QuoteDetailScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
-        <ActivityIndicator size="large" color={ORANGE} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: c.paper, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
+        <ActivityIndicator size="large" color={c.orange} />
       </SafeAreaView>
     );
   }
 
   if (!quote) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 14 }}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: CARD, borderWidth: 1, borderColor: LINE_SOFT, alignItems: 'center', justifyContent: 'center' }}>
-            <ChevronLeft size={20} color={INK} strokeWidth={2.2} />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 16, fontFamily: 'Manrope_700Bold', color: MUTED }}>Quote not found</Text>
-          <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED }}>It may have been deleted.</Text>
+          <Text style={{ fontSize: 16, fontFamily: 'Manrope_700Bold', color: c.muted }}>Quote not found</Text>
+          <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted }}>It may have been deleted.</Text>
         </View>
       </SafeAreaView>
     );
@@ -267,18 +255,18 @@ export default function QuoteDetailScreen() {
 
   return (
     <>
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.iconBtn}>
-          <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={s.iconBtn}>
+          <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.eyebrow}>{num}</Text>
           <Text style={s.title} numberOfLines={1}>{title}</Text>
         </View>
         <TouchableOpacity style={s.iconBtn} activeOpacity={0.7} onPress={handleMore}>
-          <MoreHorizontal size={18} color={INK} strokeWidth={2} />
+          <MoreHorizontal size={18} color={c.ink} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -328,8 +316,8 @@ export default function QuoteDetailScreen() {
                         if (!cur) updateQuote.mutate({ id: quoteId, status: targetStatus } as any);
                       }}
                     >
-                      <View style={[s.railBar, done ? { backgroundColor: ORANGE } : cur ? { backgroundColor: ORANGE_SOFT } : { backgroundColor: PAPER_DEEP }]} />
-                      <Text style={[s.railLabel, done ? { color: ORANGE_DEEP } : cur ? { color: ORANGE } : { color: MUTED }]}>{step}</Text>
+                      <View style={[s.railBar, done ? { backgroundColor: c.orange } : cur ? { backgroundColor: c.orangeSoft } : { backgroundColor: c.paperDeep }]} />
+                      <Text style={[s.railLabel, done ? { color: c.orangeDeep } : cur ? { color: c.orange } : { color: c.muted }]}>{step}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -355,14 +343,14 @@ export default function QuoteDetailScreen() {
                       activeOpacity={0.7}
                       onPress={() => Linking.openURL(`tel:${customerPhone}`)}
                     >
-                      <Phone size={16} color={INK} strokeWidth={2} />
+                      <Phone size={16} color={c.ink} strokeWidth={2} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={s.iconAction}
                       activeOpacity={0.7}
                       onPress={() => Linking.openURL(`sms:${customerPhone}`)}
                     >
-                      <MessageSquare size={16} color={INK} strokeWidth={2} />
+                      <MessageSquare size={16} color={c.ink} strokeWidth={2} />
                     </TouchableOpacity>
                   </>
                 ) : null}
@@ -377,7 +365,7 @@ export default function QuoteDetailScreen() {
           <View style={[s.card, { padding: 0 }]}>
             {displayItems.length > 0 ? (
               displayItems.map((item, i) => (
-                <View key={i} style={[s.lineRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                <View key={i} style={[s.lineRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                   <Text style={s.lineName}>{item.name}</Text>
                   <Text style={s.lineQty}>×{item.qty}</Text>
                   <Text style={s.lineAmt}>
@@ -387,7 +375,7 @@ export default function QuoteDetailScreen() {
               ))
             ) : (
               <View style={{ padding: 16 }}>
-                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED }}>
+                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted }}>
                   No line items recorded
                 </Text>
               </View>
@@ -410,7 +398,7 @@ export default function QuoteDetailScreen() {
                 </View>
               )}
               <View style={s.totalRow}>
-                <Text style={[s.totalLabel, { color: INK, fontFamily: 'Manrope_800ExtraBold', fontSize: 14 }]}>
+                <Text style={[s.totalLabel, { color: c.ink, fontFamily: 'Manrope_800ExtraBold', fontSize: 14 }]}>
                   Total
                 </Text>
                 <Text style={[s.totalValue, { fontSize: 14, fontFamily: 'Manrope_800ExtraBold' }]}>
@@ -425,7 +413,7 @@ export default function QuoteDetailScreen() {
             <>
               <Text style={s.sectionEyebrow}>Notes</Text>
               <View style={s.card}>
-                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: MUTED_HI, lineHeight: 20 }}>
+                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.mutedHi, lineHeight: 20 }}>
                   {content.notes}
                 </Text>
               </View>
@@ -471,7 +459,7 @@ export default function QuoteDetailScreen() {
             activeOpacity={0.7}
             onPress={() => router.push(`/quotes/create?quoteId=${id}` as any)}
           >
-            <Edit2 size={15} color={INK} strokeWidth={2} />
+            <Edit2 size={15} color={c.ink} strokeWidth={2} />
             <Text style={s.tweakBtnText}>Tweak</Text>
           </TouchableOpacity>
         )}
@@ -480,16 +468,16 @@ export default function QuoteDetailScreen() {
           activeOpacity={0.7}
           onPress={() => setShowPDF(true)}
         >
-          <FileText size={15} color={ORANGE} strokeWidth={2} />
+          <FileText size={15} color={c.orange} strokeWidth={2} />
           <Text style={s.pdfBtnText}>PDF</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[s.convertBtn, alreadyInvoiced && { backgroundColor: PAPER_DEEP }]}
+          style={[s.convertBtn, alreadyInvoiced && { backgroundColor: c.paperDeep }]}
           activeOpacity={0.8}
           onPress={handleConvert}
           disabled={alreadyInvoiced}
         >
-          <Text style={[s.convertBtnText, alreadyInvoiced && { color: MUTED_HI }]}>
+          <Text style={[s.convertBtnText, alreadyInvoiced && { color: c.mutedHi }]}>
             {alreadyInvoiced ? 'Already invoiced' : 'Convert ›'}
           </Text>
         </TouchableOpacity>
@@ -519,7 +507,7 @@ export default function QuoteDetailScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -531,32 +519,32 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   eyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   title: {
     fontSize: 18,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.4,
     marginTop: 2,
   },
   statusCard: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 22,
     padding: 18,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -565,13 +553,13 @@ const s = StyleSheet.create({
   statusCardTitle: {
     fontSize: 20,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.4,
   },
   statusCardSub: {
     fontSize: 12,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginTop: 2,
   },
   statusPill: {
@@ -589,14 +577,14 @@ const s = StyleSheet.create({
   amountLarge: {
     fontSize: 36,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
+    color: c.orange,
     letterSpacing: -1.1,
     lineHeight: 38,
   },
   amountSub: {
     fontSize: 12,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED,
+    color: c.muted,
   },
   railBar: {
     height: 4,
@@ -612,42 +600,42 @@ const s = StyleSheet.create({
   sectionEyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginTop: 22,
     marginBottom: 8,
   },
   card: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
   },
   custAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: INK,
+    backgroundColor: c.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
   custAvatarText: {
     fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
+    color: c.orange,
   },
   custName: {
     fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   iconAction: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -662,25 +650,25 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
   },
   lineQty: {
     fontSize: 11,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     width: 24,
     textAlign: 'right',
   },
   lineAmt: {
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     minWidth: 70,
     textAlign: 'right',
   },
   totalSection: {
     borderTopWidth: 1,
-    borderTopColor: LINE_SOFT,
+    borderTopColor: c.lineSoft,
     padding: 16,
     gap: 4,
   },
@@ -691,12 +679,12 @@ const s = StyleSheet.create({
   totalLabel: {
     fontSize: 12,
     fontFamily: 'Manrope_600SemiBold',
-    color: MUTED_HI,
+    color: c.mutedHi,
   },
   totalValue: {
     fontSize: 12,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
   },
   xeroBar: {
     paddingHorizontal: 20,
@@ -709,27 +697,27 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
-    backgroundColor: GREEN_SOFT,
+    backgroundColor: c.greenSoft,
     borderWidth: 1,
-    borderColor: `${GREEN}44`,
+    borderColor: `${c.green}44`,
   },
   xeroText: {
     fontSize: 11,
     fontFamily: 'Manrope_700Bold',
-    color: GREEN,
+    color: c.green,
   },
   xeroSyncBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: BLUE_SOFT,
+    backgroundColor: c.blueSoft,
     borderWidth: 1,
-    borderColor: BLUE_BORDER,
+    borderColor: c.blueBorder,
   },
   xeroSyncBtnText: {
     fontSize: 11,
     fontFamily: 'Manrope_700Bold',
-    color: BLUE,
+    color: c.blue,
   },
   bottomBar: {
     position: 'absolute',
@@ -755,9 +743,9 @@ const s = StyleSheet.create({
     flex: 1,
     height: 54,
     borderRadius: 18,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -770,15 +758,15 @@ const s = StyleSheet.create({
   tweakBtnText: {
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   pdfBtn: {
     width: 54,
     height: 54,
     borderRadius: 18,
-    backgroundColor: ORANGE_SOFT,
+    backgroundColor: c.orangeSoft,
     borderWidth: 1,
-    borderColor: `${ORANGE}44`,
+    borderColor: `${c.orange}44`,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -787,16 +775,16 @@ const s = StyleSheet.create({
   pdfBtnText: {
     fontSize: 11,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
+    color: c.orange,
   },
   convertBtn: {
     flex: 2,
     height: 54,
     borderRadius: 18,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.4,
     shadowRadius: 24,

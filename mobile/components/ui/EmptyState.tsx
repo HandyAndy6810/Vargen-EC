@@ -1,36 +1,32 @@
-import React from 'react';
 import { View, Text } from 'react-native';
-import { LucideIcon } from 'lucide-react-native';
+import type { ReactNode } from 'react';
+import { useTheme } from '@/hooks/use-theme';
+import { type as t, space } from '@/theme/tokens';
+import { PrimaryButton } from './PrimaryButton';
 
-interface EmptyStateProps {
-  icon: LucideIcon;
+export function EmptyState({ icon, title, message, ctaLabel, onCta }: {
+  icon?: ReactNode;
   title: string;
-  subtitle?: string;
-}
-
-export function EmptyState({ icon: Icon, title, subtitle }: EmptyStateProps) {
+  message?: string;
+  ctaLabel?: string;
+  onCta?: () => void;
+}) {
+  const { colors: c } = useTheme();
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 48, paddingHorizontal: 32 }}>
-      <View
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 20,
-          backgroundColor: '#f0ece4',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 16,
-        }}
-      >
-        <Icon size={28} color="#a8a29e" />
-      </View>
-      <Text style={{ fontSize: 16, fontFamily: 'Manrope_700Bold', color: '#1c1917', textAlign: 'center' }}>
+    <View style={{ alignItems: 'center', paddingVertical: 48, paddingHorizontal: space.xxl, gap: space.sm }}>
+      {icon}
+      <Text style={{ fontSize: t.bodyLg, fontFamily: 'Manrope_800ExtraBold', color: c.ink, textAlign: 'center' }}>
         {title}
       </Text>
-      {subtitle ? (
-        <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: '#78716c', textAlign: 'center', marginTop: 6 }}>
-          {subtitle}
+      {message ? (
+        <Text style={{ fontSize: t.body, fontFamily: 'Manrope_500Medium', color: c.muted, textAlign: 'center', lineHeight: 20, maxWidth: 260 }}>
+          {message}
         </Text>
+      ) : null}
+      {ctaLabel && onCta ? (
+        <View style={{ marginTop: space.md, alignSelf: 'stretch' }}>
+          <PrimaryButton label={ctaLabel} onPress={onCta} />
+        </View>
       ) : null}
     </View>
   );

@@ -15,7 +15,8 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
-import { useState, useRef, useEffect } from 'react';
+import { useTheme, type Colors } from '@/hooks/use-theme';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Sparkles, Send, Edit2, Bookmark, Search, ChevronDown, X } from 'lucide-react-native';
@@ -29,20 +30,6 @@ import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModa
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import type { Customer } from '@shared/mobile-types';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const BLACK       = '#0f0e0b';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
-const RED_SOFT    = '#fde5e5';
-const RED         = '#d23b3b';
 
 type Step = 'prompt' | 'draft';
 
@@ -67,8 +54,9 @@ interface AiQuoteResult {
 }
 
 function AiAvatar({ size = 32 }: { size?: number }) {
+  const { colors: c } = useTheme();
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2.6, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center', flexShrink: 0, shadowColor: ORANGE, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.33, shadowRadius: 12 }}>
+    <View style={{ width: size, height: size, borderRadius: size / 2.6, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', flexShrink: 0, shadowColor: c.orange, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.33, shadowRadius: 12 }}>
       <Sparkles size={size * 0.55} color="#fff" strokeWidth={2} />
     </View>
   );
@@ -81,6 +69,8 @@ const TRADE_TYPES = [
 ];
 
 export default function AiChatScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const params = useLocalSearchParams<{ description?: string }>();
   const navigation = useNavigation();
   const [step, setStep] = useState<Step>('prompt');
@@ -367,8 +357,11 @@ export default function AiChatScreen() {
   // Send-to-customer channel picker (ActionSheet — Alert caps at 3 buttons on
   // Android and is a no-op on web). Quote is only flagged "sent" once a channel
   // with a valid destination is actually chosen.
-  const sendSubtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
-  const sendTotal = sendSubtotal * 1.1;
+  const liveSubtotal = useMemo(
+    () => editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0),
+    [editableItems]
+  );
+  const sendTotal = liveSubtotal * 1.1;
   const sendEmail = customerType === 'existing' ? (overrideEmail || selectedCustomer?.email || '') : email;
   const sendPhone = customerType === 'existing' ? (overridePhone || selectedCustomer?.phone || '') : phone;
   const sendName  = customerType === 'existing' ? (selectedCustomer?.name || '') : `${firstName} ${lastName}`.trim();
@@ -431,12 +424,12 @@ export default function AiChatScreen() {
   const stepTitle = step === 'prompt' ? 'New AI quote' : 'Draft quote';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Top bar */}
         <View style={s.topBar}>
           <TouchableOpacity onPress={goBack} style={s.navBtn}>
-            <ChevronLeft size={18} color={INK} strokeWidth={2.1} />
+            <ChevronLeft size={18} color={c.ink} strokeWidth={2.1} />
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text style={s.topBarEyebrow}>{stepLabel}</Text>
@@ -453,7 +446,7 @@ export default function AiChatScreen() {
             <Text style={s.generatingSubtitle}>
               Checking current trade pricing{'\n'}and building your line items
             </Text>
-            <ActivityIndicator color={ORANGE} style={{ marginTop: 24 }} />
+            <ActivityIndicator color={c.orange} style={{ marginTop: 24 }} />
           </View>
         )}
 
@@ -487,7 +480,7 @@ export default function AiChatScreen() {
               <TextInput
                 style={s.descInput}
                 placeholder="e.g. Replace hot water system at Smith's place, Rheem 315L same location…"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
                 value={description}
                 onChangeText={setDescription}
                 multiline
@@ -518,43 +511,43 @@ export default function AiChatScreen() {
                 {customerType === 'new' ? (
                   <>
                     {/* First + last name */}
-                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                       <TextInput
                         style={[s.formInput, { flex: 1 }]}
                         placeholder="First name *"
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         value={firstName}
                         onChangeText={setFirstName}
                         returnKeyType="next"
                       />
-                      <View style={{ width: 1, backgroundColor: LINE_SOFT, alignSelf: 'stretch' }} />
+                      <View style={{ width: 1, backgroundColor: c.lineSoft, alignSelf: 'stretch' }} />
                       <TextInput
                         style={[s.formInput, { flex: 1 }]}
                         placeholder="Last name"
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         value={lastName}
                         onChangeText={setLastName}
                         returnKeyType="next"
                       />
                     </View>
                     {/* Business name */}
-                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                       <TextInput
                         style={[s.formInput, { flex: 1 }]}
                         placeholder="Business name (optional)"
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         value={businessName}
                         onChangeText={setBusinessName}
                         returnKeyType="next"
                       />
                     </View>
                     {/* Phone */}
-                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
-                      <Text style={s.formRowLabel}>Phone <Text style={{ color: ORANGE }}>*</Text></Text>
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
+                      <Text style={s.formRowLabel}>Phone <Text style={{ color: c.orange }}>*</Text></Text>
                       <TextInput
                         style={[s.formInput, { flex: 1, textAlign: 'right' }]}
                         placeholder="04xx xxx xxx"
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         value={phone}
                         onChangeText={setPhone}
                         keyboardType="phone-pad"
@@ -562,12 +555,12 @@ export default function AiChatScreen() {
                       />
                     </View>
                     {/* Email */}
-                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                       <Text style={s.formRowLabel}>Email</Text>
                       <TextInput
                         style={[s.formInput, { flex: 1, textAlign: 'right' }]}
                         placeholder="email@example.com"
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         value={email}
                         onChangeText={setEmail}
                         keyboardType="email-address"
@@ -576,12 +569,12 @@ export default function AiChatScreen() {
                       />
                     </View>
                     {/* Site address */}
-                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, alignItems: 'flex-start', paddingTop: 12 }]}>
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft, alignItems: 'flex-start', paddingTop: 12 }]}>
                       <Text style={[s.formRowLabel, { paddingTop: 2 }]}>Site address</Text>
                       <TextInput
                         style={[s.formInput, { flex: 1, textAlign: 'right' }]}
                         placeholder="Job site address"
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         value={siteAddress}
                         onChangeText={setSiteAddress}
                         multiline
@@ -590,22 +583,22 @@ export default function AiChatScreen() {
                       />
                     </View>
                     {/* Billing same as site toggle */}
-                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                       <Text style={s.formRowLabel}>Billing same as site</Text>
                       <Switch
                         value={billingSameAsSite}
                         onValueChange={setBillingSameAsSite}
-                        trackColor={{ false: LINE_MID, true: ORANGE }}
+                        trackColor={{ false: c.lineMid, true: c.orange }}
                         thumbColor="#fff"
                       />
                     </View>
                     {!billingSameAsSite && (
-                      <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, alignItems: 'flex-start', paddingTop: 12 }]}>
+                      <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft, alignItems: 'flex-start', paddingTop: 12 }]}>
                         <Text style={[s.formRowLabel, { paddingTop: 2 }]}>Billing address</Text>
                         <TextInput
                           style={[s.formInput, { flex: 1, textAlign: 'right' }]}
                           placeholder="Billing address"
-                          placeholderTextColor={MUTED}
+                          placeholderTextColor={c.muted}
                           value={billingAddress}
                           onChangeText={setBillingAddress}
                           multiline
@@ -615,12 +608,12 @@ export default function AiChatScreen() {
                       </View>
                     )}
                     {/* Notes */}
-                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, alignItems: 'flex-start', paddingTop: 12 }]}>
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft, alignItems: 'flex-start', paddingTop: 12 }]}>
                       <Text style={[s.formRowLabel, { paddingTop: 2 }]}>Notes</Text>
                       <TextInput
                         style={[s.formInput, { flex: 1, textAlign: 'right' }]}
                         placeholder="Access notes, special instructions…"
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         value={custNotes}
                         onChangeText={setCustNotes}
                         multiline
@@ -632,12 +625,12 @@ export default function AiChatScreen() {
                 ) : (
                   <>
                     {/* Search */}
-                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, gap: 8 }]}>
-                      <Search size={16} color={MUTED} strokeWidth={2} />
+                    <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft, gap: 8 }]}>
+                      <Search size={16} color={c.muted} strokeWidth={2} />
                       <TextInput
                         style={[s.formInput, { flex: 1 }]}
                         placeholder="Search by name, phone or email…"
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         value={custSearch}
                         onChangeText={(v) => {
                           setCustSearch(v);
@@ -650,24 +643,24 @@ export default function AiChatScreen() {
                     </View>
                     {/* Dropdown results */}
                     {showDropdown && filteredCustomers.length > 0 && (
-                      <View style={{ borderTopWidth: 1, borderTopColor: LINE_SOFT }}>
-                        {filteredCustomers.slice(0, 5).map((c, i) => (
+                      <View style={{ borderTopWidth: 1, borderTopColor: c.lineSoft }}>
+                        {filteredCustomers.slice(0, 5).map((cust, i) => (
                           <TouchableOpacity
-                            key={c.id}
+                            key={cust.id}
                             activeOpacity={0.7}
-                            style={[s.dropdownRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}
+                            style={[s.dropdownRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}
                             onPress={() => {
-                              setSelectedCustomer(c);
-                              setCustSearch(c.name);
-                              setOverridePhone(c.phone ?? '');
-                              setOverrideEmail(c.email ?? '');
-                              setOverrideAddress(c.address ?? '');
+                              setSelectedCustomer(cust);
+                              setCustSearch(cust.name);
+                              setOverridePhone(cust.phone ?? '');
+                              setOverrideEmail(cust.email ?? '');
+                              setOverrideAddress(cust.address ?? '');
                               setShowDropdown(false);
                             }}
                           >
-                            <Text style={s.dropdownName}>{c.name}</Text>
-                            {(c.phone || c.email) && (
-                              <Text style={s.dropdownSub}>{[c.phone, c.email].filter(Boolean).join(' · ')}</Text>
+                            <Text style={s.dropdownName}>{cust.name}</Text>
+                            {(cust.phone || cust.email) && (
+                              <Text style={s.dropdownSub}>{[cust.phone, cust.email].filter(Boolean).join(' · ')}</Text>
                             )}
                           </TouchableOpacity>
                         ))}
@@ -676,37 +669,37 @@ export default function AiChatScreen() {
                     {/* Selected customer — editable fields */}
                     {selectedCustomer && !showDropdown && (
                       <>
-                        <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                        <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                           <Text style={s.formRowLabel}>Phone</Text>
                           <TextInput
                             style={[s.formInput, { flex: 1, textAlign: 'right' }]}
                             value={overridePhone}
                             onChangeText={setOverridePhone}
                             placeholder="—"
-                            placeholderTextColor={MUTED}
+                            placeholderTextColor={c.muted}
                             keyboardType="phone-pad"
                           />
                         </View>
-                        <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                        <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                           <Text style={s.formRowLabel}>Email</Text>
                           <TextInput
                             style={[s.formInput, { flex: 1, textAlign: 'right' }]}
                             value={overrideEmail}
                             onChangeText={setOverrideEmail}
                             placeholder="—"
-                            placeholderTextColor={MUTED}
+                            placeholderTextColor={c.muted}
                             keyboardType="email-address"
                             autoCapitalize="none"
                           />
                         </View>
-                        <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, alignItems: 'flex-start', paddingTop: 12 }]}>
+                        <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft, alignItems: 'flex-start', paddingTop: 12 }]}>
                           <Text style={[s.formRowLabel, { paddingTop: 2 }]}>Address</Text>
                           <TextInput
                             style={[s.formInput, { flex: 1, textAlign: 'right' }]}
                             value={overrideAddress}
                             onChangeText={setOverrideAddress}
                             placeholder="—"
-                            placeholderTextColor={MUTED}
+                            placeholderTextColor={c.muted}
                             multiline
                             numberOfLines={2}
                             textAlignVertical="top"
@@ -729,12 +722,12 @@ export default function AiChatScreen() {
                 >
                   <Text style={s.formRowLabel}>Trade type</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: INK }}>{tradeType}</Text>
-                    <ChevronDown size={14} color={MUTED} strokeWidth={2.2} />
+                    <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink }}>{tradeType}</Text>
+                    <ChevronDown size={14} color={c.muted} strokeWidth={2.2} />
                   </View>
                 </TouchableOpacity>
                 {/* Labour rate + hours in one row */}
-                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, gap: 0 }]}>
+                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft, gap: 0 }]}>
                   <Text style={s.formRowLabel}>Labour</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={s.labourBubble}>
@@ -756,7 +749,7 @@ export default function AiChatScreen() {
                         onChangeText={setLabourHours}
                         keyboardType="numeric"
                         placeholder="est."
-                        placeholderTextColor={MUTED}
+                        placeholderTextColor={c.muted}
                         selectTextOnFocus
                         returnKeyType="next"
                       />
@@ -764,12 +757,12 @@ export default function AiChatScreen() {
                   </View>
                 </View>
                 {/* Callout fee */}
-                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                   <Text style={s.formRowLabel}>Callout fee</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     {calloutFeeEnabled && (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={{ fontSize: 13, color: MUTED_HI, fontFamily: 'Manrope_700Bold' }}>$</Text>
+                        <Text style={{ fontSize: 13, color: c.mutedHi, fontFamily: 'Manrope_700Bold' }}>$</Text>
                         <TextInput
                           style={[s.formRowInput, { width: 60 }]}
                           value={calloutFeeAmount}
@@ -782,7 +775,7 @@ export default function AiChatScreen() {
                     <Switch
                       value={calloutFeeEnabled}
                       onValueChange={setCalloutFeeEnabled}
-                      trackColor={{ false: LINE_MID, true: ORANGE }}
+                      trackColor={{ false: c.lineMid, true: c.orange }}
                       thumbColor="#fff"
                     />
                   </View>
@@ -797,13 +790,13 @@ export default function AiChatScreen() {
                   <TextInput
                     style={[s.formInput, { flex: 1, textAlign: 'right' }]}
                     placeholder="AI can fill this in"
-                    placeholderTextColor={MUTED}
+                    placeholderTextColor={c.muted}
                     value={jobTitleOverride}
                     onChangeText={setJobTitleOverride}
                     returnKeyType="next"
                   />
                 </View>
-                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, flexDirection: 'column', alignItems: 'flex-start', paddingBottom: 12 }]}>
+                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft, flexDirection: 'column', alignItems: 'flex-start', paddingBottom: 12 }]}>
                   <Text style={[s.formRowLabel, { marginBottom: 10 }]}>Expiry</Text>
                   <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                     {[7, 14, 30, 60, 90].map((days) => (
@@ -817,35 +810,35 @@ export default function AiChatScreen() {
                       </TouchableOpacity>
                     ))}
                   </View>
-                  <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_600SemiBold', marginTop: 8 }}>
+                  <Text style={{ fontSize: 11, color: c.muted, fontFamily: 'Manrope_600SemiBold', marginTop: 8 }}>
                     Expires {expiryDate}
                   </Text>
                 </View>
-                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={s.formRowLabel}>Price estimate</Text>
-                    <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_500Medium', marginTop: 2 }}>Optional — helps AI target the right figure</Text>
+                    <Text style={{ fontSize: 11, color: c.muted, fontFamily: 'Manrope_500Medium', marginTop: 2 }}>Optional — helps AI target the right figure</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={{ fontSize: 13, color: MUTED_HI, fontFamily: 'Manrope_700Bold' }}>$</Text>
+                    <Text style={{ fontSize: 13, color: c.mutedHi, fontFamily: 'Manrope_700Bold' }}>$</Text>
                     <TextInput
                       style={[s.formRowInput, { width: 90, textAlign: 'right' }]}
                       value={priceEstimate}
                       onChangeText={setPriceEstimate}
                       keyboardType="numeric"
                       placeholder="e.g. 1500"
-                      placeholderTextColor={MUTED}
+                      placeholderTextColor={c.muted}
                       selectTextOnFocus
                       returnKeyType="done"
                     />
                   </View>
                 </View>
-                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: LINE_SOFT, alignItems: 'flex-start', paddingTop: 12 }]}>
+                <View style={[s.formRow, { borderTopWidth: 1, borderTopColor: c.lineSoft, alignItems: 'flex-start', paddingTop: 12 }]}>
                   <Text style={[s.formRowLabel, { paddingTop: 2 }]}>Internal notes</Text>
                   <TextInput
                     style={[s.formInput, { flex: 1, textAlign: 'right' }]}
                     placeholder="Not shown to customer…"
-                    placeholderTextColor={MUTED}
+                    placeholderTextColor={c.muted}
                     value={internalNotes}
                     onChangeText={setInternalNotes}
                     multiline
@@ -865,7 +858,7 @@ export default function AiChatScreen() {
                 activeOpacity={0.82}
               >
                 {saveMutation.isPending
-                  ? <ActivityIndicator color={ORANGE} size="small" />
+                  ? <ActivityIndicator color={c.orange} size="small" />
                   : <Text style={s.saveDraftBtnText}>Save draft</Text>
                 }
               </TouchableOpacity>
@@ -903,15 +896,15 @@ export default function AiChatScreen() {
                       value={jobTitleOverride}
                       onChangeText={setJobTitleOverride}
                       placeholder="Job title…"
-                      placeholderTextColor={MUTED}
+                      placeholderTextColor={c.muted}
                       multiline
                     />
                     {customerName.trim() ? (
                       <Text style={s.quoteMeta}>For {customerName.trim()}</Text>
                     ) : null}
                   </View>
-                  <View style={[s.statusPill, savedQuoteId != null ? { backgroundColor: STATUS_COLORS[quoteStatus]?.bg ?? PAPER_DEEP } : null]}>
-                    <Text style={[s.statusPillText, savedQuoteId != null ? { color: STATUS_COLORS[quoteStatus]?.text ?? MUTED_HI } : null]}>
+                  <View style={[s.statusPill, savedQuoteId != null ? { backgroundColor: STATUS_COLORS[quoteStatus]?.bg ?? c.paperDeep } : null]}>
+                    <Text style={[s.statusPillText, savedQuoteId != null ? { color: STATUS_COLORS[quoteStatus]?.text ?? c.mutedHi } : null]}>
                       {savedQuoteId ? quoteStatus.toUpperCase() : 'DRAFT'}
                     </Text>
                   </View>
@@ -919,24 +912,24 @@ export default function AiChatScreen() {
 
                 {/* Job type + expiry row */}
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
-                  <View style={{ flex: 1, backgroundColor: PAPER_DEEP, borderRadius: 10, padding: 10 }}>
-                    <Text style={{ fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 3 }}>Type</Text>
+                  <View style={{ flex: 1, backgroundColor: c.paperDeep, borderRadius: 10, padding: 10 }}>
+                    <Text style={{ fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 3 }}>Type</Text>
                     <TextInput
-                      style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: INK }}
+                      style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink }}
                       value={jobType}
                       onChangeText={setJobType}
                       placeholder="Job type"
-                      placeholderTextColor={MUTED}
+                      placeholderTextColor={c.muted}
                     />
                   </View>
-                  <View style={{ flex: 1, backgroundColor: PAPER_DEEP, borderRadius: 10, padding: 10 }}>
-                    <Text style={{ fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: MUTED, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 3 }}>Expires</Text>
+                  <View style={{ flex: 1, backgroundColor: c.paperDeep, borderRadius: 10, padding: 10 }}>
+                    <Text style={{ fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 3 }}>Expires</Text>
                     <TextInput
-                      style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: INK }}
+                      style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink }}
                       value={expiryDate}
                       onChangeText={setExpiryDate}
                       placeholder="dd mmm yyyy"
-                      placeholderTextColor={MUTED}
+                      placeholderTextColor={c.muted}
                     />
                   </View>
                 </View>
@@ -950,7 +943,6 @@ export default function AiChatScreen() {
 
                 {/* Live margin slider */}
                 {(() => {
-                  const liveSubtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
                   const markupPercent = userSettings?.markupPercent ?? 30;
                   const cost = liveSubtotal > 0 ? liveSubtotal / (1 + markupPercent / 100) : 0;
                   return (
@@ -974,13 +966,13 @@ export default function AiChatScreen() {
                   {editableItems.map((item, i) => {
                     const lineTotal = (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0);
                     return (
-                      <View key={i} style={[s.editLineRow, i > 0 && { borderTopWidth: 1, borderTopColor: LINE_SOFT }]}>
+                      <View key={i} style={[s.editLineRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                         <TextInput
                           style={s.editLineDesc}
                           value={item.description}
                           onChangeText={(v) => setEditableItems(prev => prev.map((it, idx) => idx === i ? { ...it, description: v } : it))}
                           placeholder="Item description"
-                          placeholderTextColor={MUTED}
+                          placeholderTextColor={c.muted}
                           multiline
                         />
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
@@ -996,10 +988,10 @@ export default function AiChatScreen() {
                             value={item.unit}
                             onChangeText={(v) => setEditableItems(prev => prev.map((it, idx) => idx === i ? { ...it, unit: v } : it))}
                             placeholder="ea"
-                            placeholderTextColor={MUTED}
+                            placeholderTextColor={c.muted}
                           />
-                          <Text style={{ fontSize: 11, color: MUTED, fontFamily: 'Manrope_600SemiBold' }}>@</Text>
-                          <Text style={{ fontSize: 11, color: MUTED_HI, fontFamily: 'Manrope_700Bold' }}>$</Text>
+                          <Text style={{ fontSize: 11, color: c.muted, fontFamily: 'Manrope_600SemiBold' }}>@</Text>
+                          <Text style={{ fontSize: 11, color: c.mutedHi, fontFamily: 'Manrope_700Bold' }}>$</Text>
                           <TextInput
                             style={[s.editLineMeta, { width: 72, flexShrink: 0 }]}
                             value={item.rate}
@@ -1014,7 +1006,7 @@ export default function AiChatScreen() {
                             onPress={() => setEditableItems(prev => prev.filter((_, idx) => idx !== i))}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <Text style={{ fontSize: 16, color: MUTED, paddingLeft: 4 }}>×</Text>
+                            <Text style={{ fontSize: 16, color: c.muted, paddingLeft: 4 }}>×</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1031,11 +1023,11 @@ export default function AiChatScreen() {
 
                 {/* Computed totals */}
                 {(() => {
-                  const subtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
+                  const subtotal = liveSubtotal;
                   const gst = subtotal * 0.1;
                   const total = subtotal + gst;
                   return (
-                    <View style={{ borderTopWidth: 1, borderTopColor: LINE_SOFT, paddingTop: 12 }}>
+                    <View style={{ borderTopWidth: 1, borderTopColor: c.lineSoft, paddingTop: 12 }}>
                       <View style={s.totalRow}>
                         <Text style={s.totalLabel}>Subtotal</Text>
                         <Text style={s.totalValue}>${subtotal.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
@@ -1055,7 +1047,7 @@ export default function AiChatScreen() {
 
               {/* AI badge */}
               <View style={s.aiBadge}>
-                <Sparkles size={16} color={ORANGE_DEEP} strokeWidth={2} />
+                <Sparkles size={16} color={c.orangeDeep} strokeWidth={2} />
                 <Text style={s.aiBadgeText}>
                   Priced to current Australian trade rates.{' '}
                   <Text style={{ fontFamily: 'Manrope_800ExtraBold' }}>Review before sending.</Text>
@@ -1076,7 +1068,7 @@ export default function AiChatScreen() {
                 <TextInput
                   style={s.internalNotesInput}
                   placeholder="Add internal notes…"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                   value={internalNotes}
                   onChangeText={setInternalNotes}
                   multiline
@@ -1138,7 +1130,7 @@ export default function AiChatScreen() {
                     style={s.tweakBtn}
                     onPress={() => { setStep('prompt'); setAiResult(null); setError(null); }}
                   >
-                    <Edit2 size={16} color={INK} strokeWidth={2} />
+                    <Edit2 size={16} color={c.ink} strokeWidth={2} />
                     <Text style={s.tweakBtnText}>Redo</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -1176,7 +1168,7 @@ export default function AiChatScreen() {
                 style={s.templateBtn}
                 onPress={() => showAlert('Save as template', 'Quote templates are coming soon.')}
               >
-                <Bookmark size={15} color={MUTED_HI} strokeWidth={2} />
+                <Bookmark size={15} color={c.mutedHi} strokeWidth={2} />
                 <Text style={s.templateBtnText}>Save as template</Text>
               </TouchableOpacity>
             </View>
@@ -1199,9 +1191,9 @@ export default function AiChatScreen() {
         <View style={s.modalSheet}>
           <View style={s.modalHandle} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: INK }}>Trade type</Text>
+            <Text style={{ fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: c.ink }}>Trade type</Text>
             <TouchableOpacity onPress={() => setShowTradeDropdown(false)}>
-              <X size={20} color={MUTED_HI} strokeWidth={2} />
+              <X size={20} color={c.mutedHi} strokeWidth={2} />
             </TouchableOpacity>
           </View>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 32 }}>
@@ -1237,7 +1229,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }>
   expired:  { bg: '#f3f4f6', text: '#9ca3af', label: 'Expired' },
 };
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1245,19 +1237,19 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: LINE_SOFT,
+    borderBottomColor: c.lineSoft,
   },
   topBarEyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   topBarTitle: {
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.3,
     marginTop: 2,
   },
@@ -1265,9 +1257,9 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1277,7 +1269,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: PAPER,
+    backgroundColor: c.paper,
     zIndex: 50,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1287,7 +1279,7 @@ const s = StyleSheet.create({
   generatingTitle: {
     fontSize: 22,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.5,
     marginTop: 16,
     textAlign: 'center',
@@ -1295,36 +1287,36 @@ const s = StyleSheet.create({
   generatingSubtitle: {
     fontSize: 13,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     textAlign: 'center',
     lineHeight: 20,
   },
   heroHeadingSmall: {
     fontSize: 18,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.4,
   },
   heroSubSmall: {
     fontSize: 12,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginTop: 2,
   },
   formLabel: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 8,
     marginTop: 4,
   },
   formCard: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     overflow: 'hidden',
     marginBottom: 18,
   },
@@ -1334,26 +1326,26 @@ const s = StyleSheet.create({
     padding: 10,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: LINE_SOFT,
+    borderBottomColor: c.lineSoft,
   },
   custTypeBtn: {
     flex: 1,
     height: 42,
     borderRadius: 12,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'transparent',
   },
   custTypeBtnActive: {
-    backgroundColor: ORANGE,
-    borderColor: ORANGE_DEEP,
+    backgroundColor: c.orange,
+    borderColor: c.orangeDeep,
   },
   custTypeBtnText: {
     fontSize: 13,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED_HI,
+    color: c.mutedHi,
   },
   custTypeBtnTextActive: {
     color: '#fff',
@@ -1363,17 +1355,17 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 14,
     fontFamily: 'Manrope_600SemiBold',
-    color: INK,
+    color: c.ink,
   },
   descInput: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     padding: 14,
     fontSize: 14,
     fontFamily: 'Manrope_600SemiBold',
-    color: INK,
+    color: c.ink,
     minHeight: 96,
     marginBottom: 18,
   },
@@ -1388,24 +1380,24 @@ const s = StyleSheet.create({
   formRowLabel: {
     fontSize: 13,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
     flex: 1,
   },
   formRowInput: {
     fontSize: 14,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
     textAlign: 'right',
   },
   generateBtn: {
     height: 56,
     borderRadius: 20,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.4,
     shadowRadius: 24,
@@ -1417,7 +1409,7 @@ const s = StyleSheet.create({
     color: '#fff',
   },
   errorBox: {
-    backgroundColor: RED_SOFT,
+    backgroundColor: c.redSoft,
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
@@ -1425,13 +1417,13 @@ const s = StyleSheet.create({
   errorText: {
     fontSize: 13,
     fontFamily: 'Manrope_600SemiBold',
-    color: RED,
+    color: c.red,
   },
   eyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
     letterSpacing: 2,
-    color: MUTED,
+    color: c.muted,
     textTransform: 'uppercase',
     marginBottom: 10,
   },
@@ -1453,9 +1445,9 @@ const s = StyleSheet.create({
   saveDraftBtn: {
     height: 54,
     borderRadius: 18,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
@@ -1463,7 +1455,7 @@ const s = StyleSheet.create({
   saveDraftBtnText: {
     fontSize: 14,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
   },
   composerWrap: {
     paddingHorizontal: 16,
@@ -1480,10 +1472,10 @@ const s = StyleSheet.create({
     gap: 8,
   },
   quotePaper: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     padding: 20,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -1499,12 +1491,12 @@ const s = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: `${ORANGE}1f`,
+    backgroundColor: `${c.orange}1f`,
   },
   quoteMeta: {
     fontSize: 12,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginTop: 3,
   },
   statusPill: {
@@ -1512,19 +1504,19 @@ const s = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: LINE_MID,
-    backgroundColor: PAPER_DEEP,
+    borderColor: c.lineMid,
+    backgroundColor: c.paperDeep,
     alignSelf: 'flex-start',
   },
   statusPillText: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED_HI,
+    color: c.mutedHi,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   summaryBox: {
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     borderRadius: 12,
     padding: 12,
     marginBottom: 14,
@@ -1532,13 +1524,13 @@ const s = StyleSheet.create({
   summaryText: {
     fontSize: 12.5,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED_HI,
+    color: c.mutedHi,
     lineHeight: 19,
   },
   lineTotal: {
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     minWidth: 70,
     textAlign: 'right',
     flexShrink: 0,
@@ -1551,23 +1543,23 @@ const s = StyleSheet.create({
   totalLabel: {
     fontSize: 12,
     fontFamily: 'Manrope_600SemiBold',
-    color: MUTED_HI,
+    color: c.mutedHi,
   },
   totalValue: {
     fontSize: 12,
     fontFamily: 'Manrope_600SemiBold',
-    color: MUTED_HI,
+    color: c.mutedHi,
   },
   grandLabel: {
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: 0.2,
   },
   grandTotal: {
     fontSize: 28,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE,
+    color: c.orange,
     letterSpacing: -0.8,
     lineHeight: 32,
   },
@@ -1577,7 +1569,7 @@ const s = StyleSheet.create({
     gap: 10,
     padding: 12,
     borderRadius: 14,
-    backgroundColor: ORANGE_SOFT,
+    backgroundColor: c.orangeSoft,
     borderWidth: 1,
     borderColor: 'rgba(242,106,42,0.25)',
     marginBottom: 14,
@@ -1586,11 +1578,11 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontFamily: 'Manrope_600SemiBold',
-    color: ORANGE_DEEP,
+    color: c.orangeDeep,
     lineHeight: 18,
   },
   notesBox: {
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     borderRadius: 14,
     padding: 14,
     marginBottom: 14,
@@ -1598,7 +1590,7 @@ const s = StyleSheet.create({
   notesLabel: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 8,
@@ -1606,7 +1598,7 @@ const s = StyleSheet.create({
   notesText: {
     fontSize: 12,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED_HI,
+    color: c.mutedHi,
     lineHeight: 19,
   },
   breakdownRow: {
@@ -1615,16 +1607,16 @@ const s = StyleSheet.create({
     marginBottom: 14,
   },
   breakdownCard: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
   },
   breakdownCardLabel: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 4,
@@ -1632,22 +1624,22 @@ const s = StyleSheet.create({
   breakdownCardValue: {
     fontSize: 18,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.4,
   },
   breakdownCardSub: {
     fontSize: 11,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginTop: 2,
   },
   tweakBtn: {
     flex: 1,
     height: 54,
     borderRadius: 18,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1660,18 +1652,18 @@ const s = StyleSheet.create({
   tweakBtnText: {
     fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   saveBtn: {
     flex: 2,
     height: 54,
     borderRadius: 18,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.4,
     shadowRadius: 24,
@@ -1686,25 +1678,25 @@ const s = StyleSheet.create({
   dropdownRow: {
     paddingHorizontal: 14,
     paddingVertical: 11,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
   },
   dropdownName: {
     fontSize: 14,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
   },
   dropdownSub: {
     fontSize: 11,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginTop: 2,
   },
   templateBtn: {
     height: 44,
     borderRadius: 14,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1713,12 +1705,12 @@ const s = StyleSheet.create({
   templateBtnText: {
     fontSize: 13,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED_HI,
+    color: c.mutedHi,
   },
   quoteTitleInput: {
     fontSize: 20,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.5,
     marginTop: 2,
     padding: 0,
@@ -1729,15 +1721,15 @@ const s = StyleSheet.create({
   editLineDesc: {
     fontSize: 13,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
     padding: 0,
   },
   editLineMeta: {
     fontSize: 12,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
     borderBottomWidth: 1,
-    borderBottomColor: LINE_MID,
+    borderBottomColor: c.lineMid,
     minWidth: 36,
     paddingVertical: 0,
     textAlign: 'center',
@@ -1746,36 +1738,36 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: LINE_SOFT,
+    borderTopColor: c.lineSoft,
     marginTop: 4,
   },
   addItemBtnText: {
     fontSize: 13,
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE_DEEP,
+    color: c.orangeDeep,
   },
   internalNotesBox: {
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     borderRadius: 14,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
   },
   internalNotesInput: {
     fontSize: 13,
     fontFamily: 'Manrope_500Medium',
-    color: INK,
+    color: c.ink,
     marginTop: 8,
     padding: 0,
     minHeight: 60,
   },
   statusManageBox: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     marginBottom: 14,
   },
   statusChip: {
@@ -1791,7 +1783,7 @@ const s = StyleSheet.create({
   sendBtn: {
     height: 54,
     borderRadius: 18,
-    backgroundColor: BLACK,
+    backgroundColor: c.ink,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1812,7 +1804,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
   modalSheet: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 16,
@@ -1822,7 +1814,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: LINE_MID,
+    backgroundColor: c.lineMid,
     alignSelf: 'center',
     marginBottom: 16,
   },
@@ -1836,43 +1828,43 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   modalOptionActive: {
-    backgroundColor: ORANGE_SOFT,
+    backgroundColor: c.orangeSoft,
   },
   modalOptionText: {
     fontSize: 15,
     fontFamily: 'Manrope_600SemiBold',
-    color: INK,
+    color: c.ink,
   },
   modalOptionTextActive: {
     fontFamily: 'Manrope_800ExtraBold',
-    color: ORANGE_DEEP,
+    color: c.orangeDeep,
   },
   modalOptionTick: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
   },
   labourBubble: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   labourBubbleLabel: {
     fontSize: 11,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED,
+    color: c.muted,
   },
   labourBubbleInput: {
     fontSize: 14,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
     minWidth: 44,
     textAlign: 'center',
   },
@@ -1880,18 +1872,18 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
   },
   expiryChipActive: {
-    backgroundColor: ORANGE,
-    borderColor: ORANGE_DEEP,
+    backgroundColor: c.orange,
+    borderColor: c.orangeDeep,
   },
   expiryChipText: {
     fontSize: 12,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED_HI,
+    color: c.mutedHi,
   },
   expiryChipTextActive: {
     color: '#fff',

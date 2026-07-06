@@ -18,6 +18,7 @@ import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { ThemeProvider, useTheme } from '@/hooks/use-theme';
 import { loadCachedUser } from '@/lib/auth-cache';
+import { Snackbar } from '@/components/Snackbar';
 
 // ── Push notification handler config ────────────────────────────────────────
 Notifications.setNotificationHandler({
@@ -55,7 +56,7 @@ const eb = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFBF8', alignItems: 'center', justifyContent: 'center', padding: 32 },
   title:     { fontSize: 20, fontWeight: '800', color: '#1A0E06', marginBottom: 10 },
   sub:       { fontSize: 13, color: 'rgba(26,14,6,0.55)', textAlign: 'center', marginBottom: 28 },
-  btn:       { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, backgroundColor: '#FF5C00' },
+  btn:       { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, backgroundColor: '#f26a2a' },
   btnText:   { fontSize: 14, fontWeight: '800', color: '#fff' },
 });
 
@@ -102,7 +103,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
     };
   }, []);
 
-  if (!fontsLoaded || !themeReady || !authReady) return <View style={{ flex: 1, backgroundColor: '#0F0905' }} />;
+  if (!fontsLoaded || !themeReady || !authReady) return <View style={{ flex: 1, backgroundColor: '#0D0E11' }} />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
@@ -146,10 +147,12 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="customers/compose" />
           <Stack.Screen name="receipts/index" />
           <Stack.Screen name="receipts/scan" />
+          <Stack.Screen name="receipts/[id]" />
           <Stack.Screen name="jobs/create" />
           <Stack.Screen name="price-book" />
           <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
         </Stack>
+        <Snackbar />
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

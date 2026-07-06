@@ -9,7 +9,8 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useTheme, type Colors } from '@/hooks/use-theme';
+import { useState, useEffect, useMemo } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Sparkles, Send, Mail, BookOpen } from 'lucide-react-native';
@@ -20,22 +21,6 @@ import { apiRequest } from '@/lib/api';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { queryClient } from '@/lib/queryClient';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_DEEP = '#d94d0e';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const BLACK       = '#0f0e0b';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
-const GREEN       = '#2a9d4c';
-const GREEN_SOFT  = '#e5f6eb';
-const BLUE        = '#1f6feb';
-const BLUE_SOFT   = '#eaf2ff';
 
 const TEMPLATES = [
   {
@@ -71,6 +56,8 @@ const TEMPLATES = [
 ];
 
 export default function ComposeScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const {
     customerId,
     customerName,
@@ -222,13 +209,13 @@ export default function ComposeScreen() {
   const smsPages = charCount > 0 ? Math.ceil(charCount / 160) : 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-            <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
+            <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.eyebrow}>Message</Text>
@@ -255,7 +242,7 @@ export default function ComposeScreen() {
                   style={[s.templateCard, active && s.templateCardActive]}
                 >
                   <Text style={s.templateEmoji}>{tmpl.emoji}</Text>
-                  <Text style={[s.templateLabel, active && { color: ORANGE_DEEP }]}>{tmpl.label}</Text>
+                  <Text style={[s.templateLabel, active && { color: c.orangeDeep }]}>{tmpl.label}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -283,7 +270,7 @@ export default function ComposeScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <Text style={s.sectionEyebrow}>Your message</Text>
               {charCount > 0 && (
-                <Text style={{ fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: charCount > 160 ? '#d23b3b' : MUTED }}>
+                <Text style={{ fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: charCount > 160 ? '#d23b3b' : c.muted }}>
                   {charCount} chars{smsPages > 1 ? ` · ${smsPages} SMS` : ''}
                 </Text>
               )}
@@ -297,7 +284,7 @@ export default function ComposeScreen() {
                 numberOfLines={6}
                 textAlignVertical="top"
                 placeholder="Tap a template above, draft with AI, or write your own…"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
               />
             </View>
           </View>
@@ -306,20 +293,20 @@ export default function ComposeScreen() {
           <View style={{ paddingHorizontal: 20, marginTop: 20, gap: 10 }}>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               {phone ? (
-                <TouchableOpacity style={[s.sendBtn, { flex: 1, backgroundColor: GREEN }]} activeOpacity={0.8} onPress={sendSMS}>
+                <TouchableOpacity style={[s.sendBtn, { flex: 1, backgroundColor: c.green }]} activeOpacity={0.8} onPress={sendSMS}>
                   <Send size={16} color="#fff" strokeWidth={2} />
                   <Text style={s.sendBtnText}>Send SMS</Text>
                 </TouchableOpacity>
               ) : null}
               {email ? (
-                <TouchableOpacity style={[s.sendBtn, { flex: 1, backgroundColor: BLUE }]} activeOpacity={0.8} onPress={sendEmail}>
+                <TouchableOpacity style={[s.sendBtn, { flex: 1, backgroundColor: c.blue }]} activeOpacity={0.8} onPress={sendEmail}>
                   <Mail size={16} color="#fff" strokeWidth={2} />
                   <Text style={s.sendBtnText}>Send Email</Text>
                 </TouchableOpacity>
               ) : null}
               {!phone && !email && (
-                <View style={[s.sendBtn, { flex: 1, backgroundColor: PAPER_DEEP, borderWidth: 1, borderColor: LINE_MID }]}>
-                  <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: MUTED }}>No contact info on file</Text>
+                <View style={[s.sendBtn, { flex: 1, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineMid }]}>
+                  <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.muted }}>No contact info on file</Text>
                 </View>
               )}
             </View>
@@ -328,9 +315,9 @@ export default function ComposeScreen() {
             {customerId ? (
               <TouchableOpacity style={s.logBtn} activeOpacity={0.7} onPress={logNote} disabled={isSaving}>
                 {isSaving
-                  ? <ActivityIndicator size="small" color={MUTED_HI} />
+                  ? <ActivityIndicator size="small" color={c.mutedHi} />
                   : <>
-                      <BookOpen size={15} color={MUTED_HI} strokeWidth={2} />
+                      <BookOpen size={15} color={c.mutedHi} strokeWidth={2} />
                       <Text style={s.logBtnText}>Log as note (no send)</Text>
                     </>
                 }
@@ -343,7 +330,7 @@ export default function ComposeScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -355,30 +342,30 @@ const s = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   eyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   title: {
     fontSize: 22,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.5,
     marginTop: 2,
   },
   sectionEyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 10,
@@ -388,15 +375,15 @@ const s = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderRadius: 16,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     gap: 6,
   },
   templateCardActive: {
-    borderColor: ORANGE,
-    backgroundColor: ORANGE_SOFT,
+    borderColor: c.orange,
+    backgroundColor: c.orangeSoft,
   },
   templateEmoji: {
     fontSize: 24,
@@ -405,14 +392,14 @@ const s = StyleSheet.create({
   templateLabel: {
     fontSize: 11,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED_HI,
+    color: c.mutedHi,
     textAlign: 'center',
     lineHeight: 15,
   },
   aiBtn: {
     height: 50,
     borderRadius: 16,
-    backgroundColor: BLACK,
+    backgroundColor: c.ink,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -424,17 +411,17 @@ const s = StyleSheet.create({
     color: '#fff',
   },
   composerWrap: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     overflow: 'hidden',
   },
   composerInput: {
     padding: 16,
     fontSize: 15,
     fontFamily: 'Manrope_500Medium',
-    color: INK,
+    color: c.ink,
     minHeight: 160,
     lineHeight: 22,
   },
@@ -454,9 +441,9 @@ const s = StyleSheet.create({
   logBtn: {
     height: 48,
     borderRadius: 14,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -465,6 +452,6 @@ const s = StyleSheet.create({
   logBtnText: {
     fontSize: 13,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED_HI,
+    color: c.mutedHi,
   },
 });

@@ -2,17 +2,18 @@ import {
   View,
   Text,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   TextInput,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import { useState, useMemo, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { format, startOfWeek, addDays, addWeeks, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
+import { api } from '@shared/mobile-routes';
 import { useWeather } from '@/hooks/use-weather';
 import { Plus, Search, X, ChevronLeft, ChevronRight, Send, SkipForward } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
@@ -48,7 +49,7 @@ function makeStyles(c: Colors, isDark: boolean) {
     searchInput: { flex: 1, fontSize: 14, fontFamily: 'Manrope_500Medium', color: c.ink, paddingVertical: 0 },
     dayCell: { flex: 1, minWidth: 0, paddingVertical: 10, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', gap: 2 },
     dayCellActive: { backgroundColor: c.orange, borderColor: c.orange },
-    dayLabel: { fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: 1, opacity: 0.55, textTransform: 'uppercase' },
+    dayLabel: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: 1, opacity: 0.55, textTransform: 'uppercase' },
     dayNum: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
     dayHeadline: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
     daySubhead: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2 },
@@ -68,7 +69,12 @@ export default function CalendarScreen() {
   const s = makeStyles(c, isDark);
   const qc = useQueryClient();
 
-  const now = new Date();
+  // Tick every minute so the now-line and today detection stay live
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
   const [segment, setSegment] = useState<'calendar' | 'outreach'>('calendar');
   const [weekOffset, setWeekOffset] = useState(0);
   const [dayIdx, setDayIdx] = useState(() => {
@@ -78,15 +84,18 @@ export default function CalendarScreen() {
     return todayIdx >= 0 ? todayIdx : 0;
   });
   const [showSearch, setShowSearch] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await qc.invalidateQueries({ queryKey: [api.jobs.list.path] });
+    setRefreshing(false);
+  };
 
-  useEffect(() => {
-    AsyncStorage.setItem('cal_weekOffset', String(weekOffset));
-  }, [weekOffset]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const weekStart = useMemo(
     () => startOfWeek(addWeeks(now, weekOffset), { weekStartsOn: 1 }),
-    [weekOffset]
+    [weekOffset, now]
   );
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -318,7 +327,7 @@ export default function CalendarScreen() {
       <View style={{ paddingHorizontal: 20, paddingBottom: 0 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
           <TouchableOpacity
-            style={[s.iconBtn, { width: 32, height: 32, borderRadius: 10 }]}
+            style={[s.iconBtn, { width: 44, height: 44, borderRadius: 12 }]}
             onPress={() => { setWeekOffset(o => o - 1); setDayIdx(0); }}
             activeOpacity={0.7}
           >
@@ -335,7 +344,7 @@ export default function CalendarScreen() {
           )}
           <View style={{ flex: 1 }} />
           <TouchableOpacity
-            style={[s.iconBtn, { width: 32, height: 32, borderRadius: 10 }]}
+            style={[s.iconBtn, { width: 44, height: 44, borderRadius: 12 }]}
             onPress={() => { setWeekOffset(o => o + 1); setDayIdx(0); }}
             activeOpacity={0.7}
           >
@@ -408,7 +417,12 @@ export default function CalendarScreen() {
       )}
 
       {/* Hour grid */}
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 130 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
+      >
         <View style={{ paddingLeft: 52, paddingRight: 8, position: 'relative', overflow: 'visible' }}>
           <View style={{ paddingLeft: 44, position: 'relative', overflow: 'visible' }}>
             {Array.from({ length: END_H - START_H + 1 }, (_, i) => (
@@ -431,6 +445,16 @@ export default function CalendarScreen() {
               const endH_ = startH + durationHrs;
               const top = (startH - START_H) * HOUR_H;
               const height = Math.max(durationHrs * HOUR_H, 36);
+              // Same-time jobs render side-by-side instead of stacking invisibly
+              const overlapIdxs = dayJobs
+                .map((other: any, j: number) => {
+                  const oStart = getJobHour(other.scheduledDate);
+                  const oEnd = oStart + (other.estimatedDuration || 60) / 60;
+                  return oStart < endH_ && oEnd > startH ? j : -1;
+                })
+                .filter((j: number) => j >= 0);
+              const cols = overlapIdxs.length;
+              const col = overlapIdxs.indexOf(i);
               const isCompleted = job.status === 'completed';
               const isNext = i === 0 && !isCompleted;
               const bg = isNext ? (isDark ? c.card : '#0f0e0b') : c.card;
@@ -444,8 +468,11 @@ export default function CalendarScreen() {
                   onPress={() => router.push(`/jobs/${job.id}`)}
                   activeOpacity={0.8}
                   style={[{
-                    position: 'absolute', left: 0, right: 12, borderRadius: 12,
-                    paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, overflow: 'hidden',
+                    position: 'absolute', borderRadius: 12,
+                    left: cols > 1 ? (`${(100 / cols) * col}%` as any) : 0,
+                    width: cols > 1 ? (`${100 / cols}%` as any) : undefined,
+                    right: cols > 1 ? undefined : 12,
+                    paddingHorizontal: cols > 1 ? 8 : 12, paddingVertical: 8, borderWidth: 1, overflow: 'hidden',
                     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.03, shadowRadius: 6, elevation: 2,
                     top, height, backgroundColor: bg, borderColor: border,

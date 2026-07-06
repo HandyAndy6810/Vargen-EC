@@ -14,6 +14,7 @@ export interface Colors {
   muted:      string;
   mutedHi:    string;
   lineSoft:   string;
+  lineMid:    string;
   orange:     string;
   orangeDeep: string;
   orangeSoft: string;
@@ -23,6 +24,9 @@ export interface Colors {
   greenSoft:  string;
   teal:       string;
   tealSoft:   string;
+  blue:       string;
+  blueSoft:   string;
+  blueBorder: string;
   statusBar:  'dark' | 'light';
   blurTint:   'light' | 'dark' | 'default';
 }
@@ -35,15 +39,19 @@ export const lightColors: Colors = {
   muted:      'rgba(26,14,6,0.50)',
   mutedHi:    'rgba(26,14,6,0.72)',
   lineSoft:   'rgba(26,14,6,0.08)',
-  orange:     '#FF5C00',
-  orangeDeep: '#E64500',
-  orangeSoft: '#FFF0E6',
+  lineMid:    'rgba(26,14,6,0.14)',
+  orange:     '#f26a2a',
+  orangeDeep: '#d94d0e',
+  orangeSoft: '#ffe6d3',
   red:        '#FF3B30',
   redSoft:    'rgba(255,59,48,0.12)',
   green:      '#34C759',
   greenSoft:  'rgba(52,199,89,0.12)',
   teal:       '#00C7BE',
   tealSoft:   'rgba(0,199,190,0.12)',
+  blue:       '#1f6feb',
+  blueSoft:   '#eaf2ff',
+  blueBorder: '#c8dcff',
   statusBar:  'dark',
   blurTint:   'light',
 };
@@ -56,15 +64,19 @@ export const darkColors: Colors = {
   muted:      'rgba(242,244,247,0.48)',
   mutedHi:    'rgba(242,244,247,0.70)',
   lineSoft:   'rgba(242,244,247,0.10)',
-  orange:     '#FF5C00',
-  orangeDeep: '#E64500',
-  orangeSoft: 'rgba(255,92,0,0.15)',
+  lineMid:    'rgba(242,244,247,0.16)',
+  orange:     '#f26a2a',
+  orangeDeep: '#d94d0e',
+  orangeSoft: 'rgba(242,106,42,0.16)',
   red:        '#FF453A',
   redSoft:    'rgba(255,69,58,0.18)',
   green:      '#30D158',
   greenSoft:  'rgba(48,209,88,0.18)',
   teal:       '#63E6E2',
   tealSoft:   'rgba(99,230,226,0.18)',
+  blue:       '#6ea8ff',
+  blueSoft:   'rgba(110,168,255,0.14)',
+  blueBorder: 'rgba(110,168,255,0.35)',
   statusBar:  'light',
   blurTint:   'dark',
 };
