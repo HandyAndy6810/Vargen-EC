@@ -358,6 +358,18 @@ export async function registerRoutes(
   });
 
   // Quote-vs-actual profit reconciliation for a completed job
+  app.delete("/api/jobs/:id", requireAuth, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const existing = await storage.getJob(id, req.userId);
+      if (!existing) return res.status(404).json({ message: "Job not found" });
+      await storage.deleteJob(id, req.userId);
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to delete job" });
+    }
+  });
+
   app.get('/api/jobs/:id/reconciliation', requireAuth, async (req: any, res) => {
     try {
       const id = Number(req.params.id);

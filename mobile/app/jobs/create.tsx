@@ -11,14 +11,14 @@ import {
   Alert,
 } from 'react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
-import { router, useNavigation } from 'expo-router';
+import { router, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
-import { useCreateJob } from '@/hooks/use-jobs';
+import { useCreateJob, useUpdateJob, useJob } from '@/hooks/use-jobs';
 import { showConfirm } from '@/lib/dialogs';
 import { useCustomers } from '@/hooks/use-customers';
-import { addDays, format, setHours, setMinutes, startOfDay } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, setHours, setMinutes, startOfDay } from 'date-fns';
 
 
 const TIMES = ['7:00', '8:00', '9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
@@ -34,7 +34,13 @@ const DURATIONS = [
 export default function JobCreateScreen() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
-  const { mutate: createJob, isPending } = useCreateJob();
+  const { editId } = useLocalSearchParams<{ editId?: string }>();
+  const editIdNum = editId ? Number(editId) : 0;
+  const isEditing = editIdNum > 0;
+  const { data: editJob } = useJob(editIdNum) as any;
+  const { mutate: createJob, isPending: creating } = useCreateJob();
+  const { mutate: updateJob, isPending: updating } = useUpdateJob();
+  const isPending = creating || updating;
   const { data: customers } = useCustomers() as any;
 
   const [title, setTitle]         = useState('');
@@ -67,6 +73,24 @@ export default function JobCreateScreen() {
     return unsub;
   }, [navigation, title, address, notes, customerId]);
 
+  // Prefill from the job being edited (once)
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (!isEditing || !editJob || prefilled.current) return;
+    prefilled.current = true;
+    setTitle(editJob.title || '');
+    setAddress(editJob.address || '');
+    setNotes(editJob.description || '');
+    setCustomerId(editJob.customerId ?? null);
+    if (editJob.estimatedDuration) setDuration(editJob.estimatedDuration / 60);
+    if (editJob.scheduledDate) {
+      const d = new Date(editJob.scheduledDate);
+      const offset = differenceInCalendarDays(startOfDay(d), startOfDay(new Date()));
+      if (offset >= 0 && offset < 30) setDayOffset(offset);
+      setTimeSlot(`${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`);
+    }
+  }, [isEditing, editJob]);
+
   const today = startOfDay(new Date());
   const dayOptions = useMemo(
     () => Array.from({ length: 30 }, (_, i) => addDays(today, i)),
@@ -93,25 +117,27 @@ export default function JobCreateScreen() {
     if (!title.trim()) { setError('Job title is required'); return; }
     setError(null);
     const scheduledDate = buildScheduledDate();
-    createJob(
-      {
-        title: title.trim(),
-        address: address.trim() || null,
-        description: notes.trim() || null,
-        customerId: customerId || null,
-        scheduledDate,
-        estimatedDuration: Math.round(duration * 60),
-        status: 'scheduled',
-      } as any,
-      {
-        onSuccess: () => { savedRef.current = true; router.back(); },
-        onError: (err: any) => {
-          const msg = err?.message || 'Check your connection and try again.';
-          if (Platform.OS === 'web') window.alert(`Could not save job\n${msg}`);
-          else Alert.alert('Could not save job', msg);
-        },
-      }
-    );
+    const payload = {
+      title: title.trim(),
+      address: address.trim() || null,
+      description: notes.trim() || null,
+      customerId: customerId || null,
+      scheduledDate,
+      estimatedDuration: Math.round(duration * 60),
+    };
+    const callbacks = {
+      onSuccess: () => { savedRef.current = true; router.back(); },
+      onError: (err: any) => {
+        const msg = err?.message || 'Check your connection and try again.';
+        if (Platform.OS === 'web') window.alert(`Could not save job\n${msg}`);
+        else Alert.alert('Could not save job', msg);
+      },
+    };
+    if (isEditing) {
+      updateJob({ id: editIdNum, ...payload } as any, callbacks);
+    } else {
+      createJob({ ...payload, status: 'scheduled' } as any, callbacks);
+    }
   };
 
   return (
@@ -123,8 +149,8 @@ export default function JobCreateScreen() {
             <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.eyebrow}>New job</Text>
-            <Text style={s.title}>Schedule a job</Text>
+            <Text style={s.eyebrow}>{isEditing ? 'Edit job' : 'New job'}</Text>
+            <Text style={s.title}>{isEditing ? 'Update job details' : 'Schedule a job'}</Text>
           </View>
         </View>
 
@@ -285,7 +311,7 @@ export default function JobCreateScreen() {
           <TouchableOpacity style={s.saveBtn} activeOpacity={0.85} onPress={handleSave} disabled={isPending}>
             {isPending
               ? <ActivityIndicator color="#fff" />
-              : <Text style={s.saveBtnText}>Schedule job</Text>}
+              : <Text style={s.saveBtnText}>{isEditing ? 'Save changes' : 'Schedule job'}</Text>}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

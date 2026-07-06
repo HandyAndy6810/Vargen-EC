@@ -28,6 +28,7 @@ export interface IStorage {
   getJob(id: number, userId?: string): Promise<Job | undefined>;
   createJob(job: InsertJob): Promise<Job>;
   updateJob(id: number, job: Partial<InsertJob>, userId?: string): Promise<Job>;
+  deleteJob(id: number, userId: string): Promise<void>;
 
   // Quotes (userId-scoped)
   getQuotes(userId: string): Promise<Quote[]>;
@@ -183,6 +184,10 @@ export class DatabaseStorage implements IStorage {
       : eq(jobs.id, id);
     const [updatedJob] = await db.update(jobs).set(job).where(conditions).returning();
     return updatedJob;
+  }
+
+  async deleteJob(id: number, userId: string): Promise<void> {
+    await db.delete(jobs).where(and(eq(jobs.id, id), eq(jobs.userId, userId)));
   }
 
   // ── Quotes ────────────────────────────────────────────────────────────

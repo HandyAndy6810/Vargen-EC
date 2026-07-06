@@ -8,13 +8,14 @@ import {
   Linking,
   Platform,
 } from 'react-native';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { showAlert } from '@/lib/dialogs';
+import { showAlert, showConfirm } from '@/lib/dialogs';
+import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
 import { useQuery } from '@tanstack/react-query';
-import { useJob } from '@/hooks/use-jobs';
+import { useJob, useUpdateJob, useDeleteJob } from '@/hooks/use-jobs';
 import { useCustomer } from '@/hooks/use-customers';
 import { apiRequest } from '@/lib/api';
 import { api, buildUrl } from '@shared/mobile-routes';
@@ -43,6 +44,35 @@ export default function JobDetailScreen() {
     },
     enabled: !!jobId && job?.status === 'completed',
   }) as any;
+
+  const updateJob = useUpdateJob();
+  const deleteJob = useDeleteJob();
+  const [showMenu, setShowMenu] = useState(false);
+
+  const menuActions: SheetAction[] = [
+    { label: 'Edit job', onPress: () => router.push(`/jobs/create?editId=${jobId}` as any) },
+    job?.status !== 'cancelled' && job?.status !== 'completed' ? {
+      label: 'Cancel job',
+      onPress: () => showConfirm({
+        title: 'Cancel this job?',
+        message: 'The job stays in your history as cancelled.',
+        confirmLabel: 'Cancel job',
+        destructive: true,
+        onConfirm: () => updateJob.mutate({ id: jobId, status: 'cancelled' } as any),
+      }),
+    } : null,
+    {
+      label: 'Delete job',
+      destructive: true,
+      onPress: () => showConfirm({
+        title: 'Delete job?',
+        message: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        destructive: true,
+        onConfirm: () => deleteJob.mutate(jobId, { onSuccess: () => router.canGoBack() ? router.back() : router.replace('/calendar') } as any),
+      }),
+    },
+  ].filter(Boolean) as SheetAction[];
 
   if (isLoading) {
     return (
@@ -107,7 +137,7 @@ export default function JobDetailScreen() {
             </View>
           )}
         </View>
-        <TouchableOpacity style={s.moreBtn} activeOpacity={0.7}>
+        <TouchableOpacity style={s.moreBtn} activeOpacity={0.7} onPress={() => setShowMenu(true)} accessibilityRole="button" accessibilityLabel="Job options">
           <MoreHorizontal size={18} color={c.ink} strokeWidth={2} />
         </TouchableOpacity>
       </View>
@@ -285,6 +315,13 @@ export default function JobDetailScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      <ActionSheetModal
+        visible={showMenu}
+        title={title}
+        actions={menuActions}
+        onClose={() => setShowMenu(false)}
+      />
     </SafeAreaView>
   );
 }
