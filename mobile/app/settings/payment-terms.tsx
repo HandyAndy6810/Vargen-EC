@@ -6,28 +6,21 @@ import {
   StyleSheet,
   Switch,
 } from 'react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '@/lib/dialogs';
 import { ChevronLeft, Check, CreditCard } from 'lucide-react-native';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 import * as Haptics from 'expo-haptics';
 
-const ORANGE = '#f26a2a';
-const INK    = '#141310';
-const PAPER  = '#f7f4ee';
-const CARD   = '#ffffff';
-const MUTED  = 'rgba(20,19,16,0.55)';
-const MUTED_HI = 'rgba(20,19,16,0.72)';
-const LINE_MID  = 'rgba(20,19,16,0.14)';
-const LINE_SOFT = 'rgba(20,19,16,0.08)';
-const GREEN  = '#2a9d4c';
-const BLUE   = '#1f6feb';
 
 const TERMS_OPTIONS = [7, 14, 21, 30];
 
 export default function PaymentTermsScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { data: settings } = useSettings();
   const updateSettings = useUpdateSettings();
 
@@ -62,10 +55,10 @@ export default function PaymentTermsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
-          <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+          <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.eyebrow}>Settings</Text>
@@ -100,7 +93,7 @@ export default function PaymentTermsScreen() {
           <Switch
             value={includeGST}
             onValueChange={setIncludeGST}
-            trackColor={{ false: LINE_MID, true: ORANGE }}
+            trackColor={{ false: c.lineMid, true: c.orange }}
             thumbColor="#fff"
           />
         </View>
@@ -109,7 +102,7 @@ export default function PaymentTermsScreen() {
         <Text style={[s.sectionLabel, { marginTop: 24 }]}>Card payments</Text>
         <View style={s.card}>
           <View style={s.infoBox}>
-            <CreditCard size={16} color={BLUE} strokeWidth={2} />
+            <CreditCard size={16} color={c.blue} strokeWidth={2} />
             <Text style={s.infoBoxText}>
               Enable your payment processors below. API keys must be configured on your server for these to work.
             </Text>
@@ -123,7 +116,7 @@ export default function PaymentTermsScreen() {
             <Switch
               value={stripeEnabled}
               onValueChange={setStripeEnabled}
-              trackColor={{ false: LINE_MID, true: ORANGE }}
+              trackColor={{ false: c.lineMid, true: c.orange }}
               thumbColor="#fff"
             />
           </View>
@@ -138,7 +131,7 @@ export default function PaymentTermsScreen() {
             <Switch
               value={squareEnabled}
               onValueChange={setSquareEnabled}
-              trackColor={{ false: LINE_MID, true: ORANGE }}
+              trackColor={{ false: c.lineMid, true: c.orange }}
               thumbColor="#fff"
             />
           </View>
@@ -148,7 +141,7 @@ export default function PaymentTermsScreen() {
 
       <View style={s.footer}>
         <TouchableOpacity
-          style={[s.saveBtn, saved && { backgroundColor: GREEN }]}
+          style={[s.saveBtn, saved && { backgroundColor: c.green }]}
           onPress={handleSave}
           activeOpacity={0.85}
           disabled={updateSettings.isPending}
@@ -167,7 +160,7 @@ export default function PaymentTermsScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -177,37 +170,37 @@ const s = StyleSheet.create({
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: CARD, borderWidth: 1, borderColor: LINE_SOFT,
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft,
     alignItems: 'center', justifyContent: 'center',
   },
   eyebrow: {
-    fontSize: 10, fontFamily: 'Manrope_700Bold', color: MUTED,
+    fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted,
     textTransform: 'uppercase', letterSpacing: 1,
   },
   title: {
-    fontSize: 18, fontFamily: 'Manrope_800ExtraBold', color: INK, letterSpacing: -0.5,
+    fontSize: 18, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5,
   },
   sectionLabel: {
-    fontSize: 11, fontFamily: 'Manrope_700Bold', color: MUTED,
+    fontSize: 11, fontFamily: 'Manrope_700Bold', color: c.muted,
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10,
   },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   chip: {
     paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20,
-    backgroundColor: CARD, borderWidth: 1, borderColor: LINE_MID,
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
   },
-  chipActive: { backgroundColor: INK, borderColor: INK },
-  chipText: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: MUTED_HI },
+  chipActive: { backgroundColor: c.ink, borderColor: c.ink },
+  chipText: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.mutedHi },
   chipTextActive: { color: '#fff' },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 0, paddingVertical: 12,
   },
-  toggleTitle: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: INK },
-  toggleSub: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: MUTED, marginTop: 2 },
+  toggleTitle: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink },
+  toggleSub: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2 },
   card: {
-    backgroundColor: CARD, borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: LINE_SOFT,
+    backgroundColor: c.card, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: c.lineSoft,
   },
   infoBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
@@ -215,21 +208,21 @@ const s = StyleSheet.create({
   },
   infoBoxText: {
     flex: 1, fontSize: 12, fontFamily: 'Manrope_500Medium',
-    color: INK, lineHeight: 17,
+    color: c.ink, lineHeight: 17,
   },
-  divider: { height: 1, backgroundColor: LINE_SOFT, marginVertical: 4 },
+  divider: { height: 1, backgroundColor: c.lineSoft, marginVertical: 4 },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     paddingTop: 12, paddingBottom: 32, paddingHorizontal: 20,
     backgroundColor: 'rgba(247,244,238,0.92)',
     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.85)',
-    shadowColor: INK, shadowOffset: { width: 0, height: -4 },
+    shadowColor: c.ink, shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.10, shadowRadius: 16, elevation: 12,
   },
   saveBtn: {
-    backgroundColor: ORANGE, borderRadius: 18, height: 54,
+    backgroundColor: c.orange, borderRadius: 18, height: 54,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    shadowColor: ORANGE, shadowOffset: { width: 0, height: 8 },
+    shadowColor: c.orange, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35, shadowRadius: 20, elevation: 6,
   },
   saveBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },

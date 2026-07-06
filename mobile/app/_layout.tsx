@@ -55,7 +55,7 @@ const eb = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFBF8', alignItems: 'center', justifyContent: 'center', padding: 32 },
   title:     { fontSize: 20, fontWeight: '800', color: '#1A0E06', marginBottom: 10 },
   sub:       { fontSize: 13, color: 'rgba(26,14,6,0.55)', textAlign: 'center', marginBottom: 28 },
-  btn:       { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, backgroundColor: '#FF5C00' },
+  btn:       { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, backgroundColor: '#f26a2a' },
   btnText:   { fontSize: 14, fontWeight: '800', color: '#fff' },
 });
 

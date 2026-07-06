@@ -8,22 +8,15 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '@/lib/dialogs';
 import { ChevronLeft, Check, Building2 } from 'lucide-react-native';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 import * as Haptics from 'expo-haptics';
 
-const ORANGE = '#f26a2a';
-const INK    = '#141310';
-const PAPER  = '#f7f4ee';
-const CARD   = '#ffffff';
-const MUTED  = 'rgba(20,19,16,0.55)';
-const LINE_MID = 'rgba(20,19,16,0.14)';
-const LINE_SOFT = 'rgba(20,19,16,0.08)';
-const GREEN = '#2a9d4c';
 
 function formatBsb(raw: string) {
   const digits = raw.replace(/\D/g, '').slice(0, 6);
@@ -32,6 +25,8 @@ function formatBsb(raw: string) {
 }
 
 export default function BankDetailsScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { data: settings } = useSettings();
   const updateSettings = useUpdateSettings();
 
@@ -71,11 +66,11 @@ export default function BankDetailsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.header}>
           <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
-            <ChevronLeft size={18} color={INK} strokeWidth={2.2} />
+            <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.eyebrow}>Settings</Text>
@@ -85,7 +80,7 @@ export default function BankDetailsScreen() {
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
           <View style={s.infoCard}>
-            <Building2 size={18} color={ORANGE} strokeWidth={2} />
+            <Building2 size={18} color={c.orange} strokeWidth={2} />
             <Text style={s.infoText}>
               These details appear on your invoices so customers can pay by bank transfer — the most common payment method in Australia.
             </Text>
@@ -98,7 +93,7 @@ export default function BankDetailsScreen() {
               value={accountName}
               onChangeText={setAccountName}
               placeholder="e.g. Smith's Plumbing Pty Ltd"
-              placeholderTextColor={MUTED}
+              placeholderTextColor={c.muted}
               autoCorrect={false}
             />
           </View>
@@ -110,7 +105,7 @@ export default function BankDetailsScreen() {
               value={bankName}
               onChangeText={setBankName}
               placeholder="e.g. ANZ, CommBank, NAB, Westpac"
-              placeholderTextColor={MUTED}
+              placeholderTextColor={c.muted}
               autoCorrect={false}
             />
           </View>
@@ -123,7 +118,7 @@ export default function BankDetailsScreen() {
                 value={bsb}
                 onChangeText={v => setBsb(formatBsb(v))}
                 placeholder="062-001"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
                 keyboardType="numeric"
                 maxLength={7}
               />
@@ -135,7 +130,7 @@ export default function BankDetailsScreen() {
                 value={accountNumber}
                 onChangeText={setAccountNumber}
                 placeholder="12345678"
-                placeholderTextColor={MUTED}
+                placeholderTextColor={c.muted}
                 keyboardType="numeric"
                 maxLength={12}
               />
@@ -145,7 +140,7 @@ export default function BankDetailsScreen() {
 
         <View style={s.footer}>
           <TouchableOpacity
-            style={[s.saveBtn, saved && { backgroundColor: GREEN }]}
+            style={[s.saveBtn, saved && { backgroundColor: c.green }]}
             onPress={handleSave}
             activeOpacity={0.85}
             disabled={updateSettings.isPending}
@@ -165,7 +160,7 @@ export default function BankDetailsScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -177,23 +172,23 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   eyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED,
+    color: c.muted,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   title: {
     fontSize: 18,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.5,
   },
   infoCard: {
@@ -209,7 +204,7 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: 'Manrope_500Medium',
-    color: INK,
+    color: c.ink,
     lineHeight: 19,
   },
   section: {
@@ -218,21 +213,21 @@ const s = StyleSheet.create({
   label: {
     fontSize: 11,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED,
+    color: c.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
     fontFamily: 'Manrope_500Medium',
-    color: INK,
+    color: c.ink,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
   },
   footer: {
     position: 'absolute',
@@ -245,21 +240,21 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(247,244,238,0.92)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.85)',
-    shadowColor: INK,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.10,
     shadowRadius: 16,
     elevation: 12,
   },
   saveBtn: {
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     borderRadius: 18,
     height: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 20,

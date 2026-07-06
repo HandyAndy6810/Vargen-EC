@@ -7,23 +7,14 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showConfirm } from '@/lib/dialogs';
 import { ChevronLeft, Plus, Camera, Trash2, Tag } from 'lucide-react-native';
 import { useReceipts, useDeleteReceipt } from '@/hooks/use-receipts';
 
-const ORANGE      = '#f26a2a';
-const ORANGE_SOFT = '#ffe6d3';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const CARD        = '#ffffff';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const GREEN       = '#2a9d4c';
-const GREEN_SOFT  = '#e5f6eb';
 const PURPLE      = '#7c3aed';
 const PURPLE_SOFT = '#ede9fe';
 
@@ -48,6 +39,8 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 export default function ReceiptsScreen() {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const { data: receipts = [], isLoading, refetch, isRefetching } = useReceipts();
   const deleteMutation = useDeleteReceipt();
 
@@ -109,7 +102,7 @@ export default function ReceiptsScreen() {
             onPress={() => onDelete(item.id, item.vendor)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Trash2 size={15} color={MUTED} strokeWidth={2} />
+            <Trash2 size={15} color={c.muted} strokeWidth={2} />
           </TouchableOpacity>
         </View>
       </View>
@@ -133,7 +126,7 @@ export default function ReceiptsScreen() {
   const ListEmpty = () => (
     <View style={s.emptyContainer}>
       <View style={s.emptyIconCircle}>
-        <Camera size={32} color={ORANGE} strokeWidth={1.5} />
+        <Camera size={32} color={c.orange} strokeWidth={1.5} />
       </View>
       <Text style={s.emptyTitle}>No receipts yet</Text>
       <Text style={s.emptySubtitle}>Scan a receipt with your camera to track your expenses automatically.</Text>
@@ -144,11 +137,11 @@ export default function ReceiptsScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PAPER }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <ChevronLeft size={22} color={INK} strokeWidth={2.5} />
+          <ChevronLeft size={22} color={c.ink} strokeWidth={2.5} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Receipts</Text>
         <TouchableOpacity style={s.addBtn} onPress={() => router.push('/receipts/scan')} activeOpacity={0.8}>
@@ -158,7 +151,7 @@ export default function ReceiptsScreen() {
 
       {isLoading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={ORANGE} size="large" />
+          <ActivityIndicator color={c.orange} size="large" />
         </View>
       ) : (
         <FlatList
@@ -172,7 +165,7 @@ export default function ReceiptsScreen() {
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refetch}
-              tintColor={ORANGE}
+              tintColor={c.orange}
             />
           }
           showsVerticalScrollIndicator={false}
@@ -182,7 +175,7 @@ export default function ReceiptsScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -194,9 +187,9 @@ const s = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -204,24 +197,24 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.4,
   },
   addBtn: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 6,
   },
   summaryCard: {
-    backgroundColor: INK,
+    backgroundColor: c.ink,
     borderRadius: 22,
     padding: 22,
     marginTop: 4,
@@ -235,7 +228,7 @@ const s = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: `${ORANGE}55`,
+    backgroundColor: `${c.orange}55`,
   },
   summaryEyebrow: {
     fontSize: 10,
@@ -260,16 +253,16 @@ const s = StyleSheet.create({
   sectionEyebrow: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
   receiptCard: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     padding: 16,
     gap: 8,
   },
@@ -281,19 +274,19 @@ const s = StyleSheet.create({
   vendorText: {
     fontSize: 15,
     fontFamily: 'Manrope_700Bold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.2,
   },
   dateText: {
     fontSize: 12,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginTop: 2,
   },
   amountText: {
     fontSize: 16,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.3,
   },
   categoryPill: {
@@ -308,7 +301,7 @@ const s = StyleSheet.create({
   notesText: {
     fontSize: 12,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED_HI,
+    color: c.mutedHi,
     lineHeight: 17,
   },
   cardBottom: {
@@ -320,7 +313,7 @@ const s = StyleSheet.create({
   itemsCountText: {
     fontSize: 11,
     fontFamily: 'Manrope_600SemiBold',
-    color: MUTED,
+    color: c.muted,
   },
   deleteBtn: {
     padding: 4,
@@ -336,7 +329,7 @@ const s = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: ORANGE_SOFT,
+    backgroundColor: c.orangeSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 18,
@@ -344,24 +337,24 @@ const s = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     marginBottom: 8,
     letterSpacing: -0.3,
   },
   emptySubtitle: {
     fontSize: 14,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
   },
   emptyCta: {
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     borderRadius: 16,
     paddingHorizontal: 24,
     paddingVertical: 14,
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 14,
