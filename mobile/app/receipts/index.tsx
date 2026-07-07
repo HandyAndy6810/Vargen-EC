@@ -15,8 +15,6 @@ import { showConfirm } from '@/lib/dialogs';
 import { ChevronLeft, Plus, Camera, Trash2, Tag } from 'lucide-react-native';
 import { useReceipts, useDeleteReceipt } from '@/hooks/use-receipts';
 
-const PURPLE      = '#7c3aed';
-const PURPLE_SOFT = '#ede9fe';
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   Materials:     { bg: '#e0f2fe', text: '#0369a1' },

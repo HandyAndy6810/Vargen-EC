@@ -10,19 +10,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useMemo } from 'react';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 import { FileText, X, Share2 } from 'lucide-react-native';
 
-const ORANGE      = '#f26a2a';
-const INK         = '#141310';
-const PAPER       = '#f7f4ee';
-const PAPER_DEEP  = '#efe9dd';
-const CARD        = '#ffffff';
-const MUTED       = 'rgba(20,19,16,0.50)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
-const GREEN       = '#2a9d4c';
-const GREEN_SOFT  = '#e5f6eb';
 
 interface Props {
   visible: boolean;
@@ -49,6 +40,8 @@ export default function PDFComposeModal({
   initialNotes = '',
   isPending = false,
 }: Props) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const isInvoice = documentType === 'invoice';
   const docLabel  = isInvoice ? 'Invoice' : 'Quote';
   const num       = `${isInvoice ? 'INV' : 'Q'}-${documentNumber}`;
@@ -81,14 +74,14 @@ export default function PDFComposeModal({
             {/* Header row */}
             <View style={s.headerRow}>
               <View style={s.docBadge}>
-                <FileText size={18} color={ORANGE} strokeWidth={2} />
+                <FileText size={18} color={c.orange} strokeWidth={2} />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={s.docLabel}>{docLabel} · {num}</Text>
                 {jobTitle ? <Text style={s.docTitle} numberOfLines={1}>{jobTitle}</Text> : null}
               </View>
               <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={s.closeBtn}>
-                <X size={18} color={MUTED_HI} strokeWidth={2} />
+                <X size={18} color={c.mutedHi} strokeWidth={2} />
               </TouchableOpacity>
             </View>
 
@@ -101,7 +94,7 @@ export default function PDFComposeModal({
               <View style={s.summaryDivider} />
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={s.summaryLabel}>Total</Text>
-                <Text style={[s.summaryValue, { color: ORANGE }]}>${amt}</Text>
+                <Text style={[s.summaryValue, { color: c.orange }]}>${amt}</Text>
               </View>
             </View>
 
@@ -117,7 +110,7 @@ export default function PDFComposeModal({
                 <TextInput
                   style={s.textArea}
                   placeholder={`Hi ${customerName?.split(' ')[0] || 'there'}, please find your ${docLabel.toLowerCase()} attached…`}
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                   value={customMessage}
                   onChangeText={setCustomMessage}
                   multiline
@@ -133,7 +126,7 @@ export default function PDFComposeModal({
                 <TextInput
                   style={s.textArea}
                   placeholder="Payment terms, job details, warranty info…"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={c.muted}
                   value={notes}
                   onChangeText={setNotes}
                   multiline
@@ -169,14 +162,14 @@ export default function PDFComposeModal({
 // Need React for hooks inside the component
 import React from 'react';
 
-const s = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: PAPER,
+    backgroundColor: c.paper,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
@@ -212,44 +205,44 @@ const s = StyleSheet.create({
   docLabel: {
     fontSize: 10,
     fontFamily: 'Manrope_800ExtraBold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   docTitle: {
     fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     marginTop: 1,
   },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: PAPER_DEEP,
+    backgroundColor: c.paperDeep,
     alignItems: 'center',
     justifyContent: 'center',
   },
   summaryStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
   },
   summaryDivider: {
     width: 1,
     height: 32,
-    backgroundColor: LINE_SOFT,
+    backgroundColor: c.lineSoft,
     marginHorizontal: 16,
   },
   summaryLabel: {
     fontSize: 10,
     fontFamily: 'Manrope_700Bold',
-    color: MUTED,
+    color: c.muted,
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 2,
@@ -257,7 +250,7 @@ const s = StyleSheet.create({
   summaryValue: {
     fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
   },
   field: {
     marginBottom: 12,
@@ -265,40 +258,40 @@ const s = StyleSheet.create({
   fieldLabel: {
     fontSize: 11,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: 0.3,
     marginBottom: 2,
   },
   fieldHint: {
     fontSize: 10,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
     marginBottom: 7,
   },
   textArea: {
-    backgroundColor: CARD,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: LINE_MID,
+    borderColor: c.lineMid,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 13,
     fontFamily: 'Manrope_500Medium',
-    color: INK,
+    color: c.ink,
     minHeight: 80,
   },
   footer: {
     marginTop: 16,
   },
   shareBtn: {
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
     borderRadius: 16,
     height: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    shadowColor: ORANGE,
+    shadowColor: c.orange,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 20,
