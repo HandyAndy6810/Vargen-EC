@@ -53,8 +53,9 @@ export default function InvoiceCreateScreen() {
   const { data: sourceJob } = useJob(jobIdNum) as any;
   const { data: sourceJobCustomer } = useCustomer(sourceJob?.customerId || 0) as any;
 
-  // Parse quote content for preview
-  const quoteContent = parseQuoteContent(quote?.content);
+  // Parse quote content for preview — memoized so the blob isn't re-parsed
+  // on every keystroke in the form below
+  const quoteContent = useMemo(() => parseQuoteContent(quote?.content), [quote?.content]);
   const quoteTitle = quoteContent.jobTitle || `Quote #${quoteId}`;
   const quoteCustomer = quoteContent.customerName || '';
   const quoteItemCount = quoteContent.items?.length || quoteContent.lines?.length || 0;
@@ -886,8 +887,8 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 28,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.85)',
-    backgroundColor: 'rgba(247,244,238,0.92)',
+    borderTopColor: c.lineSoft,
+    backgroundColor: c.paper,
     shadowColor: '#141310',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.10,

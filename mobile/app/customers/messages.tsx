@@ -241,7 +241,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   bubbleTime: { fontSize: 10, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2 },
   composer: {
     borderTopWidth: 1, borderTopColor: c.lineSoft,
-    backgroundColor: 'rgba(247,244,238,0.96)', padding: 12,
+    backgroundColor: c.paper, padding: 12,
     shadowColor: c.ink, shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08, shadowRadius: 12, elevation: 10,
   },

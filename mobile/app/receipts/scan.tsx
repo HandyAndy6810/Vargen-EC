@@ -14,7 +14,7 @@ import { useState, useMemo } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '@/lib/dialogs';
-import { isValidISODate } from '@/lib/dates';
+import { isValidISODate, toISODate } from '@/lib/dates';
 import { ChevronLeft, Camera, ImageIcon, RotateCw, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { apiRequest } from '@/lib/api';
@@ -58,7 +58,7 @@ export default function ScanReceiptScreen() {
 
   const populateForm = (result: ScanResult) => {
     setVendor(result.vendor || '');
-    setDate(result.date || '');
+    setDate(toISODate(result.date));
     setAmount(result.total || '0');
     setCategory(CATEGORIES.includes(result.category as any) ? result.category : 'Other');
     setNotes(result.notes || '');
@@ -547,7 +547,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: c.lineSoft,
     backgroundColor: c.paper,
-    shadowColor: c.ink,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.10,
     shadowRadius: 16,

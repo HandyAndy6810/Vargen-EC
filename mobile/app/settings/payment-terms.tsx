@@ -214,8 +214,8 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     paddingTop: 12, paddingBottom: 32, paddingHorizontal: 20,
-    backgroundColor: 'rgba(247,244,238,0.92)',
-    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: c.paper,
+    borderTopWidth: 1, borderTopColor: c.lineSoft,
     shadowColor: c.ink, shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.10, shadowRadius: 16, elevation: 12,
   },

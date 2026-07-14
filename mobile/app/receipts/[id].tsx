@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Trash2, Check } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert, showConfirm } from '@/lib/dialogs';
-import { isValidISODate } from '@/lib/dates';
+import { isValidISODate, toISODate } from '@/lib/dates';
 import { useReceipt, useUpdateReceipt, useDeleteReceipt } from '@/hooks/use-receipts';
 
 const CATEGORIES = ['Materials', 'Equipment', 'Fuel', 'Subcontractor', 'Food', 'Other'] as const;
@@ -40,7 +40,7 @@ export default function ReceiptDetailScreen() {
     if (!receipt || prefilled.current) return;
     prefilled.current = true;
     setVendor(receipt.vendor || '');
-    setDate(receipt.receiptDate || '');
+    setDate(toISODate(receipt.receiptDate));
     setAmount(receipt.totalAmount || '');
     setCategory(receipt.category || 'Other');
     setNotes(receipt.notes || '');

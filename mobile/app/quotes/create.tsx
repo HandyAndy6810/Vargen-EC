@@ -25,6 +25,7 @@ import { showAlert, showConfirm } from '@/lib/dialogs';
 import { ChevronLeft, ChevronRight, Sparkles, FileText, Plus, Trash2, Camera, Send, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useQuote } from '@/hooks/use-quotes';
+import { parseQuoteContent } from '@shared/mobile-types';
 import { useSettings } from '@/hooks/use-settings';
 import { MarginSlider } from '@/components/MarginSlider';
 import { useCustomers } from '@/hooks/use-customers';
@@ -190,21 +191,20 @@ export default function QuoteCreateScreen() {
 
   useEffect(() => {
     if (!editQuote || populated) return;
-    let c: any = {};
-    try { c = JSON.parse((editQuote as any).content || '{}'); } catch {}
+    const c = parseQuoteContent((editQuote as any).content);
     setJobTitle(c.jobTitle || '');
     setCustomer(c.customerName || '');
     if ((editQuote as any).customerId) setCustomerId((editQuote as any).customerId);
     setSchedDate(c.schedDate || '');
     setExpiryDate(c.expiryDate || format(addDays(new Date(), 30), 'd MMM yyyy'));
     setNotes(c.notes || '');
-    if (c.lines?.length > 0) {
+    if (c.lines?.length) {
       setLines(c.lines.map((l: any) => ({
         name: l.name || '',
         qty: String(l.qty || 1),
         price: String(l.price || ''),
       })));
-    } else if (c.items?.length > 0) {
+    } else if (c.items?.length) {
       // AI-generated quotes store `items` ({description, quantity, unitPrice}), not `lines`
       setLines(c.items.map((it: any) => ({
         name: it.description || '',
@@ -253,10 +253,7 @@ export default function QuoteCreateScreen() {
     mutationFn: async (status: 'draft' | 'sent') => {
       // When editing, merge over the original content so AI fields
       // (summary, customer phone/email, gst breakdown…) survive the edit
-      let originalContent: any = {};
-      if (isEditing) {
-        try { originalContent = JSON.parse((editQuote as any)?.content || '{}'); } catch {}
-      }
+      const originalContent: any = isEditing ? parseQuoteContent((editQuote as any)?.content) : {};
       const mergedContent: any = {
         ...originalContent,
         customerName: customer, jobTitle, schedDate, expiryDate, notes, lines,
@@ -1084,9 +1081,9 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 34,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(247,244,238,0.96)',
+    backgroundColor: c.paper,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.85)',
+    borderTopColor: c.lineSoft,
     shadowColor: '#141310',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.10,

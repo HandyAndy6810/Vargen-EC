@@ -21,7 +21,7 @@ import { Plus, Sparkles } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 
 
-type Filter = 'all' | 'draft' | 'sent' | 'paid' | 'overdue';
+type Filter = 'all' | 'draft' | 'sent' | 'partial' | 'paid' | 'overdue';
 
 function makeStyles(c: Colors) {
   const GREEN_SOFT   = c.greenSoft;
@@ -89,7 +89,7 @@ export default function InvoicesScreen() {
   }, [sorted, filter]);
 
   const outstanding = useMemo(() =>
-    sorted.filter((i: any) => ['sent', 'overdue'].includes(i.status)).reduce((s: number, i: any) => s + parseFloat(i.totalAmount || '0'), 0),
+    sorted.filter((i: any) => ['sent', 'overdue', 'partial'].includes(i.status)).reduce((s: number, i: any) => s + parseFloat(i.totalAmount || '0'), 0),
     [sorted]
   );
   const overdue = useMemo(() =>
@@ -102,6 +102,7 @@ export default function InvoicesScreen() {
     all:     sorted.length,
     draft:   sorted.filter((i: any) => i.status === 'draft').length,
     sent:    sorted.filter((i: any) => i.status === 'sent').length,
+    partial: sorted.filter((i: any) => i.status === 'partial').length,
     paid:    sorted.filter((i: any) => i.status === 'paid').length,
     overdue: sorted.filter((i: any) => i.status === 'overdue').length,
   }), [sorted]);
@@ -145,6 +146,7 @@ export default function InvoicesScreen() {
           { id: 'all', l: 'All', n: counts.all },
           { id: 'draft', l: 'Draft', n: counts.draft },
           { id: 'sent', l: 'Sent', n: counts.sent },
+          { id: 'partial', l: 'Partial', n: counts.partial },
           { id: 'paid', l: 'Paid', n: counts.paid },
           { id: 'overdue', l: 'Overdue', n: counts.overdue },
         ] as { id: Filter; l: string; n: number }[]).map((t) => {
