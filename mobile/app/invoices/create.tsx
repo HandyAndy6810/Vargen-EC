@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { parseQuoteContent } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -53,8 +54,7 @@ export default function InvoiceCreateScreen() {
   const { data: sourceJobCustomer } = useCustomer(sourceJob?.customerId || 0) as any;
 
   // Parse quote content for preview
-  let quoteContent: any = {};
-  try { quoteContent = JSON.parse(quote?.content || '{}'); } catch {}
+  const quoteContent = parseQuoteContent(quote?.content);
   const quoteTitle = quoteContent.jobTitle || `Quote #${quoteId}`;
   const quoteCustomer = quoteContent.customerName || '';
   const quoteItemCount = quoteContent.items?.length || quoteContent.lines?.length || 0;

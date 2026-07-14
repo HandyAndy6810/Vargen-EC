@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Share,
 } from 'react-native';
+import { parseQuoteContent } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, useMemo } from 'react';
@@ -113,8 +114,7 @@ export default function QuoteDetailScreen() {
   }
 
   // Parse content JSON
-  let content: any = {};
-  try { content = JSON.parse(quote?.content || '{}'); } catch {}
+  const content = parseQuoteContent(quote?.content);
 
   const title = (quote as any)?.jobTitle || content.jobTitle || `Quote #${id}`;
   const customerName = content.customerName || '';
@@ -138,24 +138,25 @@ export default function QuoteDetailScreen() {
       qty: item.quantity,
       total: parseFloat(item.price),
     }));
-  } else if (content.items?.length > 0) {
+  } else if (content.items && content.items.length > 0) {
     displayItems = content.items.map((item: any) => ({
       name: item.description,
       qty: item.quantity || 1,
       total: (item.quantity || 1) * (item.unitPrice || 0),
     }));
-  } else if (content.lines?.length > 0) {
-    displayItems = content.lines.map((line: any) => ({
+  } else if (content.lines && content.lines.length > 0) {
+    displayItems = content.lines.map((line) => ({
       name: line.name,
-      qty: line.qty || 1,
-      total: (line.qty || 1) * (line.price || 0),
+      qty: Number(line.qty) || 1,
+      total: (Number(line.qty) || 1) * (Number(line.price) || 0),
     }));
   }
 
+  // Number() tolerates legacy rows where these were saved as strings
   const subtotal = content.subtotal
-    ? parseFloat(content.subtotal)
+    ? Number(content.subtotal)
     : displayItems.reduce((s, i) => s + i.total, 0);
-  const gst = content.gstAmount ? parseFloat(content.gstAmount) : 0;
+  const gst = content.gstAmount ? Number(content.gstAmount) : 0;
 
   const customerPhone = content.customerPhone || null;
   const alreadyInvoiced = status === 'invoiced';

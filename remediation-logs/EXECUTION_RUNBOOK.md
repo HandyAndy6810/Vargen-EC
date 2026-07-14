@@ -1,5 +1,12 @@
 # Vargen Execution Runbook — post-Batch-A
 
+> **STATUS 2026-07-06: FULLY EXECUTED.** Every section below shipped to main
+> (build gate, F1–F12, Batches B/C/C2/D, regression audit). The only open item
+> is the ai-chat.tsx PromptStep/DraftStep file split — deferred to a
+> live-dev-server session (perf motivation already solved by memoization).
+> This document is retained as a historical record; do not re-execute.
+
+
 ## DECISIONS RESOLVED (2026-07-06) — supersede the choice text inside entries
 - **Backend edits ALLOWED** for F1, F10, F11, F12, B5, D5, D10: apply the "backend option" halves. After F11's backend fix, remove the create-then-PATCH workaround in mobile/app/invoices/create.tsx (search `// Server always creates as draft`).
 - **F9 → Option A** (channel ActionSheet, mirror ai-chat sendActions).

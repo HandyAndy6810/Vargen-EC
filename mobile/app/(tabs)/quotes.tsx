@@ -17,6 +17,7 @@ import { queryClient } from '@/lib/queryClient';
 import { api } from '@shared/mobile-routes';
 import { useQuotes } from '@/hooks/use-quotes';
 import { Plus, Search, Filter } from 'lucide-react-native';
+import { parseQuoteContent } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 
 
@@ -46,10 +47,8 @@ type QuoteWithJoins = Quote & { customerName?: string | null; expiryDate?: strin
 
 function parseTitle(quote: QuoteWithJoins): string {
   if (quote.title) return quote.title;
-  try {
-    const p = JSON.parse(quote.content || '{}');
-    if (p.jobTitle) return p.jobTitle;
-  } catch {}
+  const p = parseQuoteContent(quote.content);
+  if (p.jobTitle) return p.jobTitle;
   return `Quote #${quote.id}`;
 }
 
@@ -120,13 +119,10 @@ export default function QuotesScreen() {
   const sorted = useMemo(
     () => [...allQuotes]
       .map((q) => {
-        let expiryDate: string | null = null;
-        try {
-          const c = q.content ? JSON.parse(q.content) : {};
-          // Prefer the machine-readable ISO stamp — the display string is
-          // user-editable free text and often unparseable
-          expiryDate = c.expiryDateISO ?? c.expiryDate ?? null;
-        } catch {}
+        // Prefer the machine-readable ISO stamp — the display string is
+        // user-editable free text and often unparseable
+        const parsed = parseQuoteContent(q.content);
+        const expiryDate = parsed.expiryDateISO ?? parsed.expiryDate ?? null;
         return { ...q, expiryDate };
       })
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
