@@ -1,14 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, PanResponder } from 'react-native';
-
-const ORANGE      = '#f26a2a';
-const INK         = '#141310';
-const MUTED       = 'rgba(20,19,16,0.55)';
-const MUTED_HI    = 'rgba(20,19,16,0.72)';
-const LINE_SOFT   = 'rgba(20,19,16,0.08)';
-const LINE_MID    = 'rgba(20,19,16,0.14)';
-const GREEN       = '#2a9d4c';
-const RED         = '#d23b3b';
+import { useTheme, type Colors } from '@/hooks/use-theme';
 
 const fmt = (n: number) =>
   `$${Math.round(n).toLocaleString('en-AU')}`;
@@ -23,6 +15,8 @@ interface MarginSliderProps {
 }
 
 export function MarginSlider({ cost, price, onPriceChange }: MarginSliderProps) {
+  const { colors: c } = useTheme();
+  const st = useMemo(() => makeStyles(c), [c]);
   const min = Math.max(cost, 0);
   const max = Math.max(price * 1.6, min * 1.6, min + 100);
 
@@ -80,7 +74,7 @@ export function MarginSlider({ cost, price, onPriceChange }: MarginSliderProps) 
 
   const profit = liveValue - cost;
   const marginPct = liveValue > 0 ? (profit / liveValue) * 100 : 0;
-  const profitColor = profit > 0 ? GREEN : RED;
+  const profitColor = profit > 0 ? c.green : c.red;
 
   const thumbLeft = trackWidth
     ? ((Math.min(max, Math.max(min, liveValue)) - min) / (max - min)) * trackWidth
@@ -96,7 +90,7 @@ export function MarginSlider({ cost, price, onPriceChange }: MarginSliderProps) 
         </View>
         <View style={st.stat}>
           <Text style={st.statLabel}>Price</Text>
-          <Text style={[st.statValue, { color: ORANGE }]}>{fmt(liveValue)}</Text>
+          <Text style={[st.statValue, { color: c.orange }]}>{fmt(liveValue)}</Text>
         </View>
         <View style={st.stat}>
           <Text style={st.statLabel}>Profit</Text>
@@ -123,12 +117,12 @@ export function MarginSlider({ cost, price, onPriceChange }: MarginSliderProps) 
   );
 }
 
-const st = StyleSheet.create({
+const makeStyles = (c: Colors) => StyleSheet.create({
   card: {
     backgroundColor: 'rgba(242,106,42,0.06)',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: LINE_SOFT,
+    borderColor: c.lineSoft,
     padding: 14,
     marginBottom: 14,
   },
@@ -143,13 +137,13 @@ const st = StyleSheet.create({
   statLabel: {
     fontSize: 11,
     fontFamily: 'Manrope_600SemiBold',
-    color: MUTED,
+    color: c.muted,
     marginBottom: 2,
   },
   statValue: {
     fontSize: 15,
     fontFamily: 'Manrope_800ExtraBold',
-    color: INK,
+    color: c.ink,
     letterSpacing: -0.2,
   },
   statPct: {
@@ -166,14 +160,14 @@ const st = StyleSheet.create({
     right: 0,
     height: 6,
     borderRadius: 3,
-    backgroundColor: LINE_MID,
+    backgroundColor: c.lineMid,
   },
   trackFill: {
     position: 'absolute',
     left: 0,
     height: 6,
     borderRadius: 3,
-    backgroundColor: ORANGE,
+    backgroundColor: c.orange,
   },
   thumb: {
     position: 'absolute',
@@ -182,7 +176,7 @@ const st = StyleSheet.create({
     borderRadius: 11,
     backgroundColor: '#fff',
     borderWidth: 2,
-    borderColor: ORANGE,
+    borderColor: c.orange,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
@@ -193,8 +187,8 @@ const st = StyleSheet.create({
     marginTop: 8,
   },
   hintText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontFamily: 'Manrope_500Medium',
-    color: MUTED,
+    color: c.muted,
   },
 });

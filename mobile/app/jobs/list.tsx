@@ -14,8 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
 import { ChevronLeft, Plus } from 'lucide-react-native';
 
-const CREAM       = '#fff8ef';
-const GREEN_BORDER = '#bde2c9';
 
 type FilterKey = 'today' | 'upcoming' | 'past' | 'all';
 
@@ -277,7 +275,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     elevation: 6,
   },
   heroCard: {
-    backgroundColor: CREAM,
+    backgroundColor: c.card,
     borderWidth: 1,
     borderColor: c.lineSoft,
     borderRadius: 22,

@@ -31,7 +31,7 @@ const SECTIONS = [
   },
   {
     icon: FileText,
-    color: '#E8541A',
+    color: '#f26a2a',
     bg: '#fff1eb',
     label: 'Quotes',
     route: '/(tabs)/quotes',
@@ -102,7 +102,7 @@ export default function OnboardingScreen() {
         {/* Header */}
         <View style={s.header}>
           <View style={[s.iconBadge, { backgroundColor: '#fff1eb' }]}>
-            <Zap size={28} color="#E8541A" strokeWidth={2.5} />
+            <Zap size={28} color={c.orange} strokeWidth={2.5} />
           </View>
           <Text style={[s.title, { color: c.ink, fontFamily: 'Manrope_800ExtraBold' }]}>
             Welcome to Vargen

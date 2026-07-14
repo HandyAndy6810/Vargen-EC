@@ -15,13 +15,11 @@ import { router } from 'expo-router';
 import { format } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { queryClient } from '@/lib/queryClient';
+import { api } from '@shared/mobile-routes';
 import { useInvoices } from '@/hooks/use-invoices';
 import { Plus, Sparkles } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 
-const BLUE        = '#1f6feb';
-const BLUE_SOFT   = '#eaf2ff';
-const BLUE_BORDER = '#c8dcff';
 
 type Filter = 'all' | 'draft' | 'sent' | 'paid' | 'overdue';
 
@@ -66,15 +64,16 @@ export default function InvoicesScreen() {
 
   const STATUS_PILL: Record<string, { bg: string; fg: string; bd: string; label: string }> = {
     draft:   { bg: c.paperDeep, fg: c.mutedHi,    bd: c.lineSoft,                    label: 'Draft' },
-    sent:    { bg: BLUE_SOFT,   fg: BLUE,          bd: BLUE_BORDER,                   label: 'Sent' },
+    sent:    { bg: c.blueSoft,   fg: c.blue,          bd: c.blueBorder,                   label: 'Sent' },
     paid:    { bg: c.greenSoft, fg: c.green,       bd: `${c.green}44`,               label: 'Paid' },
+    partial: { bg: c.orangeSoft, fg: c.orangeDeep,  bd: `${c.orange}44`,              label: 'Partial' },
     overdue: { bg: c.orangeSoft, fg: c.orangeDeep, bd: `${c.orange}44`,              label: 'Overdue' },
     void:    { bg: c.paperDeep, fg: c.muted,       bd: c.lineSoft,                    label: 'Void' },
   };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await queryClient.invalidateQueries();
+    await queryClient.invalidateQueries({ queryKey: [api.invoices.list.path] });
     setRefreshing(false);
   }, []);
 

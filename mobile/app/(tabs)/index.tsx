@@ -22,6 +22,7 @@ import { useWeather } from '@/hooks/use-weather';
 import { useSettings } from '@/hooks/use-settings';
 import { queryClient } from '@/lib/queryClient';
 import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap } from 'lucide-react-native';
+import { parseQuoteContent } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/dialogs';
 
@@ -33,10 +34,8 @@ function fmtAUD(n: number): string {
 
 function parseQuoteTitle(q: any): string {
   if (q.title) return q.title;
-  try {
-    const p = JSON.parse(q.content || '{}');
-    if (p.jobTitle) return p.jobTitle;
-  } catch {}
+  const p = parseQuoteContent(q.content);
+  if (p.jobTitle) return p.jobTitle;
   return `Quote #${q.id}`;
 }
 
