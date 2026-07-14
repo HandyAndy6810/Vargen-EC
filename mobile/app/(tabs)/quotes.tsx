@@ -45,13 +45,6 @@ type Quote = {
 
 type QuoteWithJoins = Quote & { customerName?: string | null; expiryDate?: string | null; title?: string };
 
-function parseTitle(quote: QuoteWithJoins): string {
-  if (quote.title) return quote.title;
-  const p = parseQuoteContent(quote.content);
-  if (p.jobTitle) return p.jobTitle;
-  return `Quote #${quote.id}`;
-}
-
 function makeStyles(c: Colors, isDark: boolean) {
   return StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 0, paddingBottom: 16 },
@@ -120,16 +113,19 @@ export default function QuotesScreen() {
     () => [...allQuotes]
       .map((q) => {
         // Prefer the machine-readable ISO stamp — the display string is
-        // user-editable free text and often unparseable
+        // user-editable free text and often unparseable. Title is resolved
+        // here too so the search filter and rows don't re-parse per render.
         const parsed = parseQuoteContent(q.content);
         const expiryDate = parsed.expiryDateISO ?? parsed.expiryDate ?? null;
-        return { ...q, expiryDate };
+        return { ...q, expiryDate, title: q.title || parsed.jobTitle || `Quote #${q.id}` };
       })
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
     [allQuotes]
   );
   const overdueQuotes = sorted.filter((q) => {
-    if (q.status !== 'sent' || !q.expiryDate) return false;
+    // sent and viewed are one bucket everywhere else on this screen — a
+    // quote the customer opened must not vanish from overdue chasing
+    if (!['sent', 'viewed'].includes(q.status || '') || !q.expiryDate) return false;
     const exp = new Date(q.expiryDate);
     return !isNaN(exp.getTime()) && exp < new Date();
   });
@@ -139,7 +135,10 @@ export default function QuotesScreen() {
     if (filter === 'overdue') list = overdueQuotes;
     else if (filter === 'sent') list = sorted.filter((q) => q.status === 'sent' || q.status === 'viewed');
     else if (filter !== 'all') list = sorted.filter((q) => q.status === filter);
-    if (search) list = list.filter((q) => parseTitle(q).toLowerCase().includes(search.toLowerCase()) || (q.customerName || '').toLowerCase().includes(search.toLowerCase()));
+    if (search) {
+      const needle = search.toLowerCase();
+      list = list.filter((q) => (q.title || '').toLowerCase().includes(needle) || (q.customerName || '').toLowerCase().includes(needle));
+    }
     return list;
   }, [sorted, filter, search]);
 
@@ -266,7 +265,7 @@ export default function QuotesScreen() {
         }
         renderItem={({ item: quote }) => {
             const pill = STATUS_PILL[quote.status ?? 'draft'] ?? STATUS_PILL.draft;
-            const title = parseTitle(quote);
+            const title = quote.title || `Quote #${quote.id}`;
             const amount = parseFloat(String(quote.totalAmount || '0'));
             return (
               <TouchableOpacity key={quote.id} onPress={() => router.push(`/quotes/${quote.id}`)} activeOpacity={0.7} style={s.quoteCard}>

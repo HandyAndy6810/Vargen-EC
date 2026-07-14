@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { FileText, X, Share2 } from 'lucide-react-native';
 
@@ -47,11 +47,11 @@ export default function PDFComposeModal({
   const num       = `${isInvoice ? 'INV' : 'Q'}-${documentNumber}`;
 
   // Use local state seeded from props every time the modal opens
-  const [customMessage, setCustomMessage] = React.useState('');
-  const [notes, setNotes]                 = React.useState(initialNotes);
+  const [customMessage, setCustomMessage] = useState('');
+  const [notes, setNotes]                 = useState(initialNotes);
 
   // Re-seed notes when modal opens with new data
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible) {
       setCustomMessage('');
       setNotes(initialNotes);
@@ -159,9 +159,6 @@ export default function PDFComposeModal({
   );
 }
 
-// Need React for hooks inside the component
-import React from 'react';
-
 const makeStyles = (c: Colors) => StyleSheet.create({
   overlay: {
     flex: 1,
@@ -184,7 +181,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(20,19,16,0.15)',
+    backgroundColor: c.lineMid,
     alignSelf: 'center',
     marginTop: 10,
     marginBottom: 18,
@@ -198,7 +195,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#fff1eb',
+    backgroundColor: c.orangeSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },

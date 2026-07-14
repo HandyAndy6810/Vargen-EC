@@ -22,7 +22,7 @@ import { useWeather } from '@/hooks/use-weather';
 import { useSettings } from '@/hooks/use-settings';
 import { queryClient } from '@/lib/queryClient';
 import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap } from 'lucide-react-native';
-import { parseQuoteContent } from '@shared/mobile-types';
+import { quoteTitle } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/dialogs';
 
@@ -30,13 +30,6 @@ const PILL_STATES = 4;
 
 function fmtAUD(n: number): string {
   return n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function parseQuoteTitle(q: any): string {
-  if (q.title) return q.title;
-  const p = parseQuoteContent(q.content);
-  if (p.jobTitle) return p.jobTitle;
-  return `Quote #${q.id}`;
 }
 
 // Static render — the old 28-tick setInterval count-up churned the JS thread
@@ -241,7 +234,8 @@ export default function HomeScreen() {
   const totalPending = allInvoices.filter((i: any) => ['sent', 'pending', 'unpaid'].includes(i.status)).reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
   const totalOverdue = allInvoices.filter((i: any) => i.status === 'overdue').reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
 
-  const recentQuotes     = useMemo(() => allQuotes.slice(0, 5), [allQuotes]);
+  // Resolve titles here so rows don't re-parse the content blob per render
+  const recentQuotes     = useMemo(() => allQuotes.slice(0, 5).map((q: any) => ({ ...q, displayTitle: quoteTitle(q) })), [allQuotes]);
   const overdueInvoices  = useMemo(() => allInvoices.filter((i: any) => i.status === 'overdue'), [allInvoices]);
   const pendingInvoices  = useMemo(() => allInvoices.filter((i: any) => ['sent', 'pending', 'unpaid'].includes(i.status)), [allInvoices]);
 
@@ -455,7 +449,7 @@ export default function HomeScreen() {
                     <TouchableOpacity key={q.id} activeOpacity={0.7} onPress={() => router.push(`/quotes/${q.id}`)}>
                       <View style={[s.rqRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                         <View style={{ flex: 1, gap: 2 }}>
-                          <Text style={s.rqTitle} numberOfLines={1}>{parseQuoteTitle(q)}</Text>
+                          <Text style={s.rqTitle} numberOfLines={1}>{q.displayTitle}</Text>
                           <Text style={s.rqSub} numberOfLines={1}>{q.customerName || '—'}</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end', gap: 5 }}>

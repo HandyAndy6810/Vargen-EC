@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   Share,
 } from 'react-native';
-import { parseQuoteContent } from '@shared/mobile-types';
+import { parseQuoteContent, toMoney } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, useMemo } from 'react';
@@ -70,6 +70,8 @@ export default function QuoteDetailScreen() {
   const [sheetMode, setSheetMode] = useState<null | 'more' | 'status'>(null);
   const { data: xeroStatus } = useXeroStatus();
   const createXeroInvoice = useCreateXeroInvoice(quoteId);
+  // Parsed once per data change, not on every sheet/modal toggle re-render
+  const content = useMemo(() => parseQuoteContent(quote?.content), [quote?.content]);
 
   const duplicateQuote = useMutation({
     mutationFn: async () => {
@@ -113,9 +115,6 @@ export default function QuoteDetailScreen() {
     );
   }
 
-  // Parse content JSON
-  const content = parseQuoteContent(quote?.content);
-
   const title = (quote as any)?.jobTitle || content.jobTitle || `Quote #${id}`;
   const customerName = content.customerName || '';
   const status = quote?.status || 'draft';
@@ -138,25 +137,22 @@ export default function QuoteDetailScreen() {
       qty: item.quantity,
       total: parseFloat(item.price),
     }));
-  } else if (content.items && content.items.length > 0) {
-    displayItems = content.items.map((item: any) => ({
-      name: item.description,
-      qty: item.quantity || 1,
-      total: (item.quantity || 1) * (item.unitPrice || 0),
-    }));
-  } else if (content.lines && content.lines.length > 0) {
-    displayItems = content.lines.map((line) => ({
-      name: line.name,
-      qty: Number(line.qty) || 1,
-      total: (Number(line.qty) || 1) * (Number(line.price) || 0),
-    }));
+  } else if (content.items?.length) {
+    displayItems = content.items.map((item) => {
+      const qty = toMoney(item.quantity) ?? 1;
+      return { name: item.description, qty, total: qty * (toMoney(item.unitPrice) ?? 0) };
+    });
+  } else if (content.lines?.length) {
+    displayItems = content.lines.map((line) => {
+      const qty = toMoney(line.qty) ?? 1;
+      return { name: line.name, qty, total: qty * (toMoney(line.price) ?? 0) };
+    });
   }
 
-  // Number() tolerates legacy rows where these were saved as strings
-  const subtotal = content.subtotal
-    ? Number(content.subtotal)
-    : displayItems.reduce((s, i) => s + i.total, 0);
-  const gst = content.gstAmount ? Number(content.gstAmount) : 0;
+  // toMoney salvages legacy string values ("1,500.00") and returns null when
+  // unusable, so we fall back to recomputing rather than rendering $NaN
+  const subtotal = toMoney(content.subtotal) ?? displayItems.reduce((s, i) => s + i.total, 0);
+  const gst = toMoney(content.gstAmount) ?? 0;
 
   const customerPhone = content.customerPhone || null;
   const alreadyInvoiced = status === 'invoiced';
@@ -730,9 +726,9 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 32,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(247,244,238,0.92)',
+    backgroundColor: c.paper,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.85)',
+    borderTopColor: c.lineSoft,
     shadowColor: '#141310',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.10,

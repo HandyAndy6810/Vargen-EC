@@ -28,7 +28,11 @@ export function MarginSlider({ cost, price, onPriceChange }: MarginSliderProps) 
   const maxRef = useRef(max);
   const trackWidthRef = useRef(trackWidth);
   const liveValueRef = useRef(price);
+  // PanResponder is created once (useRef), so its handlers would otherwise
+  // capture the first render's onPriceChange and commit against stale state.
+  const onPriceChangeRef = useRef(onPriceChange);
 
+  useEffect(() => { onPriceChangeRef.current = onPriceChange; }, [onPriceChange]);
   useEffect(() => { minRef.current = min; }, [min]);
   useEffect(() => { maxRef.current = max; }, [max]);
   useEffect(() => { trackWidthRef.current = trackWidth; }, [trackWidth]);
@@ -63,11 +67,11 @@ export function MarginSlider({ cost, price, onPriceChange }: MarginSliderProps) 
       },
       onPanResponderRelease: () => {
         setDragging(false);
-        onPriceChange(liveValueRef.current);
+        onPriceChangeRef.current(liveValueRef.current);
       },
       onPanResponderTerminate: () => {
         setDragging(false);
-        onPriceChange(liveValueRef.current);
+        onPriceChangeRef.current(liveValueRef.current);
       },
     })
   ).current;

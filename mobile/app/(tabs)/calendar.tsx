@@ -14,6 +14,7 @@ import { format, startOfWeek, addDays, addWeeks, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
 import { api } from '@shared/mobile-routes';
+import { parseQuoteContent } from '@shared/mobile-types';
 import { useWeather } from '@/hooks/use-weather';
 import { Plus, Search, X, ChevronLeft, ChevronRight, Send, SkipForward } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
@@ -271,8 +272,7 @@ export default function CalendarScreen() {
           ) : (
             <View style={{ gap: 12, paddingTop: 4 }}>
               {followUps.map((item: any, i: number) => {
-                let content: any = {};
-                try { content = JSON.parse(item.quote?.content || '{}'); } catch {}
+                const content = parseQuoteContent(item.quote?.content);
                 const custName = content.customerName || `Quote #${item.quote?.id}`;
                 const jobTitle = content.jobTitle || 'Quote';
                 const total = item.quote?.totalAmount ? `$${parseFloat(item.quote.totalAmount).toLocaleString()}` : '';

@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { storage } from "./storage";
 import { api } from "../shared/routes";
+import { isValidISODate, toISODate } from "../shared/mobile-types";
 import { z } from "zod";
 import OpenAI from "openai";
 
@@ -2064,9 +2065,12 @@ If you cannot read the image clearly, return your best guess. Always return vali
       let parsed: any = {};
       try { parsed = JSON.parse(cleaned); } catch { parsed = {}; }
 
+      // Normalize the AI-extracted date to YYYY-MM-DD; blank it when it
+      // can't be interpreted so the client never prefills garbage
+      const scanDate = toISODate(parsed.date);
       res.json({
         vendor: parsed.vendor || '',
-        date: parsed.date || '',
+        date: isValidISODate(scanDate) ? scanDate : '',
         total: String(parsed.total || '0'),
         category: parsed.category || 'Other',
         items: parsed.items || [],
@@ -2084,7 +2088,13 @@ If you cannot read the image clearly, return your best guess. Always return vali
 
   app.post("/api/receipts", requireAuth, async (req: any, res) => {
     try {
-      const receipt = await storage.createReceipt({ ...req.body, userId: req.userId });
+      // Normalize free-text dates to YYYY-MM-DD where possible so the
+      // column stays consistent regardless of which client wrote it
+      const body = { ...req.body };
+      if (typeof body.receiptDate === 'string' && body.receiptDate) {
+        body.receiptDate = toISODate(body.receiptDate);
+      }
+      const receipt = await storage.createReceipt({ ...body, userId: req.userId });
       res.status(201).json(receipt);
     } catch (err: any) {
       res.status(400).json({ message: err?.message || "Failed to create receipt" });
@@ -2103,9 +2113,10 @@ If you cannot read the image clearly, return your best guess. Always return vali
       const existing = await storage.getReceipt(id, req.userId);
       if (!existing) return res.status(404).json({ message: "Not found" });
       const { vendor, receiptDate, totalAmount, category, notes, items } = req.body;
+      const normalizedDate = typeof receiptDate === 'string' && receiptDate ? toISODate(receiptDate) : receiptDate;
       const updated = await storage.updateReceipt(id, req.userId, {
         ...(vendor !== undefined && { vendor }),
-        ...(receiptDate !== undefined && { receiptDate }),
+        ...(receiptDate !== undefined && { receiptDate: normalizedDate }),
         ...(totalAmount !== undefined && { totalAmount }),
         ...(category !== undefined && { category }),
         ...(notes !== undefined && { notes }),
