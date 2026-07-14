@@ -14,6 +14,7 @@ import { useState, useMemo } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '@/lib/dialogs';
+import { isValidISODate } from '@/lib/dates';
 import { ChevronLeft, Camera, ImageIcon, RotateCw, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { apiRequest } from '@/lib/api';
@@ -125,8 +126,8 @@ export default function ScanReceiptScreen() {
       showAlert('Invalid amount', 'Please enter a valid total amount.');
       return;
     }
-    if (date && isNaN(new Date(date).getTime())) {
-      showAlert('Invalid date', 'Use the format 2026-07-06, or leave it blank.');
+    if (date && !isValidISODate(date)) {
+      showAlert('Invalid date', 'Use the format YYYY-MM-DD (e.g. 2026-07-06).');
       return;
     }
     try {
@@ -544,9 +545,9 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 28,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.85)',
-    backgroundColor: 'rgba(247,244,238,0.92)',
-    shadowColor: '#141310',
+    borderTopColor: c.lineSoft,
+    backgroundColor: c.paper,
+    shadowColor: c.ink,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.10,
     shadowRadius: 16,

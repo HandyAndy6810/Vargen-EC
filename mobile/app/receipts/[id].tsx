@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Trash2, Check } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert, showConfirm } from '@/lib/dialogs';
+import { isValidISODate } from '@/lib/dates';
 import { useReceipt, useUpdateReceipt, useDeleteReceipt } from '@/hooks/use-receipts';
 
 const CATEGORIES = ['Materials', 'Equipment', 'Fuel', 'Subcontractor', 'Food', 'Other'] as const;
@@ -50,8 +51,8 @@ export default function ReceiptDetailScreen() {
       showAlert('Invalid amount', 'Please enter a valid total amount.');
       return;
     }
-    if (date && isNaN(new Date(date).getTime())) {
-      showAlert('Invalid date', 'Use the format 2026-07-06, or leave it blank.');
+    if (date && !isValidISODate(date)) {
+      showAlert('Invalid date', 'Use the format YYYY-MM-DD (e.g. 2026-07-06).');
       return;
     }
     updateReceipt.mutate(
