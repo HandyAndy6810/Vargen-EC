@@ -50,9 +50,12 @@ export default function ReceiptDetailScreen() {
       showAlert('Invalid amount', 'Please enter a valid total amount.');
       return;
     }
-    if (date && isNaN(new Date(date).getTime())) {
-      showAlert('Invalid date', 'Use the format 2026-07-06, or leave it blank.');
-      return;
+    if (date) {
+      const isoRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!isoRegex.test(date) || isNaN(new Date(date).getTime())) {
+        showAlert('Invalid date', 'Use the format YYYY-MM-DD (e.g. 2026-07-06).');
+        return;
+      }
     }
     updateReceipt.mutate(
       {
