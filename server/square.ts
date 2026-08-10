@@ -1,10 +1,19 @@
 import { createRequire } from 'module';
 import { randomUUID } from 'crypto';
+import { join } from 'path';
 
-// Square SDK v44 uses CJS exports; use createRequire to load from ESM context
-const _require = createRequire(import.meta.url);
+// Square SDK v44 uses CJS exports, so it's required at runtime rather than bundled.
+// The production build emits CJS (script/build.ts), where esbuild replaces
+// `import.meta` with {} — so import.meta.url is undefined and an unguarded
+// createRequire(undefined) throws at module load, crashing the server on boot.
+// Fall back to a cwd-based resolution base, and keep the whole load fail-safe:
+// Square is optional, so a failure here must leave squareClient null, not kill
+// the process.
 let _squarePkg: any = null;
-try { _squarePkg = _require('square'); } catch {}
+try {
+  const requireBase = import.meta.url || join(process.cwd(), 'index.js');
+  _squarePkg = createRequire(requireBase)('square');
+} catch {}
 const Client   = _squarePkg?.Client   ?? _squarePkg?.SquareClient   ?? null;
 const Environment = _squarePkg?.Environment ?? _squarePkg?.SquareEnvironment ?? null;
 
