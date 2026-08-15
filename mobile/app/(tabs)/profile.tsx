@@ -351,7 +351,7 @@ function AppearanceModal({ visible, onClose }: { visible: boolean; onClose: () =
       <View style={{ backgroundColor: c.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }}>
         <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: c.lineSoft, alignSelf: 'center', marginBottom: 20 }} />
         <Text style={{ fontSize: 17, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginBottom: 4 }}>Appearance</Text>
-        <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginBottom: 8 }}>Choose how Vargen looks on your device</Text>
+        <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginBottom: 8 }}>Choose how Vargen EZ looks on your device</Text>
         {APPEARANCE_OPTIONS.map((opt, i) => (
           <TouchableOpacity
             key={opt.value}
@@ -402,7 +402,7 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
-      if (window.confirm('Sign out of Vargen?')) logout?.();
+      if (window.confirm('Sign out of Vargen EZ?')) logout?.();
     } else {
       Alert.alert('Sign out', 'Are you sure you want to sign out?', [
         { text: 'Cancel', style: 'cancel' },

@@ -21,7 +21,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://trade-pal--andrewyoukhana.replit.app",
+        "EXPO_PUBLIC_API_URL": "https://vargon-ec--andrewyoukhana.replit.app",
         "EXPO_PUBLIC_DEV_BYPASS": "true"
       }
     },
@@ -34,7 +34,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://trade-pal--andrewyoukhana.replit.app"
+        "EXPO_PUBLIC_API_URL": "https://vargon-ec--andrewyoukhana.replit.app"
       }
     }
   },

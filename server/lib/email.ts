@@ -44,7 +44,7 @@ export async function sendCustomerEmail(to: string, subject: string, body: strin
 }
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
-  const subject = "Reset your Vargen password";
+  const subject = "Reset your Vargen EZ password";
   const html = `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
       <h2 style="margin:0 0 8px">Reset your password</h2>

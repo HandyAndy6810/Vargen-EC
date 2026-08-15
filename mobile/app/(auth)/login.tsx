@@ -72,7 +72,7 @@ export default function LoginScreen() {
             <View style={s.logoIcon}>
               <Text style={{ fontSize: 20 }}>🔧</Text>
             </View>
-            <Text style={s.logoText}>Vargen</Text>
+            <Text style={s.logoText}>Vargen EZ</Text>
           </View>
 
           <Text style={s.heroHeading}>

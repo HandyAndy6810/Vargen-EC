@@ -79,7 +79,7 @@ export default function RegisterScreen() {
           {/* Heading */}
           <View style={s.heading}>
             <Text style={s.title}>Create account</Text>
-            <Text style={s.sub}>Set up your Vargen account.</Text>
+            <Text style={s.sub}>Set up your Vargen EZ account.</Text>
           </View>
 
           {error && (

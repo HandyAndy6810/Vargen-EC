@@ -105,7 +105,7 @@ export default function OnboardingScreen() {
             <Zap size={28} color={c.orange} strokeWidth={2.5} />
           </View>
           <Text style={[s.title, { color: c.ink, fontFamily: 'Manrope_800ExtraBold' }]}>
-            Welcome to Vargen
+            Welcome to Vargen EZ
           </Text>
           <Text style={[s.subtitle, { color: c.muted, fontFamily: 'Manrope_400Regular' }]}>
             Here's a quick tour of everything at your fingertips.
