@@ -21,7 +21,7 @@ import { useInvoices } from '@/hooks/use-invoices';
 import { useWeather } from '@/hooks/use-weather';
 import { useSettings } from '@/hooks/use-settings';
 import { queryClient } from '@/lib/queryClient';
-import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap } from 'lucide-react-native';
+import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap, FileText } from 'lucide-react-native';
 import { quoteTitle } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/dialogs';
@@ -71,12 +71,12 @@ function CyclingPill({ nextJob, pipelineAmt, colors: c, weather }: { nextJob: an
 
   return (
     <TouchableOpacity
-      style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft }}
+      style={{ paddingVertical: 9, paddingHorizontal: 16, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft }}
       onPress={advance}
       onLongPress={() => setLocked(l => !l)}
       activeOpacity={0.8}
     >
-      <Text style={{ fontSize: 12, fontFamily: 'Manrope_700Bold', color: c.ink }}>{icon}  {label}{locked ? '  🔒' : ''}</Text>
+      <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink }}>{icon}  {label}{locked ? '  🔒' : ''}</Text>
     </TouchableOpacity>
   );
 }
@@ -88,9 +88,13 @@ function makeStyles(c: Colors, isDark: boolean) {
     avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' },
     avatarText: { color: c.orange, fontSize: 14, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.2 },
     eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 2, color: c.muted, textTransform: 'uppercase', marginBottom: 2 },
-    heroGreeting: { fontSize: 42, fontFamily: 'Manrope_800ExtraBold', color: c.ink, lineHeight: 42, letterSpacing: -1.5, marginTop: 6 },
+    heroGreeting: { fontSize: 42, fontFamily: 'Manrope_800ExtraBold', color: c.ink, lineHeight: 50, letterSpacing: -1.5, marginTop: 8, paddingTop: 2 },
     heroSub: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: c.mutedHi, marginTop: 10, lineHeight: 20, maxWidth: 280 },
     heroCard: { backgroundColor: heroBg, borderRadius: 28, padding: 20, marginTop: 18, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.22, shadowRadius: 40, elevation: 20 },
+    splitWrap: { flexDirection: 'row', height: 78, borderRadius: 22, overflow: 'hidden', marginTop: 10, shadowColor: c.orange, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 22, elevation: 10 },
+    splitHalf: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
+    splitLabel: { fontSize: 15.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.3 },
+    splitDivider: { position: 'absolute', left: '50%', marginLeft: -7, top: -8, bottom: -8, width: 14, backgroundColor: c.paper, transform: [{ skewX: '-10deg' }] },
     heroEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, textTransform: 'uppercase' },
     durationBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
     durationText: { fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: 0.8 },
@@ -733,6 +737,35 @@ export default function HomeScreen() {
               <View style={s.micBtn}><Mic size={18} color={c.orange} strokeWidth={2} /></View>
             </View>
           </TouchableOpacity>
+        </View>
+
+        {/* Pinned primary CTA — split New Quote / New Invoice (always first, never reordered) */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+          <Text style={s.eyebrow}>Let's start working</Text>
+          <View style={s.splitWrap}>
+            <TouchableOpacity
+              style={[s.splitHalf, { backgroundColor: c.orange }]}
+              activeOpacity={0.85}
+              onPress={() => router.push('/quotes/create')}
+              accessibilityRole="button"
+              accessibilityLabel="Start a new quote"
+            >
+              <Sparkles size={20} color="#fff" strokeWidth={2.4} />
+              <Text style={s.splitLabel}>New Quote</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.splitHalf, { backgroundColor: c.ink }]}
+              activeOpacity={0.85}
+              onPress={() => router.push('/invoices/create')}
+              accessibilityRole="button"
+              accessibilityLabel="Start a new invoice"
+            >
+              <FileText size={20} color={c.orange} strokeWidth={2.4} />
+              <Text style={[s.splitLabel, { color: c.paper }]}>New Invoice</Text>
+            </TouchableOpacity>
+            {/* page-coloured slanted gap makes the two halves read as separate angled pieces */}
+            <View pointerEvents="none" style={s.splitDivider} />
+          </View>
         </View>
 
         {rows.map((row, rowIdx) => (
