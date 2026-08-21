@@ -28,6 +28,47 @@ import { showAlert } from '@/lib/dialogs';
 
 const PILL_STATES = 4;
 
+// Time-aware greeting, picked at random on each open so home feels alive —
+// a fresh hello every time rather than a static "G'day". `pre` sits before the
+// name, `suf` after it (defaults to a full stop).
+type Greeting = { pre: string; suf?: string };
+
+const GREETINGS_MORNING: Greeting[] = [
+  { pre: 'Good morning' }, { pre: 'Morning' }, { pre: 'Rise and shine' },
+  { pre: "Up and at 'em" }, { pre: 'Bright and early' },
+];
+const GREETINGS_AFTERNOON: Greeting[] = [
+  { pre: 'Good afternoon' }, { pre: 'Afternoon' },
+  { pre: "How's the day treating you", suf: '?' }, { pre: 'Powering through' },
+];
+const GREETINGS_EVENING: Greeting[] = [
+  { pre: 'Good evening' }, { pre: 'Evening' }, { pre: 'Winding down' },
+  { pre: "How'd it go today", suf: '?' },
+];
+const GREETINGS_NIGHT: Greeting[] = [
+  { pre: 'Burning the midnight oil' }, { pre: 'Still at it' },
+  { pre: 'Late one tonight', suf: '?' },
+];
+// Always eligible, any time of day
+const GREETINGS_ANYTIME: Greeting[] = [
+  { pre: "G'day" }, { pre: 'Howdy' }, { pre: "How's it going", suf: '?' },
+  { pre: 'Ready to build' }, { pre: 'Good to see you' },
+  { pre: "What's the plan", suf: '?' }, { pre: "Let's get to it" },
+  { pre: 'Back at it' }, { pre: "Let's make it happen" },
+  { pre: "Let's knock it over" }, { pre: 'What are we building', suf: '?' },
+  { pre: 'Time to get paid' },
+];
+
+function pickGreeting(hour: number): Greeting {
+  const bucket =
+    hour >= 5 && hour < 12 ? GREETINGS_MORNING :
+    hour >= 12 && hour < 17 ? GREETINGS_AFTERNOON :
+    hour >= 17 && hour < 22 ? GREETINGS_EVENING :
+    GREETINGS_NIGHT;
+  const pool = [...bucket, ...GREETINGS_ANYTIME];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function fmtAUD(n: number): string {
   return n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -106,7 +147,8 @@ function makeStyles(c: Colors, isDark: boolean) {
     aiRail: { backgroundColor: c.orange, borderRadius: 24, padding: 18, overflow: 'hidden', shadowColor: c.orange, shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.3, shadowRadius: 28, elevation: 10 },
     aiIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
     aiEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.75)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 },
-    aiRailText: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.2, lineHeight: 20 },
+    aiRailText: { fontSize: 19, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.4, lineHeight: 23 },
+    aiRailSub: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: 'rgba(255,255,255,0.82)', marginTop: 3, lineHeight: 17 },
     micBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
     sectionTitle: { fontSize: 18, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginTop: 2, letterSpacing: -0.3 },
     seeAll: { fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
@@ -208,6 +250,8 @@ export default function HomeScreen() {
   const now = new Date();
   const dayName = format(now, 'EEE d MMM');
   const timeStr = format(now, 'HH:mm');
+  // Picked once per screen mount so it stays stable while you're on the page
+  const [greeting] = useState(() => pickGreeting(new Date().getHours()));
 
   const allJobs    = (jobs as any[])     || [];
   const allQuotes  = (quotes as any[])   || [];
@@ -308,7 +352,7 @@ export default function HomeScreen() {
             <Text style={s.eyebrow}>Quick Actions</Text>
             <View style={s.qaRow}>
               {([
-                { Icon: Sparkles,  label: 'New Quote',    color: c.orange, bg: c.orangeSoft, route: '/ai-chat' },
+                { Icon: MessageCircle, label: 'Follow Up',  color: c.orange, bg: c.orangeSoft, route: '/customers/messages' },
                 { Icon: Briefcase, label: 'New Job',      color: c.blue,     bg: isDark ? 'rgba(31,111,235,0.15)' : c.blueSoft,    route: '/jobs/create' },
                 { Icon: Users,     label: 'Customers',    color: c.green,  bg: c.greenSoft,  route: '/customers' },
               ] as const).map(({ Icon, label, color, bg, route }) => (
@@ -634,8 +678,8 @@ export default function HomeScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
           <Text style={s.eyebrow}>{dayName} · {timeStr}</Text>
           <Text style={s.heroGreeting}>
-            {"G'day,\n"}
-            <Text style={{ color: c.orange }}>{firstName}.</Text>
+            {greeting.pre},{"\n"}
+            <Text style={{ color: c.orange }}>{firstName}{greeting.suf ?? '.'}</Text>
           </Text>
           <Text style={s.heroSub}>
             {todayJobs.length} {todayJobs.length === 1 ? 'job' : 'jobs'} booked today.{' '}
@@ -731,8 +775,8 @@ export default function HomeScreen() {
                 <Sparkles size={22} color="#fff" strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.aiEyebrow}>Quote with a sentence</Text>
-                <Text style={s.aiRailText}>"Swap hot water at Dalton's, $1,840..."</Text>
+                <Text style={s.aiRailText}>Tell me what you're thinking</Text>
+                <Text style={s.aiRailSub}>Say it out loud — I'll build the quote for you.</Text>
               </View>
               <View style={s.micBtn}><Mic size={18} color={c.orange} strokeWidth={2} /></View>
             </View>
