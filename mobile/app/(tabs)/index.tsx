@@ -131,11 +131,11 @@ function makeStyles(c: Colors, isDark: boolean) {
     eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 2, color: c.muted, textTransform: 'uppercase', marginBottom: 2 },
     heroGreeting: { fontSize: 42, fontFamily: 'Manrope_800ExtraBold', color: c.ink, lineHeight: 50, letterSpacing: -1.5, marginTop: 8, paddingTop: 2 },
     heroSub: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: c.mutedHi, marginTop: 10, lineHeight: 20, maxWidth: 280 },
-    heroCard: { backgroundColor: heroBg, borderRadius: 28, padding: 20, marginTop: 18, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.22, shadowRadius: 40, elevation: 20 },
+    heroCard: { backgroundColor: heroBg, borderRadius: 28, padding: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.22, shadowRadius: 40, elevation: 20 },
     splitWrap: { flexDirection: 'row', height: 78, borderRadius: 22, overflow: 'hidden', marginTop: 10, shadowColor: c.orange, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 22, elevation: 10 },
     splitHalf: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
     splitLabel: { fontSize: 15.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.3 },
-    splitDivider: { position: 'absolute', left: '50%', marginLeft: -7, top: -8, bottom: -8, width: 14, backgroundColor: c.paper, transform: [{ skewX: '-10deg' }] },
+    splitBadge: { position: 'absolute', left: '50%', top: '50%', width: 48, height: 48, marginLeft: -24, marginTop: -24, borderRadius: 24, backgroundColor: c.paper, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 6, elevation: 6 },
     heroEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, textTransform: 'uppercase' },
     durationBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
     durationText: { fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: 0.8 },
@@ -309,6 +309,7 @@ export default function HomeScreen() {
 
   type WDef = { id: string; score: number; fullWidth: boolean };
   const baseWidgets: WDef[] = [
+    { id: 'upnext',       score: nextJob ? 88 : 0,                  fullWidth: true  },
     { id: 'outstanding',  score: (overdueInvoices.length + pendingInvoices.length) > 0 ? 90 + overdueInvoices.length * 5 : 0, fullWidth: false },
     { id: 'schedule',     score: todayJobs.length > 0 ? 80 : 20,   fullWidth: true  },
     { id: 'quickactions', score: 70,                                 fullWidth: true  },
@@ -322,10 +323,14 @@ export default function HomeScreen() {
   let widgetDefs: WDef[];
   if (bladeOrderIds) {
     const byId = Object.fromEntries(baseWidgets.map(w => [w.id, w]));
-    widgetDefs = bladeOrderIds
+    const ordered = bladeOrderIds
       .filter(entry => !entry.startsWith('-'))
       .map(id => byId[id])
       .filter((w): w is WDef => !!w);
+    // include any newer widgets (e.g. up-next) not present in a previously-saved order
+    const known = new Set(ordered.map(w => w.id));
+    const missing = baseWidgets.filter(w => w.score > 0 && !known.has(w.id));
+    widgetDefs = [...ordered, ...missing];
   } else {
     widgetDefs = baseWidgets.filter(w => w.score > 0).sort((a, b) => b.score - a.score);
   }
@@ -346,6 +351,73 @@ export default function HomeScreen() {
 
   const renderWidget = (id: string, half: boolean) => {
     switch (id) {
+      case 'upnext': {
+        if (!nextJob) return null;
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <View style={s.heroCard}>
+              <View style={{ position: 'absolute', top: 0, right: 0, width: 140, height: 140, borderRadius: 70, backgroundColor: `${c.orange}73`, opacity: 0.45 }} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.orange, shadowColor: c.orange, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 4 }} />
+                  <Text style={s.heroEyebrow}>
+                    {`Up next · ${nextJob.scheduledDate ? format(new Date(nextJob.scheduledDate), 'h:mm a') : 'Soon'}`}
+                  </Text>
+                </View>
+                {nextJob?.estimatedDuration ? (
+                  <View style={s.durationBadge}>
+                    <Text style={s.durationText}>
+                      {nextJob.estimatedDuration >= 60
+                        ? `${Math.floor(nextJob.estimatedDuration / 60)}H${nextJob.estimatedDuration % 60 ? ` ${nextJob.estimatedDuration % 60}M` : ''}`
+                        : `${nextJob.estimatedDuration}M`}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={s.heroJobTitle}>{nextJob.title}</Text>
+              <Text style={s.heroJobAddr}>{(nextJob as any).address || '—'}</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
+                <TouchableOpacity style={s.startBtn} onPress={() => router.push(`/jobs/${nextJob.id}`)}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Play size={14} color="#fff" strokeWidth={2.5} />
+                    <Text style={s.startBtnText}>Start job</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.heroIconBtn, !(nextJob as any).address && { opacity: 0.35 }]}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Navigate to job"
+                  onPress={() => {
+                    const addr = (nextJob as any).address;
+                    if (!addr) { showAlert('No address', 'This job has no address on file.'); return; }
+                    const encoded = encodeURIComponent(addr);
+                    Linking.openURL(`maps://?q=${encoded}`).catch(() =>
+                      Linking.openURL(`https://maps.google.com/?q=${encoded}`)
+                    );
+                  }}
+                >
+                  <Navigation size={18} color="#fff" strokeWidth={2} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.heroIconBtn, !(nextJob as any).customerPhone && { opacity: 0.35 }]}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Message customer"
+                  onPress={() => {
+                    const phone = (nextJob as any).customerPhone;
+                    if (!phone) { showAlert('No phone number', 'This job has no customer phone on file.'); return; }
+                    Linking.openURL(`sms:${phone}`);
+                  }}
+                >
+                  <MessageCircle size={18} color="#fff" strokeWidth={2} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        );
+      }
+
       case 'quickactions':
         return (
           <View style={{ paddingHorizontal: 20 }}>
@@ -686,84 +758,31 @@ export default function HomeScreen() {
             <Text style={{ color: c.muted }}>Let's not touch a single form.</Text>
           </Text>
 
-          <View style={s.heroCard}>
-            <View style={{ position: 'absolute', top: 0, right: 0, width: 140, height: 140, borderRadius: 70, backgroundColor: `${c.orange}73`, opacity: 0.45 }} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.orange, shadowColor: c.orange, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 4 }} />
-                <Text style={s.heroEyebrow}>
-                  {nextJob ? `Up next · ${nextJob.scheduledDate ? format(new Date(nextJob.scheduledDate), 'h:mm a') : 'Soon'}` : 'No upcoming jobs'}
-                </Text>
-              </View>
-              {nextJob?.estimatedDuration ? (
-                <View style={s.durationBadge}>
-                  <Text style={s.durationText}>
-                    {nextJob.estimatedDuration >= 60
-                      ? `${Math.floor(nextJob.estimatedDuration / 60)}H${nextJob.estimatedDuration % 60 ? ` ${nextJob.estimatedDuration % 60}M` : ''}`
-                      : `${nextJob.estimatedDuration}M`}
-                  </Text>
-                </View>
-              ) : null}
+          {/* Pinned primary CTA — split New Quote / New Invoice, top of page, never reordered */}
+          <Text style={[s.eyebrow, { marginTop: 22 }]}>Let's start working</Text>
+          <View style={s.splitWrap}>
+            <TouchableOpacity
+              style={[s.splitHalf, { backgroundColor: c.orange }]}
+              activeOpacity={0.85}
+              onPress={() => router.push('/quotes/create')}
+              accessibilityRole="button"
+              accessibilityLabel="Start a new quote"
+            >
+              <Text style={s.splitLabel}>New Quote</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.splitHalf, { backgroundColor: c.ink }]}
+              activeOpacity={0.85}
+              onPress={() => router.push('/invoices/create')}
+              accessibilityRole="button"
+              accessibilityLabel="Start a new invoice"
+            >
+              <Text style={[s.splitLabel, { color: c.paper }]}>New Invoice</Text>
+            </TouchableOpacity>
+            {/* lightning-bolt badge on the seam — the brand mark splitting the two actions */}
+            <View pointerEvents="none" style={s.splitBadge}>
+              <Zap size={22} color={c.orange} strokeWidth={2.4} fill={c.orange} />
             </View>
-
-            {nextJob ? (
-              <>
-                <Text style={s.heroJobTitle}>{nextJob.title}</Text>
-                <Text style={s.heroJobAddr}>{(nextJob as any).address || '—'}</Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
-                  <TouchableOpacity style={s.startBtn} onPress={() => router.push(`/jobs/${nextJob.id}`)}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Play size={14} color="#fff" strokeWidth={2.5} />
-                      <Text style={s.startBtnText}>Start job</Text>
-                    </View>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[s.heroIconBtn, !(nextJob as any).address && { opacity: 0.35 }]}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel="Navigate to job"
-                    onPress={() => {
-                      const addr = (nextJob as any).address;
-                      if (!addr) { showAlert('No address', 'This job has no address on file.'); return; }
-                      const encoded = encodeURIComponent(addr);
-                      // maps:// is iOS-only; fall back to Google Maps everywhere else
-                      Linking.openURL(`maps://?q=${encoded}`).catch(() =>
-                        Linking.openURL(`https://maps.google.com/?q=${encoded}`)
-                      );
-                    }}
-                  >
-                    <Navigation size={18} color="#fff" strokeWidth={2} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[s.heroIconBtn, !(nextJob as any).customerPhone && { opacity: 0.35 }]}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel="Message customer"
-                    onPress={() => {
-                      const phone = (nextJob as any).customerPhone;
-                      if (!phone) { showAlert('No phone number', 'This job has no customer phone on file.'); return; }
-                      Linking.openURL(`sms:${phone}`);
-                    }}
-                  >
-                    <MessageCircle size={18} color="#fff" strokeWidth={2} />
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <TouchableOpacity
-                onPress={() => router.push('/ai-chat')}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="Create a quote"
-              >
-                <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, fontFamily: 'Manrope_500Medium' }}>
-                  Nothing scheduled.
-                </Text>
-                <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Manrope_800ExtraBold', marginTop: 6 }}>
-                  Fire off a quote while it's quiet →
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
 
@@ -781,35 +800,6 @@ export default function HomeScreen() {
               <View style={s.micBtn}><Mic size={18} color={c.orange} strokeWidth={2} /></View>
             </View>
           </TouchableOpacity>
-        </View>
-
-        {/* Pinned primary CTA — split New Quote / New Invoice (always first, never reordered) */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <Text style={s.eyebrow}>Let's start working</Text>
-          <View style={s.splitWrap}>
-            <TouchableOpacity
-              style={[s.splitHalf, { backgroundColor: c.orange }]}
-              activeOpacity={0.85}
-              onPress={() => router.push('/quotes/create')}
-              accessibilityRole="button"
-              accessibilityLabel="Start a new quote"
-            >
-              <Sparkles size={20} color="#fff" strokeWidth={2.4} />
-              <Text style={s.splitLabel}>New Quote</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.splitHalf, { backgroundColor: c.ink }]}
-              activeOpacity={0.85}
-              onPress={() => router.push('/invoices/create')}
-              accessibilityRole="button"
-              accessibilityLabel="Start a new invoice"
-            >
-              <FileText size={20} color={c.orange} strokeWidth={2.4} />
-              <Text style={[s.splitLabel, { color: c.paper }]}>New Invoice</Text>
-            </TouchableOpacity>
-            {/* page-coloured slanted gap makes the two halves read as separate angled pieces */}
-            <View pointerEvents="none" style={s.splitDivider} />
-          </View>
         </View>
 
         {rows.map((row, rowIdx) => (
