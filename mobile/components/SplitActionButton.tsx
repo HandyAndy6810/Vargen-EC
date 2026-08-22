@@ -19,16 +19,17 @@ export function SplitActionButton({
   const s = makeStyles(c);
   const [w, setW] = useState(0);
   const H = 80;
-  const g = 7;   // half the gap width
-  const a = 14;  // horizontal swing of the zigzag
+  const g = 8;   // half the gap width
+  const a = 17;  // horizontal swing of the bolt
   const cx = w / 2;
 
-  // Lightning zigzag down the centre (top -> bottom): right, left, right, left
+  // Symmetric lightning bolt down the centre: pointed top & bottom both centred
+  // (they line up), with one sharp jog in the middle. 180° rotational symmetry.
   const mid = [
-    { x: cx + a, y: 0 },
-    { x: cx - a, y: H * 0.42 },
-    { x: cx + a, y: H * 0.58 },
-    { x: cx - a, y: H },
+    { x: cx,     y: 0 },
+    { x: cx + a, y: H * 0.44 },
+    { x: cx - a, y: H * 0.56 },
+    { x: cx,     y: H },
   ];
   const leftPts = ['0,0', ...mid.map(p => `${p.x - g},${p.y}`), `0,${H}`].join(' ');
   const rightPts = [`${w},0`, ...mid.map(p => `${p.x + g},${p.y}`), `${w},${H}`].join(' ');
