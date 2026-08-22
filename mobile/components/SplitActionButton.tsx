@@ -19,20 +19,22 @@ export function SplitActionButton({
   const s = makeStyles(c);
   const [w, setW] = useState(0);
   const H = 80;
-  const g = 8;   // half the gap width
-  const a = 17;  // horizontal swing of the bolt
+  const BW = 104; // widest span of the bolt gap
   const cx = w / 2;
+  const nx = (v: number) => cx + v * BW; // v is x-offset from centre, −0.5..0.5
 
-  // Symmetric lightning bolt down the centre: pointed top & bottom both centred
-  // (they line up), with one sharp jog in the middle. 180° rotational symmetry.
-  const mid = [
-    { x: cx,     y: 0 },
-    { x: cx + a, y: H * 0.44 },
-    { x: cx - a, y: H * 0.56 },
-    { x: cx,     y: H },
-  ];
-  const leftPts = ['0,0', ...mid.map(p => `${p.x - g},${p.y}`), `0,${H}`].join(' ');
-  const rightPts = [`${w},0`, ...mid.map(p => `${p.x + g},${p.y}`), `${w},${H}`].join(' ');
+  // Real lucide Zap silhouette, normalised (x offset from centre, y fraction).
+  // The gap between the two halves *is* this bolt — page colour shows through it.
+  // Left edge of the bolt, top→bottom: T, A, B, Bot ; right edge: T, D, C, Bot.
+  const T   = { x: 0.056,  y: 0 };
+  const A   = { x: -0.5,   y: 0.6 };
+  const B   = { x: 0,      y: 0.6 };
+  const Bot = { x: -0.056, y: 1 };
+  const C   = { x: 0.5,    y: 0.4 };
+  const D   = { x: 0,      y: 0.4 };
+  const P = (p: { x: number; y: number }) => `${nx(p.x)},${p.y * H}`;
+  const leftPts = ['0,0', P(T), P(A), P(B), P(Bot), `0,${H}`].join(' ');
+  const rightPts = [`${w},0`, P(T), P(D), P(C), P(Bot), `${w},${H}`].join(' ');
 
   return (
     <View style={[s.wrap, { height: H }]} onLayout={e => setW(e.nativeEvent.layout.width)}>
