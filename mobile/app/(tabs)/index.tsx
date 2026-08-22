@@ -26,6 +26,7 @@ import { quoteTitle } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/dialogs';
 import { VoiceCaptureModal } from '@/components/VoiceCaptureModal';
+import { SplitActionButton } from '@/components/SplitActionButton';
 
 const PILL_STATES = 4;
 
@@ -760,32 +761,12 @@ export default function HomeScreen() {
             <Text style={{ color: c.muted }}>Let's not touch a single form.</Text>
           </Text>
 
-          {/* Pinned primary CTA — split New Quote / New Invoice, top of page, never reordered */}
+          {/* Pinned primary CTA — split New Quote / New Invoice with a lightning-bolt gap */}
           <Text style={[s.eyebrow, { marginTop: 22 }]}>Let's start working</Text>
-          <View style={s.splitWrap}>
-            <TouchableOpacity
-              style={[s.splitHalf, { backgroundColor: c.orange }]}
-              activeOpacity={0.85}
-              onPress={() => router.push('/quotes/create')}
-              accessibilityRole="button"
-              accessibilityLabel="Start a new quote"
-            >
-              <Text style={s.splitLabel}>New Quote</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.splitHalf, { backgroundColor: c.ink }]}
-              activeOpacity={0.85}
-              onPress={() => router.push('/invoices/create')}
-              accessibilityRole="button"
-              accessibilityLabel="Start a new invoice"
-            >
-              <Text style={[s.splitLabel, { color: c.paper }]}>New Invoice</Text>
-            </TouchableOpacity>
-            {/* lightning-bolt badge on the seam — the brand mark splitting the two actions */}
-            <View pointerEvents="none" style={s.splitBadge}>
-              <Zap size={22} color={c.orange} strokeWidth={2.4} fill={c.orange} />
-            </View>
-          </View>
+          <SplitActionButton
+            onQuote={() => router.push('/quotes/create')}
+            onInvoice={() => router.push('/invoices/create')}
+          />
         </View>
 
         <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
