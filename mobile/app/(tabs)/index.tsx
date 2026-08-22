@@ -25,6 +25,7 @@ import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, Alert
 import { quoteTitle } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/dialogs';
+import { VoiceCaptureModal } from '@/components/VoiceCaptureModal';
 
 const PILL_STATES = 4;
 
@@ -252,6 +253,7 @@ export default function HomeScreen() {
   const timeStr = format(now, 'HH:mm');
   // Picked once per screen mount so it stays stable while you're on the page
   const [greeting] = useState(() => pickGreeting(new Date().getHours()));
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   const allJobs    = (jobs as any[])     || [];
   const allQuotes  = (quotes as any[])   || [];
@@ -787,7 +789,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
-          <TouchableOpacity style={s.aiRail} onPress={() => router.push('/ai-chat')} activeOpacity={0.88}>
+          <TouchableOpacity style={s.aiRail} onPress={() => setVoiceOpen(true)} activeOpacity={0.88}>
             <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: '50%', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 24 }} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, position: 'relative' }}>
               <View style={s.aiIcon}>
@@ -826,6 +828,14 @@ export default function HomeScreen() {
           </Text>
         </View>
       </ScrollView>
+      <VoiceCaptureModal
+        visible={voiceOpen}
+        onClose={() => setVoiceOpen(false)}
+        onResult={(text) => {
+          setVoiceOpen(false);
+          router.push({ pathname: '/ai-chat', params: { description: text } });
+        }}
+      />
     </SafeAreaView>
   );
 }
