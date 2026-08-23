@@ -65,6 +65,9 @@ export const invoices = pgTable("invoices", {
   customerId: integer("customer_id").references(() => customers.id),
   invoiceNumber: text("invoice_number").notNull(),
   status: text("status").default("draft"), // draft, sent, paid, overdue
+  // full = the whole job on one invoice; deposit = an up-front part-payment;
+  // balance = what's left after deposits. A quote may have several invoices.
+  invoiceType: text("invoice_type").default("full"), // full, deposit, balance
   items: text("items").notNull(), // JSON array of line items
   subtotal: numeric("subtotal").notNull(),
   gstAmount: numeric("gst_amount").default("0"),

@@ -19,7 +19,7 @@ import { ChevronLeft, Sparkles, Send, Plus, Trash2 } from 'lucide-react-native';
 import { useQuote } from '@/hooks/use-quotes';
 import { useJob } from '@/hooks/use-jobs';
 import { useCustomer } from '@/hooks/use-customers';
-import { useCreateInvoice, useConvertQuoteToInvoice } from '@/hooks/use-invoices';
+import { useCreateInvoice, useConvertQuoteToInvoice, useInvoices } from '@/hooks/use-invoices';
 import { useSettings } from '@/hooks/use-settings';
 import { addDays, format } from 'date-fns';
 import * as Haptics from 'expo-haptics';
@@ -60,6 +60,22 @@ export default function InvoiceCreateScreen() {
   const quoteCustomer = quoteContent.customerName || '';
   const quoteItemCount = quoteContent.items?.length || quoteContent.lines?.length || 0;
   const quoteTotal = quote?.totalAmount ? parseFloat(quote.totalAmount) : 0;
+
+  // Deposit / balance support — a quote can carry several invoices
+  const [invoiceType, setInvoiceType] = useState<'full' | 'deposit' | 'balance'>('full');
+  const [depositPercent, setDepositPercent] = useState(50);
+  const { data: allInvoices } = useInvoices();
+  const priorInvoiced = useMemo(() => {
+    if (!quoteIdNum) return 0;
+    return ((allInvoices as any[]) || [])
+      .filter((i: any) => i.quoteId === quoteIdNum)
+      .reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0);
+  }, [allInvoices, quoteIdNum]);
+
+  // Once something's been invoiced, "full" no longer applies — default to balance
+  useEffect(() => {
+    if (priorInvoiced > 0 && invoiceType === 'full') setInvoiceType('balance');
+  }, [priorInvoiced, invoiceType]);
 
   // Standalone form state
   const [jobTitle, setJobTitle] = useState('');
@@ -172,7 +188,11 @@ export default function InvoiceCreateScreen() {
   const handleConvertFromQuote = () => {
     setError(null);
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    convertMutation.mutate(quoteIdNum, {
+    convertMutation.mutate({
+      quoteId: quoteIdNum,
+      type: invoiceType,
+      ...(invoiceType === 'deposit' ? { depositPercent } : {}),
+    }, {
       onSuccess: (invoice: any) => {
         if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace(`/invoices/${invoice.id}` as any);
@@ -303,6 +323,59 @@ export default function InvoiceCreateScreen() {
                       </Text>
                     </View>
                   </View>
+
+                  {/* Invoice the whole job, or take a deposit now and bill the
+                      balance later. Existing invoices for this quote are shown
+                      so you can see what's already been billed. */}
+                  <Text style={s.sectionEyebrow}>Invoice for</Text>
+                  <View style={s.typeRow}>
+                    {([
+                      { key: 'full', label: 'Full amount' },
+                      { key: 'deposit', label: 'Deposit' },
+                      { key: 'balance', label: 'Balance' },
+                    ] as const).map(t => {
+                      const active = invoiceType === t.key;
+                      const disabled = t.key === 'full' && priorInvoiced > 0;
+                      return (
+                        <TouchableOpacity
+                          key={t.key}
+                          onPress={() => setInvoiceType(t.key)}
+                          disabled={disabled}
+                          activeOpacity={0.8}
+                          style={[s.typeChip, active && s.typeChipActive, disabled && { opacity: 0.35 }]}
+                        >
+                          <Text style={[s.typeChipText, active && s.typeChipTextActive]}>{t.label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {invoiceType === 'deposit' && (
+                    <>
+                      <View style={s.typeRow}>
+                        {[10, 20, 25, 50].map(p => (
+                          <TouchableOpacity
+                            key={p}
+                            onPress={() => setDepositPercent(p)}
+                            activeOpacity={0.8}
+                            style={[s.typeChip, depositPercent === p && s.typeChipActive]}
+                          >
+                            <Text style={[s.typeChipText, depositPercent === p && s.typeChipTextActive]}>{p}%</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      <Text style={s.typeHint}>
+                        {`Deposit now: $${(quoteTotal * depositPercent / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                        {`  ·  Balance later: $${(quoteTotal - priorInvoiced - quoteTotal * depositPercent / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                      </Text>
+                    </>
+                  )}
+
+                  {priorInvoiced > 0 && (
+                    <Text style={s.typeHint}>
+                      {`Already invoiced on this quote: $${priorInvoiced.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} of $${quoteTotal.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    </Text>
+                  )}
 
                   <Text style={s.sectionEyebrow}>What happens</Text>
                   <View style={s.infoCard}>
@@ -648,6 +721,25 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: 22,
     marginBottom: 8,
+  },
+  typeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  typeChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: c.card,
+    borderWidth: 1,
+    borderColor: c.lineMid,
+  },
+  typeChipActive: { backgroundColor: c.ink, borderColor: c.ink },
+  typeChipText: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.mutedHi },
+  typeChipTextActive: { color: c.paper },
+  typeHint: {
+    fontSize: 12,
+    fontFamily: 'Manrope_600SemiBold',
+    color: c.muted,
+    marginTop: 8,
+    lineHeight: 17,
   },
   infoCard: {
     backgroundColor: c.card,

@@ -82,6 +82,8 @@ export interface Invoice {
   customerId: number | null;
   invoiceNumber: string;
   status: string | null;
+  /** full | deposit | balance — a quote may have a deposit invoice then a balance */
+  invoiceType: string | null;
   items: string;
   subtotal: string;
   gstAmount: string | null;

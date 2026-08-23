@@ -109,19 +109,26 @@ export function useConvertQuoteToInvoice() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (quoteId: number) => {
-      const url = buildUrl(api.invoices.createFromQuote.path, { quoteId });
-      const res = await apiRequest('POST', url);
+    mutationFn: async (
+      args: number | { quoteId: number; type?: 'full' | 'deposit' | 'balance'; depositPercent?: number }
+    ) => {
+      const opts = typeof args === 'number' ? { quoteId: args } : args;
+      const url = buildUrl(api.invoices.createFromQuote.path, { quoteId: opts.quoteId });
+      const res = await apiRequest('POST', url, {
+        type: opts.type ?? 'full',
+        ...(opts.depositPercent ? { depositPercent: opts.depositPercent } : {}),
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.message || 'Failed to convert quote to invoice');
       }
       return res.json() as Promise<Invoice>;
     },
-    onSuccess: (_data, quoteId) => {
+    onSuccess: (_data, args) => {
+      const qId = typeof args === 'number' ? args : args.quoteId;
       queryClient.invalidateQueries({ queryKey: [api.invoices.list.path] });
       queryClient.invalidateQueries({ queryKey: [api.quotes.list.path] });
-      queryClient.invalidateQueries({ queryKey: [api.quotes.get.path, quoteId] });
+      queryClient.invalidateQueries({ queryKey: [api.quotes.get.path, qId] });
       toast({ title: 'Invoice created from quote' });
     },
     onError: (error: Error) => {

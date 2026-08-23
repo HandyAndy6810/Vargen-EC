@@ -190,10 +190,9 @@ export default function QuoteDetailScreen() {
   const handleMore = () => setSheetMode('more');
 
   const handleConvert = () => {
-    if (alreadyInvoiced) {
-      showAlert('Already invoiced', 'An invoice has already been created for this quote.');
-      return;
-    }
+    // No longer a hard block once invoiced — a quote can carry a deposit
+    // invoice and then a balance invoice. The convert screen shows what's
+    // already been billed and only offers what's still valid.
     router.push(`/invoices/create?quoteId=${id}` as any);
   };
 

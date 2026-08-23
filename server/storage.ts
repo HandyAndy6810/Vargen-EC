@@ -48,6 +48,7 @@ export interface IStorage {
   getInvoices(userId: string): Promise<Invoice[]>;
   getInvoice(id: number, userId?: string): Promise<Invoice | undefined>;
   getInvoiceByQuoteId(quoteId: number): Promise<Invoice | undefined>;
+  getInvoicesByQuoteId(quoteId: number): Promise<Invoice[]>;
   getInvoiceByXeroInvoiceId(xeroInvoiceId: string): Promise<Invoice | undefined>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
   updateInvoice(id: number, invoice: Partial<InsertInvoice>, userId?: string): Promise<Invoice>;
@@ -329,6 +330,13 @@ export class DatabaseStorage implements IStorage {
   async getInvoiceByQuoteId(quoteId: number): Promise<Invoice | undefined> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.quoteId, quoteId));
     return invoice;
+  }
+
+  // A quote can carry several invoices once deposits are in play
+  async getInvoicesByQuoteId(quoteId: number): Promise<Invoice[]> {
+    return await db.select().from(invoices)
+      .where(eq(invoices.quoteId, quoteId))
+      .orderBy(invoices.createdAt);
   }
 
   async getInvoiceByXeroInvoiceId(xeroInvoiceId: string): Promise<Invoice | undefined> {

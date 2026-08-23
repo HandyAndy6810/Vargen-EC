@@ -1128,8 +1128,20 @@ CRITICAL RULES — follow these exactly:
       const quote = await storage.getQuote(quoteId, req.userId);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
-      const existing = await storage.getInvoiceByQuoteId(quoteId);
-      if (existing) return res.status(409).json({ message: "Invoice already exists for this quote" });
+      // A quote can now carry several invoices (deposit, then balance), so the
+      // guard is per-type rather than "one invoice, ever".
+      const { type: rawType, depositPercent, depositAmount } = req.body || {};
+      const invoiceType: "full" | "deposit" | "balance" =
+        rawType === "deposit" || rawType === "balance" ? rawType : "full";
+
+      const priorInvoices = await storage.getInvoicesByQuoteId(quoteId);
+      const priorSubtotal = priorInvoices.reduce((s, i) => s + Number(i.subtotal || 0), 0);
+      const priorGst = priorInvoices.reduce((s, i) => s + Number(i.gstAmount || 0), 0);
+      const priorTotal = priorInvoices.reduce((s, i) => s + Number(i.totalAmount || 0), 0);
+
+      if (invoiceType === "full" && priorInvoices.length > 0) {
+        return res.status(409).json({ message: "Invoice already exists for this quote" });
+      }
 
       let items: any[] = [];
       let subtotal = 0;
@@ -1165,6 +1177,69 @@ CRITICAL RULES — follow these exactly:
         subtotal = Number(quote.totalAmount) || 0;
       }
 
+      // ── Deposit / balance maths ────────────────────────────────────────────
+      // Work from the quote's own subtotal and GST so the split stays exact and
+      // GST is charged proportionally on each part-invoice.
+      const quoteSubtotal = Number(subtotal) || 0;
+      const quoteGst = Number(gstAmount) || 0;
+      const quoteTotal = quoteSubtotal + quoteGst;
+      const jobTitle = (quote as any).jobTitle || "this job";
+      const round2 = (n: number) => Math.round(n * 100) / 100;
+
+      if (invoiceType === "deposit") {
+        let ratio: number;
+        const fixed = Number(depositAmount);
+        const pct = Number(depositPercent);
+        if (Number.isFinite(fixed) && fixed > 0) {
+          if (quoteTotal <= 0) return res.status(400).json({ message: "This quote has no value to take a deposit from" });
+          ratio = fixed / quoteTotal;
+        } else if (Number.isFinite(pct) && pct > 0) {
+          ratio = pct / 100;
+        } else {
+          return res.status(400).json({ message: "Specify a deposit percentage or amount" });
+        }
+        if (ratio <= 0) return res.status(400).json({ message: "Deposit must be greater than zero" });
+
+        const depSubtotal = round2(quoteSubtotal * ratio);
+        const depGst = round2(quoteGst * ratio);
+        const depTotal = depSubtotal + depGst;
+        // Never let deposits plus what's already billed exceed the quote
+        if (round2(priorTotal + depTotal) > round2(quoteTotal) + 0.01) {
+          return res.status(400).json({
+            message: `That would invoice more than the quote. $${round2(quoteTotal - priorTotal).toFixed(2)} remains.`,
+          });
+        }
+        const pctLabel = Math.round(ratio * 100);
+        items = [{
+          description: `Deposit (${pctLabel}%) — ${jobTitle}`,
+          quantity: 1,
+          unit: "each",
+          unitPrice: depSubtotal,
+          total: depSubtotal,
+        }];
+        subtotal = depSubtotal;
+        gstAmount = depGst;
+      } else if (invoiceType === "balance") {
+        const balSubtotal = round2(quoteSubtotal - priorSubtotal);
+        const balGst = round2(quoteGst - priorGst);
+        if (balSubtotal + balGst <= 0.01) {
+          return res.status(400).json({ message: "This quote is already fully invoiced" });
+        }
+        // Show the full job, then deduct what's already been invoiced, so the
+        // customer sees the whole scope and what they've already been billed.
+        if (priorSubtotal > 0) {
+          items = [...items, {
+            description: "Less: deposit already invoiced",
+            quantity: 1,
+            unit: "each",
+            unitPrice: -round2(priorSubtotal),
+            total: -round2(priorSubtotal),
+          }];
+        }
+        subtotal = balSubtotal;
+        gstAmount = balGst;
+      }
+
       let paymentTermsDays = 14;
       const settings = await storage.getUserSettings(req.userId);
       if (settings?.paymentTermsDays) paymentTermsDays = settings.paymentTermsDays;
@@ -1178,6 +1253,7 @@ CRITICAL RULES — follow these exactly:
         customerId: quote.customerId,
         invoiceNumber,
         status: "draft",
+        invoiceType,
         items: JSON.stringify(items),
         subtotal: String(subtotal),
         gstAmount: String(gstAmount),
