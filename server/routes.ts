@@ -1263,10 +1263,22 @@ CRITICAL RULES — follow these exactly:
         userId: req.userId,
       });
 
-      // Mark the originating quote as invoiced
-      await storage.updateQuote(quoteId, { status: "invoiced" }, req.userId);
+      // Only mark the quote invoiced once the whole value has been billed — a
+      // deposit leaves a balance still to invoice, and flipping the status here
+      // would close the quote off before that balance exists.
+      const invoicedTotal = priorTotal + Number(subtotal) + Number(gstAmount);
+      const fullyInvoiced = round2(invoicedTotal) >= round2(quoteTotal) - 0.01;
+      if (fullyInvoiced) {
+        await storage.updateQuote(quoteId, { status: "invoiced" }, req.userId);
+      }
 
-      res.status(201).json(invoice);
+      res.status(201).json({
+        ...invoice,
+        // Lets the client show progress without a second round-trip
+        quoteInvoicedTotal: round2(invoicedTotal),
+        quoteTotal: round2(quoteTotal),
+        quoteFullyInvoiced: fullyInvoiced,
+      });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to create invoice" });
     }

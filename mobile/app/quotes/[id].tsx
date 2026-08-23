@@ -16,6 +16,7 @@ import { apiRequest } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuote, useQuoteItems, useDeleteQuote, useUpdateQuote } from '@/hooks/use-quotes';
+import { useInvoices } from '@/hooks/use-invoices';
 import { useXeroStatus, useCreateXeroInvoice } from '@/hooks/use-xero';
 import { useSettings } from '@/hooks/use-settings';
 import { buildQuotePDF, type PdfDocumentData } from '@/lib/quote-pdf';
@@ -119,6 +120,7 @@ export default function QuoteDetailScreen() {
   const customerName = content.customerName || '';
   const status = quote?.status || 'draft';
   const totalAmount = quote?.totalAmount ? parseFloat(quote.totalAmount) : 0;
+  const { data: allInvoices } = useInvoices();
   const pill = STATUS_PILL[status] ?? STATUS_PILL.draft;
   const progressIdx = getProgressIndex(status);
   const initials = customerName
@@ -155,7 +157,17 @@ export default function QuoteDetailScreen() {
   const gst = toMoney(content.gstAmount) ?? 0;
 
   const customerPhone = content.customerPhone || null;
-  const alreadyInvoiced = status === 'invoiced';
+  // Invoicing progress comes from the invoices themselves, not the quote's
+  // status — a deposit leaves a balance outstanding, and the status alone
+  // can't express "part-invoiced".
+  const invoicedTotal = useMemo(() => {
+    return ((allInvoices as any[]) || [])
+      .filter((i: any) => i.quoteId === quoteId)
+      .reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0);
+  }, [allInvoices, quoteId]);
+  const remainingToInvoice = Math.round((totalAmount - invoicedTotal) * 100) / 100;
+  const partlyInvoiced = invoicedTotal > 0.01 && remainingToInvoice > 0.01;
+  const alreadyInvoiced = status === 'invoiced' || (invoicedTotal > 0.01 && remainingToInvoice <= 0.01);
   const terminalStatus = isTerminalStatus(status);
 
   const statusActions: SheetAction[] = [
@@ -321,6 +333,42 @@ export default function QuoteDetailScreen() {
             )}
           </View>
 
+          {/* Accepted but not invoiced — the flow used to dead-end here, with
+              nothing telling you there was money left on the table. */}
+          {status === 'accepted' && invoicedTotal <= 0.01 && (
+            <TouchableOpacity
+              style={s.nudgeCard}
+              activeOpacity={0.85}
+              onPress={handleConvert}
+              accessibilityRole="button"
+              accessibilityLabel="Invoice this accepted quote"
+            >
+              <View style={s.nudgeIcon}>
+                <FileText size={17} color="#fff" strokeWidth={2.2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.nudgeTitle}>Accepted — time to invoice</Text>
+                <Text style={s.nudgeSub}>Bill the full amount, or take a deposit up front.</Text>
+              </View>
+              <Text style={s.nudgeChevron}>›</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Part-invoiced: show what's billed and what's left */}
+          {partlyInvoiced && (
+            <View style={[s.nudgeCard, { backgroundColor: c.blueSoft, borderColor: c.blueBorder }]}>
+              <View style={[s.nudgeIcon, { backgroundColor: c.blue }]}>
+                <FileText size={17} color="#fff" strokeWidth={2.2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.nudgeTitle, { color: c.blue }]}>Part-invoiced</Text>
+                <Text style={[s.nudgeSub, { color: c.blue }]}>
+                  {`$${invoicedTotal.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} billed · $${remainingToInvoice.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} still to invoice`}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Customer */}
           {customerName ? (
             <>
@@ -474,7 +522,11 @@ export default function QuoteDetailScreen() {
           disabled={alreadyInvoiced}
         >
           <Text style={[s.convertBtnText, alreadyInvoiced && { color: c.mutedHi }]}>
-            {alreadyInvoiced ? 'Already invoiced' : 'Convert ›'}
+            {alreadyInvoiced
+              ? 'Fully invoiced'
+              : partlyInvoiced
+                ? `Invoice balance · $${remainingToInvoice.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ›`
+                : 'Convert ›'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -601,6 +653,45 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: 22,
     marginBottom: 8,
+  },
+  nudgeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderRadius: 16,
+    backgroundColor: c.orangeSoft,
+    borderWidth: 1,
+    borderColor: `${c.orange}55`,
+  },
+  nudgeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: c.orange,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  nudgeTitle: {
+    fontSize: 14,
+    fontFamily: 'Manrope_800ExtraBold',
+    color: c.orangeDeep,
+    letterSpacing: -0.2,
+  },
+  nudgeSub: {
+    fontSize: 12,
+    fontFamily: 'Manrope_500Medium',
+    color: c.orangeDeep,
+    marginTop: 2,
+  },
+  nudgeChevron: {
+    fontSize: 20,
+    color: c.orangeDeep,
+    fontFamily: 'Manrope_800ExtraBold',
+    flexShrink: 0,
   },
   card: {
     backgroundColor: c.card,
