@@ -816,7 +816,16 @@ export default function HomeScreen() {
           setVoiceOpen(false);
           router.push({
             pathname: '/ai-chat',
-            params: { description: r.description, customerName: r.customerName, tradeType: r.tradeType, fromVoice: '1' },
+            params: {
+              description: r.description,
+              customerName: r.customerName,
+              tradeType: r.tradeType,
+              scheduledISO: r.scheduledISO,
+              siteAddress: r.siteAddress,
+              customerPhone: r.customerPhone,
+              durationMinutes: String(r.durationMinutes || 0),
+              fromVoice: '1',
+            },
           });
         }}
       />

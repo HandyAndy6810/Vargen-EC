@@ -586,16 +586,26 @@ export async function registerRoutes(
   // actual quote is still produced by /api/quotes/generate.
   app.post("/api/agent/intake", requireAuth, aiRateLimit, async (req: any, res) => {
     try {
-      const { text } = req.body || {};
+      const { text, nowISO } = req.body || {};
       if (!text || typeof text !== "string" || !text.trim()) {
         return res.status(400).json({ message: "No text provided" });
       }
-      const system = `You extract structured job details from an Australian tradesperson speaking a quick note. Respond ONLY with valid JSON in this exact shape:
+      // The model needs "now" to resolve relative dates like "next Tuesday"
+      const now = (typeof nowISO === "string" && !isNaN(new Date(nowISO).getTime()))
+        ? new Date(nowISO)
+        : new Date();
+      const system = `You extract structured job details from an Australian tradesperson speaking a quick note.
+The current date and time is ${now.toISOString()} (treat this as "now" when resolving relative dates like "tomorrow" or "next Tuesday").
+Respond ONLY with valid JSON in this exact shape:
 {
   "customerName": "the customer's name if mentioned, else empty string",
   "tradeType": "one of: Plumbing, Electrical, Carpentry, Painting, Landscaping, Concreting, Fencing, Tiling, HVAC, Roofing, General — best guess from the work described",
   "description": "the job of work, cleaned into a clear sentence WITHOUT the customer name or scheduling — just what needs doing, including any quantities, sizes, brands and price figures mentioned",
   "scheduleHint": "any date/time mentioned, verbatim, else empty string",
+  "scheduledISO": "the scheduleHint resolved to a full ISO 8601 datetime, else empty string. Only fill this if a date or day was actually mentioned — never guess a date. If a day was given without a time, use 08:00 local.",
+  "durationMinutes": 0,
+  "siteAddress": "site address if mentioned, else empty string",
+  "customerPhone": "phone number if mentioned, else empty string",
   "questions": ["at most 3 short clarifying questions"]
 }
 QUESTIONS RULES — this is a tradesperson mid-job, so be sparing:
@@ -621,11 +631,22 @@ Do not invent details. If unsure of a field, use an empty string.`;
       const raw = response.choices[0]?.message?.content || "{}";
       let parsed: any = {};
       try { parsed = JSON.parse(raw); } catch { parsed = {}; }
+      // Only pass a scheduled date through if it actually parses — a bad guess
+      // must not silently land in someone's calendar
+      const rawISO = typeof parsed.scheduledISO === "string" ? parsed.scheduledISO.trim() : "";
+      const scheduledISO = rawISO && !isNaN(new Date(rawISO).getTime())
+        ? new Date(rawISO).toISOString()
+        : "";
+      const durMin = Number(parsed.durationMinutes);
       res.json({
         customerName: typeof parsed.customerName === "string" ? parsed.customerName : "",
         tradeType: typeof parsed.tradeType === "string" ? parsed.tradeType : "",
         description: (typeof parsed.description === "string" && parsed.description.trim()) ? parsed.description : text.trim(),
         scheduleHint: typeof parsed.scheduleHint === "string" ? parsed.scheduleHint : "",
+        scheduledISO,
+        durationMinutes: Number.isFinite(durMin) && durMin > 0 ? Math.round(durMin) : 0,
+        siteAddress: typeof parsed.siteAddress === "string" ? parsed.siteAddress : "",
+        customerPhone: typeof parsed.customerPhone === "string" ? parsed.customerPhone : "",
         questions: Array.isArray(parsed.questions)
           ? parsed.questions.filter((q: any) => typeof q === "string" && q.trim()).slice(0, 3)
           : [],

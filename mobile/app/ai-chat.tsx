@@ -28,6 +28,7 @@ import { useCustomers } from '@/hooks/use-customers';
 import { MarginSlider } from '@/components/MarginSlider';
 import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
 import { showAlert, showConfirm } from '@/lib/dialogs';
+import { CreateAllSheet, type CreateAllPlan } from '@/components/CreateAllSheet';
 import type { Customer } from '@shared/mobile-types';
 
 
@@ -71,20 +72,27 @@ const TRADE_TYPES = [
 export default function AiChatScreen() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
-  const params = useLocalSearchParams<{ description?: string; customerName?: string; tradeType?: string; fromVoice?: string }>();
+  const params = useLocalSearchParams<{
+    description?: string; customerName?: string; tradeType?: string; fromVoice?: string;
+    scheduledISO?: string; siteAddress?: string; customerPhone?: string; durationMinutes?: string;
+  }>();
   const navigation = useNavigation();
   const [step, setStep] = useState<Step>('prompt');
   const [description, setDescription] = useState(params.description ?? '');
   const [customerType, setCustomerType] = useState<'new' | 'existing'>('new');
   const [ownershipAccepted, setOwnershipAccepted] = useState(false);
+  const [showCreateAll, setShowCreateAll] = useState(false);
+  // Schedule + duration lifted from a voice intake, offered in the review sheet
+  const voiceScheduledISO = params.scheduledISO ?? '';
+  const voiceDuration = Number(params.durationMinutes) || 0;
 
   // New customer fields — seeded from a voice intake when arriving that way
   const [firstName, setFirstName] = useState(() => (params.customerName ?? '').trim().split(/\s+/)[0] ?? '');
   const [lastName, setLastName] = useState(() => (params.customerName ?? '').trim().split(/\s+/).slice(1).join(' '));
   const [businessName, setBusinessName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(params.customerPhone ?? '');
   const [email, setEmail] = useState('');
-  const [siteAddress, setSiteAddress] = useState('');
+  const [siteAddress, setSiteAddress] = useState(params.siteAddress ?? '');
   const [billingSameAsSite, setBillingSameAsSite] = useState(true);
   const [billingAddress, setBillingAddress] = useState('');
   const [custNotes, setCustNotes] = useState('');
@@ -240,6 +248,48 @@ export default function AiChatScreen() {
     },
   });
 
+  /**
+   * Single definition of the quote payload, shared by the normal save and the
+   * "create it all" flow so the two can't drift. `customerId` overrides the
+   * linked customer (used when we've just created one from a voice intake).
+   */
+  const buildQuoteBody = (status: 'draft' | 'sent', customerId?: number) => {
+    const subtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
+    const gst = subtotal * 0.1;
+    const total = subtotal + gst;
+    return {
+      totalAmount: String(total),
+      status,
+      jobTitle: (jobTitleOverride || aiResult?.jobTitle) || undefined,
+      customerName: customerName.trim() || undefined,
+      customerId: customerId ?? (customerType === 'existing' && selectedCustomer ? selectedCustomer.id : undefined),
+      content: JSON.stringify({
+        ...(aiResult ?? {}),
+        // Override with slider-adjusted figures so saved content matches what the user sees
+        subtotal,
+        gstAmount: gst,
+        totalAmount: total,
+        items: editableItems.map(it => ({
+          description: it.description,
+          quantity: parseFloat(it.qty) || 0,
+          unit: it.unit,
+          unitPrice: parseFloat(it.rate) || 0,
+        })),
+        jobTitle: jobTitleOverride || aiResult?.jobTitle,
+        jobType,
+        expiryDate,
+        expiryDateISO,
+        internalNotes,
+        customerName: customerName.trim() || undefined,
+        customerPhone: customerType === 'new' ? phone.trim() || undefined : overridePhone || selectedCustomer?.phone || undefined,
+        customerEmail: customerType === 'new' ? email.trim() || undefined : overrideEmail || selectedCustomer?.email || undefined,
+        customerAddress: customerAddress || undefined,
+        billingAddress: customerType === 'new' && !billingSameAsSite ? billingAddress.trim() || undefined : undefined,
+        customerNotes: customerType === 'new' ? custNotes.trim() || undefined : undefined,
+      }),
+    };
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent') => {
       if (!aiResult) {
@@ -270,40 +320,7 @@ export default function AiChatScreen() {
         }
         return res.json();
       }
-      const subtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
-      const gst = subtotal * 0.1;
-      const total = subtotal + gst;
-      const res = await apiRequest('POST', '/api/quotes', {
-        totalAmount: String(total),
-        status,
-        jobTitle: (jobTitleOverride || aiResult.jobTitle) || undefined,
-        customerName: customerName.trim() || undefined,
-        customerId: customerType === 'existing' && selectedCustomer ? selectedCustomer.id : undefined,
-        content: JSON.stringify({
-          ...aiResult,
-          // Override with slider-adjusted figures so saved content matches what the user sees
-          subtotal,
-          gstAmount: gst,
-          totalAmount: total,
-          items: editableItems.map(it => ({
-            description: it.description,
-            quantity: parseFloat(it.qty) || 0,
-            unit: it.unit,
-            unitPrice: parseFloat(it.rate) || 0,
-          })),
-          jobTitle: jobTitleOverride || aiResult.jobTitle,
-          jobType,
-          expiryDate,
-          expiryDateISO,
-          internalNotes,
-          customerName: customerName.trim() || undefined,
-          customerPhone: customerType === 'new' ? phone.trim() || undefined : overridePhone || selectedCustomer?.phone || undefined,
-          customerEmail: customerType === 'new' ? email.trim() || undefined : overrideEmail || selectedCustomer?.email || undefined,
-          customerAddress: customerAddress || undefined,
-          billingAddress: customerType === 'new' && !billingSameAsSite ? billingAddress.trim() || undefined : undefined,
-          customerNotes: customerType === 'new' ? custNotes.trim() || undefined : undefined,
-        }),
-      });
+      const res = await apiRequest('POST', '/api/quotes', buildQuoteBody(status));
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.message || 'Failed to save quote');
@@ -334,6 +351,84 @@ export default function AiChatScreen() {
       setQuoteStatus(status as string);
       queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.push(`/quotes/${quote.id}` as any);
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    },
+  });
+
+  /**
+   * Phase 3 — create the customer, the quote and the scheduled job in one go.
+   * Ordered so a failure part-way leaves the most valuable record behind: the
+   * quote is created before the job, and a job failure doesn't lose the quote.
+   */
+  const createAllMutation = useMutation({
+    mutationFn: async (plan: CreateAllPlan) => {
+      let newCustomerId: number | undefined;
+
+      // 1. Customer (only when it's a new one with a name)
+      if (plan.createCustomer) {
+        try {
+          const cRes = await apiRequest('POST', '/api/customers', {
+            name: customerName.trim(),
+            phone: phone.trim() || null,
+            email: email.trim() || null,
+            address: customerAddress || null,
+            notes: custNotes.trim() || null,
+          });
+          if (cRes.ok) newCustomerId = (await cRes.json())?.id;
+        } catch {
+          // Non-fatal: the quote still carries the customer details in its content
+        }
+      }
+
+      // 2. Quote (+ line items)
+      const qRes = await apiRequest('POST', '/api/quotes', buildQuoteBody('draft', newCustomerId));
+      if (!qRes.ok) {
+        const body = await qRes.json().catch(() => null);
+        throw new Error(body?.message || 'Failed to save quote');
+      }
+      const quote = await qRes.json();
+      setSavedQuoteId(quote.id);
+      for (const item of editableItems) {
+        try {
+          await apiRequest('POST', `/api/quotes/${quote.id}/items`, {
+            description: item.description,
+            quantity: parseFloat(item.qty) || 1,
+            price: String(Math.round((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0) * 100) / 100),
+          });
+        } catch { /* surfaced below via the quote screen */ }
+      }
+
+      // 3. Scheduled job
+      let jobScheduled = false;
+      if (plan.scheduledDate) {
+        try {
+          const jRes = await apiRequest('POST', '/api/jobs', {
+            title: (jobTitleOverride || aiResult?.jobTitle || 'Job').slice(0, 120),
+            description: description.trim() || null,
+            address: customerAddress || null,
+            status: 'scheduled',
+            scheduledDate: plan.scheduledDate.toISOString(),
+            estimatedDuration: voiceDuration > 0 ? voiceDuration : null,
+            customerId: newCustomerId ?? (customerType === 'existing' && selectedCustomer ? selectedCustomer.id : null),
+          });
+          jobScheduled = jRes.ok;
+        } catch { jobScheduled = false; }
+      }
+      return { quote, jobScheduled, wantedJob: !!plan.scheduledDate };
+    },
+    onSuccess: ({ quote, jobScheduled, wantedJob }) => {
+      setShowCreateAll(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (wantedJob && !jobScheduled) {
+        showAlert('Quote saved', "The quote is saved, but the job couldn't be scheduled. Add it from the Schedule tab.");
+      }
       router.push(`/quotes/${quote.id}` as any);
     },
     onError: (err: Error) => {
@@ -1152,26 +1247,38 @@ export default function AiChatScreen() {
             {/* Bottom actions */}
             <View style={[s.composerWrap, { gap: 8 }]}>
               {!savedQuoteId ? (
-                <View style={{ flexDirection: 'row', gap: 8 }}>
+                <>
                   <TouchableOpacity
-                    style={s.tweakBtn}
-                    onPress={() => { setStep('prompt'); setAiResult(null); setError(null); }}
-                  >
-                    <Edit2 size={16} color={c.ink} strokeWidth={2} />
-                    <Text style={s.tweakBtnText}>Redo</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[s.saveBtn, saveMutation.isPending && { opacity: 0.6 }]}
-                    onPress={() => saveMutation.mutate('draft')}
-                    disabled={saveMutation.isPending}
+                    style={[s.saveBtn, { backgroundColor: c.ink }]}
+                    onPress={() => setShowCreateAll(true)}
                     activeOpacity={0.88}
+                    accessibilityRole="button"
+                    accessibilityLabel="Review and create customer, quote and job"
                   >
-                    {saveMutation.isPending
-                      ? <ActivityIndicator color="#fff" size="small" />
-                      : <><Text style={s.saveBtnText}>Save draft</Text><Text style={{ fontSize: 16, color: '#fff' }}>›</Text></>
-                    }
+                    <Text style={[s.saveBtnText, { color: c.paper }]}>Create customer, quote &amp; job</Text>
+                    <Text style={{ fontSize: 16, color: c.paper }}>›</Text>
                   </TouchableOpacity>
-                </View>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity
+                      style={s.tweakBtn}
+                      onPress={() => { setStep('prompt'); setAiResult(null); setError(null); }}
+                    >
+                      <Edit2 size={16} color={c.ink} strokeWidth={2} />
+                      <Text style={s.tweakBtnText}>Redo</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.saveBtn, saveMutation.isPending && { opacity: 0.6 }]}
+                      onPress={() => saveMutation.mutate('draft')}
+                      disabled={saveMutation.isPending}
+                      activeOpacity={0.88}
+                    >
+                      {saveMutation.isPending
+                        ? <ActivityIndicator color="#fff" size="small" />
+                        : <><Text style={s.saveBtnText}>Save draft</Text><Text style={{ fontSize: 16, color: '#fff' }}>›</Text></>
+                      }
+                    </TouchableOpacity>
+                  </View>
+                </>
               ) : (
                 <TouchableOpacity
                   style={s.saveBtn}
@@ -1243,6 +1350,21 @@ export default function AiChatScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      <CreateAllSheet
+        visible={showCreateAll}
+        onClose={() => setShowCreateAll(false)}
+        onConfirm={(plan: CreateAllPlan) => createAllMutation.mutate(plan)}
+        busy={createAllMutation.isPending}
+        customerName={customerName}
+        customerPhone={customerType === 'new' ? phone.trim() : (overridePhone || selectedCustomer?.phone || '')}
+        customerAddress={customerAddress || ''}
+        isExistingCustomer={customerType === 'existing' && !!selectedCustomer}
+        jobTitle={jobTitleOverride || aiResult?.jobTitle || ''}
+        total={liveSubtotal * 1.1}
+        itemCount={editableItems.length}
+        initialScheduledISO={voiceScheduledISO}
+      />
     </SafeAreaView>
   );
 }

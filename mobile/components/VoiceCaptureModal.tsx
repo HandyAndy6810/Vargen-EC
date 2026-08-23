@@ -21,7 +21,22 @@ export type VoiceIntake = {
   description: string;
   customerName: string;
   tradeType: string;
+  /** ISO datetime resolved from what was said, or '' if no date was mentioned */
+  scheduledISO: string;
+  durationMinutes: number;
+  siteAddress: string;
+  customerPhone: string;
 };
+
+const EMPTY_INTAKE = (description: string): VoiceIntake => ({
+  description,
+  customerName: '',
+  tradeType: '',
+  scheduledISO: '',
+  durationMinutes: 0,
+  siteAddress: '',
+  customerPhone: '',
+});
 
 /**
  * Voice → structured job intake.
@@ -115,14 +130,14 @@ export function VoiceCaptureModal({
 
       // Extract structured fields. If intake is unavailable, fall back to the
       // raw transcript so voice never hard-fails.
-      let result: VoiceIntake = { description: text, customerName: '', tradeType: '' };
+      let result: VoiceIntake = EMPTY_INTAKE(text);
       let asks: string[] = [];
       try {
         const iRes = await fetch(`${API_BASE_URL}/api/agent/intake`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, nowISO: new Date().toISOString() }),
         });
         if (iRes.ok) {
           const d = await iRes.json();
@@ -130,6 +145,10 @@ export function VoiceCaptureModal({
             description: (d?.description || text).trim(),
             customerName: (d?.customerName || '').trim(),
             tradeType: (d?.tradeType || '').trim(),
+            scheduledISO: (d?.scheduledISO || '').trim(),
+            durationMinutes: Number(d?.durationMinutes) || 0,
+            siteAddress: (d?.siteAddress || '').trim(),
+            customerPhone: (d?.customerPhone || '').trim(),
           };
           asks = Array.isArray(d?.questions) ? d.questions.slice(0, MAX_QUESTIONS) : [];
         }
