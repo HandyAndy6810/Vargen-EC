@@ -19,6 +19,12 @@ function fmtDuration(ms: number) {
  * /api/audio/transcribe endpoint, and hands the transcript back via onResult.
  * The caller decides what to do with the text (here: prefill the AI quote field).
  */
+export type VoiceIntake = {
+  description: string;
+  customerName: string;
+  tradeType: string;
+};
+
 export function VoiceCaptureModal({
   visible,
   onClose,
@@ -26,7 +32,7 @@ export function VoiceCaptureModal({
 }: {
   visible: boolean;
   onClose: () => void;
-  onResult: (text: string) => void;
+  onResult: (result: VoiceIntake) => void;
 }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -78,7 +84,27 @@ export function VoiceCaptureModal({
       const data = await res.json();
       const text = (data?.text || '').trim();
       if (!text) throw new Error("Didn't catch that — give it another go.");
-      onResult(text);
+
+      // Pull structured fields out of what was said (customer, trade, clean job
+      // description). If intake is unavailable, fall back to the raw transcript.
+      let intake: VoiceIntake = { description: text, customerName: '', tradeType: '' };
+      try {
+        const iRes = await fetch(`${API_BASE_URL}/api/agent/intake`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ text }),
+        });
+        if (iRes.ok) {
+          const d = await iRes.json();
+          intake = {
+            description: (d?.description || text).trim(),
+            customerName: (d?.customerName || '').trim(),
+            tradeType: (d?.tradeType || '').trim(),
+          };
+        }
+      } catch { /* keep the raw-transcript fallback */ }
+      onResult(intake);
     } catch (e: any) {
       setErrorMsg(e?.message || 'Something went wrong.');
       setPhase('error');

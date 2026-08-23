@@ -581,6 +581,49 @@ export async function registerRoutes(
 
   // Trade-specific knowledge is now in server/trade-knowledge.ts
 
+  // Voice intake — pull structured fields out of a free-spoken sentence so the
+  // AI quote screen can be pre-filled from one prompt. Extraction only; the
+  // actual quote is still produced by /api/quotes/generate.
+  app.post("/api/agent/intake", requireAuth, aiRateLimit, async (req: any, res) => {
+    try {
+      const { text } = req.body || {};
+      if (!text || typeof text !== "string" || !text.trim()) {
+        return res.status(400).json({ message: "No text provided" });
+      }
+      const system = `You extract structured job details from an Australian tradesperson speaking a quick note. Respond ONLY with valid JSON in this exact shape:
+{
+  "customerName": "the customer's name if mentioned, else empty string",
+  "tradeType": "one of: Plumbing, Electrical, Carpentry, Painting, Landscaping, Concreting, Fencing, Tiling, HVAC, Roofing, General — best guess from the work described",
+  "description": "the job of work, cleaned into a clear sentence WITHOUT the customer name or scheduling — just what needs doing, including any quantities, sizes, brands and price figures mentioned",
+  "scheduleHint": "any date/time mentioned, verbatim, else empty string",
+  "questions": ["short clarifying questions ONLY for critical missing info; empty array if the description is workable"]
+}
+Do not invent details. If unsure of a field, use an empty string.`;
+      const response = await openai.chat.completions.create({
+        model: AI_MODEL,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: text.trim() },
+        ],
+        max_tokens: 700,
+        response_format: { type: "json_object" },
+      });
+      const raw = response.choices[0]?.message?.content || "{}";
+      let parsed: any = {};
+      try { parsed = JSON.parse(raw); } catch { parsed = {}; }
+      res.json({
+        customerName: typeof parsed.customerName === "string" ? parsed.customerName : "",
+        tradeType: typeof parsed.tradeType === "string" ? parsed.tradeType : "",
+        description: (typeof parsed.description === "string" && parsed.description.trim()) ? parsed.description : text.trim(),
+        scheduleHint: typeof parsed.scheduleHint === "string" ? parsed.scheduleHint : "",
+        questions: Array.isArray(parsed.questions) ? parsed.questions.filter((q: any) => typeof q === "string") : [],
+      });
+    } catch (error: any) {
+      console.error("Intake error:", error);
+      res.status(500).json({ message: error?.message || "Failed to process intake" });
+    }
+  });
+
   // AI Quote Generation
   app.post("/api/quotes/generate", requireAuth, aiRateLimit, async (req: any, res) => {
     try {

@@ -71,15 +71,16 @@ const TRADE_TYPES = [
 export default function AiChatScreen() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
-  const params = useLocalSearchParams<{ description?: string }>();
+  const params = useLocalSearchParams<{ description?: string; customerName?: string; tradeType?: string; fromVoice?: string }>();
   const navigation = useNavigation();
   const [step, setStep] = useState<Step>('prompt');
   const [description, setDescription] = useState(params.description ?? '');
   const [customerType, setCustomerType] = useState<'new' | 'existing'>('new');
+  const [ownershipAccepted, setOwnershipAccepted] = useState(false);
 
-  // New customer fields
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  // New customer fields — seeded from a voice intake when arriving that way
+  const [firstName, setFirstName] = useState(() => (params.customerName ?? '').trim().split(/\s+/)[0] ?? '');
+  const [lastName, setLastName] = useState(() => (params.customerName ?? '').trim().split(/\s+/).slice(1).join(' '));
   const [businessName, setBusinessName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -96,7 +97,7 @@ export default function AiChatScreen() {
   const [overrideEmail, setOverrideEmail] = useState('');
   const [overrideAddress, setOverrideAddress] = useState('');
 
-  const [tradeType, setTradeType] = useState('Plumbing');
+  const [tradeType, setTradeType] = useState(params.tradeType || 'Plumbing');
   const [labourRate, setLabourRate] = useState('90');
   const [labourHours, setLabourHours] = useState('');
   const [calloutFeeEnabled, setCalloutFeeEnabled] = useState(false);
@@ -341,7 +342,7 @@ export default function AiChatScreen() {
     },
   });
 
-  const handleSend = (prefill?: string) => {
+  const runGenerate = (prefill?: string) => {
     const baseDesc = prefill ?? description;
     if (!baseDesc.trim()) return;
     if (prefill) setDescription(prefill);
@@ -353,6 +354,32 @@ export default function AiChatScreen() {
     const desc = `${baseDesc.trim()}${addressContext}${labourContext}`;
     generateMutation.mutate({ description: desc, customerName: customerName + businessContext });
   };
+
+  // Ownership gate: before the AI produces a quote, the tradesperson acknowledges
+  // they own the output and must check its pricing, scope and compliance. Shown
+  // once per screen visit, then remembered.
+  const handleSend = (prefill?: string) => {
+    const baseDesc = prefill ?? description;
+    if (!baseDesc.trim()) return;
+    if (ownershipAccepted) { runGenerate(prefill); return; }
+    showConfirm({
+      title: 'Your quote, your call',
+      message: 'By continuing, you take full ownership of this AI-generated quote. You are responsible for checking the pricing, scope and compliance before you send it to a customer.',
+      confirmLabel: 'I understand',
+      onConfirm: () => { setOwnershipAccepted(true); runGenerate(prefill); },
+    });
+  };
+
+  // Arriving from a voice prompt: kick off generation once (via the ownership gate)
+  const voiceKicked = useRef(false);
+  useEffect(() => {
+    if (voiceKicked.current) return;
+    if (params.fromVoice === '1' && (params.description ?? '').trim()) {
+      voiceKicked.current = true;
+      handleSend();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Send-to-customer channel picker (ActionSheet — Alert caps at 3 buttons on
   // Android and is a no-op on web). Quote is only flagged "sent" once a channel

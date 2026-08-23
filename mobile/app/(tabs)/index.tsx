@@ -812,9 +812,12 @@ export default function HomeScreen() {
       <VoiceCaptureModal
         visible={voiceOpen}
         onClose={() => setVoiceOpen(false)}
-        onResult={(text) => {
+        onResult={(r) => {
           setVoiceOpen(false);
-          router.push({ pathname: '/ai-chat', params: { description: text } });
+          router.push({
+            pathname: '/ai-chat',
+            params: { description: r.description, customerName: r.customerName, tradeType: r.tradeType, fromVoice: '1' },
+          });
         }}
       />
     </SafeAreaView>
