@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { addDays, format, setHours, setMinutes, startOfDay } from 'date-fns';
 import { User, FileText, CalendarClock, X, Check } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
@@ -9,6 +9,8 @@ const HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 export type CreateAllPlan = {
   scheduledDate: Date | null;
   createCustomer: boolean;
+  /** Possibly corrected here — voice can mishear a name or a phone number */
+  customer: { name: string; phone: string; email: string; address: string };
 };
 
 /**
@@ -24,6 +26,7 @@ export function CreateAllSheet({
   busy,
   customerName,
   customerPhone,
+  customerEmail,
   customerAddress,
   isExistingCustomer,
   jobTitle,
@@ -37,6 +40,7 @@ export function CreateAllSheet({
   busy: boolean;
   customerName: string;
   customerPhone?: string;
+  customerEmail?: string;
   customerAddress?: string;
   isExistingCustomer: boolean;
   jobTitle: string;
@@ -55,6 +59,14 @@ export function CreateAllSheet({
   const [day, setDay] = useState<Date>(seeded ?? new Date());
   const [hour, setHour] = useState<number>(seeded ? seeded.getHours() : 8);
 
+  // Editable customer details — the whole point of the review step is catching
+  // a misheard name or phone number before it's written to the database.
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(customerName);
+  const [phone, setPhone] = useState(customerPhone ?? '');
+  const [email, setEmail] = useState(customerEmail ?? '');
+  const [address, setAddress] = useState(customerAddress ?? '');
+
   useEffect(() => {
     if (!visible) return;
     const s2 = initialScheduledISO && !isNaN(new Date(initialScheduledISO).getTime())
@@ -62,14 +74,20 @@ export function CreateAllSheet({
     setScheduleOn(!!s2);
     setDay(s2 ?? new Date());
     setHour(s2 ? s2.getHours() : 8);
-  }, [visible, initialScheduledISO]);
+    setEditing(false);
+    setName(customerName);
+    setPhone(customerPhone ?? '');
+    setEmail(customerEmail ?? '');
+    setAddress(customerAddress ?? '');
+  }, [visible, initialScheduledISO, customerName, customerPhone, customerEmail, customerAddress]);
 
   const scheduledDate = scheduleOn ? setMinutes(setHours(startOfDay(day), hour), 0) : null;
-  const canCreateCustomer = !isExistingCustomer && !!customerName.trim();
+  const canCreateCustomer = !isExistingCustomer && !!name.trim();
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={s.overlay}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={s.overlay}>
         <View style={s.sheet}>
           <View style={s.handle} />
           <TouchableOpacity style={s.closeBtn} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
@@ -80,21 +98,60 @@ export function CreateAllSheet({
           <Text style={s.sub}>Have a quick look before this is saved.</Text>
 
           <ScrollView style={{ alignSelf: 'stretch', marginTop: 16 }} contentContainerStyle={{ gap: 10 }} showsVerticalScrollIndicator={false}>
-            {/* Customer */}
-            <View style={s.row}>
+            {/* Customer — tap Edit to correct anything voice got wrong */}
+            <View style={[s.row, editing && { alignItems: 'flex-start' }]}>
               <View style={[s.rowIcon, { backgroundColor: c.greenSoft }]}>
                 <User size={17} color={c.green} strokeWidth={2.2} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={s.rowLabel}>Customer</Text>
-                <Text style={s.rowValue} numberOfLines={1}>{customerName.trim() || 'Not named'}</Text>
-                {(customerPhone || customerAddress) ? (
-                  <Text style={s.rowMeta} numberOfLines={1}>
-                    {[customerPhone, customerAddress].filter(Boolean).join('  ·  ')}
-                  </Text>
-                ) : null}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={s.rowLabel}>Customer</Text>
+                  <TouchableOpacity
+                    onPress={() => setEditing(e => !e)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={editing ? 'Done editing customer' : 'Edit customer details'}
+                  >
+                    <Text style={s.editLink}>{editing ? 'Done' : 'Edit'}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {editing ? (
+                  <View style={{ gap: 8, marginTop: 8 }}>
+                    <TextInput
+                      style={s.input} value={name} onChangeText={setName}
+                      placeholder="Name" placeholderTextColor={c.muted}
+                    />
+                    <TextInput
+                      style={s.input} value={phone} onChangeText={setPhone}
+                      placeholder="Phone" placeholderTextColor={c.muted} keyboardType="phone-pad"
+                    />
+                    <TextInput
+                      style={s.input} value={email} onChangeText={setEmail}
+                      placeholder="Email" placeholderTextColor={c.muted}
+                      keyboardType="email-address" autoCapitalize="none"
+                    />
+                    <TextInput
+                      style={s.input} value={address} onChangeText={setAddress}
+                      placeholder="Site address" placeholderTextColor={c.muted}
+                    />
+                  </View>
+                ) : (
+                  <>
+                    <Text style={s.rowValue} numberOfLines={1}>{name.trim() || 'Not named'}</Text>
+                    {(phone || email || address) ? (
+                      <Text style={s.rowMeta} numberOfLines={2}>
+                        {[phone, email, address].filter(Boolean).join('  ·  ')}
+                      </Text>
+                    ) : (
+                      <Text style={s.rowMeta}>No contact details — tap Edit to add</Text>
+                    )}
+                  </>
+                )}
               </View>
-              <Text style={s.tag}>{isExistingCustomer ? 'Existing' : canCreateCustomer ? 'New' : '—'}</Text>
+              {!editing && (
+                <Text style={s.tag}>{isExistingCustomer ? 'Existing' : canCreateCustomer ? 'New' : '—'}</Text>
+              )}
             </View>
 
             {/* Quote */}
@@ -168,7 +225,11 @@ export function CreateAllSheet({
 
           <TouchableOpacity
             style={[s.confirmBtn, busy && { opacity: 0.6 }]}
-            onPress={() => onConfirm({ scheduledDate, createCustomer: canCreateCustomer })}
+            onPress={() => onConfirm({
+              scheduledDate,
+              createCustomer: canCreateCustomer,
+              customer: { name: name.trim(), phone: phone.trim(), email: email.trim(), address: address.trim() },
+            })}
             disabled={busy}
             activeOpacity={0.85}
             accessibilityRole="button"
@@ -182,7 +243,8 @@ export function CreateAllSheet({
             )}
           </TouchableOpacity>
         </View>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -217,6 +279,12 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   tag: {
     fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.mutedHi,
     letterSpacing: 1.2, textTransform: 'uppercase', flexShrink: 0,
+  },
+  editLink: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+  input: {
+    backgroundColor: c.paperDeep, borderRadius: 10, borderWidth: 1, borderColor: c.lineMid,
+    paddingHorizontal: 12, paddingVertical: 10,
+    fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: c.ink,
   },
   amount: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3, flexShrink: 0 },
   toggle: {

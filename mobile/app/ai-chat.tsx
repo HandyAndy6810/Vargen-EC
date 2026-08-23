@@ -254,15 +254,23 @@ export default function AiChatScreen() {
    * "create it all" flow so the two can't drift. `customerId` overrides the
    * linked customer (used when we've just created one from a voice intake).
    */
-  const buildQuoteBody = (status: 'draft' | 'sent', customerId?: number) => {
+  const buildQuoteBody = (
+    status: 'draft' | 'sent',
+    customerId?: number,
+    override?: { name?: string; phone?: string; email?: string; address?: string },
+  ) => {
     const subtotal = editableItems.reduce((s, it) => s + (parseFloat(it.qty) || 0) * (parseFloat(it.rate) || 0), 0);
     const gst = subtotal * 0.1;
     const total = subtotal + gst;
+    const finalName = (override?.name ?? customerName).trim();
+    const finalPhone = override?.phone ?? (customerType === 'new' ? phone.trim() : (overridePhone || selectedCustomer?.phone || ''));
+    const finalEmail = override?.email ?? (customerType === 'new' ? email.trim() : (overrideEmail || selectedCustomer?.email || ''));
+    const finalAddress = override?.address ?? (customerAddress || '');
     return {
       totalAmount: String(total),
       status,
       jobTitle: (jobTitleOverride || aiResult?.jobTitle) || undefined,
-      customerName: customerName.trim() || undefined,
+      customerName: finalName || undefined,
       customerId: customerId ?? (customerType === 'existing' && selectedCustomer ? selectedCustomer.id : undefined),
       content: JSON.stringify({
         ...(aiResult ?? {}),
@@ -281,10 +289,10 @@ export default function AiChatScreen() {
         expiryDate,
         expiryDateISO,
         internalNotes,
-        customerName: customerName.trim() || undefined,
-        customerPhone: customerType === 'new' ? phone.trim() || undefined : overridePhone || selectedCustomer?.phone || undefined,
-        customerEmail: customerType === 'new' ? email.trim() || undefined : overrideEmail || selectedCustomer?.email || undefined,
-        customerAddress: customerAddress || undefined,
+        customerName: finalName || undefined,
+        customerPhone: finalPhone || undefined,
+        customerEmail: finalEmail || undefined,
+        customerAddress: finalAddress || undefined,
         billingAddress: customerType === 'new' && !billingSameAsSite ? billingAddress.trim() || undefined : undefined,
         customerNotes: customerType === 'new' ? custNotes.trim() || undefined : undefined,
       }),
@@ -373,10 +381,10 @@ export default function AiChatScreen() {
       if (plan.createCustomer) {
         try {
           const cRes = await apiRequest('POST', '/api/customers', {
-            name: customerName.trim(),
-            phone: phone.trim() || null,
-            email: email.trim() || null,
-            address: customerAddress || null,
+            name: plan.customer.name,
+            phone: plan.customer.phone || null,
+            email: plan.customer.email || null,
+            address: plan.customer.address || null,
             notes: custNotes.trim() || null,
           });
           if (cRes.ok) newCustomerId = (await cRes.json())?.id;
@@ -385,8 +393,8 @@ export default function AiChatScreen() {
         }
       }
 
-      // 2. Quote (+ line items)
-      const qRes = await apiRequest('POST', '/api/quotes', buildQuoteBody('draft', newCustomerId));
+      // 2. Quote (+ line items) — uses any corrections made in the review sheet
+      const qRes = await apiRequest('POST', '/api/quotes', buildQuoteBody('draft', newCustomerId, plan.customer));
       if (!qRes.ok) {
         const body = await qRes.json().catch(() => null);
         throw new Error(body?.message || 'Failed to save quote');
@@ -410,7 +418,7 @@ export default function AiChatScreen() {
           const jRes = await apiRequest('POST', '/api/jobs', {
             title: (jobTitleOverride || aiResult?.jobTitle || 'Job').slice(0, 120),
             description: description.trim() || null,
-            address: customerAddress || null,
+            address: plan.customer.address || null,
             status: 'scheduled',
             scheduledDate: plan.scheduledDate.toISOString(),
             estimatedDuration: voiceDuration > 0 ? voiceDuration : null,
@@ -1363,6 +1371,7 @@ export default function AiChatScreen() {
         busy={createAllMutation.isPending}
         customerName={customerName}
         customerPhone={customerType === 'new' ? phone.trim() : (overridePhone || selectedCustomer?.phone || '')}
+        customerEmail={customerType === 'new' ? email.trim() : (overrideEmail || selectedCustomer?.email || '')}
         customerAddress={customerAddress || ''}
         isExistingCustomer={customerType === 'existing' && !!selectedCustomer}
         jobTitle={jobTitleOverride || aiResult?.jobTitle || ''}
