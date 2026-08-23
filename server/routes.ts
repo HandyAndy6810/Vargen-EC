@@ -596,8 +596,18 @@ export async function registerRoutes(
   "tradeType": "one of: Plumbing, Electrical, Carpentry, Painting, Landscaping, Concreting, Fencing, Tiling, HVAC, Roofing, General — best guess from the work described",
   "description": "the job of work, cleaned into a clear sentence WITHOUT the customer name or scheduling — just what needs doing, including any quantities, sizes, brands and price figures mentioned",
   "scheduleHint": "any date/time mentioned, verbatim, else empty string",
-  "questions": ["short clarifying questions ONLY for critical missing info; empty array if the description is workable"]
+  "questions": ["at most 3 short clarifying questions"]
 }
+QUESTIONS RULES — this is a tradesperson mid-job, so be sparing:
+- Ask ONLY where the answer would materially change the price or scope.
+- Good: quantity/size not given, whether materials are supplied or client-provided,
+  access difficulty (storey, roof, confined space), whether an existing unit needs
+  removal/disposal, brand or spec tier when it swings cost a lot.
+- Do NOT ask about anything already stated, and do NOT ask for the customer's
+  contact details, address or scheduling — those are collected elsewhere.
+- If the description is already workable, return an empty array. Empty is the
+  preferred answer; never invent questions to seem thorough.
+- Phrase each as one short sentence a tradie can answer in a few words.
 Do not invent details. If unsure of a field, use an empty string.`;
       const response = await openai.chat.completions.create({
         model: AI_MODEL,
@@ -616,7 +626,9 @@ Do not invent details. If unsure of a field, use an empty string.`;
         tradeType: typeof parsed.tradeType === "string" ? parsed.tradeType : "",
         description: (typeof parsed.description === "string" && parsed.description.trim()) ? parsed.description : text.trim(),
         scheduleHint: typeof parsed.scheduleHint === "string" ? parsed.scheduleHint : "",
-        questions: Array.isArray(parsed.questions) ? parsed.questions.filter((q: any) => typeof q === "string") : [],
+        questions: Array.isArray(parsed.questions)
+          ? parsed.questions.filter((q: any) => typeof q === "string" && q.trim()).slice(0, 3)
+          : [],
       });
     } catch (error: any) {
       console.error("Intake error:", error);
