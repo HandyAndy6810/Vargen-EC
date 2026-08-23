@@ -14,6 +14,7 @@ import {
   Modal,
   Keyboard,
   TouchableWithoutFeedback,
+  InteractionManager,
 } from 'react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -465,13 +466,17 @@ export default function AiChatScreen() {
     });
   };
 
-  // Arriving from a voice prompt: kick off generation once (via the ownership gate)
+  // Arriving from a voice prompt: kick off generation once (via the ownership
+  // gate). Deferred until the screen transition finishes — an Alert fired while
+  // the screen is still animating in can be swallowed on iOS, which would leave
+  // the voice flow sitting there doing nothing.
   const voiceKicked = useRef(false);
   useEffect(() => {
     if (voiceKicked.current) return;
     if (params.fromVoice === '1' && (params.description ?? '').trim()) {
       voiceKicked.current = true;
-      handleSend();
+      const task = InteractionManager.runAfterInteractions(() => handleSend());
+      return () => task.cancel();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
