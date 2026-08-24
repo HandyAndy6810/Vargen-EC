@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { queryClient } from '@/lib/queryClient';
 import { api } from '@shared/mobile-routes';
 import { useInvoices } from '@/hooks/use-invoices';
-import { Plus, Sparkles } from 'lucide-react-native';
+import { Plus, Sparkles, FileText } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 
 
@@ -33,6 +33,8 @@ function makeStyles(c: Colors) {
     eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 },
     title: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
     addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', shadowColor: c.orange, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.33, shadowRadius: 14, elevation: 6 },
+    fromQuoteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: 12, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, marginRight: 8 },
+    fromQuoteText: { fontSize: 12.5, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
     heroCard: { borderRadius: 22, padding: 20, overflow: 'hidden', backgroundColor: c.orange, shadowColor: c.orange, shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.33, shadowRadius: 40, elevation: 10 },
     heroEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.8)', letterSpacing: 2, textTransform: 'uppercase' },
     heroAmt: { fontSize: 42, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -1.4, lineHeight: 46, marginTop: 6 },
@@ -118,6 +120,10 @@ export default function InvoicesScreen() {
           <Text style={s.eyebrow}>Invoices</Text>
           <Text style={s.title}>Invoices</Text>
         </View>
+        <TouchableOpacity style={s.fromQuoteBtn} onPress={() => router.push('/invoices/create/quote-pick')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Build invoice from a quote">
+          <FileText size={15} color={c.orange} strokeWidth={2.2} />
+          <Text style={s.fromQuoteText}>From quote</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={s.addBtn} onPress={() => router.push('/invoices/create')} activeOpacity={0.8}>
           <Plus size={20} color="#fff" strokeWidth={2.5} />
         </TouchableOpacity>

@@ -25,6 +25,8 @@ export function QuoteStepScaffold({
   onBack,
   scroll = true,
   footer,
+  flowLabel = 'New quote',
+  steps = QUOTE_STEPS,
 }: {
   stepIndex: number;
   title: string;
@@ -38,6 +40,10 @@ export function QuoteStepScaffold({
   scroll?: boolean;
   /** Replaces the default single Next button (e.g. the Review step's two actions) */
   footer?: ReactNode;
+  /** Shown in the eyebrow — defaults to the quote flow */
+  flowLabel?: string;
+  /** Progress-rail labels — defaults to the quote flow's four steps */
+  steps?: readonly string[];
 }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -63,14 +69,14 @@ export function QuoteStepScaffold({
             <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.eyebrow}>New quote · {stepIndex + 1} of {QUOTE_STEPS.length}</Text>
+            <Text style={s.eyebrow}>{flowLabel} · {stepIndex + 1} of {steps.length}</Text>
             <Text style={s.title}>{title}</Text>
           </View>
         </View>
 
         {/* Progress rail */}
         <View style={s.rail}>
-          {QUOTE_STEPS.map((step, i) => {
+          {steps.map((step, i) => {
             const done = i < stepIndex;
             const cur = i === stepIndex;
             return (
