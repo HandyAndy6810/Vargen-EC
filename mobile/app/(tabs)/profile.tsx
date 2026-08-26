@@ -16,7 +16,7 @@ import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme, type Colors, type ThemeMode } from '@/hooks/use-theme';
-import { useXeroStatus, useXeroDisconnect, useXeroSyncAll } from '@/hooks/use-xero';
+import { useXeroStatus, useXeroDisconnect, useXeroSyncAll, useXeroConnect } from '@/hooks/use-xero';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { API_BASE_URL } from '@/lib/api';
 import { useCustomers } from '@/hooks/use-customers';
@@ -258,8 +258,20 @@ function XeroSection() {
   const { data: xero, isLoading } = useXeroStatus();
   const disconnect = useXeroDisconnect();
   const syncAll = useXeroSyncAll();
+  const connectXero = useXeroConnect();
+  const [connecting, setConnecting] = useState(false);
 
-  const handleConnect = () => Linking.openURL(`${API_BASE_URL}/api/xero/connect`);
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      const outcome = await connectXero();
+      if (outcome === 'error') showAlert('Xero connection failed', 'Please try again, or check your Xero settings.');
+    } catch {
+      showAlert('Could not connect', 'Check your connection and try again.');
+    } finally {
+      setConnecting(false);
+    }
+  };
 
   const handleDisconnect = () => {
     showConfirm({
@@ -324,8 +336,10 @@ function XeroSection() {
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity onPress={handleConnect} activeOpacity={0.8} style={xs.connectBtn}>
-              <Text style={xs.connectBtnText}>Connect to Xero</Text>
+            <TouchableOpacity onPress={handleConnect} activeOpacity={0.8} style={[xs.connectBtn, connecting && { opacity: 0.6 }]} disabled={connecting}>
+              {connecting
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={xs.connectBtnText}>Connect to Xero</Text>}
             </TouchableOpacity>
           )}
         </View>

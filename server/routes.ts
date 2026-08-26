@@ -14,7 +14,7 @@ import { registerAudioRoutes } from "./replit_integrations/audio";
 import { registerImageRoutes } from "./replit_integrations/image";
 import multer from "multer";
 import fs from "fs";
-import { buildAuthUrl, exchangeCodeForTokens, fetchTenants, getValidToken, upsertXeroContact, createXeroInvoice, recordXeroPayment, getXeroInvoiceStatus } from "./xero";
+import { buildAuthUrl, buildMobileAuthUrl, verifyMobileState, exchangeCodeForTokens, fetchTenants, getValidToken, upsertXeroContact, createXeroInvoice, recordXeroPayment, getXeroInvoiceStatus } from "./xero";
 import { stripe, createPaymentLink } from "./stripe";
 import { squareClient, createSquarePaymentLink } from "./square";
 import { getTradeContext } from "./trade-knowledge";
@@ -1724,6 +1724,22 @@ CRITICAL RULES — follow these exactly:
 
   // ─── Xero OAuth2 PKCE Routes ───
 
+  // Mobile connect: the app (authenticated via its session cookie on this
+  // request) asks for an auth URL. Identity is packed into the signed state so
+  // the callback can recover it without a browser cookie.
+  app.post("/api/xero/connect-url", requireAuth, (req: any, res) => {
+    if (!process.env.XERO_CLIENT_ID || !process.env.XERO_REDIRECT_URI) {
+      return res.status(500).json({ message: "Xero is not configured on the server." });
+    }
+    try {
+      const { url } = buildMobileAuthUrl(req.userId);
+      res.json({ url });
+    } catch (err: any) {
+      console.error("Xero connect-url error:", err);
+      res.status(500).json({ message: "Could not start Xero connection." });
+    }
+  });
+
   app.get("/api/xero/connect", (req: any, res) => {
     const userId = (req.session as any)?.localUserId;
     if (!userId) return res.redirect("/login?returnTo=/api/xero/connect");
@@ -1748,39 +1764,43 @@ CRITICAL RULES — follow these exactly:
   });
 
   // OAuth callback — Xero redirects here with ?code=...&state=...
+  // Handles both the mobile flow (identity in a signed state, returns to the app
+  // via the vargen:// deep link) and the web flow (session-based, returns to /profile).
   app.get("/api/xero/callback", async (req: any, res) => {
-    const userId = (req.session as any)?.localUserId;
-    if (!userId) return res.redirect("/profile?xero=error&reason=unauthorized");
-
     const { code, state } = req.query;
-    const savedVerifier = (req.session as any).xeroCodeVerifier;
-    const savedState = (req.session as any).xeroState;
+    const mobile = verifyMobileState(typeof state === "string" ? state : undefined);
+    const isMobile = !!mobile;
 
-    // Clean up session
-    delete (req.session as any).xeroCodeVerifier;
-    delete (req.session as any).xeroState;
+    const appReturn = (status: string, reason?: string) =>
+      res.redirect(`vargen://xero?status=${status}${reason ? `&reason=${reason}` : ""}`);
+    const fail = (reason: string) =>
+      isMobile ? appReturn("error", reason) : res.redirect(`/profile?xero=error&reason=${reason}`);
 
-    if (!code || !savedVerifier) {
-      return res.redirect("/profile?xero=error&reason=missing_code");
+    let userId: string | undefined;
+    let savedVerifier: string | undefined;
+
+    if (mobile) {
+      userId = mobile.userId;
+      savedVerifier = mobile.codeVerifier;
+    } else {
+      userId = (req.session as any)?.localUserId;
+      savedVerifier = (req.session as any).xeroCodeVerifier;
+      const savedState = (req.session as any).xeroState;
+      delete (req.session as any).xeroCodeVerifier;
+      delete (req.session as any).xeroState;
+      if (!userId) return res.redirect("/profile?xero=error&reason=unauthorized");
+      if (state !== savedState) return res.redirect("/profile?xero=error&reason=invalid_state");
     }
-    if (state !== savedState) {
-      return res.redirect("/profile?xero=error&reason=invalid_state");
-    }
+
+    if (!code || !savedVerifier || !userId) return fail("missing_code");
 
     try {
-      // Exchange code for tokens
       const tokens = await exchangeCodeForTokens(code as string, savedVerifier);
-
-      // Fetch connected tenants
       const tenants = await fetchTenants(tokens.accessToken);
-      if (tenants.length === 0) {
-        return res.redirect("/profile?xero=error&reason=no_tenants");
-      }
+      if (tenants.length === 0) return fail("no_tenants");
 
-      // Store tokens (use first tenant)
       const tenant = tenants[0];
       const expiresAt = new Date(Date.now() + tokens.expiresIn * 1000);
-
       await storage.upsertXeroToken(userId, {
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
@@ -1789,10 +1809,10 @@ CRITICAL RULES — follow these exactly:
         tenantName: tenant.tenantName,
       });
 
-      res.redirect("/profile?xero=success");
+      return isMobile ? appReturn("success") : res.redirect("/profile?xero=success");
     } catch (err: any) {
       console.error("Xero callback error:", err);
-      res.redirect("/profile?xero=error&reason=token_exchange");
+      return fail("token_exchange");
     }
   });
 

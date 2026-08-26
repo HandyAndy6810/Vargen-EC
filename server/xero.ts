@@ -53,6 +53,66 @@ export function buildAuthUrl(): { url: string; codeVerifier: string; state: stri
   };
 }
 
+// ── Mobile OAuth ────────────────────────────────────────────────────────────
+// The mobile app opens the auth URL in an in-app browser that does NOT carry
+// the app's login cookie, so the callback can't read the session. Instead we
+// pack the user id and the PKCE verifier into a signed `state` value that
+// survives the round-trip through Xero. It's HMAC-signed with SESSION_SECRET so
+// it can't be forged, and short-lived.
+
+function stateSecret(): string {
+  return process.env.SESSION_SECRET || "vargen-dev-secret";
+}
+
+function signState(payload: object): string {
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = crypto.createHmac("sha256", stateSecret()).update(body).digest("base64url");
+  return `${body}.${sig}`;
+}
+
+/** Returns the decoded payload if the state is a valid, unexpired signed token, else null. */
+function verifyState(token: string): any | null {
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [body, sig] = parts;
+  const expected = crypto.createHmac("sha256", stateSecret()).update(body).digest("base64url");
+  // Constant-time compare
+  if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString());
+    if (typeof payload.exp === "number" && payload.exp < Date.now()) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+/** Build a Xero authorization URL for the mobile flow — user identity travels in the signed state. */
+export function buildMobileAuthUrl(userId: string): { url: string } {
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = generateCodeChallenge(codeVerifier);
+  const state = signState({ uid: userId, cv: codeVerifier, exp: Date.now() + 10 * 60 * 1000 });
+
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: getClientId(),
+    redirect_uri: getRedirectUri(),
+    scope: XERO_SCOPES,
+    state,
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
+  });
+  return { url: `${XERO_AUTH_URL}?${params.toString()}` };
+}
+
+/** Recover { userId, codeVerifier } from a mobile-flow state, or null if it isn't one / is invalid. */
+export function verifyMobileState(state: string | undefined): { userId: string; codeVerifier: string } | null {
+  if (!state) return null;
+  const payload = verifyState(state);
+  if (!payload || typeof payload.uid !== "string" || typeof payload.cv !== "string") return null;
+  return { userId: payload.uid, codeVerifier: payload.cv };
+}
+
 /** Exchange the authorization code for tokens using PKCE */
 export async function exchangeCodeForTokens(code: string, codeVerifier: string) {
   const body = new URLSearchParams({
