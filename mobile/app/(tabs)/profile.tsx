@@ -26,7 +26,7 @@ import { isThisMonth } from 'date-fns';
 import {
   FileText, Receipt, Calendar, MapPin, Sparkles,
   Bell, MessageSquare, Sun, Moon, Smartphone, Settings, LogOut, ChevronRight, Pencil,
-  Link, RefreshCw, Unlink, CheckCircle, BookOpen, Users, Building2, LayoutGrid, Check,
+  Link, RefreshCw, Unlink, CheckCircle, BookOpen, Users, Building2, LayoutGrid, Check, ScanLine,
 } from 'lucide-react-native';
 
 // ── Style factory ─────────────────────────────────────────────────────────────
@@ -473,6 +473,7 @@ export default function ProfileScreen() {
         <SettingsGroup title="Business" items={[
           { icon: FileText,  label: 'Business details',         sub: 'ABN, logo, invoice footer',       onPress: () => router.push('/settings/business-details' as any) },
           { icon: Receipt,   label: 'Invoice & quote settings', sub: 'Numbering, GST, payment terms',   onPress: () => router.push('/settings/invoice-settings' as any) },
+          { icon: ScanLine,  label: 'Receipts & expenses',      sub: 'Scan and track job costs',        onPress: () => router.push('/receipts' as any) },
           { icon: Calendar,  label: 'Working hours',            sub: 'Set your available days & times',    onPress: () => router.push('/settings/working-hours' as any) },
           { icon: MapPin,    label: 'Service area',             sub: 'Suburbs you cover',       onPress: () => router.push('/settings/service-area' as any) },
         ]} />

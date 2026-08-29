@@ -10,8 +10,8 @@ import { useQuoteDraft } from '@/hooks/use-quote-draft';
 import { showConfirm } from '@/lib/dialogs';
 
 export default function ItemsStep() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeQuoteStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const s = useMemo(() => makeQuoteStyles(c, isDark), [c, isDark]);
   const x = useMemo(() => extraStyles(c), [c]);
   const d = useQuoteDraft();
 

@@ -6,7 +6,8 @@ import type { Colors } from '@/hooks/use-theme';
  * Lifted verbatim from the old single-screen invoices/create.tsx so the look is
  * unchanged. The step chrome (progress rail, pinned footer) is QuoteStepScaffold.
  */
-export const makeInvoiceStyles = (c: Colors) => StyleSheet.create({
+// isDark keeps the dark total band dark in both themes — see makeQuoteStyles.
+export const makeInvoiceStyles = (c: Colors, isDark = false) => StyleSheet.create({
   sectionEyebrow: {
     fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted,
     letterSpacing: 2, textTransform: 'uppercase', marginTop: 22, marginBottom: 8,
@@ -75,7 +76,7 @@ export const makeInvoiceStyles = (c: Colors) => StyleSheet.create({
   },
 
   totalBand: {
-    marginTop: 14, paddingHorizontal: 18, paddingVertical: 16, borderRadius: 18, backgroundColor: c.ink,
+    marginTop: 14, paddingHorizontal: 18, paddingVertical: 16, borderRadius: 18, backgroundColor: isDark ? c.card : c.ink,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
   totalBandLabel: { fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.7)', letterSpacing: 1.2, textTransform: 'uppercase' },

@@ -12,8 +12,8 @@ import { useInvoiceDraft } from '@/hooks/use-invoice-draft';
  * the manual steps prefilled; otherwise the tradie picks how to build it.
  */
 export default function InvoiceCreateEntry() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
   const { fromQuoteEntry, fromJobEntry } = useInvoiceDraft();
 
   useEffect(() => {
@@ -55,12 +55,13 @@ export default function InvoiceCreateEntry() {
   );
 }
 
-const makeStyles = (c: Colors) => StyleSheet.create({
+const makeStyles = (c: Colors, isDark: boolean) => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14 },
   backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase' },
   title: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
-  quoteCard: { backgroundColor: c.ink, borderRadius: 24, padding: 22, overflow: 'hidden' },
+  // c.ink is a text token (near-white in dark) — keep the dark hero look in both themes.
+  quoteCard: { backgroundColor: isDark ? c.card : c.ink, borderRadius: 24, padding: 22, overflow: 'hidden' },
   glow: { position: 'absolute', top: -60, right: -60, width: 200, height: 200, borderRadius: 100, backgroundColor: `${c.orange}88`, opacity: 0.5 },
   quoteIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', marginBottom: 14, shadowColor: c.orange, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.5, shadowRadius: 16, elevation: 6 },
   quoteTitle: { fontSize: 18, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.4, marginBottom: 6 },

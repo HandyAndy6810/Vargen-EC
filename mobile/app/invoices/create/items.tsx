@@ -10,8 +10,8 @@ import { useInvoiceDraft } from '@/hooks/use-invoice-draft';
 const STEPS = ['Customer', 'Job', 'Items', 'Review'] as const;
 
 export default function ItemsStep() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeInvoiceStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const s = useMemo(() => makeInvoiceStyles(c, isDark), [c, isDark]);
   const d = useInvoiceDraft();
 
   const canNext = d.standaloneTotal > 0;

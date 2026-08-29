@@ -7,7 +7,11 @@ import type { Colors } from '@/hooks/use-theme';
  * look is unchanged; the step chrome (header, progress rail, pinned footer)
  * lives in QuoteStepScaffold.
  */
-export const makeQuoteStyles = (c: Colors) => StyleSheet.create({
+// isDark keeps the dark "hero"/total surfaces dark in both themes — c.ink is a
+// text token that goes near-white in dark mode, so using it as a background there
+// produced white-on-white cards. Defaults to light behaviour for callers that
+// don't render those cards.
+export const makeQuoteStyles = (c: Colors, isDark = false) => StyleSheet.create({
   sectionEyebrow: {
     fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted,
     letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8,
@@ -40,7 +44,7 @@ export const makeQuoteStyles = (c: Colors) => StyleSheet.create({
   addLineBtnText: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.orangeDeep },
 
   // Totals hero
-  totalHero: { backgroundColor: c.ink, borderRadius: 20, padding: 20, overflow: 'hidden', marginBottom: 20 },
+  totalHero: { backgroundColor: isDark ? c.card : c.ink, borderRadius: 20, padding: 20, overflow: 'hidden', marginBottom: 20 },
   totalHeroGlow: {
     position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70,
     backgroundColor: `${c.orange}88`, opacity: 0.35,
@@ -70,7 +74,7 @@ export const makeQuoteStyles = (c: Colors) => StyleSheet.create({
   modalTextArea: { padding: 16, fontSize: 16, fontFamily: 'Manrope_600SemiBold', color: c.ink, minHeight: 100 },
   modalInput: { padding: 16, fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
   modalTotalCard: {
-    marginTop: 24, backgroundColor: c.ink, borderRadius: 18, padding: 20,
+    marginTop: 24, backgroundColor: isDark ? c.card : c.ink, borderRadius: 18, padding: 20,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', overflow: 'hidden',
   },
   modalTotalLabel: {

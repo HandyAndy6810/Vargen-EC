@@ -9,8 +9,8 @@ import { useQuoteDraft } from '@/hooks/use-quote-draft';
 import { ActionSheetModal } from '@/components/ActionSheetModal';
 
 export default function ReviewStep() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeQuoteStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const s = useMemo(() => makeQuoteStyles(c, isDark), [c, isDark]);
   const x = useMemo(() => reviewStyles(c), [c]);
   const d = useQuoteDraft();
 
