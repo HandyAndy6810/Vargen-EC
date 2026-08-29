@@ -9,15 +9,20 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, FileText, Receipt, X, Link2 } from 'lucide-react-native';
 import { useCreateJob, useUpdateJob, useJob } from '@/hooks/use-jobs';
 import { showConfirm } from '@/lib/dialogs';
 import { useCustomers } from '@/hooks/use-customers';
+import { useQuotes } from '@/hooks/use-quotes';
+import { useInvoices } from '@/hooks/use-invoices';
+import { quoteTitle as resolveQuoteTitle } from '@shared/mobile-types';
 import { addDays, differenceInCalendarDays, format, setHours, setMinutes, startOfDay } from 'date-fns';
 
 
@@ -42,6 +47,8 @@ export default function JobCreateScreen() {
   const { mutate: updateJob, isPending: updating } = useUpdateJob();
   const isPending = creating || updating;
   const { data: customers } = useCustomers() as any;
+  const { data: quotesData } = useQuotes() as any;
+  const { data: invoicesData } = useInvoices() as any;
 
   const [title, setTitle]         = useState('');
   const [address, setAddress]     = useState('');
@@ -52,6 +59,9 @@ export default function JobCreateScreen() {
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [custSearch, setCustSearch] = useState('');
   const [showCustList, setShowCustList] = useState(false);
+  const [quoteId, setQuoteId]     = useState<number | null>(null);
+  const [invoiceId, setInvoiceId] = useState<number | null>(null);
+  const [picker, setPicker]       = useState<null | 'quote' | 'invoice'>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Unsaved-changes guard — fat-thumbing back should never eat a filled form
@@ -82,6 +92,8 @@ export default function JobCreateScreen() {
     setAddress(editJob.address || '');
     setNotes(editJob.description || '');
     setCustomerId(editJob.customerId ?? null);
+    setQuoteId(editJob.quoteId ?? null);
+    setInvoiceId(editJob.invoiceId ?? null);
     if (editJob.estimatedDuration) setDuration(editJob.estimatedDuration / 60);
     if (editJob.scheduledDate) {
       const d = new Date(editJob.scheduledDate);
@@ -99,6 +111,28 @@ export default function JobCreateScreen() {
 
   const selectedDay = dayOptions[dayOffset];
   const selectedCustomer = (customers as any[])?.find((c: any) => c.id === customerId);
+  const selectedQuote = (quotesData as any[])?.find((q: any) => q.id === quoteId);
+  const selectedInvoice = (invoicesData as any[])?.find((i: any) => i.id === invoiceId);
+
+  // Quotes worth linking (skip declined); invoices as-is, newest first from the hook.
+  const linkableQuotes = useMemo(
+    () => ((quotesData as any[]) || []).filter((q: any) => q.status !== 'declined'),
+    [quotesData]
+  );
+
+  // Linking a quote/invoice fills in the customer (and, for a quote, the title)
+  // when they're still blank — saves re-typing what the source already knows.
+  const linkQuote = (q: any) => {
+    setQuoteId(q.id);
+    if (customerId == null && q.customerId != null) setCustomerId(q.customerId);
+    if (!title.trim()) setTitle(resolveQuoteTitle(q));
+    setPicker(null);
+  };
+  const linkInvoice = (inv: any) => {
+    setInvoiceId(inv.id);
+    if (customerId == null && inv.customerId != null) setCustomerId(inv.customerId);
+    setPicker(null);
+  };
 
   const filteredCustomers = useMemo(() => {
     const list = (customers as any[]) || [];
@@ -124,6 +158,8 @@ export default function JobCreateScreen() {
       customerId: customerId || null,
       scheduledDate,
       estimatedDuration: Math.round(duration * 60),
+      quoteId: quoteId || null,
+      invoiceId: invoiceId || null,
     };
     const callbacks = {
       onSuccess: () => { savedRef.current = true; router.back(); },
@@ -241,6 +277,41 @@ export default function JobCreateScreen() {
               />
             </View>
 
+            {/* Link to quote / invoice */}
+            <View style={s.fieldGroup}>
+              <Text style={s.fieldLabel}>Linked to</Text>
+              {selectedQuote ? (
+                <View style={s.linkRow}>
+                  <View style={[s.linkIcon, { backgroundColor: c.orangeSoft }]}><FileText size={16} color={c.orange} strokeWidth={2.2} /></View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.linkTitle} numberOfLines={1}>{resolveQuoteTitle(selectedQuote)}</Text>
+                    <Text style={s.linkSub} numberOfLines={1}>Quote · ${Number(selectedQuote.totalAmount || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setQuoteId(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Remove linked quote"><X size={18} color={c.muted} strokeWidth={2.2} /></TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={s.linkAddBtn} activeOpacity={0.7} onPress={() => setPicker('quote')}>
+                  <Link2 size={16} color={c.orange} strokeWidth={2.2} />
+                  <Text style={[s.linkAddText, { color: c.orange }]}>Link a quote</Text>
+                </TouchableOpacity>
+              )}
+              {selectedInvoice ? (
+                <View style={s.linkRow}>
+                  <View style={[s.linkIcon, { backgroundColor: c.blueSoft }]}><Receipt size={16} color={c.blue} strokeWidth={2.2} /></View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.linkTitle} numberOfLines={1}>{selectedInvoice.invoiceNumber || `Invoice #${selectedInvoice.id}`}</Text>
+                    <Text style={s.linkSub} numberOfLines={1}>Invoice · ${Number(selectedInvoice.totalAmount || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setInvoiceId(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Remove linked invoice"><X size={18} color={c.muted} strokeWidth={2.2} /></TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={s.linkAddBtn} activeOpacity={0.7} onPress={() => setPicker('invoice')}>
+                  <Link2 size={16} color={c.blue} strokeWidth={2.2} />
+                  <Text style={[s.linkAddText, { color: c.blue }]}>Link an invoice</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             {/* Day picker */}
             <View style={s.fieldGroup}>
               <Text style={s.fieldLabel}>Date</Text>
@@ -326,6 +397,50 @@ export default function JobCreateScreen() {
               : <Text style={s.saveBtnText}>{isEditing ? 'Save changes' : 'Schedule job'}</Text>}
           </TouchableOpacity>
         </View>
+
+        {/* Quote / invoice picker */}
+        <Modal visible={picker !== null} transparent animationType="slide" onRequestClose={() => setPicker(null)}>
+          <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => setPicker(null)} />
+          <View style={s.modalSheet}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>{picker === 'quote' ? 'Link a quote' : 'Link an invoice'}</Text>
+              <TouchableOpacity onPress={() => setPicker(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close"><X size={20} color={c.muted} strokeWidth={2.2} /></TouchableOpacity>
+            </View>
+            <FlatList
+              data={picker === 'quote' ? linkableQuotes : ((invoicesData as any[]) || [])}
+              keyExtractor={(item: any) => String(item.id)}
+              contentContainerStyle={{ padding: 20, paddingTop: 8, gap: 10 }}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => picker === 'quote' ? (
+                <TouchableOpacity style={s.pickRow} activeOpacity={0.7} onPress={() => linkQuote(item)}>
+                  <View style={[s.linkIcon, { backgroundColor: c.orangeSoft }]}><FileText size={16} color={c.orange} strokeWidth={2.2} /></View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.linkTitle} numberOfLines={1}>{resolveQuoteTitle(item)}</Text>
+                    <Text style={s.linkSub} numberOfLines={1}>{(item.customerName || 'No customer')} · {String(item.status || 'draft')}</Text>
+                  </View>
+                  <Text style={s.pickAmount}>${Number(item.totalAmount || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                  <ChevronRight size={16} color={c.muted} strokeWidth={2} />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={s.pickRow} activeOpacity={0.7} onPress={() => linkInvoice(item)}>
+                  <View style={[s.linkIcon, { backgroundColor: c.blueSoft }]}><Receipt size={16} color={c.blue} strokeWidth={2.2} /></View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.linkTitle} numberOfLines={1}>{item.invoiceNumber || `Invoice #${item.id}`}</Text>
+                    <Text style={s.linkSub} numberOfLines={1}>{(item.customerName || 'No customer')} · {String(item.status || 'draft')}</Text>
+                  </View>
+                  <Text style={s.pickAmount}>${Number(item.totalAmount || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                  <ChevronRight size={16} color={c.muted} strokeWidth={2} />
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={{ alignItems: 'center', paddingTop: 30, gap: 6 }}>
+                  <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink }}>Nothing to link yet</Text>
+                  <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, textAlign: 'center' }}>{picker === 'quote' ? 'Your quotes will show up here.' : 'Your invoices will show up here.'}</Text>
+                </View>
+              }
+            />
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -378,6 +493,37 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   custAvatarText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
   custName: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: c.ink },
   custSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 1 },
+  linkRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineMid,
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  linkIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  linkTitle: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink, letterSpacing: -0.2 },
+  linkSub: { fontSize: 11.5, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2, textTransform: 'capitalize' },
+  linkAddBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineMid,
+    borderStyle: 'dashed', paddingHorizontal: 14, paddingVertical: 14,
+  },
+  linkAddText: { fontSize: 13.5, fontFamily: 'Manrope_700Bold' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalSheet: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '75%',
+    backgroundColor: c.paper, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 18, paddingBottom: 6,
+  },
+  modalTitle: { fontSize: 17, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
+  pickRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft,
+    paddingHorizontal: 14, paddingVertical: 13,
+  },
+  pickAmount: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink, flexShrink: 0 },
   dayChip: {
     width: 56, height: 64, borderRadius: 16,
     backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
