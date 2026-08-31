@@ -39,7 +39,7 @@ export default function QuoteCreateEntry() {
       </View>
 
       <View style={{ flex: 1, paddingHorizontal: 20, justifyContent: 'center', gap: 14, paddingBottom: 40 }}>
-        <TouchableOpacity style={s.aiCard} activeOpacity={0.9} onPress={() => router.replace('/ai-chat')}>
+        <TouchableOpacity style={s.aiCard} activeOpacity={0.9} onPress={() => router.push('/quotes/create/describe')}>
           <View style={s.aiGlow} />
           <View style={s.aiIcon}><Sparkles size={22} color="#fff" strokeWidth={2} /></View>
           <Text style={s.aiTitle}>Describe it — let AI build it</Text>

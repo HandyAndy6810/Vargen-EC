@@ -61,6 +61,7 @@ export default function ReviewStep() {
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={x.label}>Job</Text>
             <Text style={x.value} numberOfLines={1}>{d.jobTitle.trim() || 'Untitled'}</Text>
+            {d.summary.trim() ? <Text style={x.meta} numberOfLines={3}>{d.summary}</Text> : null}
             {d.schedDate.trim() ? <Text style={x.meta} numberOfLines={1}>{d.schedDate}</Text> : null}
           </View>
           <ChevronRight size={16} color={c.muted} strokeWidth={2} />
@@ -100,11 +101,13 @@ const reviewStyles = (c: Colors) => StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 13,
   },
   icon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  label: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.4, textTransform: 'uppercase' },
-  value: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginTop: 2, letterSpacing: -0.2 },
-  meta: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 3 },
-  itemName: { flex: 1, fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.ink },
-  itemAmt: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink },
+  // Sizes bumped from 10/15/12/13 — the review is the screen you read most
+  // carefully before sending, so it shouldn't need squinting at.
+  label: { fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.4, textTransform: 'uppercase' },
+  value: { fontSize: 17, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginTop: 3, letterSpacing: -0.2 },
+  meta: { fontSize: 13.5, fontFamily: 'Manrope_500Medium', color: c.mutedHi, marginTop: 4, lineHeight: 19 },
+  itemName: { flex: 1, fontSize: 15, fontFamily: 'Manrope_600SemiBold', color: c.ink },
+  itemAmt: { fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink },
   draftBtn: { flex: 1, height: 56, borderRadius: 18, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' },
   draftBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
   sendBtn: {

@@ -8,10 +8,14 @@ import { queryClient } from '@/lib/queryClient';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { useQuote } from '@/hooks/use-quotes';
 import { useCustomers } from '@/hooks/use-customers';
+import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
 import type { SheetAction } from '@/components/ActionSheetModal';
 
-export type LineItem = { name: string; qty: string; price: string };
+// `unit` and `cost` come from AI output. cost is what the tradie actually pays
+// (as opposed to `price`, what they charge) and is the basis for a real profit
+// margin — without it a "margin" can only ever be a fixed ratio of the price.
+export type LineItem = { name: string; qty: string; price: string; unit?: string; cost?: string };
 const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
 
 /**
@@ -28,6 +32,7 @@ type QuoteDraft = {
   customerId: number | null; setCustomerId: (v: number | null) => void;
   selectedCustomer: any;
   jobTitle: string; setJobTitle: (v: string) => void;
+  summary: string; setSummary: (v: string) => void;
   schedDate: string; setSchedDate: (v: string) => void;
   expiryDate: string; setExpiryDate: (v: string) => void;
   notes: string; setNotes: (v: string) => void;
@@ -57,6 +62,8 @@ type QuoteDraft = {
   // AI assist inside the manual flow
   aiBusy: boolean;
   generateItemsWithAI: () => void;
+  /** Full AI generation for the Describe step — fills the whole draft, not just lines. */
+  generateFromDescription: (description: string) => Promise<boolean>;
 };
 
 const Ctx = createContext<QuoteDraft | null>(null);
@@ -94,6 +101,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   );
   const selectedCustomer = (allCustomers as any[])?.find((x: any) => x.id === customerId);
   const [jobTitle, setJobTitle] = useState('');
+  const [summary, setSummary] = useState('');
   const [schedDate, setSchedDate] = useState('');
   const [expiryDate, setExpiryDate] = useState(() => format(addDays(new Date(), 30), 'd MMM yyyy'));
   const [notes, setNotes] = useState('');
@@ -127,6 +135,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     if (!editQuote || populated) return;
     const c = parseQuoteContent((editQuote as any).content);
     setJobTitle(c.jobTitle || '');
+    setSummary((c as any).summary || '');
     setCustomer(c.customerName || '');
     if ((editQuote as any).customerId) setCustomerId((editQuote as any).customerId);
     setSchedDate(c.schedDate || '');
@@ -149,12 +158,12 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       const originalContent: any = isEditing ? parseQuoteContent((editQuote as any)?.content) : {};
       const mergedContent: any = {
         ...originalContent,
-        customerName: customer, jobTitle, schedDate, expiryDate, notes, lines,
+        customerName: customer, jobTitle, summary, schedDate, expiryDate, notes, lines,
       };
       mergedContent.items = lines.map(l => ({
         description: l.name,
         quantity: parseFloat(l.qty) || 1,
-        unit: 'ea',
+        unit: l.unit || 'ea',
         unitPrice: parseFloat(l.price) || 0,
       }));
       mergedContent.subtotal = subtotal;
@@ -171,7 +180,36 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
         ? await apiRequest('PATCH', `/api/quotes/${editId}`, body)
         : await apiRequest('POST', '/api/quotes', body);
       if (!res.ok) throw new Error('Failed to save quote');
-      return res.json();
+      const saved = await res.json();
+
+      // Keep the quote_items ROWS in step with the content JSON. The quote detail
+      // screen prefers rows over content, so writing content alone (as this did
+      // before) left an edited quote showing its original line items beside its
+      // new total — numbers that no longer added up.
+      const savedId = Number(saved?.id) || editId;
+      if (savedId) {
+        if (isEditing) {
+          try {
+            const cur = await apiRequest('GET', `/api/quotes/${savedId}/items`);
+            if (cur.ok) {
+              const rows: any[] = await cur.json();
+              await Promise.all(rows.map(r =>
+                apiRequest('DELETE', `/api/quotes/items/${r.id}`).catch(() => {})
+              ));
+            }
+          } catch { /* fall through — better a fresh set than none */ }
+        }
+        for (const l of lines) {
+          const price = parseFloat(l.price) || 0;
+          if (!l.name.trim() && price <= 0) continue;
+          await apiRequest('POST', `/api/quotes/${savedId}/items`, {
+            description: l.name.trim() || 'Item',
+            quantity: parseFloat(l.qty) || 1,
+            price: String(price),
+          }).catch(() => {});
+        }
+      }
+      return saved;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
@@ -217,30 +255,90 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     },
   ].filter(Boolean) as SheetAction[];
 
-  // ── AI assist: build line items from the job, inside the manual flow ────────
+  // ── AI generation ──────────────────────────────────────────────────────────
+  // One client for both AI entry points (the Describe step and "build these from
+  // the job" on Items). It sends the tradie's real pricing settings so the quote
+  // comes back calibrated, rather than the bare description the manual flow used
+  // to send.
   const [aiBusy, setAiBusy] = useState(false);
+  const { data: settings } = useSettings() as any;
+
+  const callAi = async (description: string): Promise<any> => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60_000);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/quotes/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        signal: controller.signal,
+        body: JSON.stringify({
+          description,
+          customerName: customer.trim() || undefined,
+          tradeType: settings?.tradeType || undefined,
+          labourRate: typeof settings?.labourRate === 'number' ? settings.labourRate : undefined,
+          markupPercent: typeof settings?.markupPercent === 'number' ? settings.markupPercent : undefined,
+          callOutFee: typeof settings?.callOutFee === 'number' ? settings.callOutFee : undefined,
+          includeGST: settings?.includeGST !== false,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(
+          res.status === 401 ? 'Please sign in to use AI.'
+            : (body?.message || 'AI could not build the quote — try again.')
+        );
+      }
+      return res.json();
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  const linesFromAi = (data: any): LineItem[] => {
+    const items = Array.isArray(data?.items) ? data.items : [];
+    return items.map((it: any) => ({
+      name: it.description || '',
+      qty: String(it.quantity || 1),
+      price: String(it.unitPrice || 0),
+      unit: it.unit || 'ea',
+    }));
+  };
+
+  /** Fill the whole draft from an AI result — used by the Describe step. */
+  const generateFromDescription = async (description: string): Promise<boolean> => {
+    setAiBusy(true);
+    setError(null);
+    try {
+      const data = await callAi(description);
+      const newLines = linesFromAi(data);
+      if (!newLines.length) throw new Error("AI didn't return any line items.");
+      setLines(newLines);
+      if (data.jobTitle) setJobTitle(String(data.jobTitle));
+      if (data.summary) setSummary(String(data.summary));
+      if (data.notes) setNotes(String(data.notes));
+      // Keep the tradie's own words as the job description if AI gave no summary
+      if (!data.summary && description.trim()) setSummary(description.trim());
+      return true;
+    } catch (e: any) {
+      setError(e?.name === 'AbortError' ? 'AI timed out — try again.' : (e?.message || 'Something went wrong.'));
+      return false;
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
   const runAiGenerate = async () => {
     setAiBusy(true);
     setError(null);
     try {
       const desc = [jobTitle.trim(), notes.trim()].filter(Boolean).join(' — ');
-      const res = await fetch(`${API_BASE_URL}/api/quotes/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ description: desc, customerName: customer.trim() || undefined }),
-      });
-      if (!res.ok) throw new Error(res.status === 401 ? 'Please sign in to use AI.' : 'AI could not build the items — try again.');
-      const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
-      if (!items.length) throw new Error("AI didn't return any line items.");
-      setLines(items.map((it: any) => ({
-        name: it.description || '',
-        qty: String(it.quantity || 1),
-        price: String(it.unitPrice || 0),
-      })));
+      const data = await callAi(desc);
+      const newLines = linesFromAi(data);
+      if (!newLines.length) throw new Error("AI didn't return any line items.");
+      setLines(newLines);
     } catch (e: any) {
-      showAlert('AI assist', e?.message || 'Something went wrong.');
+      showAlert('AI assist', e?.name === 'AbortError' ? 'AI timed out — try again.' : (e?.message || 'Something went wrong.'));
     } finally {
       setAiBusy(false);
     }
@@ -274,14 +372,14 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const value: QuoteDraft = {
     isEditing, editId,
     customer, setCustomer, customerId, setCustomerId, selectedCustomer,
-    jobTitle, setJobTitle, schedDate, setSchedDate, expiryDate, setExpiryDate, notes, setNotes,
+    jobTitle, setJobTitle, summary, setSummary, schedDate, setSchedDate, expiryDate, setExpiryDate, notes, setNotes,
     lines, setLines,
     custSearch, setCustSearch, showCustList, setShowCustList, filteredCustomers,
     editLineIdx, editLineDraft, setEditLineDraft, openLineEdit, saveLineEdit, deleteLineFromModal, addLine, closeLineEdit,
     subtotal, gst, total,
     error, setError, saving: saveMutation.isPending, save, hasWork,
     showSendSheet, setShowSendSheet, handleSendPress, sendActions,
-    aiBusy, generateItemsWithAI,
+    aiBusy, generateItemsWithAI, generateFromDescription,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

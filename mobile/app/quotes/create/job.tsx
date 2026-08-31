@@ -34,6 +34,17 @@ export default function JobStep() {
             autoFocus
           />
         </View>
+        <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: c.lineSoft, alignItems: 'flex-start' }]}>
+          <Text style={[s.fieldLabel, { paddingTop: 2 }]}>Description</Text>
+          <TextInput
+            style={[s.fieldInput, { flex: 1 }]}
+            placeholder="What the job involves…"
+            placeholderTextColor={c.muted}
+            value={d.summary}
+            onChangeText={d.setSummary}
+            multiline
+          />
+        </View>
         <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
           <Text style={s.fieldLabel}>Date</Text>
           <TextInput
