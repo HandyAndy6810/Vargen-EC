@@ -114,6 +114,30 @@ app.use((req, res, next) => {
   next();
 });
 
+// Replit's autoscale health check pings `/` the moment the container starts —
+// well before the heavier route + static setup finishes (~6s), and a slow first
+// response makes the deploy fail to promote. So bind the port and answer `/`
+// with a fast 200 immediately; once everything is wired up, `/` falls through to
+// the SPA. This is what lets a new build actually go live.
+let appReady = false;
+app.get("/", (_req: Request, res: Response, next: NextFunction) => {
+  if (appReady) return next();
+  res.status(200).send("ok");
+});
+
+const port = parseInt(process.env.PORT || "5000", 10);
+httpServer.listen(
+  {
+    port,
+    host: "0.0.0.0",
+    // reusePort not supported on Windows
+    ...(process.platform !== "win32" && { reusePort: true }),
+  },
+  () => {
+    log(`serving on port ${port}`);
+  },
+);
+
 (async () => {
   await registerRoutes(httpServer, app);
 
@@ -131,18 +155,8 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      // reusePort not supported on Windows
-      ...(process.platform !== "win32" && { reusePort: true }),
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
+  appReady = true;
+  log("startup complete — routes ready");
 })().catch((err) => {
   console.error("Fatal startup error:", err);
   process.exit(1);
