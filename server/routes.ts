@@ -674,6 +674,7 @@ Do not invent details. If unsure of a field, use an empty string.`;
       }
 
       const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+      let sentImage = false;
 
       const labourRateNum = typeof labourRate === "number" && labourRate > 0 ? labourRate : null;
       const markupNum = typeof markupPercent === "number" ? markupPercent : 0;
@@ -828,6 +829,7 @@ CRITICAL RULES — follow these exactly:
         : null;
 
       if (imagePayload && imagePayload.length > 128 && AI_SUPPORTS_VISION) {
+        sentImage = true;
         userContent.push({
           type: "image_url",
           image_url: {
@@ -881,7 +883,11 @@ CRITICAL RULES — follow these exactly:
     } catch (error: any) {
       console.error("Quote generation error:", error);
       const msg: string = error?.message || "";
-      const isImageError = /image|invalid.*url|unsupported.*media|400/i.test(msg);
+      // Only blame the image when one was actually sent AND the provider named an
+      // image problem. A bare "400" match was wrongly classifying every provider
+      // error (e.g. an unsupported parameter) as an unreadable photo, hiding the
+      // real cause from us.
+      const isImageError = sentImage && /image|invalid.*url|unsupported.*media/i.test(msg);
       res.status(isImageError ? 400 : 500).json({
         message: isImageError
           ? "The attached image couldn't be read — try a clearer photo or remove it and describe the job instead."
