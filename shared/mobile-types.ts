@@ -30,6 +30,8 @@ export interface Job {
   status: string | null;
   scheduledDate: Date | string | null;
   estimatedDuration: number | null;
+  quoteId: number | null;
+  invoiceId: number | null;
   completionData: string | null;
   createdAt: Date | string | null;
   customerName?: string | null;
@@ -45,6 +47,8 @@ export interface InsertJob {
   status?: string | null;
   scheduledDate?: Date | string | null;
   estimatedDuration?: number | null;
+  quoteId?: number | null;
+  invoiceId?: number | null;
   completionData?: string | null;
 }
 

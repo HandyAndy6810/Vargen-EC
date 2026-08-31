@@ -19,9 +19,12 @@ cd mobile && eas build --profile preview --platform ios
 - EAS project ID: `481ac436-4f04-451b-8cf6-48aaaf94e24b`
 
 ## AI Quoting
-- Uses Groq (free tier) with `llama-3.3-70b-versatile`
+- Uses Groq (free tier). Chat model `openai/gpt-oss-120b`, transcription `whisper-large-v3-turbo`.
+  (Groq deprecated `llama-3.3-70b-versatile` on 2026-08-16 — don't use it.)
+- Model IDs are env-overridable (Groq rotates models): `AI_CHAT_MODEL`, `AI_TRANSCRIBE_MODEL`,
+  `AI_SUPPORTS_VISION` (gpt-oss is text-only, so job photos are skipped on Groq).
 - Secrets needed in Replit: `AI_INTEGRATIONS_OPENAI_BASE_URL`, `AI_INTEGRATIONS_OPENAI_API_KEY`
-- Endpoint: `POST /api/quotes/generate`
+- Endpoints: `POST /api/quotes/generate`, `POST /api/agent/intake`, `POST /api/audio/transcribe`
 
 ## Native Architecture
 

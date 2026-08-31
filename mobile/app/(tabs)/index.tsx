@@ -427,7 +427,7 @@ export default function HomeScreen() {
             <Text style={s.eyebrow}>Quick Actions</Text>
             <View style={s.qaRow}>
               {([
-                { Icon: MessageCircle, label: 'Follow Up',  color: c.orange, bg: c.orangeSoft, route: '/customers/messages' },
+                { Icon: MessageCircle, label: 'Follow Up',  color: c.orange, bg: c.orangeSoft, route: '/(tabs)/calendar?tab=outreach' },
                 { Icon: Briefcase, label: 'New Job',      color: c.blue,     bg: isDark ? 'rgba(31,111,235,0.15)' : c.blueSoft,    route: '/jobs/create' },
                 { Icon: Users,     label: 'Customers',    color: c.green,  bg: c.greenSoft,  route: '/customers' },
               ] as const).map(({ Icon, label, color, bg, route }) => (

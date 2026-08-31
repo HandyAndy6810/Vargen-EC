@@ -1,12 +1,17 @@
-import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Svg, { Polygon } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 
 /**
- * The New Quote / New Invoice primary action. The two halves are separated by a
- * lightning-bolt-shaped gap (the page colour shows through the zigzag), rather
- * than a straight or slanted line. Drawn with SVG so the bolt edges stay crisp.
+ * The New Quote / New Invoice primary action. The whole background is ONE svg
+ * holding two filled paths; the lightning-bolt gap between them is never painted,
+ * so the page colour shows through and light/dark needs no colour logic on the gap.
+ *
+ * The viewBox is deliberately far wider than any real button: with
+ * preserveAspectRatio="xMidYMid slice" the scale factor stays at 1, so the bolt
+ * always renders at its true ~76u width, dead centre, at any button width — no
+ * width measuring needed. Do not shrink the viewBox or change preserveAspectRatio,
+ * and do not round the path decimals (they are the corner-curve tangent points).
  */
 export function SplitActionButton({
   onQuote,
@@ -17,51 +22,47 @@ export function SplitActionButton({
 }) {
   const { colors: c } = useTheme();
   const s = makeStyles(c);
-  const [w, setW] = useState(0);
-  const H = 80;
-  const BW = 104; // widest span of the bolt gap
-  const cx = w / 2;
-  const nx = (v: number) => cx + v * BW; // v is x-offset from centre, −0.5..0.5
-
-  // Real lucide Zap silhouette, normalised (x offset from centre, y fraction).
-  // The gap between the two halves *is* this bolt — page colour shows through it.
-  // Left edge of the bolt, top→bottom: T, A, B, Bot ; right edge: T, D, C, Bot.
-  const T   = { x: 0.056,  y: 0 };
-  const A   = { x: -0.5,   y: 0.6 };
-  const B   = { x: 0,      y: 0.6 };
-  const Bot = { x: -0.056, y: 1 };
-  const C   = { x: 0.5,    y: 0.4 };
-  const D   = { x: 0,      y: 0.4 };
-  const P = (p: { x: number; y: number }) => `${nx(p.x)},${p.y * H}`;
-  const leftPts = ['0,0', P(T), P(A), P(B), P(Bot), `0,${H}`].join(' ');
-  const rightPts = [`${w},0`, P(T), P(D), P(C), P(Bot), `${w},${H}`].join(' ');
 
   return (
-    <View style={[s.wrap, { height: H }]} onLayout={e => setW(e.nativeEvent.layout.width)}>
-      {w > 0 && (
-        <Svg width={w} height={H} style={StyleSheet.absoluteFill}>
-          <Polygon points={leftPts} fill={c.orange} />
-          <Polygon points={rightPts} fill={c.ink} />
-        </Svg>
-      )}
+    <View style={s.wrap}>
+      <Svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 2000 88"
+        preserveAspectRatio="xMidYMid slice"
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      >
+        {/* Quote (left) half — accent orange */}
+        <Path
+          fill={c.orange}
+          d="M 1008,-14 L 974.81,48.7 Q 972,54 978,54 L 995,54 Q 1000,54 999.18,58.93 L 992,102 L -1000,102 L -1000,-14 Z"
+        />
+        {/* Invoice (right) half — surface (off-white in light, dark surface in dark) */}
+        <Path
+          fill={c.card}
+          d="M 1008,-14 L 3000,-14 L 3000,102 L 992,102 L 1025.19,39.3 Q 1028,34 1022,34 L 1005,34 Q 1000,34 1000.82,29.07 Z"
+        />
+      </Svg>
+
       <View style={s.row}>
         <TouchableOpacity
-          style={s.half}
+          style={[s.half, s.halfQuote]}
           activeOpacity={0.85}
           onPress={onQuote}
           accessibilityRole="button"
           accessibilityLabel="Start a new quote"
         >
-          <Text style={s.label}>New Quote</Text>
+          <Text style={[s.label, { color: '#fff' }]}>New Quote</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={s.half}
+          style={[s.half, s.halfInvoice]}
           activeOpacity={0.85}
           onPress={onInvoice}
           accessibilityRole="button"
           accessibilityLabel="Start a new invoice"
         >
-          <Text style={[s.label, { color: c.paper }]}>New Invoice</Text>
+          <Text style={[s.label, { color: c.ink }]}>New Invoice</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -70,9 +71,12 @@ export function SplitActionButton({
 
 const makeStyles = (c: Colors) => StyleSheet.create({
   wrap: {
+    height: 88,
     borderRadius: 22,
     overflow: 'hidden',
     marginTop: 10,
+    // Matches the page so the unpainted bolt gap reads as the background, and
+    // gives the shadow a surface to cast from.
     backgroundColor: c.paper,
     shadowColor: c.orange,
     shadowOffset: { width: 0, height: 10 },
@@ -81,6 +85,8 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     elevation: 10,
   },
   row: { ...StyleSheet.absoluteFillObject, flexDirection: 'row' },
-  half: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 15.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.3 },
+  half: { flex: 1, justifyContent: 'center' },
+  halfQuote: { alignItems: 'flex-start', paddingLeft: 28 },
+  halfInvoice: { alignItems: 'flex-end', paddingRight: 28 },
+  label: { fontSize: 17, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.3 },
 });

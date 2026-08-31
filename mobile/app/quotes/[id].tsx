@@ -73,6 +73,16 @@ export default function QuoteDetailScreen() {
   const createXeroInvoice = useCreateXeroInvoice(quoteId);
   // Parsed once per data change, not on every sheet/modal toggle re-render
   const content = useMemo(() => parseQuoteContent(quote?.content), [quote?.content]);
+  // Loaded here — BEFORE the isLoading/!quote early returns below — so the hook
+  // count stays identical across renders (React: "rendered more hooks…" otherwise).
+  const { data: allInvoices } = useInvoices();
+  // Invoicing progress comes from the invoices themselves, not the quote's status —
+  // a deposit leaves a balance outstanding, which the status alone can't express.
+  const invoicedTotal = useMemo(() => {
+    return ((allInvoices as any[]) || [])
+      .filter((i: any) => i.quoteId === quoteId)
+      .reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0);
+  }, [allInvoices, quoteId]);
 
   const duplicateQuote = useMutation({
     mutationFn: async () => {
@@ -120,7 +130,6 @@ export default function QuoteDetailScreen() {
   const customerName = content.customerName || '';
   const status = quote?.status || 'draft';
   const totalAmount = quote?.totalAmount ? parseFloat(quote.totalAmount) : 0;
-  const { data: allInvoices } = useInvoices();
   const pill = STATUS_PILL[status] ?? STATUS_PILL.draft;
   const progressIdx = getProgressIndex(status);
   const initials = customerName
@@ -157,14 +166,6 @@ export default function QuoteDetailScreen() {
   const gst = toMoney(content.gstAmount) ?? 0;
 
   const customerPhone = content.customerPhone || null;
-  // Invoicing progress comes from the invoices themselves, not the quote's
-  // status — a deposit leaves a balance outstanding, and the status alone
-  // can't express "part-invoiced".
-  const invoicedTotal = useMemo(() => {
-    return ((allInvoices as any[]) || [])
-      .filter((i: any) => i.quoteId === quoteId)
-      .reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0);
-  }, [allInvoices, quoteId]);
   const remainingToInvoice = Math.round((totalAmount - invoicedTotal) * 100) / 100;
   const partlyInvoiced = invoicedTotal > 0.01 && remainingToInvoice > 0.01;
   const alreadyInvoiced = status === 'invoiced' || (invoicedTotal > 0.01 && remainingToInvoice <= 0.01);

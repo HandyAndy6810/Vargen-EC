@@ -29,6 +29,10 @@ export const jobs = pgTable("jobs", {
   status: text("status").default("scheduled"), // scheduled, completed, cancelled
   scheduledDate: timestamp("scheduled_date"),
   estimatedDuration: integer("estimated_duration"), // minutes
+  // Optional links to the quote/invoice this job came from (forward refs — the
+  // quotes/invoices tables are declared below; Drizzle resolves the thunks lazily).
+  quoteId: integer("quote_id").references(() => quotes.id),
+  invoiceId: integer("invoice_id").references(() => invoices.id),
   completionData: text("completion_data"), // JSON: { actualHours, extraNotes, completedAt, estimatedHours, quotedAmount }
   createdAt: timestamp("created_at").defaultNow(),
 });

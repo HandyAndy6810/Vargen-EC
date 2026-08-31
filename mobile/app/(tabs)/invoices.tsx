@@ -41,10 +41,12 @@ function makeStyles(c: Colors) {
     nudgeBtn: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
     nudgeBtnText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: 0.3 },
     tabsRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 20, paddingVertical: 6 },
-    tab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
+    tab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
     tabActive: { backgroundColor: c.orange, borderColor: c.orange },
     tabText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: c.mutedHi },
     tabTextActive: { color: '#fff' },
+    tabBadge: { backgroundColor: c.paperDeep, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 },
+    tabBadgeText: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted },
     invCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 18, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6 },
     invAvatar: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
     invAvatarText: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 0.5 },
@@ -161,6 +163,9 @@ export default function InvoicesScreen() {
             <TouchableOpacity key={t.id} onPress={() => setFilter(t.id)} activeOpacity={0.7}
               style={[s.tab, active && s.tabActive]}>
               <Text style={[s.tabText, active && s.tabTextActive]}>{t.l}</Text>
+              <View style={[s.tabBadge, active && { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+                <Text style={[s.tabBadgeText, active && { color: '#fff' }]}>{t.n}</Text>
+              </View>
             </TouchableOpacity>
           );
         })}

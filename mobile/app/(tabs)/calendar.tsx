@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useState, useMemo, useEffect } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { format, startOfWeek, addDays, addWeeks, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
@@ -77,6 +77,15 @@ export default function CalendarScreen() {
     return () => clearInterval(t);
   }, []);
   const [segment, setSegment] = useState<'calendar' | 'outreach'>('calendar');
+  // The home "Follow Up" quick action deep-links here with ?tab=outreach. Clear
+  // the param after consuming so a fresh tap always re-triggers the switch.
+  const params = useLocalSearchParams<{ tab?: string }>();
+  useEffect(() => {
+    if (params.tab === 'outreach') {
+      setSegment('outreach');
+      router.setParams({ tab: undefined } as any);
+    }
+  }, [params.tab]);
   const [weekOffset, setWeekOffset] = useState(0);
   const [dayIdx, setDayIdx] = useState(() => {
     const todayIdx = Array.from({ length: 7 }, (_, i) =>

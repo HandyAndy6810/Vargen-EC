@@ -12,8 +12,8 @@ import { useQuoteDraft } from '@/hooks/use-quote-draft';
  * otherwise the tradie picks how to build it — AI or manually.
  */
 export default function QuoteCreateEntry() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
   const { isEditing, customer } = useQuoteDraft();
 
   const prefilled = !isEditing && !!customer.trim();
@@ -58,7 +58,7 @@ export default function QuoteCreateEntry() {
   );
 }
 
-const makeStyles = (c: Colors) => StyleSheet.create({
+const makeStyles = (c: Colors, isDark: boolean) => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14 },
   backBtn: {
     width: 44, height: 44, borderRadius: 14, backgroundColor: c.card,
@@ -67,7 +67,9 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase' },
   title: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
 
-  aiCard: { backgroundColor: c.ink, borderRadius: 24, padding: 22, overflow: 'hidden' },
+  // c.ink is a text token (near-white in dark mode) — using it as a surface made the
+  // card white-on-white in dark. Keep the dark hero look in both themes.
+  aiCard: { backgroundColor: isDark ? c.card : c.ink, borderRadius: 24, padding: 22, overflow: 'hidden' },
   aiGlow: { position: 'absolute', top: -60, right: -60, width: 200, height: 200, borderRadius: 100, backgroundColor: `${c.orange}88`, opacity: 0.5 },
   aiIcon: {
     width: 48, height: 48, borderRadius: 16, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center',

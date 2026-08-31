@@ -5,9 +5,11 @@ import { storage } from "./storage";
 const XERO_AUTH_URL = "https://login.xero.com/identity/connect/authorize";
 const XERO_TOKEN_URL = "https://identity.xero.com/connect/token";
 const XERO_CONNECTIONS_URL = "https://api.xero.com/connections";
-// New granular scopes required for apps created after 2 March 2026.
-// Override via XERO_SCOPES env var if needed.
-const XERO_SCOPES = process.env.XERO_SCOPES || "openid profile email offline_access accounting.contacts.read accounting.contacts.write accounting.transactions.read accounting.transactions.write";
+// Xero scopes. The base scopes (accounting.contacts / accounting.transactions)
+// grant read AND write — Xero has no ".write" variant, only ".read" for
+// read-only. Requesting a ".write" scope makes Xero reject the whole auth
+// request with invalid_scope. Override via the XERO_SCOPES env var if needed.
+const XERO_SCOPES = process.env.XERO_SCOPES || "openid profile email offline_access accounting.contacts accounting.transactions";
 
 function getClientId(): string {
   const id = process.env.XERO_CLIENT_ID;

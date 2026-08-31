@@ -185,7 +185,14 @@ async function syncCustomerToXero(
 
 let openai: OpenAI;
 const isGroq = (process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || '').includes('groq');
-const AI_MODEL = isGroq ? 'llama-3.3-70b-versatile' : 'gpt-4o';
+// Model IDs are env-overridable so a provider rotation (Groq retires models often)
+// doesn't need a code change. Groq deprecated llama-3.3-70b-versatile on 2026-08-16;
+// gpt-oss-120b is its recommended replacement. Transcription on Groq is Whisper —
+// gpt-4o-mini-transcribe is OpenAI-only and Groq never served it.
+const AI_MODEL = process.env.AI_CHAT_MODEL || (isGroq ? 'openai/gpt-oss-120b' : 'gpt-4o');
+const AI_TRANSCRIBE_MODEL = process.env.AI_TRANSCRIBE_MODEL || (isGroq ? 'whisper-large-v3-turbo' : 'gpt-4o-mini-transcribe');
+// gpt-oss (and most Groq text models) are text-only — don't send job photos to them.
+const AI_SUPPORTS_VISION = process.env.AI_SUPPORTS_VISION === 'true' || !isGroq;
 try {
   openai = new OpenAI({
     apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -565,7 +572,7 @@ export async function registerRoutes(
       try {
         transcription = await openai.audio.transcriptions.create({
           file: fs.createReadStream(filePath),
-          model: "gpt-4o-mini-transcribe",
+          model: AI_TRANSCRIBE_MODEL,
         });
       } finally {
         // Always clean up the uploaded file, even on error
@@ -820,7 +827,7 @@ CRITICAL RULES — follow these exactly:
         ? imageBase64.includes(';base64,') ? imageBase64.split(';base64,')[1] : imageBase64
         : null;
 
-      if (imagePayload && imagePayload.length > 128) {
+      if (imagePayload && imagePayload.length > 128 && AI_SUPPORTS_VISION) {
         userContent.push({
           type: "image_url",
           image_url: {
