@@ -8,10 +8,13 @@ export default function QuoteCreateLayout() {
     <QuoteDraftProvider>
       <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="describe" />
+        <Stack.Screen name="review" />
+        {/* Kept registered so any lingering deep link still resolves; the flow
+            itself is Describe → Review, with everything edited on Review. */}
         <Stack.Screen name="customer" />
         <Stack.Screen name="job" />
         <Stack.Screen name="items" />
-        <Stack.Screen name="review" />
       </Stack>
     </QuoteDraftProvider>
   );

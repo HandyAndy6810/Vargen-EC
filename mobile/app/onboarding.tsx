@@ -76,10 +76,10 @@ export default function OnboardingScreen() {
 
   const dismiss = async () => {
     await AsyncStorage.setItem('onboarding_seen', 'true');
-    // Land on home, then open the AI quote screen — the first thing a new
-    // tradie should do is see a quote build itself
+    // Land on home, then open the quote flow — the first thing a new tradie
+    // should do is see a quote build itself
     router.replace('/(tabs)');
-    router.push('/ai-chat' as any);
+    router.push('/quotes/create' as any);
   };
 
   const goTo = async (route: string) => {
