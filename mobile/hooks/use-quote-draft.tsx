@@ -12,11 +12,37 @@ import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
 import type { SheetAction } from '@/components/ActionSheetModal';
 
-// `unit` and `cost` come from AI output. cost is what the tradie actually pays
-// (as opposed to `price`, what they charge) and is the basis for a real profit
-// margin — without it a "margin" can only ever be a fixed ratio of the price.
-export type LineItem = { name: string; qty: string; price: string; unit?: string; cost?: string };
+// `cost` is what the tradie actually pays; `price` is what they charge. The markup
+// slider works off cost — without a real cost basis a "margin" can only ever be a
+// fixed ratio of the price, which is exactly what broke the old slider.
+// markupLocked pins a line's price so the job-level slider skips it; the line still
+// counts toward the totals, it just stops moving.
+export type LineItem = {
+  name: string;
+  qty: string;
+  price: string;
+  unit?: string;
+  cost?: string;
+  category?: 'labour' | 'material';
+  markupLocked?: boolean;
+  lockedPrice?: string;
+  needsPrice?: boolean;
+};
 const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * What the client is charged per unit. A locked line holds the price it had when it
+ * was pinned; otherwise markup is applied to cost. A line with no cost basis (typed
+ * by hand) keeps its own price and simply doesn't respond to the slider.
+ */
+export function unitSell(l: LineItem, markupPct: number): number {
+  if (l.markupLocked) return parseFloat(l.lockedPrice || l.price || '0') || 0;
+  const cost = parseFloat(l.cost || '0') || 0;
+  if (cost > 0) return round2(cost * (1 + markupPct / 100));
+  return parseFloat(l.price || '0') || 0;
+}
 
 /**
  * Shared draft for the stepped New Quote flow. Lives in the create/_layout so
@@ -49,8 +75,13 @@ type QuoteDraft = {
   deleteLineFromModal: () => void;
   addLine: () => void;
   closeLineEdit: () => void;
-  // totals
-  subtotal: number; gst: number; total: number;
+  // markup engine
+  markupPct: number; setMarkupPct: (v: number) => void;
+  assumptions: string[]; setAssumptions: React.Dispatch<React.SetStateAction<string[]>>;
+  toggleLineLock: (i: number) => void;
+  // totals — subtotal/gst/total are what the client pays; totalCost/profit are the
+  // tradie's side of the same numbers, shown as "You make $X".
+  subtotal: number; gst: number; total: number; totalCost: number; profit: number;
   // save + send
   error: string | null; setError: (v: string | null) => void;
   saving: boolean;
@@ -106,6 +137,8 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const [expiryDate, setExpiryDate] = useState(() => format(addDays(new Date(), 30), 'd MMM yyyy'));
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineItem[]>(DEFAULT_LINES);
+  const [markupPct, setMarkupPct] = useState(30);
+  const [assumptions, setAssumptions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [populated, setPopulated] = useState(false);
 
@@ -141,17 +174,47 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     setSchedDate(c.schedDate || '');
     setExpiryDate(c.expiryDate || format(addDays(new Date(), 30), 'd MMM yyyy'));
     setNotes(c.notes || '');
+    if (typeof (c as any).markupPct === 'number') setMarkupPct((c as any).markupPct);
+    if (Array.isArray((c as any).assumptions)) setAssumptions((c as any).assumptions);
     if (c.lines?.length) {
-      setLines(c.lines.map((l: any) => ({ name: l.name || '', qty: String(l.qty || 1), price: String(l.price || '') })));
+      setLines(c.lines.map((l: any) => ({
+        name: l.name || '', qty: String(l.qty || 1), price: String(l.price || ''),
+        unit: l.unit, cost: l.cost, category: l.category,
+        markupLocked: l.markupLocked, lockedPrice: l.lockedPrice, needsPrice: l.needsPrice,
+      })));
     } else if (c.items?.length) {
-      setLines(c.items.map((it: any) => ({ name: it.description || '', qty: String(it.quantity || 1), price: String(it.unitPrice || '') })));
+      setLines(c.items.map((it: any) => ({
+        name: it.description || '', qty: String(it.quantity || 1), price: String(it.unitPrice || ''),
+        unit: it.unit,
+        cost: it.unitCost != null ? String(it.unitCost) : undefined,
+        category: it.category,
+        markupLocked: !!it.markupLocked,
+        lockedPrice: it.lockedPrice != null ? String(it.lockedPrice) : undefined,
+        needsPrice: !!it.needsPrice,
+      })));
     }
     setPopulated(true);
   }, [editQuote]);
 
-  const subtotal = lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * (parseFloat(l.price) || 0), 0);
-  const gst = Math.round(subtotal * 0.1 * 100) / 100;
-  const total = subtotal + gst;
+  // Pinning a line freezes it at the price it shows RIGHT NOW (not its original), and
+  // unpinning hands it straight back to the slider at the slider's current position.
+  const toggleLineLock = (i: number) => {
+    setLines(prev => prev.map((l, idx) => {
+      if (idx !== i) return l;
+      if (l.markupLocked) {
+        const { markupLocked, lockedPrice, ...rest } = l;
+        return { ...rest, markupLocked: false, lockedPrice: undefined };
+      }
+      const frozen = unitSell(l, markupPct);
+      return { ...l, markupLocked: true, lockedPrice: String(frozen), price: String(frozen) };
+    }));
+  };
+
+  const subtotal = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * unitSell(l, markupPct), 0));
+  const totalCost = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * (parseFloat(l.cost || '0') || 0), 0));
+  const profit = round2(subtotal - totalCost);
+  const gst = round2(subtotal * 0.1);
+  const total = round2(subtotal + gst);
 
   const saveMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent') => {
@@ -159,12 +222,21 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       const mergedContent: any = {
         ...originalContent,
         customerName: customer, jobTitle, summary, schedDate, expiryDate, notes, lines,
+        markupPct, assumptions,
       };
+      // Persist the full line shape — cost/category/lock state were previously
+      // dropped here, which left the markup engine with nothing to recompute from
+      // when a saved quote was reopened.
       mergedContent.items = lines.map(l => ({
         description: l.name,
         quantity: parseFloat(l.qty) || 1,
         unit: l.unit || 'ea',
-        unitPrice: parseFloat(l.price) || 0,
+        unitPrice: unitSell(l, markupPct),
+        unitCost: parseFloat(l.cost || '0') || 0,
+        category: l.category || 'material',
+        markupLocked: !!l.markupLocked,
+        lockedPrice: l.lockedPrice ? parseFloat(l.lockedPrice) : undefined,
+        needsPrice: !!l.needsPrice,
       }));
       mergedContent.subtotal = subtotal;
       mergedContent.gstAmount = gst;
@@ -200,7 +272,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
           } catch { /* fall through — better a fresh set than none */ }
         }
         for (const l of lines) {
-          const price = parseFloat(l.price) || 0;
+          const price = unitSell(l, markupPct);
           if (!l.name.trim() && price <= 0) continue;
           await apiRequest('POST', `/api/quotes/${savedId}/items`, {
             description: l.name.trim() || 'Item',
@@ -263,6 +335,18 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const [aiBusy, setAiBusy] = useState(false);
   const { data: settings } = useSettings() as any;
 
+  // Start the job-level markup at the tradie's default. Only once, and never over a
+  // markup already restored from a saved quote.
+  const seededMarkup = useRef(false);
+  useEffect(() => {
+    if (seededMarkup.current || isEditing) return;
+    const m = settings?.markupPercent;
+    if (typeof m === 'number' && m > 0) {
+      setMarkupPct(m);
+      seededMarkup.current = true;
+    }
+  }, [settings, isEditing]);
+
   const callAi = async (description: string): Promise<any> => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60_000);
@@ -302,6 +386,9 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       qty: String(it.quantity || 1),
       price: String(it.unitPrice || 0),
       unit: it.unit || 'ea',
+      cost: it.unitCost != null ? String(it.unitCost) : undefined,
+      category: String(it.category || '').toLowerCase() === 'labour' ? 'labour' : 'material',
+      needsPrice: !!it.needsPrice,
     }));
   };
 
@@ -374,9 +461,10 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     customer, setCustomer, customerId, setCustomerId, selectedCustomer,
     jobTitle, setJobTitle, summary, setSummary, schedDate, setSchedDate, expiryDate, setExpiryDate, notes, setNotes,
     lines, setLines,
+    markupPct, setMarkupPct, assumptions, setAssumptions, toggleLineLock,
     custSearch, setCustSearch, showCustList, setShowCustList, filteredCustomers,
     editLineIdx, editLineDraft, setEditLineDraft, openLineEdit, saveLineEdit, deleteLineFromModal, addLine, closeLineEdit,
-    subtotal, gst, total,
+    subtotal, gst, total, totalCost, profit,
     error, setError, saving: saveMutation.isPending, save, hasWork,
     showSendSheet, setShowSendSheet, handleSendPress, sendActions,
     aiBusy, generateItemsWithAI, generateFromDescription,

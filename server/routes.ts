@@ -203,6 +203,32 @@ try {
   openai = null as any;
 }
 
+// ── "Needs price" verification ──────────────────────────────────────────────
+// The price book is injected into the prompt wholesale and matched by the model
+// itself — there is no retrieval step that can return "no match". So after the
+// model answers we re-check each material against the book deterministically and
+// flag anything we can't tie to a real entry, rather than letting an invented
+// price through silently.
+function normaliseDesc(s: unknown): string {
+  return String(s || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function matchesPriceBook(description: unknown, book: { description: string }[]): boolean {
+  const d = normaliseDesc(description);
+  if (!d) return false;
+  return book.some((entry) => {
+    const bd = normaliseDesc(entry.description);
+    if (!bd) return false;
+    if (d.includes(bd) || bd.includes(d)) return true;
+    // Otherwise require most of the price-book entry's significant words to appear,
+    // so "25mm copper elbow" still matches "copper elbow 25mm x4".
+    const words = bd.split(" ").filter((w) => w.length > 2);
+    if (!words.length) return false;
+    const hits = words.filter((w) => d.includes(w)).length;
+    return hits / words.length >= 0.7;
+  });
+}
+
 // Rate limiters
 const aiRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
@@ -732,6 +758,8 @@ You MUST respond with valid JSON in this exact format:
       "description": "Specific item description — ALWAYS include size, spec, brand tier (e.g. '25mm copper elbow fitting x4', 'Rinnai B16 continuous flow HWS 16L/min', 'Labour – hot water system removal and install')",
       "quantity": 1,
       "unit": "each|hr|sqm|lm|lot",
+      "category": "labour|material",
+      "unitCost": 60.00,
       "unitPrice": 85.00
     }
   ],
@@ -747,6 +775,14 @@ You MUST respond with valid JSON in this exact format:
 ${tradeKnowledge}
 
 CRITICAL RULES — follow these exactly:
+0. COST vs PRICE — every item needs BOTH:
+   - "unitCost" = what the tradesperson PAYS per unit. For materials that's the supplier
+     cost before any markup. For labour it's the true cost of that time to the business.
+   - "unitPrice" = what the CLIENT is charged per unit (cost plus markup).
+   - "category" = "material" for parts/materials/disposal/permits, "labour" for time on tools.
+   unitCost must always be greater than 0 and less than or equal to unitPrice. Never copy
+   unitPrice into unitCost — the app calculates the tradesperson's profit from the gap
+   between them, so a wrong cost silently misreports what they earn.
 1. LINE ITEMS must be specific. BAD: "Labour". GOOD: "Labour – remove existing hot water unit, install new unit, connect copper pipework and test". BAD: "Materials". GOOD: "25mm copper half-union x2 @ $18 each".
 2. ALWAYS break labour and materials into SEPARATE line items. Never bundle them.
 3. LIST ORDER: call-out/travel first (only if a call-out fee is specified in pricing instructions), then labour items, then materials, then any permit or disposal fees.
@@ -877,6 +913,35 @@ CRITICAL RULES — follow these exactly:
           parsed.gstAmount = gstEnabled ? Math.round(subtotal * 0.1 * 100) / 100 : 0;
           parsed.totalAmount = Math.round((parsed.subtotal + parsed.gstAmount) * 100) / 100;
         }
+      }
+
+      // Normalise the cost basis and flag unverifiable materials.
+      if (Array.isArray(parsed.items)) {
+        let book: { description: string }[] = [];
+        try {
+          book = (await storage.getPriceBook(req.userId)) as any[];
+        } catch (err) {
+          console.error("Failed to load price book for Needs-price check:", err);
+        }
+        // With an empty price book there is nothing to verify against, so flagging
+        // every line would just paint a new user's first quote red. Only check once
+        // they actually have entries.
+        const canVerify = Array.isArray(book) && book.length > 0;
+
+        parsed.items = parsed.items.map((item: any) => {
+          const price = Number(item.unitPrice) || 0;
+          let cost = Number(item.unitCost);
+          // Guard the model ignoring rule 0: a missing or nonsensical cost would
+          // otherwise report the whole line as pure profit.
+          if (!Number.isFinite(cost) || cost <= 0 || cost > price) {
+            cost = price > 0 ? Math.round(price * 0.7 * 100) / 100 : 0;
+          }
+          const category = String(item.category || "").toLowerCase() === "labour" ? "labour" : "material";
+          const needsPrice = canVerify && category === "material"
+            ? !matchesPriceBook(item.description, book)
+            : false;
+          return { ...item, category, unitCost: cost, needsPrice };
+        });
       }
 
       res.json(parsed);
