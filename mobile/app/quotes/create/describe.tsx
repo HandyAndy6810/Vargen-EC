@@ -8,10 +8,13 @@ import { router } from 'expo-router';
 import {
   useAudioRecorder, useAudioRecorderState, AudioModule, RecordingPresets, setAudioModeAsync,
 } from 'expo-audio';
-import { ChevronLeft, Mic, Square, User, X, Camera } from 'lucide-react-native';
+import { ChevronLeft, Mic, Square, User, X, PencilLine } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useQuoteDraft } from '@/hooks/use-quote-draft';
 import { useSettings } from '@/hooks/use-settings';
+import { useQuotes } from '@/hooks/use-quotes';
+import { useCustomers } from '@/hooks/use-customers';
+import { quoteTitle } from '@shared/mobile-types';
 import { showConfirm, showAlert } from '@/lib/dialogs';
 import { API_BASE_URL } from '@/lib/api';
 
@@ -82,11 +85,47 @@ export default function DescribeStep() {
   const d = useQuoteDraft();
   const { data: settings } = useSettings() as any;
 
+  const { data: pastQuotes } = useQuotes() as any;
+  const { data: allCustomers } = useCustomers() as any;
+
   const [text, setText] = useState(d.summary || '');
   const [showCustomers, setShowCustomers] = useState(false);
+  const [custQuery, setCustQuery] = useState('');
   const [listening, setListening] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const touched = useRef(false);
+
+  /**
+   * Completions drawn from jobs this tradie has already quoted, matched on the last
+   * few words being typed. Their own history is a better source than a generic list —
+   * it's their wording, their kind of work — and it costs nothing to look up.
+   */
+  const suggestions = useMemo(() => {
+    const typed = text.trim().toLowerCase();
+    if (typed.length < 3) return [];
+    const tail = typed.split(/\s+/).slice(-4).join(' ');
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const q of ((pastQuotes as any[]) || [])) {
+      const title = quoteTitle(q);
+      if (!title) continue;
+      const key = title.toLowerCase();
+      if (seen.has(key) || key === typed) continue;
+      if (key.includes(tail) || tail.split(' ').some(w => w.length > 3 && key.includes(w))) {
+        seen.add(key);
+        out.push(title);
+      }
+      if (out.length >= 3) break;
+    }
+    return out;
+  }, [text, pastQuotes]);
+
+  const customerMatches = useMemo(() => {
+    const q = custQuery.trim().toLowerCase();
+    const list = (allCustomers as any[]) || [];
+    if (!q) return list.slice(0, 8);
+    return list.filter((x: any) => String(x.name || '').toLowerCase().includes(q)).slice(0, 8);
+  }, [custQuery, allCustomers]);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   useAudioRecorderState(recorder);
@@ -148,12 +187,19 @@ export default function DescribeStep() {
       message: 'By continuing, you take full ownership of this AI-generated quote. You are responsible for checking the pricing, scope and compliance before you send it to a customer.',
       confirmLabel: 'I understand',
       onConfirm: async () => {
-        const ok = await d.generateFromDescription(text.trim());
-        // Clarify lands here in the next pass; for now a successful build goes
-        // straight to Review.
-        if (ok) router.replace('/quotes/create/review');
+        const { ok, questions } = await d.generateFromDescription(text.trim());
+        if (!ok) return;
+        // Only detour through Clarify when the AI actually asked something.
+        router.replace(questions.length ? '/quotes/create/clarify' : '/quotes/create/review');
       },
     });
+  };
+
+  /** Skip AI and go straight to a hand-built quote. */
+  const onManual = () => {
+    d.setSummary(text.trim());
+    d.startManual();
+    router.replace('/quotes/create/review');
   };
 
   const onBack = () => {
@@ -177,11 +223,11 @@ export default function DescribeStep() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {/* Just a way back — no title bar, no step counter */}
         <View style={s.topRow}>
           <TouchableOpacity onPress={onBack} activeOpacity={0.7} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Back">
             <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
+          <Text style={s.screenTitle}>Describe the job</Text>
         </View>
 
         <ScrollView
@@ -206,6 +252,8 @@ export default function DescribeStep() {
               </View>
             </View>
           ) : null}
+
+          <Text style={s.lede}>What needs doing, where, and anything that affects the price.</Text>
 
           <TextInput
             style={s.field}
@@ -237,27 +285,45 @@ export default function DescribeStep() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[s.iconBtn, s.iconBtnDisabled]}
-              activeOpacity={1}
-              disabled
-              accessibilityRole="button"
-              accessibilityLabel="Add photos — coming soon"
-            >
-              <Camera size={18} color={c.muted} strokeWidth={2.2} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
               style={s.iconBtn}
               activeOpacity={0.8}
-              onPress={() => setShowCustomers(true)}
+              onPress={() => { setCustQuery(''); setShowCustomers(true); }}
               accessibilityRole="button"
               accessibilityLabel="Attach a customer"
             >
               <User size={18} color={c.ink} strokeWidth={2.2} />
             </TouchableOpacity>
 
-            {listening ? <Text style={s.liveHint}>Listening — tap to stop</Text> : null}
+            <TouchableOpacity
+              style={s.manualBtn}
+              activeOpacity={0.85}
+              onPress={onManual}
+              accessibilityRole="button"
+              accessibilityLabel="Build the quote manually"
+            >
+              <PencilLine size={16} color="#fff" strokeWidth={2.4} />
+              <Text style={s.manualText}>Build it manually</Text>
+            </TouchableOpacity>
+
+            {listening ? <Text style={s.liveHint}>Listening…</Text> : null}
           </View>
+
+          {/* Completions from jobs already quoted — tap to use the wording */}
+          {suggestions.length ? (
+            <View style={s.suggestions}>
+              {suggestions.map((sug, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={s.suggestionChip}
+                  activeOpacity={0.75}
+                  onPress={() => { touched.current = true; setText(sug); }}
+                >
+                  <Text style={s.suggestionText} numberOfLines={2}>{sug}</Text>
+                  <Text style={s.suggestionHint}>Quoted before</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
 
           {/* First-run examples — tap to fill */}
           {!text.trim() && !touched.current ? (
@@ -307,12 +373,11 @@ export default function DescribeStep() {
             style={s.search}
             placeholder="Search customers…"
             placeholderTextColor={c.muted}
-            value={d.custSearch}
-            onChangeText={d.setCustSearch}
-            autoFocus
+            value={custQuery}
+            onChangeText={setCustQuery}
           />
           <ScrollView style={{ maxHeight: 320 }} keyboardShouldPersistTaps="handled">
-            {d.filteredCustomers.map((cust: any) => (
+            {customerMatches.map((cust: any) => (
               <TouchableOpacity key={cust.id} style={s.custRow} activeOpacity={0.7} onPress={() => pickCustomer(cust)}>
                 <View style={s.custAvatar}>
                   <Text style={s.custAvatarText}>{cust.name?.slice(0, 2).toUpperCase()}</Text>
@@ -323,8 +388,12 @@ export default function DescribeStep() {
                 </View>
               </TouchableOpacity>
             ))}
-            {d.filteredCustomers.length === 0 ? (
-              <Text style={s.emptyText}>No matches. You can skip this and attach someone when you send.</Text>
+            {customerMatches.length === 0 ? (
+              <Text style={s.emptyText}>
+                {((allCustomers as any[]) || []).length === 0
+                  ? "You haven't added any customers yet — you can attach one when you send."
+                  : 'No matches. You can skip this and attach someone when you send.'}
+              </Text>
             ) : null}
           </ScrollView>
           <TouchableOpacity style={s.skipBtn} activeOpacity={0.8} onPress={() => setShowCustomers(false)}>
@@ -337,7 +406,24 @@ export default function DescribeStep() {
 }
 
 const makeStyles = (c: Colors) => StyleSheet.create({
-  topRow: { paddingHorizontal: 20, paddingBottom: 4 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 8 },
+  screenTitle: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5 },
+  lede: { fontSize: 14, fontFamily: 'Manrope_500Medium', color: c.muted, lineHeight: 20, marginBottom: 10 },
+  manualBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, height: 46,
+    paddingHorizontal: 16, borderRadius: 15, backgroundColor: c.orange,
+  },
+  manualText: { fontSize: 13.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  suggestions: { marginTop: 18, gap: 8 },
+  suggestionChip: {
+    backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineMid,
+    paddingHorizontal: 14, paddingVertical: 11,
+  },
+  suggestionText: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink, lineHeight: 19 },
+  suggestionHint: {
+    fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted,
+    letterSpacing: 1, textTransform: 'uppercase', marginTop: 4,
+  },
   backBtn: {
     width: 44, height: 44, borderRadius: 14, backgroundColor: c.card,
     borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center',

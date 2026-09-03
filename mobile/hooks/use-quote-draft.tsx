@@ -32,6 +32,15 @@ const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** A question the AI asks only when the answer materially changes the price. */
+export type ClarifyQuestion = {
+  q: string;
+  type: 'chips' | 'number' | 'toggle';
+  options: string[];
+  unit?: string;
+  assumption?: string;
+};
+
 /**
  * What the client is charged per unit. A locked line holds the price it had when it
  * was pinned; otherwise markup is applied to cost. A line with no cost basis (typed
@@ -79,6 +88,15 @@ type QuoteDraft = {
   markupPct: number; setMarkupPct: (v: number) => void;
   assumptions: string[]; setAssumptions: React.Dispatch<React.SetStateAction<string[]>>;
   toggleLineLock: (i: number) => void;
+  /** Rounds the customer-facing total up to a whole dollar. */
+  roundUp: boolean; setRoundUp: (v: boolean) => void;
+  // line editing (popup)
+  upsertLine: (index: number | null, line: LineItem) => void;
+  removeLine: (index: number) => void;
+  // clarifying questions — only present when the AI actually needed them
+  questions: ClarifyQuestion[];
+  finishClarify: (answers: (string | null)[]) => Promise<void>;
+  startManual: () => void;
   // totals — subtotal/gst/total are what the client pays; totalCost/profit are the
   // tradie's side of the same numbers, shown as "You make $X".
   subtotal: number; gst: number; total: number; totalCost: number; profit: number;
@@ -93,8 +111,12 @@ type QuoteDraft = {
   // AI assist inside the manual flow
   aiBusy: boolean;
   generateItemsWithAI: () => void;
-  /** Full AI generation for the Describe step — fills the whole draft, not just lines. */
-  generateFromDescription: (description: string) => Promise<boolean>;
+  /**
+   * Full AI generation for the Describe step — fills the whole draft, not just lines.
+   * Returns the questions it wants answered (empty when it needs nothing), so the
+   * caller can route without waiting for state to flush.
+   */
+  generateFromDescription: (description: string) => Promise<{ ok: boolean; questions: ClarifyQuestion[] }>;
 };
 
 const Ctx = createContext<QuoteDraft | null>(null);
@@ -139,6 +161,9 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<LineItem[]>(DEFAULT_LINES);
   const [markupPct, setMarkupPct] = useState(30);
   const [assumptions, setAssumptions] = useState<string[]>([]);
+  const [roundUp, setRoundUp] = useState(false);
+  const [questions, setQuestions] = useState<ClarifyQuestion[]>([]);
+  const lastDescription = useRef('');
   const [error, setError] = useState<string | null>(null);
   const [populated, setPopulated] = useState(false);
 
@@ -176,6 +201,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     setNotes(c.notes || '');
     if (typeof (c as any).markupPct === 'number') setMarkupPct((c as any).markupPct);
     if (Array.isArray((c as any).assumptions)) setAssumptions((c as any).assumptions);
+    if (typeof (c as any).roundUp === 'boolean') setRoundUp((c as any).roundUp);
     if (c.lines?.length) {
       setLines(c.lines.map((l: any) => ({
         name: l.name || '', qty: String(l.qty || 1), price: String(l.price || ''),
@@ -210,11 +236,20 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const subtotal = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * unitSell(l, markupPct), 0));
+  const upsertLine = (index: number | null, line: LineItem) => {
+    setLines(prev => (index === null ? [...prev, line] : prev.map((l, i) => (i === index ? line : l))));
+  };
+  const removeLine = (index: number) => setLines(prev => prev.filter((_, i) => i !== index));
+
+  const rawSubtotal = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * unitSell(l, markupPct), 0));
+  const rawTotal = round2(rawSubtotal * 1.1);
+  // "Round up" lands the customer-facing total on a whole dollar; the GST split is
+  // re-derived from it so the figures still reconcile.
+  const total = roundUp ? Math.ceil(rawTotal) : rawTotal;
+  const subtotal = roundUp ? round2(total / 1.1) : rawSubtotal;
+  const gst = round2(total - subtotal);
   const totalCost = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * (parseFloat(l.cost || '0') || 0), 0));
   const profit = round2(subtotal - totalCost);
-  const gst = round2(subtotal * 0.1);
-  const total = round2(subtotal + gst);
 
   const saveMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent') => {
@@ -222,7 +257,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       const mergedContent: any = {
         ...originalContent,
         customerName: customer, jobTitle, summary, schedDate, expiryDate, notes, lines,
-        markupPct, assumptions,
+        markupPct, assumptions, roundUp,
       };
       // Persist the full line shape — cost/category/lock state were previously
       // dropped here, which left the markup engine with nothing to recompute from
@@ -392,27 +427,80 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const applyAi = (data: any, description: string) => {
+    const newLines = linesFromAi(data);
+    if (!newLines.length) throw new Error("AI didn't return any line items.");
+    setLines(newLines);
+    if (data.jobTitle) setJobTitle(String(data.jobTitle));
+    if (data.summary) setSummary(String(data.summary));
+    if (data.notes) setNotes(String(data.notes));
+    // Keep the tradie's own words as the job description if AI gave no summary
+    if (!data.summary && description.trim()) setSummary(description.trim());
+  };
+
   /** Fill the whole draft from an AI result — used by the Describe step. */
-  const generateFromDescription = async (description: string): Promise<boolean> => {
+  const generateFromDescription = async (
+    description: string
+  ): Promise<{ ok: boolean; questions: ClarifyQuestion[] }> => {
     setAiBusy(true);
     setError(null);
     try {
       const data = await callAi(description);
-      const newLines = linesFromAi(data);
-      if (!newLines.length) throw new Error("AI didn't return any line items.");
-      setLines(newLines);
-      if (data.jobTitle) setJobTitle(String(data.jobTitle));
-      if (data.summary) setSummary(String(data.summary));
-      if (data.notes) setNotes(String(data.notes));
-      // Keep the tradie's own words as the job description if AI gave no summary
-      if (!data.summary && description.trim()) setSummary(description.trim());
-      return true;
+      applyAi(data, description);
+      lastDescription.current = description;
+      const qs: ClarifyQuestion[] = Array.isArray(data.questions) ? data.questions : [];
+      setQuestions(qs);
+      return { ok: true, questions: qs };
     } catch (e: any) {
       setError(e?.name === 'AbortError' ? 'AI timed out — try again.' : (e?.message || 'Something went wrong.'));
-      return false;
+      return { ok: false, questions: [] };
     } finally {
       setAiBusy(false);
     }
+  };
+
+  /**
+   * Fold clarifying answers back in. Anything answered is appended to the original
+   * description and the quote is rebuilt from it; anything skipped becomes a visible
+   * assumption instead, so the tradie can always move on without answering.
+   */
+  const finishClarify = async (answers: (string | null)[]) => {
+    const answered = questions
+      .map((q, i) => ({ q, a: answers[i] }))
+      .filter(x => x.a != null && String(x.a).trim());
+    const skipped = questions
+      .filter((_, i) => !answers[i] || !String(answers[i]).trim())
+      .map(q => q.assumption?.trim())
+      .filter(Boolean) as string[];
+
+    if (skipped.length) setAssumptions(prev => [...prev, ...skipped]);
+    setQuestions([]);
+
+    if (!answered.length) return; // nothing to refine — keep the quote as generated
+
+    const refined = [
+      lastDescription.current,
+      ...answered.map(x => `${x.q.q} ${x.a}`),
+    ].filter(Boolean).join('. ');
+
+    setAiBusy(true);
+    setError(null);
+    try {
+      const data = await callAi(refined);
+      applyAi(data, refined);
+      lastDescription.current = refined;
+    } catch (e: any) {
+      // Keep the quote we already have rather than losing it to a failed refine.
+      setError(e?.message || 'Could not refine the quote — the original is still here.');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  /** Skip AI entirely and build the quote by hand from a blank line. */
+  const startManual = () => {
+    setQuestions([]);
+    setLines([{ name: '', qty: '1', price: '', cost: '', category: 'material' }]);
   };
 
   const runAiGenerate = async () => {
@@ -462,6 +550,8 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     jobTitle, setJobTitle, summary, setSummary, schedDate, setSchedDate, expiryDate, setExpiryDate, notes, setNotes,
     lines, setLines,
     markupPct, setMarkupPct, assumptions, setAssumptions, toggleLineLock,
+    roundUp, setRoundUp, upsertLine, removeLine,
+    questions, finishClarify, startManual,
     custSearch, setCustSearch, showCustList, setShowCustList, filteredCustomers,
     editLineIdx, editLineDraft, setEditLineDraft, openLineEdit, saveLineEdit, deleteLineFromModal, addLine, closeLineEdit,
     subtotal, gst, total, totalCost, profit,

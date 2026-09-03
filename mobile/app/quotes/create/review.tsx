@@ -1,16 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView,
-  ActivityIndicator, KeyboardAvoidingView, Platform, Modal,
+  ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Animated, PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { format } from 'date-fns';
 import {
   ChevronLeft, ChevronDown, ChevronRight, Send, FileText, Trash2,
-  Lock, Unlock, AlertTriangle, User, X, Wrench, Package,
+  Lock, Unlock, AlertTriangle, User, X, Wrench, Package, Plus, ArrowUp,
 } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useQuoteDraft, unitSell, type LineItem } from '@/hooks/use-quote-draft';
@@ -24,6 +23,71 @@ import { queryClient } from '@/lib/queryClient';
 const money = (n: number) =>
   `$${n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const SWIPE_W = 88;
+
+/**
+ * Drag a line item left to reveal Delete. Uses PanResponder and the built-in
+ * Animated API — the same pair the rest of the app animates with — and only claims
+ * the gesture once movement is clearly horizontal, so vertical scrolling still works.
+ */
+function SwipeableRow({
+  children,
+  onDelete,
+  bg,
+}: {
+  children: React.ReactNode;
+  onDelete: () => void;
+  bg: string;
+}) {
+  const x = useRef(new Animated.Value(0)).current;
+  const open = useRef(false);
+
+  const slide = (to: number) => {
+    open.current = to !== 0;
+    Animated.spring(x, { toValue: to, useNativeDriver: true, bounciness: 0, speed: 20 }).start();
+  };
+
+  const responder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+      onPanResponderMove: (_e, g) => {
+        const base = open.current ? -SWIPE_W : 0;
+        x.setValue(Math.min(0, Math.max(-SWIPE_W, base + g.dx)));
+      },
+      onPanResponderRelease: (_e, g) => {
+        const base = open.current ? -SWIPE_W : 0;
+        slide(base + g.dx < -SWIPE_W / 2 ? -SWIPE_W : 0);
+      },
+    })
+  ).current;
+
+  return (
+    <View style={{ position: 'relative' }}>
+      <TouchableOpacity
+        style={[sw.deleteZone, { width: SWIPE_W }]}
+        activeOpacity={0.85}
+        onPress={() => { slide(0); onDelete(); }}
+        accessibilityRole="button"
+        accessibilityLabel="Delete line item"
+      >
+        <Trash2 size={18} color="#fff" strokeWidth={2.2} />
+        <Text style={sw.deleteText}>Delete</Text>
+      </TouchableOpacity>
+      <Animated.View style={{ transform: [{ translateX: x }], backgroundColor: bg }} {...responder.panHandlers}>
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
+
+const sw = StyleSheet.create({
+  deleteZone: {
+    position: 'absolute', right: 0, top: 0, bottom: 0,
+    backgroundColor: '#d23b3b', alignItems: 'center', justifyContent: 'center', gap: 3,
+  },
+  deleteText: { fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+});
+
 /**
  * Screen 3 — everything else lives here. Order follows the brief: totals, markup,
  * line items, labour, flags, actions. Customer is a gate on Send only: Preview PDF
@@ -35,7 +99,11 @@ export default function ReviewStep() {
   const d = useQuoteDraft();
   const { data: settings } = useSettings() as any;
 
-  const [openGroup, setOpenGroup] = useState<null | 'labour' | 'material'>(null);
+  // Both groups can be open at once — they're independent.
+  const [openGroups, setOpenGroups] = useState<{ labour: boolean; material: boolean }>({
+    labour: true, material: true,
+  });
+  const [editor, setEditor] = useState<{ index: number | null; line: LineItem } | null>(null);
   const [flagsOpen, setFlagsOpen] = useState(true);
   const [gateOpen, setGateOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -52,12 +120,6 @@ export default function ReviewStep() {
     : (typeof settings?.labourRate === 'number' ? settings.labourRate : 0);
 
   const idxOf = (line: LineItem) => d.lines.indexOf(line);
-
-  const setLine = (line: LineItem, patch: Partial<LineItem>) => {
-    const i = idxOf(line);
-    if (i < 0) return;
-    d.setLines(prev => prev.map((l, n) => (n === i ? { ...l, ...patch } : l)));
-  };
 
   /** Rate applies to every labour line's cost — price then follows the markup. */
   const applyLabourRate = (raw: string) => {
@@ -108,12 +170,14 @@ export default function ReviewStep() {
         totalAmount: d.total,
         includeGST: true,
       }, settings);
-      const { uri } = await Print.printToFileAsync({ html, base64: false });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
-      }
+      // Preview, not send: this opens the OS document preview showing the rendered
+      // quote exactly as the customer will get it. Sharing it is a separate action.
+      await Print.printAsync({ html });
     } catch (e: any) {
-      showAlert('Could not build the PDF', e?.message || 'Try again.');
+      // Dismissing the preview reports as a cancel — that isn't a failure.
+      const msg = String(e?.message || '');
+      if (/cancel|dismiss/i.test(msg)) return;
+      showAlert('Could not build the PDF', msg || 'Try again.');
     }
   };
 
@@ -176,50 +240,36 @@ export default function ReviewStep() {
     const i = idxOf(l);
     const sell = unitSell(l, d.markupPct);
     return (
-      <View key={`${i}-${l.name}`} style={s.lineRow}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <TextInput
-            style={s.lineName}
-            value={l.name}
-            onChangeText={v => setLine(l, { name: v })}
-            placeholder="Description"
-            placeholderTextColor={c.muted}
-            multiline
-          />
-          <View style={s.lineMetaRow}>
-            <TextInput
-              style={s.lineMeta}
-              value={l.qty}
-              onChangeText={v => setLine(l, { qty: v })}
-              keyboardType="decimal-pad"
-              placeholder="1"
-              placeholderTextColor={c.muted}
-            />
-            <Text style={s.lineMetaLabel}>{l.unit || 'ea'} · cost</Text>
-            <TextInput
-              style={s.lineMeta}
-              value={l.cost ?? ''}
-              onChangeText={v => setLine(l, { cost: v })}
-              keyboardType="decimal-pad"
-              placeholder="0"
-              placeholderTextColor={c.muted}
-            />
+      <SwipeableRow key={`${i}-${l.name}`} bg={c.card} onDelete={() => d.removeLine(i)}>
+        <TouchableOpacity
+          style={s.lineRow}
+          activeOpacity={0.7}
+          onPress={() => setEditor({ index: i, line: { ...l } })}
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${l.name || 'line item'}`}
+        >
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.lineName} numberOfLines={2}>{l.name || 'Untitled item'}</Text>
+            <Text style={s.lineMetaLabel}>
+              {l.qty || '1'} {l.unit || 'ea'} · cost {money(parseFloat(l.cost || '0') || 0)}
+              {l.needsPrice ? '  ·  Needs price' : ''}
+            </Text>
           </View>
-        </View>
-        <View style={{ alignItems: 'flex-end', gap: 6 }}>
-          <Text style={s.lineTotal}>{money((parseFloat(l.qty) || 0) * sell)}</Text>
-          <TouchableOpacity
-            onPress={() => d.toggleLineLock(i)}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel={l.markupLocked ? 'Unpin price from markup' : 'Pin this price'}
-          >
-            {l.markupLocked
-              ? <Lock size={15} color={c.orange} strokeWidth={2.4} />
-              : <Unlock size={15} color={c.muted} strokeWidth={2} />}
-          </TouchableOpacity>
-        </View>
-      </View>
+          <View style={{ alignItems: 'flex-end', gap: 6 }}>
+            <Text style={s.lineTotal}>{money((parseFloat(l.qty) || 0) * sell)}</Text>
+            <TouchableOpacity
+              onPress={() => d.toggleLineLock(i)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={l.markupLocked ? 'Unpin price from markup' : 'Pin this price'}
+            >
+              {l.markupLocked
+                ? <Lock size={15} color={c.orange} strokeWidth={2.4} />
+                : <Unlock size={15} color={c.muted} strokeWidth={2} />}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </SwipeableRow>
     );
   };
 
@@ -229,14 +279,14 @@ export default function ReviewStep() {
     Icon: typeof Wrench,
     items: LineItem[],
   ) => {
-    const open = openGroup === key;
+    const open = openGroups[key];
     const sum = items.reduce((n, l) => n + (parseFloat(l.qty) || 0) * unitSell(l, d.markupPct), 0);
     return (
       <View style={s.group}>
         <TouchableOpacity
           style={s.groupHead}
           activeOpacity={0.7}
-          onPress={() => setOpenGroup(open ? null : key)}
+          onPress={() => setOpenGroups(g => ({ ...g, [key]: !g[key] }))}
           accessibilityRole="button"
           accessibilityLabel={`${open ? 'Collapse' : 'Expand'} ${label}`}
         >
@@ -252,7 +302,24 @@ export default function ReviewStep() {
             ? <ChevronDown size={16} color={c.muted} strokeWidth={2} />
             : <ChevronRight size={16} color={c.muted} strokeWidth={2} />}
         </TouchableOpacity>
-        {open ? <View style={s.groupBody}>{items.map(renderLine)}</View> : null}
+        {open ? (
+          <View style={s.groupBody}>
+            {items.map(renderLine)}
+            <TouchableOpacity
+              style={s.addLineBtn}
+              activeOpacity={0.7}
+              onPress={() => setEditor({
+                index: null,
+                line: { name: '', qty: '1', price: '', cost: '', unit: key === 'labour' ? 'hr' : 'ea', category: key },
+              })}
+              accessibilityRole="button"
+              accessibilityLabel={`Add a ${label.toLowerCase()} line`}
+            >
+              <Plus size={15} color={c.orange} strokeWidth={2.6} />
+              <Text style={s.addLineText}>Add {key === 'labour' ? 'labour' : 'material'}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -285,6 +352,20 @@ export default function ReviewStep() {
             markupPct={d.markupPct}
             onChange={d.setMarkupPct}
           />
+
+          {/* Lands the customer-facing total on a whole dollar */}
+          <TouchableOpacity
+            style={[s.roundBtn, d.roundUp && s.roundBtnOn]}
+            activeOpacity={0.8}
+            onPress={() => d.setRoundUp(!d.roundUp)}
+            accessibilityRole="button"
+            accessibilityLabel={d.roundUp ? 'Turn off rounding' : 'Round the total up to the nearest dollar'}
+          >
+            <ArrowUp size={15} color={d.roundUp ? '#fff' : c.orange} strokeWidth={2.6} />
+            <Text style={[s.roundText, d.roundUp && { color: '#fff' }]}>
+              {d.roundUp ? `Rounded up to ${money(d.total)}` : 'Round up?'}
+            </Text>
+          </TouchableOpacity>
 
           {/* What the customer reads — tap to reword it */}
           <Text style={s.sectionLabel}>Description</Text>
@@ -402,6 +483,96 @@ export default function ReviewStep() {
         </View>
       </KeyboardAvoidingView>
 
+      {/* Line item editor — a popup so the footer can't cover what you're editing */}
+      <Modal visible={!!editor} transparent animationType="slide" onRequestClose={() => setEditor(null)}>
+        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setEditor(null)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={s.sheet}>
+            <View style={s.handle} />
+            <View style={s.sheetHead}>
+              <Text style={s.sheetTitle}>{editor?.index === null ? 'Add line item' : 'Edit line item'}</Text>
+              <TouchableOpacity onPress={() => setEditor(null)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
+                <X size={18} color={c.mutedHi} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+
+            {editor ? (
+              <>
+                <Text style={s.fieldLabel}>Description</Text>
+                <TextInput
+                  style={[s.gateInput, { minHeight: 62, textAlignVertical: 'top' }]}
+                  value={editor.line.name}
+                  onChangeText={v => setEditor({ ...editor, line: { ...editor.line, name: v } })}
+                  placeholder="e.g. 25mm copper elbow x4"
+                  placeholderTextColor={c.muted}
+                  multiline
+                  autoFocus
+                />
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.fieldLabel}>Qty</Text>
+                    <TextInput
+                      style={s.gateInput}
+                      value={editor.line.qty}
+                      onChangeText={v => setEditor({ ...editor, line: { ...editor.line, qty: v } })}
+                      keyboardType="decimal-pad"
+                      placeholder="1"
+                      placeholderTextColor={c.muted}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.fieldLabel}>Unit</Text>
+                    <TextInput
+                      style={s.gateInput}
+                      value={editor.line.unit ?? ''}
+                      onChangeText={v => setEditor({ ...editor, line: { ...editor.line, unit: v } })}
+                      placeholder="ea"
+                      placeholderTextColor={c.muted}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.fieldLabel}>Your cost</Text>
+                    <TextInput
+                      style={s.gateInput}
+                      value={editor.line.cost ?? ''}
+                      onChangeText={v => setEditor({ ...editor, line: { ...editor.line, cost: v } })}
+                      keyboardType="decimal-pad"
+                      placeholder="0"
+                      placeholderTextColor={c.muted}
+                    />
+                  </View>
+                </View>
+
+                <Text style={s.editorHint}>
+                  Charged at {money(unitSell(editor.line, d.markupPct))} each with your {Math.round(d.markupPct)}% markup.
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                  {editor.index !== null ? (
+                    <TouchableOpacity
+                      style={s.deleteBtn}
+                      activeOpacity={0.8}
+                      onPress={() => { d.removeLine(editor.index as number); setEditor(null); }}
+                    >
+                      <Trash2 size={16} color="#d23b3b" strokeWidth={2.2} />
+                    </TouchableOpacity>
+                  ) : null}
+                  <TouchableOpacity
+                    style={[s.gateConfirm, { flex: 1, marginTop: 0 }, !editor.line.name.trim() && { opacity: 0.45 }]}
+                    activeOpacity={0.85}
+                    disabled={!editor.line.name.trim()}
+                    onPress={() => { d.upsertLine(editor.index, editor.line); setEditor(null); }}
+                  >
+                    <Text style={s.gateConfirmText}>{editor.index === null ? 'Add item' : 'Save item'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : null}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Customer gate — only on Send */}
       <Modal visible={gateOpen} transparent animationType="slide" onRequestClose={() => setGateOpen(false)}>
         <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setGateOpen(false)} />
@@ -500,13 +671,26 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: c.lineSoft,
   },
-  lineName: { fontSize: 14.5, fontFamily: 'Manrope_700Bold', color: c.ink, padding: 0 },
-  lineMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
-  lineMeta: {
-    fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.ink, padding: 0,
-    minWidth: 40, borderBottomWidth: 1, borderBottomColor: c.lineMid, paddingBottom: 2,
+  lineName: { fontSize: 14.5, fontFamily: 'Manrope_700Bold', color: c.ink },
+  lineMetaLabel: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 4 },
+  addLineBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 15 },
+  addLineText: { fontSize: 13.5, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+  roundBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginTop: 10, height: 46, borderRadius: 15,
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.orange,
   },
-  lineMetaLabel: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted },
+  roundBtnOn: { backgroundColor: c.orange, borderColor: c.orange },
+  roundText: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+  fieldLabel: {
+    fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: c.muted,
+    letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6, marginTop: 12,
+  },
+  editorHint: { fontSize: 12.5, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 12, lineHeight: 18 },
+  deleteBtn: {
+    width: 52, height: 52, borderRadius: 16, backgroundColor: c.redSoft,
+    alignItems: 'center', justifyContent: 'center',
+  },
   lineTotal: { fontSize: 14.5, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
   labourCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

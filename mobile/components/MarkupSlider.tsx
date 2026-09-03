@@ -4,7 +4,9 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { unitSell, type LineItem } from '@/hooks/use-quote-draft';
 
 const MIN_PCT = 0;
-const MAX_PCT = 150;
+// Range runs to 200% so a typical 25-30% markup starts around an eighth along the
+// track — leaving real room to drag DOWN, not just up.
+const MAX_PCT = 200;
 const THUMB = 26;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 

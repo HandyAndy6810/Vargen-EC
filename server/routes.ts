@@ -763,6 +763,7 @@ You MUST respond with valid JSON in this exact format:
       "unitPrice": 85.00
     }
   ],
+  "questions": [],
   "notes": "Professional notes covering: key assumptions made, what is NOT included (exclusions), site access requirements, compliance notes, and any warranties offered",
   "estimatedHours": 4,
   "totalLabour": 340.00,
@@ -775,6 +776,19 @@ You MUST respond with valid JSON in this exact format:
 ${tradeKnowledge}
 
 CRITICAL RULES — follow these exactly:
+00. CLARIFYING QUESTIONS — "questions" is normally an EMPTY array. Only add a question
+   when the description leaves out something that MATERIALLY changes the price and you
+   cannot reasonably assume it. A well-described job must return []. Never ask for
+   something already stated, never ask to be polite, and never ask more than 3.
+   Each question is an object:
+     { "q": "Single or double storey?", "type": "chips",
+       "options": ["Single storey", "Double storey"],
+       "assumption": "Quoted as single storey. Add ~$X if double." }
+   "type" is "chips" (preferred, always give 2-4 options), "number" (a measurement —
+   include "unit"), or "toggle" (yes/no). "assumption" states what you assumed when
+   the tradesperson skips it, stating the assumed value and the cost impact where you
+   can. Still produce a full, usable quote using your assumptions — the questions only
+   refine it.
 0. COST vs PRICE — every item needs BOTH:
    - "unitCost" = what the tradesperson PAYS per unit. For materials that's the supplier
      cost before any markup. For labour it's the true cost of that time to the business.
@@ -914,6 +928,19 @@ CRITICAL RULES — follow these exactly:
           parsed.totalAmount = Math.round((parsed.subtotal + parsed.gstAmount) * 100) / 100;
         }
       }
+
+      // Clarifying questions are optional and capped — the tradie should only be
+      // asked when the answer genuinely moves the price, never as a routine gate.
+      parsed.questions = (Array.isArray(parsed.questions) ? parsed.questions : [])
+        .filter((q: any) => q && typeof q.q === "string" && q.q.trim())
+        .slice(0, 3)
+        .map((q: any) => ({
+          q: String(q.q).trim(),
+          type: ["chips", "number", "toggle"].includes(q.type) ? q.type : "chips",
+          options: Array.isArray(q.options) ? q.options.map(String).slice(0, 4) : [],
+          unit: typeof q.unit === "string" ? q.unit : undefined,
+          assumption: typeof q.assumption === "string" ? q.assumption : "",
+        }));
 
       // Normalise the cost basis and flag unverifiable materials.
       if (Array.isArray(parsed.items)) {
