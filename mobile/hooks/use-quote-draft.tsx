@@ -6,6 +6,7 @@ import { format, addDays } from 'date-fns';
 import { apiRequest, API_BASE_URL } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { showAlert, showConfirm } from '@/lib/dialogs';
+import { loadQuoteDraft, saveQuoteDraft, clearQuoteDraft, type CachedQuoteDraft } from '@/lib/quote-draft-cache';
 import { useQuote } from '@/hooks/use-quotes';
 import { useCustomers } from '@/hooks/use-customers';
 import { useSettings } from '@/hooks/use-settings';
@@ -97,6 +98,15 @@ type QuoteDraft = {
   questions: ClarifyQuestion[];
   finishClarify: (answers: (string | null)[]) => Promise<void>;
   startManual: () => void;
+  /**
+   * An unfinished quote found on the device. Offered, never applied silently —
+   * quietly repopulating a screen the tradie thought was blank is worse than
+   * losing the draft.
+   */
+  restorable: CachedQuoteDraft | null;
+  restoreDraft: () => CachedQuoteDraft | null;
+  /** Throw away the device copy — on "start fresh", on discard, and after a save. */
+  forgetSavedDraft: () => void;
   // totals — subtotal/gst/total are what the client pays; totalCost/profit are the
   // tradie's side of the same numbers, shown as "You make $X".
   subtotal: number; gst: number; total: number; totalCost: number; profit: number;
@@ -166,6 +176,8 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const lastDescription = useRef('');
   const [error, setError] = useState<string | null>(null);
   const [populated, setPopulated] = useState(false);
+  const [restorable, setRestorable] = useState<CachedQuoteDraft | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
   const [editLineIdx, setEditLineIdx] = useState<number | null>(null);
   const [editLineDraft, setEditLineDraft] = useState<LineItem>({ name: '', qty: '1', price: '' });
@@ -319,6 +331,8 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       return saved;
     },
     onSuccess: () => {
+      // It's on the server now — the device copy would only come back as a ghost.
+      clearQuoteDraft();
       queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
       // Leave the whole flow cleanly — clear the create sub-stack, then land on
       // the quotes list rather than an intermediate step.
@@ -381,6 +395,62 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       seededMarkup.current = true;
     }
   }, [settings, isEditing]);
+
+  // ── Draft autosave / restore ───────────────────────────────────────────────
+  // Look for an unfinished quote once, on entry. Editing an existing quote is
+  // excluded: that one already lives on the server.
+  useEffect(() => {
+    if (isEditing) { setHydrated(true); return; }
+    let alive = true;
+    loadQuoteDraft().then(found => {
+      if (!alive) return;
+      if (found) setRestorable(found);
+      setHydrated(true);
+    });
+    return () => { alive = false; };
+  }, [isEditing]);
+
+  // Write the work in progress back to the device, settled so a fast typist isn't
+  // hitting storage on every keystroke.
+  useEffect(() => {
+    if (isEditing || !hydrated || !hasWork()) return;
+    const t = setTimeout(() => {
+      saveQuoteDraft({
+        customer, customerId, jobTitle, summary, schedDate, expiryDate, notes,
+        lines, markupPct, assumptions, roundUp,
+      });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [
+    isEditing, hydrated, customer, customerId, jobTitle, summary, schedDate,
+    expiryDate, notes, lines, markupPct, assumptions, roundUp,
+  ]);
+
+  const restoreDraft = (): CachedQuoteDraft | null => {
+    const r = restorable;
+    if (!r) return null;
+    setCustomer(r.customer || '');
+    setCustomerId(r.customerId ?? null);
+    setJobTitle(r.jobTitle || '');
+    setSummary(r.summary || '');
+    setSchedDate(r.schedDate || '');
+    if (r.expiryDate) setExpiryDate(r.expiryDate);
+    setNotes(r.notes || '');
+    setLines(r.lines?.length ? r.lines : DEFAULT_LINES);
+    if (typeof r.markupPct === 'number') setMarkupPct(r.markupPct);
+    setAssumptions(Array.isArray(r.assumptions) ? r.assumptions : []);
+    setRoundUp(!!r.roundUp);
+    // The restored markup is the tradie's own choice — don't let the settings
+    // default land on top of it a moment later.
+    seededMarkup.current = true;
+    setRestorable(null);
+    return r;
+  };
+
+  const forgetSavedDraft = () => {
+    setRestorable(null);
+    clearQuoteDraft();
+  };
 
   const callAi = async (description: string): Promise<any> => {
     const controller = new AbortController();
@@ -552,6 +622,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     markupPct, setMarkupPct, assumptions, setAssumptions, toggleLineLock,
     roundUp, setRoundUp, upsertLine, removeLine,
     questions, finishClarify, startManual,
+    restorable, restoreDraft, forgetSavedDraft,
     custSearch, setCustSearch, showCustList, setShowCustList, filteredCustomers,
     editLineIdx, editLineDraft, setEditLineDraft, openLineEdit, saveLineEdit, deleteLineFromModal, addLine, closeLineEdit,
     subtotal, gst, total, totalCost, profit,

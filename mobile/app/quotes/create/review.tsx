@@ -232,7 +232,12 @@ export default function ReviewStep() {
       message: 'The quote and everything in it will be lost.',
       confirmLabel: 'Discard',
       destructive: true,
-      onConfirm: () => { try { router.dismissAll(); } catch {} router.replace('/(tabs)/quotes'); },
+      onConfirm: () => {
+        // Deliberately thrown away — don't offer it back on the next new quote.
+        d.forgetSavedDraft();
+        try { router.dismissAll(); } catch {}
+        router.replace('/(tabs)/quotes');
+      },
     });
   };
 

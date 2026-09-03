@@ -16,6 +16,7 @@ import { useQuotes } from '@/hooks/use-quotes';
 import { useCustomers } from '@/hooks/use-customers';
 import { quoteTitle } from '@shared/mobile-types';
 import { showConfirm, showAlert } from '@/lib/dialogs';
+import { describeAge } from '@/lib/quote-draft-cache';
 import { API_BASE_URL } from '@/lib/api';
 
 /**
@@ -80,8 +81,11 @@ function examplesFor(trade?: string): Examples {
 }
 
 export default function DescribeStep() {
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
+  // The soft-orange wash is pale in light mode and dark in dark mode, so the
+  // accent text on it has to flip with the theme.
+  const accent = isDark ? c.orange : c.orangeDeep;
   const d = useQuoteDraft();
   const { data: settings } = useSettings() as any;
 
@@ -213,6 +217,20 @@ export default function DescribeStep() {
     });
   };
 
+  /**
+   * Pick the unfinished quote back up. If it already had priced lines it was past
+   * Describe when it was interrupted, so drop them back on Review rather than
+   * making them walk the flow again.
+   */
+  const onResume = () => {
+    const r = d.restoreDraft();
+    if (!r) return;
+    const priced = (r.lines || []).some(l => l.name?.trim() && parseFloat(l.price || '0') > 0);
+    if (priced) return router.replace('/quotes/create/review');
+    touched.current = true;
+    setText(r.summary || '');
+  };
+
   const pickCustomer = (cust: any) => {
     d.setCustomerId(cust.id);
     d.setCustomer(cust.name);
@@ -235,6 +253,26 @@ export default function DescribeStep() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* An unfinished quote from a previous session — offered, never auto-applied */}
+          {d.restorable ? (
+            <View style={s.resumeCard}>
+              <Text style={[s.resumeEyebrow, { color: accent }]}>
+                Unfinished quote · {describeAge(d.restorable.savedAt)}
+              </Text>
+              <Text style={s.resumeTitle} numberOfLines={2}>
+                {d.restorable.jobTitle?.trim() || d.restorable.summary?.trim() || 'Untitled job'}
+              </Text>
+              <View style={s.resumeRow}>
+                <TouchableOpacity style={s.resumeBtn} activeOpacity={0.85} onPress={onResume}>
+                  <Text style={s.resumeBtnText}>Pick up where I left off</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.resumeGhost} activeOpacity={0.7} onPress={d.forgetSavedDraft}>
+                  <Text style={[s.resumeGhostText, { color: accent }]}>Start fresh</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+
           {/* Chosen customer pins above the field */}
           {d.customer.trim() ? (
             <View style={s.chipRow}>
@@ -428,6 +466,27 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     width: 44, height: 44, borderRadius: 14, backgroundColor: c.card,
     borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center',
   },
+  resumeCard: {
+    backgroundColor: c.orangeSoft, borderRadius: 18, padding: 16, marginBottom: 16,
+  },
+  resumeEyebrow: {
+    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    letterSpacing: 1.2, textTransform: 'uppercase',
+  },
+  // c.ink is the text token, so the title stays readable over the soft orange in
+  // both themes (in dark, orangeSoft is a wash over the dark page).
+  resumeTitle: {
+    fontSize: 15.5, fontFamily: 'Manrope_800ExtraBold', color: c.ink,
+    lineHeight: 21, marginTop: 6,
+  },
+  resumeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
+  resumeBtn: {
+    flex: 1, height: 44, borderRadius: 14, backgroundColor: c.orange,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  resumeBtnText: { fontSize: 13.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  resumeGhost: { height: 44, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  resumeGhostText: { fontSize: 13.5, fontFamily: 'Manrope_800ExtraBold' },
   chipRow: { flexDirection: 'row', marginBottom: 10 },
   customerChip: {
     flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%',
