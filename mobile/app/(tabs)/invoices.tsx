@@ -3,6 +3,7 @@ import {
   Text,
   ScrollView,
   FlatList,
+  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -17,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { queryClient } from '@/lib/queryClient';
 import { api } from '@shared/mobile-routes';
 import { useInvoices } from '@/hooks/use-invoices';
-import { Plus, Sparkles, FileText } from 'lucide-react-native';
+import { Plus, Sparkles, FileText, Search, Filter } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 
 
@@ -35,11 +36,15 @@ function makeStyles(c: Colors) {
     addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', shadowColor: c.orange, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.33, shadowRadius: 14, elevation: 6 },
     fromQuoteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: 12, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, marginRight: 8 },
     fromQuoteText: { fontSize: 12.5, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
-    heroCard: { borderRadius: 22, padding: 20, overflow: 'hidden', backgroundColor: c.orange, shadowColor: c.orange, shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.33, shadowRadius: 40, elevation: 10 },
+    // Match the quotes tab's hero dimensions (padding 18, 38px amount) so the two
+    // tabs' top tiles are the same height.
+    heroCard: { borderRadius: 22, padding: 18, overflow: 'hidden', backgroundColor: c.orange, shadowColor: c.orange, shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.33, shadowRadius: 40, elevation: 10 },
     heroEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.8)', letterSpacing: 2, textTransform: 'uppercase' },
-    heroAmt: { fontSize: 42, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -1.4, lineHeight: 46, marginTop: 6 },
+    heroAmt: { fontSize: 38, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -1.2, lineHeight: 42, marginTop: 4 },
     nudgeBtn: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
     nudgeBtnText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: 0.3 },
+    searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
+    searchInput: { flex: 1, fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.ink },
     tabsRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 20, paddingVertical: 6 },
     tab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
     tabActive: { backgroundColor: c.orange, borderColor: c.orange },
@@ -64,6 +69,7 @@ export default function InvoicesScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
+  const [search, setSearch] = useState('');
   const { data: invoices, isLoading, isError } = useInvoices();
 
   const STATUS_PILL: Record<string, { bg: string; fg: string; bd: string; label: string }> = {
@@ -88,9 +94,16 @@ export default function InvoicesScreen() {
   );
 
   const filtered = useMemo(() => {
-    if (filter === 'all') return sorted;
-    return sorted.filter((i: any) => i.status === filter);
-  }, [sorted, filter]);
+    const q = search.trim().toLowerCase();
+    let list = filter === 'all' ? sorted : sorted.filter((i: any) => i.status === filter);
+    if (q) {
+      list = list.filter((i: any) =>
+        String(i.invoiceNumber || '').toLowerCase().includes(q) ||
+        String(i.customerName || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [sorted, filter, search]);
 
   const outstanding = useMemo(() =>
     sorted.filter((i: any) => ['sent', 'overdue', 'partial'].includes(i.status)).reduce((s: number, i: any) => s + parseFloat(i.totalAmount || '0'), 0),
@@ -149,7 +162,21 @@ export default function InvoicesScreen() {
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={Platform.OS === 'web'} contentContainerStyle={s.tabsRow} style={{ maxHeight: 48 }}>
+      <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+        <View style={s.searchRow}>
+          <Search size={16} color={c.muted} strokeWidth={2} />
+          <TextInput
+            style={s.searchInput}
+            placeholder="Search invoices, customers…"
+            placeholderTextColor={c.muted}
+            value={search}
+            onChangeText={setSearch}
+          />
+          <Filter size={16} color={c.muted} strokeWidth={2} />
+        </View>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={Platform.OS === 'web'} contentContainerStyle={s.tabsRow} style={{ height: 48 }}>
         {([
           { id: 'all', l: 'All', n: counts.all },
           { id: 'draft', l: 'Draft', n: counts.draft },

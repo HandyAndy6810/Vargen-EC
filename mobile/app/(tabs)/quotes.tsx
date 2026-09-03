@@ -207,7 +207,7 @@ export default function QuotesScreen() {
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow} style={{ maxHeight: 48 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow} style={{ height: 48 }}>
         {([
           { id: 'all',      l: 'All',      n: counts.all },
           { id: 'draft',    l: 'Draft',    n: counts.draft },
