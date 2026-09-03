@@ -38,9 +38,11 @@ export function SplitActionButton({
           fill={c.orange}
           d="M 1008,-14 L 974.81,48.7 Q 972,54 978,54 L 995,54 Q 1000,54 999.18,58.93 L 992,102 L -1000,102 L -1000,-14 Z"
         />
-        {/* Invoice (right) half — surface (off-white in light, dark surface in dark) */}
+        {/* Invoice (right) half — the OPPOSITE shade to the page so it always
+            contrasts: near-black in light mode, near-white in dark mode. c.ink
+            already flips that way with the theme; text uses c.paper to match. */}
         <Path
-          fill={c.card}
+          fill={c.ink}
           d="M 1008,-14 L 3000,-14 L 3000,102 L 992,102 L 1025.19,39.3 Q 1028,34 1022,34 L 1005,34 Q 1000,34 1000.82,29.07 Z"
         />
       </Svg>
@@ -62,7 +64,7 @@ export function SplitActionButton({
           accessibilityRole="button"
           accessibilityLabel="Start a new invoice"
         >
-          <Text style={[s.label, { color: c.ink }]}>New Invoice</Text>
+          <Text style={[s.label, { color: c.paper }]}>New Invoice</Text>
         </TouchableOpacity>
       </View>
     </View>

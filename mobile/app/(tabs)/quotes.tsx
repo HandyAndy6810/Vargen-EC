@@ -57,10 +57,9 @@ function makeStyles(c: Colors, isDark: boolean) {
     searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
     searchInput: { flex: 1, fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.ink },
     tabsRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 20, paddingVertical: 6 },
-    // Explicit height so the pill can't be squeezed by the row's height cap —
-    // these carry a count badge as well as a label, so relying on intrinsic
-    // measurement left them clipped (borders only, no text) on first layout.
-    tab: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 14, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
+    // Size from padding (like the invoices tab, which never clipped) rather than a
+    // fixed height — the fixed 34 still left the badge pills shaved on some devices.
+    tab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
     tabActive: { backgroundColor: c.orange, borderColor: c.orange },
     tabText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: c.mutedHi },
     tabTextActive: { color: '#fff' },
