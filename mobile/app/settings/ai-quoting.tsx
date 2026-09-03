@@ -6,8 +6,7 @@ import { showAlert } from '@/lib/dialogs';
 import { ChevronLeft, Save, Info } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
-
-const TRADE_TYPES = ['General', 'Electrical', 'Plumbing', 'HVAC', 'Carpentry', 'Painting'];
+import { TRADE_LABELS, tradeLabel } from '@shared/trades';
 
 function makeStyles(c: Colors) {
   return StyleSheet.create({
@@ -129,8 +128,10 @@ export default function AiQuotingScreen() {
               <Text style={s.rowLabel}>Your trade</Text>
             </View>
             <View style={s.chipsRow}>
-              {TRADE_TYPES.map(t => {
-                const active = form.tradeType === t;
+              {TRADE_LABELS.map(t => {
+                // Match on meaning, not on the exact string — an account set up in
+                // the web app holds "Electrician", not "Electrical".
+                const active = tradeLabel(form.tradeType) === t;
                 return (
                   <TouchableOpacity
                     key={t}

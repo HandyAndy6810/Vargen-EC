@@ -7,6 +7,8 @@
  * to generate accurate, trade-specific quotes for Australian tradespeople.
  */
 
+import { tradeKey, type TradeKey } from "../shared/trades";
+
 interface TradeKnowledge {
   name: string;
   unitsOfMeasure: string;
@@ -553,24 +555,29 @@ const ROOFING: TradeKnowledge = {
 };
 
 /**
- * Maps trade type string to the appropriate trade knowledge object.
- * Matches flexibly on common variations of trade names.
+ * Maps a stored trade type to its knowledge base.
+ *
+ * The matching itself lives in shared/trades.ts so the picker in the app, the AI
+ * knowledge lookup and the example prompts can never drift apart again. The old
+ * rules here quietly failed on the app's own labels: "Landscaping" doesn't contain
+ * "landscape", and "Tiling" contains neither "tile" nor "tiler", so both fell
+ * through to the generic handyman rates.
  */
+const KNOWLEDGE_BY_TRADE: Partial<Record<TradeKey, TradeKnowledge>> = {
+  plumbing: PLUMBING,
+  electrical: ELECTRICAL,
+  carpentry: CARPENTRY,
+  painting: PAINTING,
+  landscaping: LANDSCAPING,
+  concreting: CONCRETING,
+  fencing: FENCING,
+  tiling: TILING,
+  aircon: AIR_CON,
+  roofing: ROOFING,
+};
+
 function getTradeKnowledge(tradeType: string): TradeKnowledge | null {
-  const t = (tradeType || "").toLowerCase();
-
-  if (t.includes("plumb")) return PLUMBING;
-  if (t.includes("electr")) return ELECTRICAL;
-  if (t.includes("carp") || t.includes("build")) return CARPENTRY;
-  if (t.includes("paint")) return PAINTING;
-  if (t.includes("landscape") || t.includes("garden")) return LANDSCAPING;
-  if (t.includes("concret")) return CONCRETING;
-  if (t.includes("fenc")) return FENCING;
-  if (t.includes("tile") || t.includes("tiler")) return TILING;
-  if (t.includes("hvac") || t.includes("air")) return AIR_CON;
-  if (t.includes("roof")) return ROOFING;
-
-  return null;
+  return KNOWLEDGE_BY_TRADE[tradeKey(tradeType)] || null;
 }
 
 /**

@@ -15,6 +15,7 @@ import { useSettings } from '@/hooks/use-settings';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useCustomers } from '@/hooks/use-customers';
 import { quoteTitle } from '@shared/mobile-types';
+import { tradeKey, type TradeKey } from '@shared/trades';
 import { showConfirm, showAlert } from '@/lib/dialogs';
 import { describeAge } from '@/lib/quote-draft-cache';
 import { API_BASE_URL } from '@/lib/api';
@@ -28,8 +29,9 @@ import { API_BASE_URL } from '@/lib/api';
 type Examples = { placeholder: string; samples: string[] };
 
 // The placeholder teaches by example rather than instruction, so it's written per
-// trade. Falls back to a general set for trades without their own.
-const BY_TRADE: Record<string, Examples> = {
+// trade. Keyed by the shared trade key so this can't drift from the trade picker
+// or from the AI's own knowledge base.
+const BY_TRADE: Record<TradeKey, Examples> = {
   plumbing: {
     placeholder: 'Replace hot water system, 250L electric, existing unit in garage',
     samples: [
@@ -62,6 +64,54 @@ const BY_TRADE: Record<string, Examples> = {
       'Paint a new plasterboard garage, sealer plus two coats',
     ],
   },
+  tiling: {
+    placeholder: 'Tile a bathroom floor and walls, 12m2, 300x600 ceramic, existing screed',
+    samples: [
+      'Tile a bathroom floor and walls, 12m2, 300x600 ceramic, existing screed',
+      'Re-grout and re-seal a shower, 4m2, remove mouldy grout first',
+      'Lay 30m2 of porcelain tile to a living area, level floor, straight lay',
+    ],
+  },
+  landscaping: {
+    placeholder: 'Turf a 60m2 back yard, remove old lawn, level and lay buffalo',
+    samples: [
+      'Turf a 60m2 back yard, remove old lawn, level and lay buffalo',
+      'Build two 3m garden beds, treated sleepers, fill with soil and mulch',
+      'Clear an overgrown side yard and lay 20m2 of pebble over weed mat',
+    ],
+  },
+  concreting: {
+    placeholder: 'Pour a 6x3m driveway slab, 100mm, mesh reinforced, plain finish',
+    samples: [
+      'Pour a 6x3m driveway slab, 100mm, mesh reinforced, plain finish',
+      'Concrete a 4x4m shed pad, excavate and form up, exposed aggregate',
+      'Replace a cracked front path, about 9m2, broom finish',
+    ],
+  },
+  fencing: {
+    placeholder: 'Install 20m of colorbond fence, 1.8m high, level ground, one gate',
+    samples: [
+      'Install 20m of colorbond fence, 1.8m high, level ground, one gate',
+      'Replace 15m of timber paling fence, remove and dispose of the old one',
+      'Supply and hang a 1.2m wide side gate with a self closing hinge',
+    ],
+  },
+  roofing: {
+    placeholder: 'Re-roof a single storey home, 180m2, tile to colorbond, includes battens',
+    samples: [
+      'Re-roof a single storey home, 180m2, tile to colorbond, includes battens',
+      'Replace a leaking valley iron and repoint the ridge caps',
+      'Replace 12m of gutter and two downpipes, single storey, easy access',
+    ],
+  },
+  aircon: {
+    placeholder: 'Supply and install a 7kW split system in a living room, back to back',
+    samples: [
+      'Supply and install a 7kW split system in a living room, back to back',
+      'Service two existing split systems, clean filters and check gas',
+      'Install a 2.5kW split in a bedroom, 5m pipe run to the outdoor unit',
+    ],
+  },
   general: {
     placeholder: 'Describe the job — what needs doing, where, and anything that affects the price',
     samples: [
@@ -73,11 +123,7 @@ const BY_TRADE: Record<string, Examples> = {
 };
 
 function examplesFor(trade?: string): Examples {
-  const t = String(trade || '').toLowerCase();
-  for (const key of Object.keys(BY_TRADE)) {
-    if (key !== 'general' && t.includes(key.slice(0, 5))) return BY_TRADE[key];
-  }
-  return BY_TRADE.general;
+  return BY_TRADE[tradeKey(trade)] || BY_TRADE.general;
 }
 
 export default function DescribeStep() {

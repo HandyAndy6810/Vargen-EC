@@ -42,6 +42,7 @@ import { useUserSettings } from "@/hooks/use-user-settings";
 import { useCustomers, useCreateCustomer } from "@/hooks/use-customers";
 import { queryClient } from "@/lib/queryClient";
 import type { Job } from "@shared/schema";
+import { TRADES, tradeLabel } from "@shared/trades";
 
 import { VoiceInput } from "@/components/voice/VoiceInput";
 
@@ -77,21 +78,11 @@ interface QuoteDefaults {
 
 const STORAGE_KEY = "vargenezey_quote_defaults";
 
-const TRADE_TYPES = [
-  { value: "general", label: "General Trade" },
-  { value: "plumber", label: "Plumber" },
-  { value: "electrician", label: "Electrician" },
-  { value: "carpenter", label: "Carpenter" },
-  { value: "painter", label: "Painter" },
-  { value: "tiler", label: "Tiler" },
-  { value: "landscaper", label: "Landscaper" },
-  { value: "roofer", label: "Roofer" },
-  { value: "concreter", label: "Concreter" },
-  { value: "bricklayer", label: "Bricklayer" },
-  { value: "hvac", label: "HVAC / Air Con" },
-  { value: "locksmith", label: "Locksmith" },
-  { value: "handyman", label: "Handyman" },
-];
+// One shared list (shared/trades.ts) so the picker can't offer a trade the AI has
+// no knowledge base for. Bricklayer, Locksmith and Handyman are gone from the
+// options because they always resolved to the generic rates anyway — offering
+// them implied a specialism that was never there.
+const TRADE_TYPES = TRADES.map(t => ({ value: t.label, label: t.label }));
 
 const SUGGESTED_ITEMS = [
   { description: "Call Out Fee", quantity: 1, unit: "each", unitPrice: 80 },
@@ -501,7 +492,8 @@ export default function QuoteCreate() {
     setShowAddModal(false);
   };
 
-  const selectedTrade = TRADE_TYPES.find(t => t.value === defaults.tradeType);
+  // Compare by meaning — accounts set up on older builds hold "plumber", not "Plumbing".
+  const selectedTrade = TRADE_TYPES.find(t => t.value === tradeLabel(defaults.tradeType));
 
   const SharedSettings = ({ compact }: { compact?: boolean }) => (
     <div className={cn("space-y-4", compact ? "pt-4 border-t border-black/5" : "")}>
@@ -758,7 +750,7 @@ export default function QuoteCreate() {
                           <button key={trade.value}
                             onClick={() => { updateDefault("tradeType", trade.value); setShowTradeDropdown(false); }}
                             className={cn("w-full text-left px-4 py-3 text-sm",
-                              defaults.tradeType === trade.value ? "bg-primary/10 text-primary font-bold" : "text-foreground")}
+                              tradeLabel(defaults.tradeType) === trade.value ? "bg-primary/10 text-primary font-bold" : "text-foreground")}
                             data-testid={`trade-option-${trade.value}`}>
                             {trade.label}
                           </button>

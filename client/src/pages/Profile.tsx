@@ -4,6 +4,7 @@ import { useXeroStatus, useXeroDisconnect, useXeroSyncAllCustomers } from "@/hoo
 import { useJobs } from "@/hooks/use-jobs";
 import { useInvoices } from "@/hooks/use-invoices";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { TRADE_LABELS, tradeLabel } from "@shared/trades";
 import { startOfMonth } from "date-fns";
 import { useSearch } from "wouter";
 import { Input } from "@/components/ui/input";
@@ -45,11 +46,9 @@ import {
 } from "lucide-react";
 import { getWeeklyGoal, setWeeklyGoal } from "@/components/WeeklyRevenueGoalWidget";
 
-const TRADE_TYPES = [
-  "General", "Plumber", "Electrician", "Carpenter", "Painter",
-  "Tiler", "Landscaper", "Roofer", "Concreter", "Bricklayer",
-  "HVAC", "Locksmith", "Handyman"
-];
+// From shared/trades.ts — the same list the mobile picker and the AI knowledge
+// base use, so a trade offered here always has real pricing behind it.
+const TRADE_TYPES = TRADE_LABELS;
 
 const BLADE_METADATA: Record<string, { label: string; desc: string }> = {
   hero: { label: "AI Quoting", desc: "Hero section for AI quotes" },
@@ -631,7 +630,7 @@ export default function Profile() {
             <div className="space-y-3">
               <div>
                 <Label className="text-sm font-medium text-muted-foreground mb-1">Trade Type</Label>
-                <Select value={quoteDefaults.tradeType} onValueChange={(v) => setQuoteDefaults(p => ({ ...p, tradeType: v }))}>
+                <Select value={tradeLabel(quoteDefaults.tradeType)} onValueChange={(v) => setQuoteDefaults(p => ({ ...p, tradeType: v }))}>
                   <SelectTrigger className="rounded-xl h-12 border-black/10" data-testid="select-default-trade">
                     <SelectValue />
                   </SelectTrigger>
