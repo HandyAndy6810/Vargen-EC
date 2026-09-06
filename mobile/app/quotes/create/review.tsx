@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { WebView } from 'react-native-webview';
 import { format } from 'date-fns';
 import {
   ChevronLeft, ChevronDown, ChevronRight, Send, FileText, Trash2,
@@ -175,17 +176,20 @@ export default function ReviewStep() {
     includeGST: true,
   });
 
-  const previewPDF = async () => {
+  /**
+   * Show the quote itself, full screen, in the app.
+   *
+   * This used to call Print.printAsync, which opens iOS's AirPrint dialog — printer,
+   * copies, paper size — with the document shrunk behind it. That's a print queue,
+   * not a preview. Rendering the same HTML that becomes the PDF means what's on
+   * screen is exactly what the customer receives, with no second layout to drift.
+   */
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const previewPDF = () => {
     try {
-      const html = buildQuotePDF(quotePayload(), settings);
-      // Preview, not send: this opens the OS document preview showing the rendered
-      // quote exactly as the customer will get it. Sharing it is a separate action.
-      await Print.printAsync({ html });
+      setPreviewHtml(buildQuotePDF(quotePayload(), settings));
     } catch (e: any) {
-      // Dismissing the preview reports as a cancel — that isn't a failure.
-      const msg = String(e?.message || '');
-      if (/cancel|dismiss/i.test(msg)) return;
-      showAlert('Could not build the PDF', msg || 'Try again.');
+      showAlert('Could not build the preview', String(e?.message || 'Try again.'));
     }
   };
 
@@ -612,6 +616,49 @@ export default function ReviewStep() {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* Live preview — the real document, not a redrawn approximation */}
+      <Modal
+        visible={previewHtml !== null}
+        animationType="slide"
+        onRequestClose={() => setPreviewHtml(null)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top', 'bottom']}>
+          <View style={s.previewBar}>
+            <TouchableOpacity
+              onPress={() => setPreviewHtml(null)}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Close the preview"
+            >
+              <X size={20} color={c.ink} strokeWidth={2.2} />
+            </TouchableOpacity>
+            <Text style={s.previewTitle}>What your customer sees</Text>
+            <TouchableOpacity
+              onPress={onShareAnyway}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Share this quote"
+            >
+              <Share2 size={19} color={c.orange} strokeWidth={2.2} />
+            </TouchableOpacity>
+          </View>
+          <WebView
+            originWhitelist={['*']}
+            source={{ html: previewHtml || '' }}
+            style={{ flex: 1, backgroundColor: '#fff' }}
+            // The quote is a fixed A4-width document, so let it scale to the phone
+            // rather than forcing a sideways scroll.
+            scalesPageToFit
+            startInLoadingState
+            renderLoading={() => (
+              <View style={s.previewLoading}>
+                <ActivityIndicator color={c.orange} size="large" />
+              </View>
+            )}
+          />
+        </SafeAreaView>
+      </Modal>
+
       {/* Customer gate — only on Send */}
       <Modal visible={gateOpen} transparent animationType="slide" onRequestClose={() => setGateOpen(false)}>
         <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setGateOpen(false)} />
@@ -856,6 +903,16 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginTop: 14,
   },
   gateConfirmText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  previewBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: c.lineSoft, backgroundColor: c.paper,
+  },
+  previewTitle: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
+  previewLoading: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
+  },
   gateAddBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     height: 52, borderRadius: 16, marginTop: 14,
