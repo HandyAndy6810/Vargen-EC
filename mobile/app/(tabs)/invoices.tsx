@@ -45,7 +45,9 @@ function makeStyles(c: Colors) {
     nudgeBtnText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: 0.3 },
     searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
     searchInput: { flex: 1, fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.ink },
-    tabsRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 20, paddingVertical: 6 },
+    // See quotes.tsx — without alignItems:'center' the pills stretch or squash to
+    // whatever height the strip lands on, because a row aligns children to stretch.
+    tabsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingVertical: 6 },
     tab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
     tabActive: { backgroundColor: c.orange, borderColor: c.orange },
     tabText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: c.mutedHi },
@@ -176,7 +178,12 @@ export default function InvoicesScreen() {
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={Platform.OS === 'web'} contentContainerStyle={s.tabsRow} style={{ height: 48 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={Platform.OS === 'web'}
+        contentContainerStyle={s.tabsRow}
+        style={{ height: 48, flexGrow: 0, flexShrink: 0 }}
+      >
         {([
           { id: 'all', l: 'All', n: counts.all },
           { id: 'draft', l: 'Draft', n: counts.draft },

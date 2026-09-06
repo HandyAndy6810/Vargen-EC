@@ -56,9 +56,12 @@ function makeStyles(c: Colors, isDark: boolean) {
     heroAmt: { fontSize: 38, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -1.2, lineHeight: 42 },
     searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
     searchInput: { flex: 1, fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.ink },
-    tabsRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 20, paddingVertical: 6 },
-    // Size from padding (like the invoices tab, which never clipped) rather than a
-    // fixed height — the fixed 34 still left the badge pills shaved on some devices.
+    // alignItems:'center' is what actually holds the pills to their own size. A row
+    // defaults to align-items:stretch, so without it every pill grew or shrank to
+    // whatever height the strip ended up — tall ovals when the list below was empty,
+    // squashed bars with the label clipped when it was full. Every earlier fix set a
+    // height on the strip; the pills were never obeying it.
+    tabsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingVertical: 6 },
     tab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
     tabActive: { backgroundColor: c.orange, borderColor: c.orange },
     tabText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: c.mutedHi },
@@ -207,7 +210,14 @@ export default function QuotesScreen() {
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow} style={{ height: 48 }}>
+      {/* flexGrow/flexShrink 0 stops the strip taking up leftover space when the
+          list below is short, or being squeezed when it's long. */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.tabsRow}
+        style={{ height: 48, flexGrow: 0, flexShrink: 0 }}
+      >
         {([
           { id: 'all',      l: 'All',      n: counts.all },
           { id: 'draft',    l: 'Draft',    n: counts.draft },
