@@ -6,10 +6,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { format } from 'date-fns';
 import {
   ChevronLeft, ChevronDown, ChevronRight, Send, FileText, Trash2,
-  Lock, Unlock, AlertTriangle, User, X, Wrench, Package, Plus, ArrowUp,
+  Lock, Unlock, AlertTriangle, User, X, Wrench, Package, Plus, ArrowUp, Share2,
 } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useQuoteDraft, unitSell, type LineItem } from '@/hooks/use-quote-draft';
@@ -81,9 +82,12 @@ function SwipeableRow({
 }
 
 const sw = StyleSheet.create({
+  // A rounded pill inset from the row edges rather than a full-bleed red block —
+  // it reads as a button you press, not as the row bleeding open.
   deleteZone: {
-    position: 'absolute', right: 0, top: 0, bottom: 0,
-    backgroundColor: '#d23b3b', alignItems: 'center', justifyContent: 'center', gap: 3,
+    position: 'absolute', right: 0, top: 6, bottom: 6,
+    backgroundColor: '#d23b3b', borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center', gap: 3,
   },
   deleteText: { fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
 });
@@ -108,6 +112,7 @@ export default function ReviewStep() {
   const [gateOpen, setGateOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newContact, setNewContact] = useState('');
+  const [addingNew, setAddingNew] = useState(false);
 
   const labour = d.lines.filter(l => l.category === 'labour');
   const materials = d.lines.filter(l => l.category !== 'labour');
@@ -142,34 +147,37 @@ export default function ReviewStep() {
     }));
   };
 
+  /** The quote as the customer will read it — shared by preview and by sharing. */
+  const quotePayload = () => ({
+    documentType: 'quote' as const,
+    documentNumber: d.isEditing ? `Q-${String(d.editId).padStart(4, '0')}` : 'DRAFT',
+    createdAt: format(new Date(), 'd MMM yyyy'),
+    expiryDate: d.expiryDate || undefined,
+    status: 'draft' as const,
+    jobTitle: d.jobTitle || 'Untitled quote',
+    summary: d.summary || undefined,
+    customerName: d.customer.trim() || undefined,
+    customerPhone: d.selectedCustomer?.phone || undefined,
+    customerEmail: d.selectedCustomer?.email || undefined,
+    customerAddress: d.selectedCustomer?.address || undefined,
+    items: d.lines
+      .filter(l => l.name.trim() || unitSell(l, d.markupPct) > 0)
+      .map(l => ({
+        description: l.name || 'Item',
+        quantity: parseFloat(l.qty) || 1,
+        unit: l.unit || undefined,
+        unitPrice: unitSell(l, d.markupPct),
+      })),
+    notes: d.notes || undefined,
+    subtotal: d.subtotal,
+    gstAmount: d.gst,
+    totalAmount: d.total,
+    includeGST: true,
+  });
+
   const previewPDF = async () => {
     try {
-      const html = buildQuotePDF({
-        documentType: 'quote',
-        documentNumber: d.isEditing ? `Q-${String(d.editId).padStart(4, '0')}` : 'DRAFT',
-        createdAt: format(new Date(), 'd MMM yyyy'),
-        expiryDate: d.expiryDate || undefined,
-        status: 'draft',
-        jobTitle: d.jobTitle || 'Untitled quote',
-        summary: d.summary || undefined,
-        customerName: d.customer.trim() || undefined,
-        customerPhone: d.selectedCustomer?.phone || undefined,
-        customerEmail: d.selectedCustomer?.email || undefined,
-        customerAddress: d.selectedCustomer?.address || undefined,
-        items: d.lines
-          .filter(l => l.name.trim() || unitSell(l, d.markupPct) > 0)
-          .map(l => ({
-            description: l.name || 'Item',
-            quantity: parseFloat(l.qty) || 1,
-            unit: l.unit || undefined,
-            unitPrice: unitSell(l, d.markupPct),
-          })),
-        notes: d.notes || undefined,
-        subtotal: d.subtotal,
-        gstAmount: d.gst,
-        totalAmount: d.total,
-        includeGST: true,
-      }, settings);
+      const html = buildQuotePDF(quotePayload(), settings);
       // Preview, not send: this opens the OS document preview showing the rendered
       // quote exactly as the customer will get it. Sharing it is a separate action.
       await Print.printAsync({ html });
@@ -185,6 +193,29 @@ export default function ReviewStep() {
     // The gate: a quote can be drafted and previewed without a customer, but not sent.
     if (d.customer.trim()) { d.handleSendPress(); return; }
     setGateOpen(true);
+  };
+
+  /**
+   * Hand the finished PDF to the OS share sheet — WhatsApp, Messenger, AirDrop, a
+   * personal email account, whatever the tradie actually uses. Not every quote goes
+   * to someone already in the customer list, and making them create a record first
+   * just to get the file out was the wrong trade.
+   */
+  const onShareAnyway = async () => {
+    setGateOpen(false);
+    try {
+      const html = buildQuotePDF(quotePayload(), settings);
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
+      } else {
+        showAlert('Sharing unavailable', "This device can't open the share sheet.");
+      }
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      if (/cancel|dismiss/i.test(msg)) return;
+      showAlert('Could not share the quote', msg || 'Try again.');
+    }
   };
 
   /**
@@ -214,6 +245,7 @@ export default function ReviewStep() {
       // still go out — the tradie can tidy the contact up afterwards.
       d.setCustomer(name);
       setGateOpen(false);
+      setAddingNew(false);
       setNewName('');
       setNewContact('');
       d.handleSendPress();
@@ -349,6 +381,7 @@ export default function ReviewStep() {
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           {/* Totals + markup, all live on the drag */}
@@ -356,6 +389,7 @@ export default function ReviewStep() {
             lines={d.lines}
             markupPct={d.markupPct}
             onChange={d.setMarkupPct}
+            roundUp={d.roundUp}
           />
 
           {/* Lands the customer-facing total on a whole dollar */}
@@ -613,30 +647,72 @@ export default function ReviewStep() {
             ))}
           </ScrollView>
 
-          <Text style={s.orLabel}>Or add someone new</Text>
-          <TextInput
-            style={s.gateInput}
-            placeholder="Name"
-            placeholderTextColor={c.muted}
-            value={newName}
-            onChangeText={setNewName}
-          />
-          <TextInput
-            style={[s.gateInput, { marginTop: 8 }]}
-            placeholder="Phone or email"
-            placeholderTextColor={c.muted}
-            value={newContact}
-            onChangeText={setNewContact}
-            autoCapitalize="none"
-          />
-          <TouchableOpacity
-            style={[s.gateConfirm, !newName.trim() && { opacity: 0.45 }]}
-            activeOpacity={0.85}
-            onPress={confirmNewCustomer}
-            disabled={!newName.trim()}
-          >
-            <Text style={s.gateConfirmText}>Use this customer</Text>
-          </TouchableOpacity>
+          {/* Adding someone new is a button, not a form sitting open underneath the
+              list — the list is the common case and the form was crowding it out. */}
+          {!addingNew ? (
+            <>
+              <TouchableOpacity
+                style={s.gateAddBtn}
+                activeOpacity={0.8}
+                onPress={() => setAddingNew(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Add a new customer"
+              >
+                <Plus size={16} color={c.orange} strokeWidth={2.6} />
+                <Text style={s.gateAddText}>Add someone new</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={s.gateShareBtn}
+                activeOpacity={0.7}
+                onPress={onShareAnyway}
+                accessibilityRole="button"
+                accessibilityLabel="Share the quote another way"
+              >
+                <Share2 size={15} color={c.mutedHi} strokeWidth={2.2} />
+                <Text style={s.gateShareText}>Share it another way</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={s.orLabel}>New customer</Text>
+              <TextInput
+                style={s.gateInput}
+                placeholder="Name"
+                placeholderTextColor={c.muted}
+                value={newName}
+                onChangeText={setNewName}
+                autoFocus
+              />
+              <TextInput
+                style={[s.gateInput, { marginTop: 8 }]}
+                placeholder="Phone or email"
+                placeholderTextColor={c.muted}
+                value={newContact}
+                onChangeText={setNewContact}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={[s.gateConfirm, (!newName.trim() || creatingCustomer) && { opacity: 0.45 }]}
+                activeOpacity={0.85}
+                onPress={confirmNewCustomer}
+                disabled={!newName.trim() || creatingCustomer}
+              >
+                {creatingCustomer
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={s.gateConfirmText}>Create and send</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.gateShareBtn}
+                activeOpacity={0.7}
+                onPress={() => setAddingNew(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Back to the customer list"
+              >
+                <Text style={s.gateShareText}>Back to my customers</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </Modal>
     </SafeAreaView>
@@ -780,4 +856,15 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginTop: 14,
   },
   gateConfirmText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  gateAddBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    height: 52, borderRadius: 16, marginTop: 14,
+    backgroundColor: c.orangeSoft, borderWidth: 1, borderColor: c.orange,
+  },
+  gateAddText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+  gateShareBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    height: 48, marginTop: 4,
+  },
+  gateShareText: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.mutedHi },
 });

@@ -297,6 +297,9 @@ export default function DescribeStep() {
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
           keyboardShouldPersistTaps="handled"
+          // Swipe down over the text to put the keyboard away, rather than having to
+          // find somewhere neutral to tap.
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           {/* An unfinished quote from a previous session — offered, never auto-applied */}

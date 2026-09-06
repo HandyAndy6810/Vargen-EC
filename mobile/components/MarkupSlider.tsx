@@ -4,9 +4,10 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { unitSell, type LineItem } from '@/hooks/use-quote-draft';
 
 const MIN_PCT = 0;
-// Range runs to 200% so a typical 25-30% markup starts around an eighth along the
-// track — leaving real room to drag DOWN, not just up.
-const MAX_PCT = 200;
+// 120% top end puts a typical 25-30% markup about a quarter along the track, so
+// there's real room to drag DOWN as well as up, and the usable range isn't squeezed
+// into the first sliver of the bar.
+const MAX_PCT = 120;
 const THUMB = 26;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -29,11 +30,14 @@ export function MarkupSlider({
   lines,
   markupPct,
   onChange,
+  roundUp = false,
   gstRate = 0.1,
 }: {
   lines: LineItem[];
   markupPct: number;
   onChange: (pct: number) => void;
+  /** Lands the customer-facing total on a whole dollar. */
+  roundUp?: boolean;
   gstRate?: number;
 }) {
   const { colors: c } = useTheme();
@@ -60,10 +64,23 @@ export function MarkupSlider({
     });
   };
 
+  // The thumb is a circle that slides between the track's edges, so the distance it
+  // can travel is the track minus its own width, and its CENTRE sits half a thumb in
+  // from wherever it's positioned. Measuring against the bare track width instead —
+  // as this did — put the maths half a thumb out of step with the drawing, which is
+  // what made the thumb jump the moment you touched it.
+  const usableW = () => Math.max(1, trackW.current - THUMB);
+  const ratioOf = (pct: number) => (pct - MIN_PCT) / (MAX_PCT - MIN_PCT);
+
   const pctFromX = (absX: number) => {
-    const rel = absX - trackX.current;
-    return clamp((rel / trackW.current) * (MAX_PCT - MIN_PCT) + MIN_PCT);
+    const rel = absX - trackX.current - THUMB / 2;
+    return clamp((rel / usableW()) * (MAX_PCT - MIN_PCT) + MIN_PCT);
   };
+
+  // Read inside the gesture handlers, which are created once and would otherwise
+  // close over the first render's value.
+  const liveRef = useRef(live);
+  liveRef.current = live;
 
   const responder = useRef(
     PanResponder.create({
@@ -76,7 +93,13 @@ export function MarkupSlider({
       onPanResponderGrant: (e: GestureResponderEvent) => {
         dragging.current = true;
         measure();
-        setLive(pctFromX(e.nativeEvent.pageX));
+        // Grabbing the thumb picks it up where it is; tapping the bare track still
+        // jumps to that spot. Without this, taking hold of the thumb snapped the
+        // value to the finger's exact position first.
+        const thumbCentre = trackX.current + ratioOf(liveRef.current) * usableW() + THUMB / 2;
+        if (Math.abs(e.nativeEvent.pageX - thumbCentre) > THUMB) {
+          setLive(pctFromX(e.nativeEvent.pageX));
+        }
       },
       onPanResponderMove: (e: GestureResponderEvent, g: PanResponderGestureState) => {
         setLive(pctFromX(g.moveX));
@@ -97,12 +120,19 @@ export function MarkupSlider({
     () => round2(lines.reduce((sum, l) => sum + (parseFloat(l.qty) || 0) * (parseFloat(l.cost || '0') || 0), 0)),
     [lines]
   );
-  const subtotal = round2(lines.reduce((sum, l) => sum + (parseFloat(l.qty) || 0) * unitSell(l, live), 0));
-  const grand = round2(subtotal * (1 + gstRate));
+  const rawSubtotal = round2(lines.reduce((sum, l) => sum + (parseFloat(l.qty) || 0) * unitSell(l, live), 0));
+  const rawGrand = round2(rawSubtotal * (1 + gstRate));
+  // Rounding lands the GST-inclusive total on a whole dollar, and the subtotal is
+  // re-derived from it so the figures still reconcile. This card renders the headline
+  // total, so it has to honour the flag — without it the Round up button appeared to
+  // do nothing at all, because the only number it changed was its own label.
+  const grand = roundUp ? Math.ceil(rawGrand) : rawGrand;
+  const subtotal = roundUp ? round2(grand / (1 + gstRate)) : rawSubtotal;
   const profit = round2(subtotal - totalCost);
   const trueMargin = subtotal > 0 ? ((subtotal - totalCost) / subtotal) * 100 : 0;
 
-  const ratio = (live - MIN_PCT) / (MAX_PCT - MIN_PCT);
+  const ratio = ratioOf(live);
+  const thumbTravel = Math.max(0, trackW.current - THUMB);
 
   return (
     <View style={s.wrap}>
@@ -136,8 +166,9 @@ export function MarkupSlider({
         {...responder.panHandlers}
       >
         <View style={s.trackBg} />
-        <View style={[s.trackFill, { width: `${ratio * 100}%` }]} />
-        <View style={[s.thumb, { left: ratio * Math.max(0, trackW.current - THUMB) }]} />
+        {/* Fill stops under the thumb's centre so the two stay visually joined */}
+        <View style={[s.trackFill, { width: ratio * thumbTravel + THUMB / 2 }]} />
+        <View style={[s.thumb, { left: ratio * thumbTravel }]} />
       </View>
 
       <View style={s.footRow}>

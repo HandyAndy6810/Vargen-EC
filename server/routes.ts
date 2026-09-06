@@ -735,6 +735,19 @@ Do not invent details. If unsure of a field, use an empty string.`;
       const tradeContext = tradeType && tradeType !== "general" ? `\nThe tradesperson is a ${tradeType}. Use pricing, terminology, units of measure, and compliance requirements specific to this trade.` : "";
       const tradeKnowledge = getTradeContext(tradeType || "general");
 
+      // Whether to ask was left entirely to the model, and it was inconsistent about
+      // it — "build a house" came back with a finished quote and no questions while
+      // "house" asked several. A description this thin cannot be priced honestly
+      // without more detail, so the requirement is made deterministic here rather
+      // than hoped for.
+      const descText = String(description || "");
+      const descWords = descText.trim().split(/\s+/).filter(Boolean).length;
+      const descHasNumbers = /\d/.test(descText);
+      const descIsThin = descWords < 8 || !descHasNumbers;
+      const thinDescriptionRule = descIsThin
+        ? `\n\nTHIS DESCRIPTION IS THIN: "${descText.trim()}". It gives you too little to price honestly — it is missing size, quantity, materials or scope. You MUST return 1-3 clarifying questions covering whichever of those matter most to the price. Still produce a complete, usable quote from your best assumptions; the questions only refine it. This overrides the "normally empty" guidance in rule 00.`
+        : "";
+
       const businessProfile = [
         tradeType && tradeType !== "general" ? `Trade: ${tradeType}` : null,
         labourRateNum ? `Labour rate: $${labourRateNum}/hr` : null,
@@ -807,7 +820,7 @@ CRITICAL RULES — follow these exactly:
 8. jobTitle must be professional and specific — suitable to show a client on a formal document.
 9. CROSS-CHECK every price against the pricing reference before finalising. If a material or labour rate differs by more than 20% from the reference ranges, adjust it — unless the job description specifically calls for a premium brand, remote location, or unusual circumstance.
 10. CHECK THE GOTCHAS: Review the trade-specific gotchas section and ensure your quote accounts for commonly missed items (e.g. disposal fees, compliance certificates, consumables allowance).
-11. CONSISTENCY: Ensure line item descriptions and the notes/exclusions section do not contradict each other. If an item is included as a line item, do NOT exclude it in the notes. If something is genuinely excluded, it must not appear as a line item.${pricingInstructions}`;
+11. CONSISTENCY: Ensure line item descriptions and the notes/exclusions section do not contradict each other. If an item is included as a line item, do NOT exclude it in the notes. If something is genuinely excluded, it must not appear as a line item.${pricingInstructions}${thinDescriptionRule}`;
 
       messages.push({ role: "system", content: systemPrompt });
 
