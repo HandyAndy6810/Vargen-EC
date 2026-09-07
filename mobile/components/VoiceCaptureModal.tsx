@@ -103,9 +103,10 @@ export function VoiceCaptureModal({
       credentials: 'include',
     });
     if (!res.ok) {
-      throw new Error(res.status === 401
-        ? 'Please sign in to use voice.'
-        : 'Could not transcribe — check your connection and try again.');
+      // Report the real reason rather than blaming the network for everything.
+      if (res.status === 401) throw new Error('Please sign in to use voice.');
+      const body = await res.json().catch(() => ({} as any));
+      throw new Error(body?.message || `Transcription failed (${res.status}). Try again.`);
     }
     const data = await res.json();
     const text = (data?.text || '').trim();

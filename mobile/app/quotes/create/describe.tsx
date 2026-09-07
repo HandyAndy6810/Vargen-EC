@@ -213,9 +213,13 @@ export default function DescribeStep() {
         method: 'POST', body: form, credentials: 'include',
       });
       if (!res.ok) {
-        throw new Error(res.status === 401
-          ? 'Please sign in to use voice.'
-          : 'Could not transcribe — check your connection and try again.');
+        // Say what actually went wrong. Reporting every failure as a connection
+        // problem sent us hunting the network for a fault that was never there —
+        // the server was rejecting the recording and saying so, and the app was
+        // throwing that away.
+        if (res.status === 401) throw new Error('Please sign in to use voice.');
+        const body = await res.json().catch(() => ({} as any));
+        throw new Error(body?.message || `Transcription failed (${res.status}). Try again.`);
       }
       const data = await res.json();
       const said = String(data?.text || '').trim();

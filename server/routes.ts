@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { api } from "../shared/routes";
 import { isValidISODate, toISODate } from "../shared/mobile-types";
 import { z } from "zod";
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 
 // Integration imports
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
@@ -596,8 +596,19 @@ export async function registerRoutes(
       const filePath = req.file.path;
       let transcription;
       try {
+        // The transcription API decides the audio format from the FILENAME, and
+        // multer's `dest` option saves uploads under a random name with no
+        // extension at all — so the file arrived as something like "3f8a2b1c9d"
+        // and was rejected as an unsupported format every single time. Wrapping it
+        // with an explicit name is what makes it readable.
+        const uploadName = req.file.originalname && /\.[a-z0-9]+$/i.test(req.file.originalname)
+          ? req.file.originalname
+          : "speech.m4a";
+        const audioFile = await toFile(fs.createReadStream(filePath), uploadName, {
+          type: req.file.mimetype || "audio/m4a",
+        });
         transcription = await openai.audio.transcriptions.create({
-          file: fs.createReadStream(filePath),
+          file: audioFile,
           model: AI_TRANSCRIBE_MODEL,
         });
       } finally {
@@ -608,7 +619,12 @@ export async function registerRoutes(
       res.json({ text: transcription.text });
     } catch (error: any) {
       console.error("Transcription error:", error);
-      res.status(500).json({ message: error?.message || "Failed to transcribe audio" });
+      // Pass the provider's own words through. This used to surface as a bare 500
+      // that the app relabelled "check your connection", which sent us looking at
+      // the network for a problem that was never there.
+      const detail = error?.error?.message || error?.message || "Failed to transcribe audio";
+      res.status(error?.status && error.status < 500 ? error.status : 500)
+        .json({ message: detail });
     }
   });
 
