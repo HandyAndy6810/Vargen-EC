@@ -36,6 +36,15 @@ const TEMPLATES = [
     body: "Hi [Name], just a reminder that your invoice is due. Let me know if you have any questions. Thanks, [Business]",
   },
   {
+    // Separate from the plain reminder: this one is for money that is genuinely
+    // late. Direct about the amount and the date, without being aggressive — the
+    // point is to get paid and keep the customer.
+    id: 'invoice_overdue',
+    label: 'Overdue invoice',
+    emoji: '⏰',
+    body: "Hi [Name], just following up — invoice [Number] for [Amount] was due on [Due] and is still showing as unpaid. If it's already on its way, ignore this. Otherwise, could you let me know when I can expect it? Thanks, [Business]",
+  },
+  {
     id: 'job_complete',
     label: 'Job complete',
     emoji: '✅',
@@ -66,6 +75,9 @@ export default function ComposeScreen() {
     context,
     quoteId,
     dayIndex,
+    invoiceNumber,
+    amount,
+    due,
   } = useLocalSearchParams<{
     customerId?: string;
     customerName?: string;
@@ -74,6 +86,9 @@ export default function ComposeScreen() {
     context?: string;
     quoteId?: string;
     dayIndex?: string;
+    invoiceNumber?: string;
+    amount?: string;
+    due?: string;
   }>();
 
   const { data: settings } = useSettings();
@@ -88,11 +103,16 @@ export default function ComposeScreen() {
   const [aiLoading, setAiLoading]           = useState(false);
   const [isSaving, setIsSaving]             = useState(false);
 
-  // Personalise [Name] / [Business] placeholders
+  // Fill the placeholders. The invoice ones come through as params from the
+  // outreach list; anything not supplied is dropped rather than left showing a
+  // bracketed token in a message about to go to a customer.
   const personalise = (tmplBody: string, bizName: string) =>
     tmplBody
       .replace(/\[Name\]/g, name.split(' ')[0])
-      .replace(/\[Business\]/g, bizName);
+      .replace(/\[Business\]/g, bizName)
+      .replace(/\s*\[Number\]/g, invoiceNumber ? ` ${invoiceNumber}` : '')
+      .replace(/\s*for \[Amount\]/g, amount ? ` for ${amount}` : '')
+      .replace(/\s*on \[Due\]/g, due ? ` on ${due}` : '');
 
   // Load context template once settings are available
   useEffect(() => {

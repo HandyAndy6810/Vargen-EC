@@ -1537,14 +1537,36 @@ CRITICAL RULES — follow these exactly:
           );
           for (let i = 0; i < schedule.length; i++) {
             if (schedule[i].status === "pending" && daysSinceSent >= schedule[i].day) {
-              dueFollowUps.push({ quote, dueIndex: i, dayNumber: schedule[i].day });
+              dueFollowUps.push({ kind: "quote", quote, dueIndex: i, dayNumber: schedule[i].day });
               break;
             }
           }
         } catch { /* skip malformed schedule */ }
       }
 
-      res.json(dueFollowUps);
+      // Unpaid invoices past their due date belong in the same list. Chasing a quote
+      // that went quiet and chasing money already owed are the same job to a tradie,
+      // and splitting them across two screens means one of them gets forgotten.
+      // Oldest debt first — that's the one at most risk of never being paid.
+      const allInvoices = await storage.getInvoices(req.userId);
+      const now = Date.now();
+      const overdueInvoices = allInvoices
+        .filter((inv) => {
+          if (!["sent", "partial", "overdue"].includes(String(inv.status))) return false;
+          if (!inv.dueDate) return false;
+          return new Date(inv.dueDate).getTime() < now;
+        })
+        .map((invoice) => ({
+          kind: "invoice" as const,
+          invoice,
+          daysOverdue: Math.floor((now - new Date(invoice.dueDate!).getTime()) / 86_400_000),
+          outstanding:
+            (Number(invoice.totalAmount) || 0) - (Number(invoice.paidAmount) || 0),
+        }))
+        .filter((row) => row.outstanding > 0)
+        .sort((a, b) => b.daysOverdue - a.daysOverdue);
+
+      res.json([...overdueInvoices, ...dueFollowUps]);
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to get follow-ups" });
     }

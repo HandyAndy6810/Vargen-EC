@@ -275,12 +275,61 @@ export default function CalendarScreen() {
               <Text style={{ fontSize: 28 }}>🎉</Text>
               <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>All caught up</Text>
               <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted, textAlign: 'center' }}>
-                No follow-ups due today
+                No follow-ups due and nothing overdue
               </Text>
             </View>
           ) : (
             <View style={{ gap: 12, paddingTop: 4 }}>
               {followUps.map((item: any, i: number) => {
+                // Money already owed sits in the same list as a quote that went
+                // quiet — to a tradie chasing either is the same job, and splitting
+                // them across two screens means one gets forgotten.
+                if (item.kind === 'invoice') {
+                  const inv = item.invoice || {};
+                  const custName = inv.customerName || `Invoice ${inv.invoiceNumber || `#${inv.id}`}`;
+                  const initials = custName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+                  const owed = Number(item.outstanding) || 0;
+                  return (
+                    <View key={`inv-${inv.id}`} style={{ backgroundColor: c.card, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: `${c.red}55` }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.redSoft, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.red }}>{initials}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink }} numberOfLines={1}>{custName}</Text>
+                          <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted }} numberOfLines={1}>
+                            {inv.invoiceNumber ? `${inv.invoiceNumber} · ` : ''}${owed.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} owing
+                          </Text>
+                        </View>
+                        <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: c.redSoft, borderWidth: 1, borderColor: `${c.red}44` }}>
+                          <Text style={{ fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.red }}>
+                            {item.daysOverdue === 0 ? 'Due today' : `${item.daysOverdue}d late`}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity
+                          style={{ flex: 1, height: 42, borderRadius: 12, backgroundColor: c.orange, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                          activeOpacity={0.8}
+                          onPress={() => router.push(
+                            `/customers/compose?customerId=${inv.customerId || ''}&customerName=${encodeURIComponent(custName)}&context=invoice_overdue&invoiceId=${inv.id || ''}&invoiceNumber=${encodeURIComponent(inv.invoiceNumber || '')}&amount=${encodeURIComponent(`$${owed.toFixed(2)}`)}&due=${encodeURIComponent(inv.dueDate ? format(new Date(inv.dueDate), 'd MMM') : '')}` as any
+                          )}
+                        >
+                          <Send size={14} color="#fff" strokeWidth={2} />
+                          <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>Chase it</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{ height: 42, paddingHorizontal: 16, borderRadius: 12, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                          activeOpacity={0.7}
+                          onPress={() => router.push(`/invoices/${inv.id}` as any)}
+                        >
+                          <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.muted }}>Open</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                }
+
                 const content = parseQuoteContent(item.quote?.content);
                 const custName = content.customerName || `Quote #${item.quote?.id}`;
                 const jobTitle = content.jobTitle || 'Quote';
