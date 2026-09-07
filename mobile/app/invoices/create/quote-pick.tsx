@@ -23,9 +23,13 @@ export default function QuotePickStep() {
     return [...list].sort((a, b) => (RANK[a.status] ?? 2) - (RANK[b.status] ?? 2));
   }, [data]);
 
-  const pick = (id: number) => {
-    d.setSelectedQuoteId(id);
-    router.push('/invoices/create/from-quote');
+  // Picking a quote pulls its contents straight into the draft and lands on
+  // Review, populated. The old flow pushed a separate options screen first, which
+  // put a step between the tradie and a finished invoice for no gain — the deposit
+  // and balance choices live on Review now, next to the number they change.
+  const pick = async (id: number) => {
+    const ok = await d.loadFromQuote(id);
+    if (ok) router.replace('/invoices/create/review');
   };
 
   return (

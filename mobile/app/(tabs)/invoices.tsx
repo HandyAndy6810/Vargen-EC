@@ -206,15 +206,12 @@ export default function InvoicesScreen() {
         eyebrow="Invoices"
         title="Invoices"
         right={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <TouchableOpacity style={s.fromQuoteBtn} onPress={() => router.push('/invoices/create/quote-pick')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Build invoice from a quote">
-              <FileText size={15} color={c.orange} strokeWidth={2.2} />
-              <Text style={s.fromQuoteText}>From quote</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.addBtn} onPress={() => router.push('/invoices/create')} activeOpacity={0.8}>
-              <Plus size={20} color="#fff" strokeWidth={2.5} />
-            </TouchableOpacity>
-          </View>
+          // Just the +, like the quotes tab. "From quote" used to sit here too, but
+          // it is now the first thing on the new-invoice screen itself, where it
+          // belongs — and two buttons crowded the collapsed title.
+          <TouchableOpacity style={s.addBtn} onPress={() => router.push('/invoices/create')} activeOpacity={0.8}>
+            <Plus size={20} color="#fff" strokeWidth={2.5} />
+          </TouchableOpacity>
         }
       />
 
