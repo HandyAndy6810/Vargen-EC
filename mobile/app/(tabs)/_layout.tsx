@@ -68,42 +68,44 @@ function TabBar({ state, navigation }: any) {
   const indicatorWidth = useMemo(() => Animated.subtract(rightEdge, leftEdge), []);
 
   return (
+    // A capsule floating clear of the screen edges, the way iOS 26 draws a tab bar,
+    // rather than a slab welded to the bottom. It sits above the content — every tab
+    // screen already reserves 120-130px down there — so the material always has
+    // something passing beneath it.
     <View
       style={[
         styles.container,
-        {
-          // Absolute so the screens run full height and their content passes UNDER
-          // the bar. Glass over an opaque page is just a grey rectangle — the
-          // material only means anything when there's something moving behind it.
-          // Every tab screen already reserves 120-130px at the bottom for this.
-          borderTopColor: c.lineSoft,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-        },
+        { bottom: (insets.bottom > 0 ? insets.bottom : 10) + 2 },
       ]}
-      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+      pointerEvents="box-none"
     >
-      <TabBarBackground />
+      <View
+        style={[styles.pill, { borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(26,14,6,0.06)' }]}
+        onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+      >
+        <TabBarBackground />
 
-      {/* Sliding gradient accent line */}
-      <View style={styles.indicatorTrack}>
+        {/* The selected tab is marked by a capsule sitting behind it, which is the
+            shape iOS uses. It was a hairline across the top of the old slab — a
+            detail that only made sense while there was a full-width edge to draw it
+            along. Same spring, same direction-aware squash, different shape. */}
         {tabWidth > 0 && (
           <Animated.View
             style={[styles.indicatorSlider, { left: leftEdge, width: indicatorWidth }]}
+            pointerEvents="none"
           >
             <LinearGradient
-              colors={['rgba(242,106,42,0)', c.orange, c.orange, 'rgba(242,106,42,0)']}
-              locations={[0, 0.25, 0.75, 1]}
+              colors={[`${c.orange}26`, `${c.orange}3D`]}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.accentLine}
+              end={{ x: 0, y: 1 }}
+              style={styles.indicatorFill}
             />
           </Animated.View>
         )}
-      </View>
 
-      {/* Tabs */}
-      <View style={styles.tabsRow}>
-        {TABS.map((tab, i) => {
+        {/* Tabs */}
+        <View style={styles.tabsRow}>
+          {TABS.map((tab, i) => {
           const isFocused = state.index === i;
           const color = isFocused ? c.orange : iconInactive;
           return (
@@ -122,7 +124,7 @@ function TabBar({ state, navigation }: any) {
                 }
               }}
             >
-              <TabIcon spec={tab.icon} focused={isFocused} color={color} size={26} />
+              <TabIcon spec={tab.icon} focused={isFocused} color={color} size={23} />
               <Text
                 style={[
                   styles.tabLabel,
@@ -137,6 +139,7 @@ function TabBar({ state, navigation }: any) {
             </Pressable>
           );
         })}
+        </View>
       </View>
     </View>
   );
@@ -171,43 +174,50 @@ export default function TabsLayout() {
   );
 }
 
+const BAR_H = 62;
+
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    // Clips the material to the bar so the blur can't bleed past its own edge.
-    overflow: 'hidden',
+    left: 14,
+    right: 14,
   },
-  indicatorTrack: {
-    height: 3,
+  pill: {
+    height: BAR_H,
+    borderRadius: BAR_H / 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    // Clips the material and the selection capsule to the pill's own edge.
     overflow: 'hidden',
+    justifyContent: 'center',
+    // Lifts it off the page so it reads as floating rather than painted on.
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 20,
+    elevation: 12,
   },
   indicatorSlider: {
     position: 'absolute',
-    top: 0,
+    top: 5,
+    bottom: 5,
     left: 0,
-    height: 3,
   },
-  accentLine: {
+  indicatorFill: {
     flex: 1,
-    height: 3,
-    borderRadius: 2,
+    marginHorizontal: 5,
+    borderRadius: (BAR_H - 10) / 2,
   },
   tabsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 8,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
+    paddingVertical: 6,
   },
   tabLabel: {
-    fontSize: 12,
+    fontSize: 10.5,
   },
 });
