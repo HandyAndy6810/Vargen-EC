@@ -4,10 +4,11 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { unitSell, type LineItem } from '@/hooks/use-quote-draft';
 
 const MIN_PCT = 0;
-// 120% top end puts a typical 25-30% markup about a quarter along the track, so
-// there's real room to drag DOWN as well as up, and the usable range isn't squeezed
-// into the first sliver of the bar.
-const MAX_PCT = 120;
+// 80% top end. A tradie's markup normally sits between 15% and 40%, so anchoring the
+// scale here puts the starting thumb a genuine quarter to a third along the bar with
+// room to pull it back — a 200% or 120% ceiling squeezed all the useful positions
+// into the first sliver, which is why it kept reading as "starts at zero".
+const MAX_PCT = 80;
 const THUMB = 26;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 

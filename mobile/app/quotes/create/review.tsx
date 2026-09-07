@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView,
   ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Animated, PanResponder,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -25,7 +25,11 @@ import { queryClient } from '@/lib/queryClient';
 const money = (n: number) =>
   `$${n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const SWIPE_W = 88;
+// How far the row travels, and how wide the button under it is. The button is
+// narrower than the travel and inset from the edges, so a full swipe reveals the
+// whole pill with a margin around it rather than stopping half way across it.
+const SWIPE_W = 104;
+const DELETE_INSET = 8;
 
 /**
  * Drag a line item left to reveal Delete. Uses PanResponder and the built-in
@@ -66,7 +70,7 @@ function SwipeableRow({
   return (
     <View style={{ position: 'relative' }}>
       <TouchableOpacity
-        style={[sw.deleteZone, { width: SWIPE_W }]}
+        style={[sw.deleteZone, { width: SWIPE_W - DELETE_INSET * 2, right: DELETE_INSET }]}
         activeOpacity={0.85}
         onPress={() => { slide(0); onDelete(); }}
         accessibilityRole="button"
@@ -86,7 +90,7 @@ const sw = StyleSheet.create({
   // A rounded pill inset from the row edges rather than a full-bleed red block —
   // it reads as a button you press, not as the row bleeding open.
   deleteZone: {
-    position: 'absolute', right: 0, top: 6, bottom: 6,
+    position: 'absolute', top: 6, bottom: 6,
     backgroundColor: '#d23b3b', borderRadius: 16,
     alignItems: 'center', justifyContent: 'center', gap: 3,
   },
@@ -101,6 +105,7 @@ const sw = StyleSheet.create({
 export default function ReviewStep() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
+  const insets = useSafeAreaInsets();
   const d = useQuoteDraft();
   const { data: settings } = useSettings() as any;
 
@@ -529,8 +534,17 @@ export default function ReviewStep() {
       {/* Line item editor — a popup so the footer can't cover what you're editing */}
       <Modal visible={!!editor} transparent animationType="slide" onRequestClose={() => setEditor(null)}>
         <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setEditor(null)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={s.sheet}>
+        {/* The KeyboardAvoidingView had no size, so it collapsed to nothing and the
+            absolutely-positioned sheet inside it anchored to the top of the screen
+            instead of the bottom — the editor came up jammed under the status bar
+            with its fields overlapping. It needs to fill the screen and push its
+            child to the bottom, with the sheet laid out normally inside it. */}
+        <KeyboardAvoidingView
+          style={{ flex: 1, justifyContent: 'flex-end' }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          pointerEvents="box-none"
+        >
+          <View style={[s.sheet, { position: 'relative' }]}>
             <View style={s.handle} />
             <View style={s.sheetHead}>
               <Text style={s.sheetTitle}>{editor?.index === null ? 'Add line item' : 'Edit line item'}</Text>
@@ -622,7 +636,10 @@ export default function ReviewStep() {
         animationType="slide"
         onRequestClose={() => setPreviewHtml(null)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top', 'bottom']}>
+        {/* SafeAreaView doesn't get the insets inside a Modal, so the bar rendered
+            underneath the status bar and its buttons couldn't be tapped. Applying
+            the measured inset directly always works. */}
+        <View style={{ flex: 1, backgroundColor: c.paper, paddingTop: insets.top }}>
           <View style={s.previewBar}>
             <TouchableOpacity
               onPress={() => setPreviewHtml(null)}
@@ -656,7 +673,8 @@ export default function ReviewStep() {
               </View>
             )}
           />
-        </SafeAreaView>
+          <View style={{ height: insets.bottom, backgroundColor: '#fff' }} />
+        </View>
       </Modal>
 
       {/* Customer gate — only on Send */}

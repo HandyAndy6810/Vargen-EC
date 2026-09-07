@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, Share } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useGlobalSearchParams } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { format, addDays } from 'date-fns';
 import { apiRequest, API_BASE_URL } from '@/lib/api';
@@ -140,11 +140,20 @@ export function useQuoteDraft(): QuoteDraft {
 export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   // Capture the entry params once — they belong to the flow, not to whichever
   // step happens to be focused later.
-  const params = useLocalSearchParams<{ customerName?: string; customerId?: string; quoteId?: string }>();
+  //
+  // Both hooks are read because this runs in the route GROUP's layout, and
+  // useLocalSearchParams is scoped to the layout's own segment — the query string on
+  // /quotes/create?quoteId=23 lands on the child route, not here, so locally it came
+  // back empty. That's why Tweak opened a blank quote: editId was 0, so the flow
+  // never knew it was editing anything. useGlobalSearchParams sees the focused
+  // route's params, and the ref keeps them from changing under us later.
+  type EntryParams = { customerName?: string; customerId?: string; quoteId?: string };
+  const localParams = useLocalSearchParams<EntryParams>();
+  const globalParams = useGlobalSearchParams<EntryParams>();
   const initial = useRef({
-    prefillName: params.customerName,
-    prefillCustomerId: params.customerId,
-    editId: params.quoteId ? Number(params.quoteId) : 0,
+    prefillName: localParams.customerName ?? globalParams.customerName,
+    prefillCustomerId: localParams.customerId ?? globalParams.customerId,
+    editId: Number(localParams.quoteId ?? globalParams.quoteId ?? 0) || 0,
   });
   const editId = initial.current.editId;
   const isEditing = editId > 0;
