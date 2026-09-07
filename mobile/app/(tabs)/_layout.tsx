@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import * as Haptics from 'expo-haptics';
+import { TabBarBackground } from '@/components/TabBarBackground';
 import { Home, FileText, Receipt, CalendarClock, User } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -70,13 +71,18 @@ function TabBar({ state, navigation }: any) {
       style={[
         styles.container,
         {
-          backgroundColor: c.paper,
+          // Absolute so the screens run full height and their content passes UNDER
+          // the bar. Glass over an opaque page is just a grey rectangle — the
+          // material only means anything when there's something moving behind it.
+          // Every tab screen already reserves 120-130px at the bottom for this.
           borderTopColor: c.lineSoft,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
         },
       ]}
       onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
     >
+      <TabBarBackground />
+
       {/* Sliding gradient accent line */}
       <View style={styles.indicatorTrack}>
         {tabWidth > 0 && (
@@ -166,7 +172,13 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   container: {
-    borderTopWidth: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    // Clips the material to the bar so the blur can't bleed past its own edge.
+    overflow: 'hidden',
   },
   indicatorTrack: {
     height: 3,
