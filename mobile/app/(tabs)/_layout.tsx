@@ -5,17 +5,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
-import * as Haptics from 'expo-haptics';
 import { TabBarBackground } from '@/components/TabBarBackground';
+import { TabIcon, type TabIconSpec } from '@/components/TabIcon';
+import { hapticSelect } from '@/lib/haptics';
 import { Home, FileText, Receipt, CalendarClock, User } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const TABS = [
-  { name: 'index',    label: 'Home',     Icon: Home },
-  { name: 'quotes',   label: 'Quotes',   Icon: FileText },
-  { name: 'invoices', label: 'Invoices', Icon: Receipt },
-  { name: 'calendar', label: 'Schedule', Icon: CalendarClock },
-  { name: 'profile',  label: 'Profile',  Icon: User },
+const TABS: { name: string; label: string; icon: TabIconSpec }[] = [
+  { name: 'index',    label: 'Home',     icon: { symbol: 'house',              symbolActive: 'house.fill',              Fallback: Home } },
+  { name: 'quotes',   label: 'Quotes',   icon: { symbol: 'doc.text',           symbolActive: 'doc.text.fill',           Fallback: FileText } },
+  { name: 'invoices', label: 'Invoices', icon: { symbol: 'dollarsign.square',  symbolActive: 'dollarsign.square.fill',  Fallback: Receipt } },
+  { name: 'calendar', label: 'Schedule', icon: { symbol: 'calendar',           symbolActive: 'calendar',                Fallback: CalendarClock } },
+  { name: 'profile',  label: 'Profile',  icon: { symbol: 'person.crop.circle', symbolActive: 'person.crop.circle.fill', Fallback: User } },
 ];
 
 
@@ -110,7 +111,7 @@ function TabBar({ state, navigation }: any) {
               key={tab.name}
               style={styles.tabItem}
               onPress={() => {
-                Haptics.selectionAsync();
+                hapticSelect();
                 const event = navigation.emit({
                   type: 'tabPress',
                   target: state.routes[i].key,
@@ -121,7 +122,7 @@ function TabBar({ state, navigation }: any) {
                 }
               }}
             >
-              <tab.Icon size={24} color={color} strokeWidth={2} />
+              <TabIcon spec={tab.icon} focused={isFocused} color={color} size={26} />
               <Text
                 style={[
                   styles.tabLabel,

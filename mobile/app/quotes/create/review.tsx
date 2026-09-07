@@ -113,12 +113,7 @@ export default function ReviewStep() {
   const [openGroups, setOpenGroups] = useState<{ labour: boolean; material: boolean }>({
     labour: true, material: true,
   });
-  const [editor, setEditor] = useState<{ index: number | null; line: LineItem } | null>(null);
   const [flagsOpen, setFlagsOpen] = useState(true);
-  const [gateOpen, setGateOpen] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newContact, setNewContact] = useState('');
-  const [addingNew, setAddingNew] = useState(false);
 
   const labour = d.lines.filter(l => l.category === 'labour');
   const materials = d.lines.filter(l => l.category !== 'labour');
@@ -153,34 +148,6 @@ export default function ReviewStep() {
     }));
   };
 
-  /** The quote as the customer will read it — shared by preview and by sharing. */
-  const quotePayload = () => ({
-    documentType: 'quote' as const,
-    documentNumber: d.isEditing ? `Q-${String(d.editId).padStart(4, '0')}` : 'DRAFT',
-    createdAt: format(new Date(), 'd MMM yyyy'),
-    expiryDate: d.expiryDate || undefined,
-    status: 'draft' as const,
-    jobTitle: d.jobTitle || 'Untitled quote',
-    summary: d.summary || undefined,
-    customerName: d.customer.trim() || undefined,
-    customerPhone: d.selectedCustomer?.phone || undefined,
-    customerEmail: d.selectedCustomer?.email || undefined,
-    customerAddress: d.selectedCustomer?.address || undefined,
-    items: d.lines
-      .filter(l => l.name.trim() || unitSell(l, d.markupPct) > 0)
-      .map(l => ({
-        description: l.name || 'Item',
-        quantity: parseFloat(l.qty) || 1,
-        unit: l.unit || undefined,
-        unitPrice: unitSell(l, d.markupPct),
-      })),
-    notes: d.notes || undefined,
-    subtotal: d.subtotal,
-    gstAmount: d.gst,
-    totalAmount: d.total,
-    includeGST: true,
-  });
-
   /**
    * Show the quote itself, full screen, in the app.
    *
@@ -192,7 +159,7 @@ export default function ReviewStep() {
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const previewPDF = () => {
     try {
-      setPreviewHtml(buildQuotePDF(quotePayload(), settings));
+      setPreviewHtml(buildQuotePDF(d.quotePayload(), settings));
     } catch (e: any) {
       showAlert('Could not build the preview', String(e?.message || 'Try again.'));
     }
@@ -201,71 +168,9 @@ export default function ReviewStep() {
   const onSend = () => {
     // The gate: a quote can be drafted and previewed without a customer, but not sent.
     if (d.customer.trim()) { d.handleSendPress(); return; }
-    setGateOpen(true);
+    router.push('/quotes/create/send' as any);
   };
 
-  /**
-   * Hand the finished PDF to the OS share sheet — WhatsApp, Messenger, AirDrop, a
-   * personal email account, whatever the tradie actually uses. Not every quote goes
-   * to someone already in the customer list, and making them create a record first
-   * just to get the file out was the wrong trade.
-   */
-  const onShareAnyway = async () => {
-    setGateOpen(false);
-    try {
-      const html = buildQuotePDF(quotePayload(), settings);
-      const { uri } = await Print.printToFileAsync({ html });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
-      } else {
-        showAlert('Sharing unavailable', "This device can't open the share sheet.");
-      }
-    } catch (e: any) {
-      const msg = String(e?.message || '');
-      if (/cancel|dismiss/i.test(msg)) return;
-      showAlert('Could not share the quote', msg || 'Try again.');
-    }
-  };
-
-  /**
-   * Creating a customer here writes a real record, so the quote is linked to
-   * someone who exists rather than just carrying a name in its text. One contact
-   * field covers both — a value with an "@" is treated as an email, anything else
-   * as a phone.
-   */
-  const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const confirmNewCustomer = async () => {
-    const name = newName.trim();
-    if (!name || creatingCustomer) return;
-    setCreatingCustomer(true);
-    try {
-      const contact = newContact.trim();
-      const res = await apiRequest('POST', '/api/customers', {
-        name,
-        email: contact.includes('@') ? contact : undefined,
-        phone: contact && !contact.includes('@') ? contact : undefined,
-      });
-      if (res.ok) {
-        const created = await res.json();
-        d.setCustomerId(created?.id ?? null);
-        queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
-      }
-      // Even if the record couldn't be created, keep the name so the quote can
-      // still go out — the tradie can tidy the contact up afterwards.
-      d.setCustomer(name);
-      setGateOpen(false);
-      setAddingNew(false);
-      setNewName('');
-      setNewContact('');
-      d.handleSendPress();
-    } catch {
-      d.setCustomer(name);
-      setGateOpen(false);
-      d.handleSendPress();
-    } finally {
-      setCreatingCustomer(false);
-    }
-  };
 
   const onDiscard = () => {
     showConfirm({
@@ -290,7 +195,7 @@ export default function ReviewStep() {
         <TouchableOpacity
           style={s.lineRow}
           activeOpacity={0.7}
-          onPress={() => setEditor({ index: i, line: { ...l } })}
+          onPress={() => router.push(`/quotes/create/line?index=${i}` as any)}
           accessibilityRole="button"
           accessibilityLabel={`Edit ${l.name || 'line item'}`}
         >
@@ -354,10 +259,7 @@ export default function ReviewStep() {
             <TouchableOpacity
               style={s.addLineBtn}
               activeOpacity={0.7}
-              onPress={() => setEditor({
-                index: null,
-                line: { name: '', qty: '1', price: '', cost: '', unit: key === 'labour' ? 'hr' : 'ea', category: key },
-              })}
+              onPress={() => router.push(`/quotes/create/line?index=new&category=${key}` as any)}
               accessibilityRole="button"
               accessibilityLabel={`Add a ${label.toLowerCase()} line`}
             >
@@ -531,105 +433,6 @@ export default function ReviewStep() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Line item editor — a popup so the footer can't cover what you're editing */}
-      <Modal visible={!!editor} transparent animationType="slide" onRequestClose={() => setEditor(null)}>
-        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setEditor(null)} />
-        {/* The KeyboardAvoidingView had no size, so it collapsed to nothing and the
-            absolutely-positioned sheet inside it anchored to the top of the screen
-            instead of the bottom — the editor came up jammed under the status bar
-            with its fields overlapping. It needs to fill the screen and push its
-            child to the bottom, with the sheet laid out normally inside it. */}
-        <KeyboardAvoidingView
-          style={{ flex: 1, justifyContent: 'flex-end' }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          pointerEvents="box-none"
-        >
-          <View style={[s.sheet, { position: 'relative' }]}>
-            <View style={s.handle} />
-            <View style={s.sheetHead}>
-              <Text style={s.sheetTitle}>{editor?.index === null ? 'Add line item' : 'Edit line item'}</Text>
-              <TouchableOpacity onPress={() => setEditor(null)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
-                <X size={18} color={c.mutedHi} strokeWidth={2} />
-              </TouchableOpacity>
-            </View>
-
-            {editor ? (
-              <>
-                <Text style={s.fieldLabel}>Description</Text>
-                <TextInput
-                  style={[s.gateInput, { minHeight: 62, textAlignVertical: 'top' }]}
-                  value={editor.line.name}
-                  onChangeText={v => setEditor({ ...editor, line: { ...editor.line, name: v } })}
-                  placeholder="e.g. 25mm copper elbow x4"
-                  placeholderTextColor={c.muted}
-                  multiline
-                  autoFocus
-                />
-
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.fieldLabel}>Qty</Text>
-                    <TextInput
-                      style={s.gateInput}
-                      value={editor.line.qty}
-                      onChangeText={v => setEditor({ ...editor, line: { ...editor.line, qty: v } })}
-                      keyboardType="decimal-pad"
-                      placeholder="1"
-                      placeholderTextColor={c.muted}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.fieldLabel}>Unit</Text>
-                    <TextInput
-                      style={s.gateInput}
-                      value={editor.line.unit ?? ''}
-                      onChangeText={v => setEditor({ ...editor, line: { ...editor.line, unit: v } })}
-                      placeholder="ea"
-                      placeholderTextColor={c.muted}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.fieldLabel}>Your cost</Text>
-                    <TextInput
-                      style={s.gateInput}
-                      value={editor.line.cost ?? ''}
-                      onChangeText={v => setEditor({ ...editor, line: { ...editor.line, cost: v } })}
-                      keyboardType="decimal-pad"
-                      placeholder="0"
-                      placeholderTextColor={c.muted}
-                    />
-                  </View>
-                </View>
-
-                <Text style={s.editorHint}>
-                  Charged at {money(unitSell(editor.line, d.markupPct))} each with your {Math.round(d.markupPct)}% markup.
-                </Text>
-
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-                  {editor.index !== null ? (
-                    <TouchableOpacity
-                      style={s.deleteBtn}
-                      activeOpacity={0.8}
-                      onPress={() => { d.removeLine(editor.index as number); setEditor(null); }}
-                    >
-                      <Trash2 size={16} color="#d23b3b" strokeWidth={2.2} />
-                    </TouchableOpacity>
-                  ) : null}
-                  <TouchableOpacity
-                    style={[s.gateConfirm, { flex: 1, marginTop: 0 }, !editor.line.name.trim() && { opacity: 0.45 }]}
-                    activeOpacity={0.85}
-                    disabled={!editor.line.name.trim()}
-                    onPress={() => { d.upsertLine(editor.index, editor.line); setEditor(null); }}
-                  >
-                    <Text style={s.gateConfirmText}>{editor.index === null ? 'Add item' : 'Save item'}</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : null}
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
       {/* Live preview — the real document, not a redrawn approximation */}
       <Modal
         visible={previewHtml !== null}
@@ -651,7 +454,7 @@ export default function ReviewStep() {
             </TouchableOpacity>
             <Text style={s.previewTitle}>What your customer sees</Text>
             <TouchableOpacity
-              onPress={onShareAnyway}
+              onPress={d.shareAnyway}
               hitSlop={12}
               accessibilityRole="button"
               accessibilityLabel="Share this quote"
@@ -677,109 +480,6 @@ export default function ReviewStep() {
         </View>
       </Modal>
 
-      {/* Customer gate — only on Send */}
-      <Modal visible={gateOpen} transparent animationType="slide" onRequestClose={() => setGateOpen(false)}>
-        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setGateOpen(false)} />
-        <View style={s.sheet}>
-          <View style={s.handle} />
-          <View style={s.sheetHead}>
-            <Text style={s.sheetTitle}>Who's this going to?</Text>
-            <TouchableOpacity onPress={() => setGateOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
-              <X size={18} color={c.mutedHi} strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
-          <Text style={s.sheetSub}>A quote needs a customer before it can be sent.</Text>
-
-          <ScrollView style={{ maxHeight: 240 }} keyboardShouldPersistTaps="handled">
-            {d.filteredCustomers.map((cust: any) => (
-              <TouchableOpacity
-                key={cust.id}
-                style={s.custRow}
-                activeOpacity={0.7}
-                onPress={() => {
-                  d.setCustomerId(cust.id);
-                  d.setCustomer(cust.name);
-                  setGateOpen(false);
-                  d.handleSendPress();
-                }}
-              >
-                <View style={s.custAvatar}><Text style={s.custAvatarText}>{cust.name?.slice(0, 2).toUpperCase()}</Text></View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={s.custName} numberOfLines={1}>{cust.name}</Text>
-                  {cust.phone ? <Text style={s.custSub} numberOfLines={1}>{cust.phone}</Text> : null}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Adding someone new is a button, not a form sitting open underneath the
-              list — the list is the common case and the form was crowding it out. */}
-          {!addingNew ? (
-            <>
-              <TouchableOpacity
-                style={s.gateAddBtn}
-                activeOpacity={0.8}
-                onPress={() => setAddingNew(true)}
-                accessibilityRole="button"
-                accessibilityLabel="Add a new customer"
-              >
-                <Plus size={16} color={c.orange} strokeWidth={2.6} />
-                <Text style={s.gateAddText}>Add someone new</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={s.gateShareBtn}
-                activeOpacity={0.7}
-                onPress={onShareAnyway}
-                accessibilityRole="button"
-                accessibilityLabel="Share the quote another way"
-              >
-                <Share2 size={15} color={c.mutedHi} strokeWidth={2.2} />
-                <Text style={s.gateShareText}>Share it another way</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <Text style={s.orLabel}>New customer</Text>
-              <TextInput
-                style={s.gateInput}
-                placeholder="Name"
-                placeholderTextColor={c.muted}
-                value={newName}
-                onChangeText={setNewName}
-                autoFocus
-              />
-              <TextInput
-                style={[s.gateInput, { marginTop: 8 }]}
-                placeholder="Phone or email"
-                placeholderTextColor={c.muted}
-                value={newContact}
-                onChangeText={setNewContact}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                style={[s.gateConfirm, (!newName.trim() || creatingCustomer) && { opacity: 0.45 }]}
-                activeOpacity={0.85}
-                onPress={confirmNewCustomer}
-                disabled={!newName.trim() || creatingCustomer}
-              >
-                {creatingCustomer
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.gateConfirmText}>Create and send</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={s.gateShareBtn}
-                activeOpacity={0.7}
-                onPress={() => setAddingNew(false)}
-                accessibilityRole="button"
-                accessibilityLabel="Back to the customer list"
-              >
-                <Text style={s.gateShareText}>Back to my customers</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

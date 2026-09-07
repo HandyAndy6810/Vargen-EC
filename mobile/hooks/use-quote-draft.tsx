@@ -1,16 +1,20 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, Share } from 'react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { router, useLocalSearchParams, useGlobalSearchParams } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { format, addDays } from 'date-fns';
 import { apiRequest, API_BASE_URL } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { showAlert, showConfirm } from '@/lib/dialogs';
+import { hapticSuccess, hapticError, hapticPress, hapticWarn } from '@/lib/haptics';
 import { loadQuoteDraft, saveQuoteDraft, clearQuoteDraft, type CachedQuoteDraft } from '@/lib/quote-draft-cache';
 import { useQuote } from '@/hooks/use-quotes';
 import { useCustomers } from '@/hooks/use-customers';
 import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
+import { buildQuotePDF } from '@/lib/quote-pdf';
 import type { SheetAction } from '@/components/ActionSheetModal';
 
 // `cost` is what the tradie actually pays; `price` is what they charge. The markup
@@ -98,6 +102,10 @@ type QuoteDraft = {
   questions: ClarifyQuestion[];
   finishClarify: (answers: (string | null)[]) => Promise<void>;
   startManual: () => void;
+  /** The quote as the customer reads it — used by both preview and share. */
+  quotePayload: () => any;
+  /** Hand the rendered PDF to the OS share sheet. */
+  shareAnyway: () => Promise<void>;
   /**
    * An unfinished quote found on the device. Offered, never applied silently —
    * quietly repopulating a screen the tradie thought was blank is worse than
@@ -246,6 +254,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   // Pinning a line freezes it at the price it shows RIGHT NOW (not its original), and
   // unpinning hands it straight back to the slider at the slider's current position.
   const toggleLineLock = (i: number) => {
+    hapticPress();
     setLines(prev => prev.map((l, idx) => {
       if (idx !== i) return l;
       if (l.markupLocked) {
@@ -260,7 +269,10 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const upsertLine = (index: number | null, line: LineItem) => {
     setLines(prev => (index === null ? [...prev, line] : prev.map((l, i) => (i === index ? line : l))));
   };
-  const removeLine = (index: number) => setLines(prev => prev.filter((_, i) => i !== index));
+  const removeLine = (index: number) => {
+    hapticWarn();
+    setLines(prev => prev.filter((_, i) => i !== index));
+  };
 
   const rawSubtotal = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * unitSell(l, markupPct), 0));
   const rawTotal = round2(rawSubtotal * 1.1);
@@ -340,6 +352,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       return saved;
     },
     onSuccess: () => {
+      hapticSuccess();
       // It's on the server now — the device copy would only come back as a ghost.
       clearQuoteDraft();
       queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
@@ -348,7 +361,10 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       try { router.dismissAll(); } catch {}
       router.replace('/(tabs)/quotes');
     },
-    onError: () => showAlert('Could not save', 'Check your connection and try again.'),
+    onError: () => {
+      hapticError();
+      showAlert('Could not save', 'Check your connection and try again.');
+    },
   });
 
   const validateForm = (): boolean => {
@@ -576,6 +592,56 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  /**
+   * The quote as the customer will read it. Lives here rather than on Review so the
+   * preview and the share sheet render from one description of the document.
+   */
+  const quotePayload = () => ({
+    documentType: 'quote' as const,
+    documentNumber: isEditing ? `Q-${String(editId).padStart(4, '0')}` : 'DRAFT',
+    createdAt: format(new Date(), 'd MMM yyyy'),
+    expiryDate: expiryDate || undefined,
+    status: 'draft' as const,
+    jobTitle: jobTitle || 'Untitled quote',
+    summary: summary || undefined,
+    customerName: customer.trim() || undefined,
+    customerPhone: selectedCustomer?.phone || undefined,
+    customerEmail: selectedCustomer?.email || undefined,
+    customerAddress: selectedCustomer?.address || undefined,
+    items: lines
+      .filter(l => l.name.trim() || unitSell(l, markupPct) > 0)
+      .map(l => ({
+        description: l.name || 'Item',
+        quantity: parseFloat(l.qty) || 1,
+        unit: l.unit || undefined,
+        unitPrice: unitSell(l, markupPct),
+      })),
+    notes: notes || undefined,
+    subtotal, gstAmount: gst, totalAmount: total, includeGST: true,
+  });
+
+  /**
+   * Not every quote goes to someone already in the customer list. Handing the PDF to
+   * the OS share sheet covers WhatsApp, AirDrop, a personal mail account — whatever
+   * the tradie actually uses — without forcing a customer record first.
+   */
+  const shareAnyway = async () => {
+    try {
+      const html = buildQuotePDF(quotePayload(), settings);
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
+      } else {
+        showAlert('Sharing unavailable', "This device can't open the share sheet.");
+      }
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      if (/cancel|dismiss/i.test(msg)) return;
+      hapticError();
+      showAlert('Could not share the quote', msg || 'Try again.');
+    }
+  };
+
   /** Skip AI entirely and build the quote by hand from a blank line. */
   const startManual = () => {
     setQuestions([]);
@@ -630,7 +696,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     lines, setLines,
     markupPct, setMarkupPct, assumptions, setAssumptions, toggleLineLock,
     roundUp, setRoundUp, upsertLine, removeLine,
-    questions, finishClarify, startManual,
+    questions, finishClarify, startManual, quotePayload, shareAnyway,
     restorable, restoreDraft, forgetSavedDraft,
     custSearch, setCustSearch, showCustList, setShowCustList, filteredCustomers,
     editLineIdx, editLineDraft, setEditLineDraft, openLineEdit, saveLineEdit, deleteLineFromModal, addLine, closeLineEdit,

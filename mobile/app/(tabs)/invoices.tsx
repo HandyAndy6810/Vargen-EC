@@ -2,7 +2,6 @@ import {
   View,
   Text,
   ScrollView,
-  FlatList,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
@@ -10,16 +9,19 @@ import {
   StyleSheet,
   Alert,
   Platform,
+  Animated,
 } from 'react-native';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { router } from 'expo-router';
 import { format } from 'date-fns';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { queryClient } from '@/lib/queryClient';
 import { api } from '@shared/mobile-routes';
 import { useInvoices } from '@/hooks/use-invoices';
 import { Plus, Sparkles, FileText, Search, Filter } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { LargeTitleHeader, LARGE_TITLE_COLLAPSE } from '@/components/LargeTitleHeader';
+import { hapticSelect } from '@/lib/haptics';
 
 
 type Filter = 'all' | 'draft' | 'sent' | 'partial' | 'paid' | 'overdue';
@@ -68,6 +70,9 @@ function makeStyles(c: Colors) {
 export default function InvoicesScreen() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
+  const insets = useSafeAreaInsets();
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerPad = insets.top + 44 + LARGE_TITLE_COLLAPSE;
 
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
@@ -130,23 +135,9 @@ export default function InvoicesScreen() {
     return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.paper }}><ActivityIndicator size="large" color={c.orange} /></View>;
   }
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-      <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.eyebrow}>Invoices</Text>
-          <Text style={s.title}>Invoices</Text>
-        </View>
-        <TouchableOpacity style={s.fromQuoteBtn} onPress={() => router.push('/invoices/create/quote-pick')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Build invoice from a quote">
-          <FileText size={15} color={c.orange} strokeWidth={2.2} />
-          <Text style={s.fromQuoteText}>From quote</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.addBtn} onPress={() => router.push('/invoices/create')} activeOpacity={0.8}>
-          <Plus size={20} color="#fff" strokeWidth={2.5} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={{ paddingHorizontal: 20, paddingBottom: 14 }}>
+  const listTop = (
+    <View style={{ paddingHorizontal: 20 }}>
+      <View style={{ paddingBottom: 14 }}>
         <View style={s.heroCard}>
           <View style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.3)' }} />
           <Text style={s.heroEyebrow}>Outstanding · {sorted.filter((i: any) => i.status !== 'paid' && i.status !== 'void').length} invoices</Text>
@@ -164,7 +155,7 @@ export default function InvoicesScreen() {
         </View>
       </View>
 
-      <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+      <View style={{ marginBottom: 14 }}>
         <View style={s.searchRow}>
           <Search size={16} color={c.muted} strokeWidth={2} />
           <TextInput
@@ -181,7 +172,7 @@ export default function InvoicesScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={Platform.OS === 'web'}
-        contentContainerStyle={s.tabsRow}
+        contentContainerStyle={[s.tabsRow, { paddingHorizontal: 0 }]}
         style={{ height: 48, flexGrow: 0, flexShrink: 0 }}
       >
         {([
@@ -194,7 +185,7 @@ export default function InvoicesScreen() {
         ] as { id: Filter; l: string; n: number }[]).map((t) => {
           const active = filter === t.id;
           return (
-            <TouchableOpacity key={t.id} onPress={() => setFilter(t.id)} activeOpacity={0.7}
+            <TouchableOpacity key={t.id} onPress={() => { hapticSelect(); setFilter(t.id); }} activeOpacity={0.7}
               style={[s.tab, active && s.tabActive]}>
               <Text style={[s.tabText, active && s.tabTextActive]}>{t.l}</Text>
               <View style={[s.tabBadge, active && { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
@@ -205,13 +196,41 @@ export default function InvoicesScreen() {
         })}
       </ScrollView>
 
-      <FlatList
+    </View>
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: c.paper }}>
+      <LargeTitleHeader
+        scrollY={scrollY}
+        eyebrow="Invoices"
+        title="Invoices"
+        right={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity style={s.fromQuoteBtn} onPress={() => router.push('/invoices/create/quote-pick')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Build invoice from a quote">
+              <FileText size={15} color={c.orange} strokeWidth={2.2} />
+              <Text style={s.fromQuoteText}>From quote</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.addBtn} onPress={() => router.push('/invoices/create')} activeOpacity={0.8}>
+              <Plus size={20} color="#fff" strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
+        }
+      />
+
+      <Animated.FlatList
         data={filtered}
         keyExtractor={(inv: any) => String(inv.id)}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 130, gap: 10 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
-        ListHeaderComponent={isError ? (
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerPad, paddingBottom: 130, gap: 10 }}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        scrollIndicatorInsets={{ top: headerPad }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} progressViewOffset={headerPad} />}
+        ListHeaderComponent={(
+          <View style={{ marginHorizontal: -20, marginBottom: 4 }}>
+            {listTop}
+            {isError ? (
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={onRefresh}
@@ -221,7 +240,9 @@ export default function InvoicesScreen() {
               Couldn't load invoices — tap to retry
             </Text>
           </TouchableOpacity>
-        ) : null}
+            ) : null}
+          </View>
+        )}
         ListEmptyComponent={
           <View style={{ alignItems: 'center', paddingVertical: 56, paddingHorizontal: 24 }}>
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: c.paperDeep, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
@@ -271,6 +292,6 @@ export default function InvoicesScreen() {
             );
           }}
       />
-    </SafeAreaView>
+    </View>
   );
 }

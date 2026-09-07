@@ -2,23 +2,25 @@ import {
   View,
   Text,
   ScrollView,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
   TextInput,
   StyleSheet,
+  Animated,
 } from 'react-native';
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { queryClient } from '@/lib/queryClient';
 import { api } from '@shared/mobile-routes';
 import { useQuotes } from '@/hooks/use-quotes';
 import { Plus, Search, Filter } from 'lucide-react-native';
 import { parseQuoteContent } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { LargeTitleHeader, LARGE_TITLE_COLLAPSE } from '@/components/LargeTitleHeader';
+import { hapticSelect } from '@/lib/haptics';
 
 
 function fmtAUD(n: number): string {
@@ -82,6 +84,11 @@ function makeStyles(c: Colors, isDark: boolean) {
 export default function QuotesScreen() {
   const { colors: c, isDark } = useTheme();
   const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
+  const insets = useSafeAreaInsets();
+  // Drives the title collapse. Native-driven, so it tracks the finger exactly.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  // The list starts below the fully-expanded header and slides up under it.
+  const headerPad = insets.top + 44 + LARGE_TITLE_COLLAPSE;
 
   const STATUS_PILL: Record<string, { bg: string; fg: string; bd: string; label: string }> = {
     draft:    { bg: c.paperDeep,  fg: c.mutedHi,    bd: c.lineSoft,              label: 'Draft' },
@@ -165,19 +172,9 @@ export default function QuotesScreen() {
     return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.paper }}><ActivityIndicator size="large" color={c.orange} /></View>;
   }
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-      <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.eyebrow}>Quotes</Text>
-          <Text style={s.title}>All quotes</Text>
-        </View>
-        <TouchableOpacity style={s.addBtn} onPress={() => router.push('/quotes/create')} activeOpacity={0.8}>
-          <Plus size={20} color="#fff" strokeWidth={2.5} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+  const listTop = (
+    <View style={{ paddingHorizontal: 20 }}>
+      <View style={{ paddingBottom: 16 }}>
         <View style={s.heroCard}>
           <View style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, backgroundColor: `${c.orange}88`, opacity: 0.35 }} />
           <Text style={s.heroEyebrow}>Outstanding pipeline</Text>
@@ -196,18 +193,16 @@ export default function QuotesScreen() {
         </View>
       </View>
 
-      <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
-        <View style={s.searchRow}>
-          <Search size={16} color={c.muted} strokeWidth={2} />
-          <TextInput
-            style={s.searchInput}
-            placeholder="Search quotes, customers…"
-            placeholderTextColor={c.muted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          <Filter size={16} color={c.muted} strokeWidth={2} />
-        </View>
+      <View style={s.searchRow}>
+        <Search size={16} color={c.muted} strokeWidth={2} />
+        <TextInput
+          style={s.searchInput}
+          placeholder="Search quotes, customers…"
+          placeholderTextColor={c.muted}
+          value={search}
+          onChangeText={setSearch}
+        />
+        <Filter size={16} color={c.muted} strokeWidth={2} />
       </View>
 
       {/* flexGrow/flexShrink 0 stops the strip taking up leftover space when the
@@ -215,8 +210,8 @@ export default function QuotesScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.tabsRow}
-        style={{ height: 48, flexGrow: 0, flexShrink: 0 }}
+        contentContainerStyle={[s.tabsRow, { paddingHorizontal: 0 }]}
+        style={{ height: 48, flexGrow: 0, flexShrink: 0, marginTop: 14 }}
       >
         {([
           { id: 'all',      l: 'All',      n: counts.all },
@@ -228,7 +223,7 @@ export default function QuotesScreen() {
         ] as { id: QuoteFilter; l: string; n: number }[]).map((t) => {
           const active = filter === t.id;
           return (
-            <TouchableOpacity key={t.id} onPress={() => setFilter(t.id)} activeOpacity={0.7}
+            <TouchableOpacity key={t.id} onPress={() => { hapticSelect(); setFilter(t.id); }} activeOpacity={0.7}
               style={[s.tab, active && s.tabActive]}>
               <Text style={[s.tabText, active && s.tabTextActive]}>{t.l}</Text>
               <View style={[s.tabBadge, active && { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
@@ -238,14 +233,35 @@ export default function QuotesScreen() {
           );
         })}
       </ScrollView>
+    </View>
+  );
 
-      <FlatList
+  return (
+    <View style={{ flex: 1, backgroundColor: c.paper }}>
+      <LargeTitleHeader
+        scrollY={scrollY}
+        eyebrow="Quotes"
+        title="All quotes"
+        right={
+          <TouchableOpacity style={s.addBtn} onPress={() => router.push('/quotes/create')} activeOpacity={0.8}>
+            <Plus size={20} color="#fff" strokeWidth={2.5} />
+          </TouchableOpacity>
+        }
+      />
+
+      <Animated.FlatList
         data={filtered}
-        keyExtractor={(q) => String(q.id)}
+        keyExtractor={(q: any) => String(q.id)}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 130, gap: 10 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
-        ListHeaderComponent={isError && !refreshing ? (
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerPad, paddingBottom: 130, gap: 10 }}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        scrollIndicatorInsets={{ top: headerPad }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} progressViewOffset={headerPad} />}
+        ListHeaderComponent={(
+          <View style={{ marginHorizontal: -20, marginBottom: 4 }}>
+            {listTop}
+            {isError && !refreshing ? (
           <TouchableOpacity
             onPress={onRefresh}
             activeOpacity={0.7}
@@ -255,7 +271,9 @@ export default function QuotesScreen() {
               Couldn't load quotes — tap to retry
             </Text>
           </TouchableOpacity>
-        ) : null}
+            ) : null}
+          </View>
+        )}
         ListEmptyComponent={
           <View style={{ alignItems: 'center', paddingVertical: 48, gap: 8 }}>
             <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>
@@ -303,6 +321,6 @@ export default function QuotesScreen() {
             );
           }}
       />
-    </SafeAreaView>
+    </View>
   );
 }

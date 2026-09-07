@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, PanResponder, type GestureResponderEvent, type PanResponderGestureState } from 'react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { unitSell, type LineItem } from '@/hooks/use-quote-draft';
+import { hapticTick } from '@/lib/haptics';
 
 const MIN_PCT = 0;
 // 80% top end. A tradie's markup normally sits between 15% and 40%, so anchoring the
@@ -82,6 +83,7 @@ export function MarkupSlider({
   // close over the first render's value.
   const liveRef = useRef(live);
   liveRef.current = live;
+  const lastStep = useRef(Math.round(clamp(markupPct) / 5));
 
   const responder = useRef(
     PanResponder.create({
@@ -103,7 +105,16 @@ export function MarkupSlider({
         }
       },
       onPanResponderMove: (e: GestureResponderEvent, g: PanResponderGestureState) => {
-        setLive(pctFromX(g.moveX));
+        const next = pctFromX(g.moveX);
+        // A tick each time the value crosses a 5% mark, so the markup can be set by
+        // feel without watching the number. Fired on the crossing, not every frame —
+        // a continuous buzz would just be noise.
+        const step = Math.round(next / 5);
+        if (step !== lastStep.current) {
+          lastStep.current = step;
+          hapticTick();
+        }
+        setLive(next);
       },
       onPanResponderRelease: () => {
         dragging.current = false;
