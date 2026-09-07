@@ -1,38 +1,30 @@
 import { Platform, StyleSheet, View } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
- * The material behind the tab bar, in three tiers, best first.
+ * The material behind the tab bar: a blur on iOS, a solid surface elsewhere.
  *
- * 1. iOS 26 with Liquid Glass compiled in — Apple's real material, the same one the
- *    system apps use. It refracts and reacts to what scrolls beneath it, which no
- *    blur can imitate.
- * 2. Any other iOS — a blur, which is the honest approximation and has been
- *    available since long before iOS 26.
- * 3. Android and web — a solid surface. A fake frosted panel there looks like a
- *    mistake rather than a style.
+ * Apple's real Liquid Glass was tried here and had to come out. `expo-glass-effect`
+ * overrides `mountChildComponentView` / `unmountChildComponentView`, which
+ * expo-modules-core only defines under `#if RCT_NEW_ARCH_ENABLED`, and it wraps them
+ * in no guard of its own — so on the legacy architecture the superclass has no such
+ * method and the Swift compile fails outright. The package requires the New
+ * Architecture, and this app is deliberately on the legacy one (see CLAUDE.md).
  *
- * isLiquidGlassAvailable() is a real runtime check, not a version guess: some iOS 26
- * betas shipped without the API and calling into it crashes. It also returns false
- * when the app was compiled with an older Xcode, which is why the build image matters
- * as much as the phone does.
+ * To restore it if the app ever moves to the New Architecture: reinstall
+ * expo-glass-effect, and put this branch back above the blur —
+ *
+ *   if (Platform.OS === 'ios' && isLiquidGlassAvailable()) {
+ *     return <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="regular" />;
+ *   }
+ *
+ * leaving it untinted, so the material picks up whatever passes beneath it.
+ * isLiquidGlassAvailable() must stay as a runtime check rather than a version guess:
+ * some iOS 26 betas shipped without the API and calling into it crashes.
  */
 export function TabBarBackground() {
   const { colors: c, isDark } = useTheme();
-
-  if (Platform.OS === 'ios' && isLiquidGlassAvailable()) {
-    return (
-      <GlassView
-        style={StyleSheet.absoluteFill}
-        glassEffectStyle="regular"
-        // No tint: the point of the material is that it picks up the colour of
-        // whatever passes under it. Tinting it orange would flatten it back into a
-        // coloured panel.
-      />
-    );
-  }
 
   if (Platform.OS === 'ios') {
     return (
@@ -50,10 +42,6 @@ export function TabBarBackground() {
     );
   }
 
+  // Android and web: a fake frosted panel there looks like a mistake, not a style.
   return <View style={[StyleSheet.absoluteFill, { backgroundColor: c.paper }]} />;
-}
-
-/** True when the bar is see-through, so the caller can soften its border to match. */
-export function tabBarIsTranslucent(): boolean {
-  return Platform.OS === 'ios';
 }
