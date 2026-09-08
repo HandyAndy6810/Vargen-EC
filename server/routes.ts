@@ -1203,16 +1203,153 @@ CRITICAL RULES — follow these exactly:
   });
 
   // Standalone invoice creation (no quote required)
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+type InvoiceSplitInput = {
+  items: any[];
+  subtotal: number;
+  gstAmount: number;
+  priorSubtotal: number;
+  priorGst: number;
+  priorTotal: number;
+  invoiceType: "full" | "deposit" | "balance";
+  depositPercent?: any;
+  depositAmount?: any;
+  jobTitle: string;
+};
+type InvoiceSplitResult =
+  | { ok: true; items: any[]; subtotal: number; gstAmount: number }
+  | { ok: false; status: number; message: string };
+
+/**
+ * Turns a full set of line items into a deposit or balance invoice.
+ *
+ * Shared by both creation routes. It used to live only inside
+ * POST /api/invoices/from-quote, which meant the newer flow — where the tradie can
+ * edit the lines before invoicing — posted to POST /api/invoices instead and got no
+ * split at all: a 50% deposit was stored at the full amount, billing the customer
+ * double what the screen showed.
+ *
+ * The maths works from the subtotal and GST separately so GST is charged
+ * proportionally on each part-invoice and the parts add back up to the whole.
+ */
+function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
+  const {
+    items, subtotal, gstAmount, priorSubtotal, priorGst, priorTotal,
+    invoiceType, depositPercent, depositAmount, jobTitle,
+  } = input;
+
+  const total = subtotal + gstAmount;
+
+  if (invoiceType === "deposit") {
+    let ratio: number;
+    const fixed = Number(depositAmount);
+    const pct = Number(depositPercent);
+    if (Number.isFinite(fixed) && fixed > 0) {
+      if (total <= 0) return { ok: false, status: 400, message: "This quote has no value to take a deposit from" };
+      ratio = fixed / total;
+    } else if (Number.isFinite(pct) && pct > 0) {
+      ratio = pct / 100;
+    } else {
+      return { ok: false, status: 400, message: "Specify a deposit percentage or amount" };
+    }
+    if (ratio <= 0) return { ok: false, status: 400, message: "Deposit must be greater than zero" };
+
+    const depSubtotal = round2(subtotal * ratio);
+    const depGst = round2(gstAmount * ratio);
+    // Never let deposits plus what's already billed exceed the job
+    if (round2(priorTotal + depSubtotal + depGst) > round2(total) + 0.01) {
+      return {
+        ok: false,
+        status: 400,
+        message: `That would invoice more than the quote. $${round2(total - priorTotal).toFixed(2)} remains.`,
+      };
+    }
+    const pctLabel = Math.round(ratio * 100);
+    return {
+      ok: true,
+      subtotal: depSubtotal,
+      gstAmount: depGst,
+      items: [{
+        description: `Deposit (${pctLabel}%) — ${jobTitle}`,
+        quantity: 1,
+        unit: "each",
+        unitPrice: depSubtotal,
+        total: depSubtotal,
+      }],
+    };
+  }
+
+  if (invoiceType === "balance") {
+    const balSubtotal = round2(subtotal - priorSubtotal);
+    const balGst = round2(gstAmount - priorGst);
+    if (balSubtotal + balGst <= 0.01) {
+      return { ok: false, status: 400, message: "This quote is already fully invoiced" };
+    }
+    // Show the full job, then deduct what's already been invoiced, so the customer
+    // sees the whole scope and what they have already been billed.
+    const withDeduction = priorSubtotal > 0
+      ? [...items, {
+          description: "Less: deposit already invoiced",
+          quantity: 1,
+          unit: "each",
+          unitPrice: -round2(priorSubtotal),
+          total: -round2(priorSubtotal),
+        }]
+      : items;
+    return { ok: true, items: withDeduction, subtotal: balSubtotal, gstAmount: balGst };
+  }
+
+  return { ok: true, items, subtotal, gstAmount };
+}
+
   app.post("/api/invoices", requireAuth, async (req: any, res) => {
     try {
-      const { customerId, customerName, items, dueDate, notes, includeGST, status } = req.body;
-      if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: "At least one line item is required" });
+      const {
+        customerId, customerName, items: rawItems, dueDate, notes, includeGST, status,
+        quoteId: rawQuoteId, invoiceType: rawInvoiceType, depositPercent, depositAmount,
+      } = req.body;
+      if (!Array.isArray(rawItems) || rawItems.length === 0) return res.status(400).json({ message: "At least one line item is required" });
       const combinedNotes = customerName && !customerId
         ? `Customer: ${customerName}${notes ? `\n\n${notes}` : ''}`
         : (notes || null);
 
-      const subtotal = items.reduce((s: number, item: any) => s + (Number(item.quantity) * Number(item.unitPrice)), 0);
-      const gstAmount = includeGST ? +(subtotal * 0.1).toFixed(2) : 0;
+      let items: any[] = rawItems;
+      let subtotal = items.reduce((s: number, item: any) => s + (Number(item.quantity) * Number(item.unitPrice)), 0);
+      let gstAmount = includeGST ? +(subtotal * 0.1).toFixed(2) : 0;
+
+      // A deposit or balance invoice bills a slice of the job, not all of it. These
+      // fields were being dropped on the floor here, so an invoice the app showed as
+      // a 50% deposit was saved at the full amount.
+      const quoteId = Number(rawQuoteId) || 0;
+      const invoiceType: "full" | "deposit" | "balance" =
+        rawInvoiceType === "deposit" || rawInvoiceType === "balance" ? rawInvoiceType : "full";
+
+      // quoteId arrives in the request body, so confirm it is this user's quote
+      // before anything is read from it or written against it.
+      if (quoteId && !(await storage.getQuote(quoteId, req.userId))) {
+        return res.status(404).json({ message: "Quote not found" });
+      }
+      const priorInvoices = quoteId ? await storage.getInvoicesByQuoteId(quoteId) : [];
+      const priorSubtotal = priorInvoices.reduce((s, i) => s + Number(i.subtotal || 0), 0);
+      const priorGst = priorInvoices.reduce((s, i) => s + Number(i.gstAmount || 0), 0);
+      const priorTotal = priorInvoices.reduce((s, i) => s + Number(i.totalAmount || 0), 0);
+
+      const fullSubtotal = subtotal;
+      const fullGst = gstAmount;
+
+      if (quoteId && invoiceType !== "full") {
+        const split = applyInvoiceSplit({
+          items, subtotal, gstAmount, priorSubtotal, priorGst, priorTotal,
+          invoiceType, depositPercent, depositAmount,
+          jobTitle: customerName ? `job for ${customerName}` : "this job",
+        });
+        if (!split.ok) return res.status(split.status).json({ message: split.message });
+        items = split.items;
+        subtotal = split.subtotal;
+        gstAmount = split.gstAmount;
+      }
+
       const totalAmount = subtotal + gstAmount;
 
       // Default due date: today + payment terms (fallback 14 days)
@@ -1227,9 +1364,13 @@ CRITICAL RULES — follow these exactly:
 
       const invoiceNumber = await storage.getNextInvoiceNumber(req.userId);
       const invoice = await storage.createInvoice({
+        // Without quoteId the quote is never linked, so it can never be marked
+        // invoiced and a later balance invoice has nothing to measure against.
+        quoteId: quoteId || null,
         customerId: customerId ? Number(customerId) : null,
         invoiceNumber,
         status: status === "sent" ? "sent" : "draft",
+        invoiceType,
         items: JSON.stringify(items),
         subtotal: subtotal.toFixed(2),
         gstAmount: gstAmount.toFixed(2),
@@ -1238,6 +1379,23 @@ CRITICAL RULES — follow these exactly:
         notes: combinedNotes,
         userId: req.userId,
       });
+
+      // Close the quote off only once its whole value has been billed — a deposit
+      // leaves a balance still to invoice.
+      if (quoteId) {
+        const jobTotal = round2(fullSubtotal + fullGst);
+        const invoicedTotal = round2(priorTotal + totalAmount);
+        const fullyInvoiced = invoicedTotal >= jobTotal - 0.01;
+        if (fullyInvoiced) {
+          await storage.updateQuote(quoteId, { status: "invoiced" }, req.userId);
+        }
+        return res.status(201).json({
+          ...invoice,
+          quoteInvoicedTotal: invoicedTotal,
+          quoteTotal: jobTotal,
+          quoteFullyInvoiced: fullyInvoiced,
+        });
+      }
 
       res.status(201).json(invoice);
     } catch (error: any) {
@@ -1312,67 +1470,23 @@ CRITICAL RULES — follow these exactly:
       }
 
       // ── Deposit / balance maths ────────────────────────────────────────────
-      // Work from the quote's own subtotal and GST so the split stays exact and
-      // GST is charged proportionally on each part-invoice.
+      // Shared with POST /api/invoices so both creation paths split a job the same
+      // way. Works from the quote's own subtotal and GST so the split stays exact
+      // and GST is charged proportionally on each part-invoice.
       const quoteSubtotal = Number(subtotal) || 0;
       const quoteGst = Number(gstAmount) || 0;
       const quoteTotal = quoteSubtotal + quoteGst;
       const jobTitle = (quote as any).jobTitle || "this job";
-      const round2 = (n: number) => Math.round(n * 100) / 100;
 
-      if (invoiceType === "deposit") {
-        let ratio: number;
-        const fixed = Number(depositAmount);
-        const pct = Number(depositPercent);
-        if (Number.isFinite(fixed) && fixed > 0) {
-          if (quoteTotal <= 0) return res.status(400).json({ message: "This quote has no value to take a deposit from" });
-          ratio = fixed / quoteTotal;
-        } else if (Number.isFinite(pct) && pct > 0) {
-          ratio = pct / 100;
-        } else {
-          return res.status(400).json({ message: "Specify a deposit percentage or amount" });
-        }
-        if (ratio <= 0) return res.status(400).json({ message: "Deposit must be greater than zero" });
-
-        const depSubtotal = round2(quoteSubtotal * ratio);
-        const depGst = round2(quoteGst * ratio);
-        const depTotal = depSubtotal + depGst;
-        // Never let deposits plus what's already billed exceed the quote
-        if (round2(priorTotal + depTotal) > round2(quoteTotal) + 0.01) {
-          return res.status(400).json({
-            message: `That would invoice more than the quote. $${round2(quoteTotal - priorTotal).toFixed(2)} remains.`,
-          });
-        }
-        const pctLabel = Math.round(ratio * 100);
-        items = [{
-          description: `Deposit (${pctLabel}%) — ${jobTitle}`,
-          quantity: 1,
-          unit: "each",
-          unitPrice: depSubtotal,
-          total: depSubtotal,
-        }];
-        subtotal = depSubtotal;
-        gstAmount = depGst;
-      } else if (invoiceType === "balance") {
-        const balSubtotal = round2(quoteSubtotal - priorSubtotal);
-        const balGst = round2(quoteGst - priorGst);
-        if (balSubtotal + balGst <= 0.01) {
-          return res.status(400).json({ message: "This quote is already fully invoiced" });
-        }
-        // Show the full job, then deduct what's already been invoiced, so the
-        // customer sees the whole scope and what they've already been billed.
-        if (priorSubtotal > 0) {
-          items = [...items, {
-            description: "Less: deposit already invoiced",
-            quantity: 1,
-            unit: "each",
-            unitPrice: -round2(priorSubtotal),
-            total: -round2(priorSubtotal),
-          }];
-        }
-        subtotal = balSubtotal;
-        gstAmount = balGst;
-      }
+      const split = applyInvoiceSplit({
+        items, subtotal: quoteSubtotal, gstAmount: quoteGst,
+        priorSubtotal, priorGst, priorTotal,
+        invoiceType, depositPercent, depositAmount, jobTitle,
+      });
+      if (!split.ok) return res.status(split.status).json({ message: split.message });
+      items = split.items;
+      subtotal = split.subtotal;
+      gstAmount = split.gstAmount;
 
       let paymentTermsDays = 14;
       const settings = await storage.getUserSettings(req.userId);
@@ -1438,6 +1552,56 @@ CRITICAL RULES — follow these exactly:
           patchBody.status = "partial";
         }
         delete patchBody.payAmount;
+      }
+
+      // The invoice editor posts the same body shape as creation: line items as an
+      // array, plus fields that are not columns on this table. Left alone, that
+      // either fails the update or writes a stale total beside fresh line items, so
+      // the money is recomputed here and the rest is dropped.
+      if (Array.isArray(patchBody.items)) {
+        const quoteId = Number(patchBody.quoteId ?? existing.quoteId) || 0;
+        const invoiceType: "full" | "deposit" | "balance" =
+          patchBody.invoiceType === "deposit" || patchBody.invoiceType === "balance"
+            ? patchBody.invoiceType
+            : "full";
+
+        let items: any[] = patchBody.items;
+        let subtotal = items.reduce((acc: number, item: any) => acc + (Number(item.quantity) * Number(item.unitPrice)), 0);
+        let gstAmount = patchBody.includeGST === false ? 0 : +(subtotal * 0.1).toFixed(2);
+
+        if (quoteId && !(await storage.getQuote(quoteId, req.userId))) {
+          return res.status(404).json({ message: "Quote not found" });
+        }
+        if (quoteId && invoiceType !== "full") {
+          // This invoice's own earlier value must not count as "already invoiced"
+          // against itself, or every edit would shrink the balance again.
+          const priors = (await storage.getInvoicesByQuoteId(quoteId)).filter((i) => i.id !== id);
+          const split = applyInvoiceSplit({
+            items, subtotal, gstAmount,
+            priorSubtotal: priors.reduce((acc, i) => acc + Number(i.subtotal || 0), 0),
+            priorGst: priors.reduce((acc, i) => acc + Number(i.gstAmount || 0), 0),
+            priorTotal: priors.reduce((acc, i) => acc + Number(i.totalAmount || 0), 0),
+            invoiceType,
+            depositPercent: patchBody.depositPercent,
+            depositAmount: patchBody.depositAmount,
+            jobTitle: "this job",
+          });
+          if (!split.ok) return res.status(split.status).json({ message: split.message });
+          items = split.items;
+          subtotal = split.subtotal;
+          gstAmount = split.gstAmount;
+        }
+
+        patchBody.items = JSON.stringify(items);
+        patchBody.subtotal = subtotal.toFixed(2);
+        patchBody.gstAmount = gstAmount.toFixed(2);
+        patchBody.totalAmount = (subtotal + gstAmount).toFixed(2);
+        patchBody.quoteId = quoteId || null;
+        patchBody.invoiceType = invoiceType;
+      }
+      if (typeof patchBody.dueDate === "string") patchBody.dueDate = new Date(patchBody.dueDate);
+      for (const notAColumn of ["depositPercent", "depositAmount", "includeGST", "customerName"]) {
+        delete patchBody[notAColumn];
       }
 
       const updated = await storage.updateInvoice(id, patchBody, req.userId);
