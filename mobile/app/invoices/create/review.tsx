@@ -263,6 +263,23 @@ export default function InvoiceReviewStep() {
             </>
           ) : null}
 
+          {d.fromQuote && d.invoiceType !== 'full' ? (
+            <View style={s.splitSummary}>
+              <Text style={s.splitLine}>
+                {d.invoiceType === 'deposit'
+                  ? `Billing ${parseFloat(d.depositAmount) > 0
+                      ? money(d.total)
+                      : `${Math.round(d.depositPercent)}% — ${money(d.total)}`} now`
+                  : `Billing the balance — ${money(d.total)}`}
+              </Text>
+              <Text style={s.splitSub}>
+                {d.remainingAfter > 0.01
+                  ? `${money(d.remainingAfter)} left to invoice after this · job total ${money(d.jobTotal)}`
+                  : `Completes the job · total ${money(d.jobTotal)}`}
+              </Text>
+            </View>
+          ) : null}
+
           {d.fromQuote && d.priorInvoiced > 0 ? (
             <Text style={s.priorNote}>
               {money(d.priorInvoiced)} already invoiced against this quote.
@@ -463,6 +480,12 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   depChipOn: { backgroundColor: c.orange, borderColor: c.orange },
   depChipText: { fontSize: 12.5, fontFamily: 'Manrope_800ExtraBold', color: c.mutedHi },
   priorNote: { fontSize: 12.5, fontFamily: 'Manrope_600SemiBold', color: c.muted, marginTop: 10 },
+  splitSummary: {
+    backgroundColor: c.orangeSoft, borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 12, marginTop: 12,
+  },
+  splitLine: { fontSize: 14.5, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
+  splitSub: { fontSize: 12.5, fontFamily: 'Manrope_600SemiBold', color: c.mutedHi, marginTop: 3, lineHeight: 17 },
   customDepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
   customDepLabel: { fontSize: 12.5, fontFamily: 'Manrope_600SemiBold', color: c.muted, flex: 1 },
   customDepField: {

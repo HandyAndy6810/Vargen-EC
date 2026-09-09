@@ -285,6 +285,15 @@ export default function InvoiceDetailScreen() {
           <View style={[s.heroCard, { backgroundColor: heroBg }]}>
             <View style={s.heroGlow} />
             <Text style={s.heroEyebrow}>{isPaid ? 'Amount paid' : 'Amount due'}</Text>
+            {/* A deposit or balance invoice bills part of a job, so say so on the
+                figure itself — otherwise it is indistinguishable from a full one. */}
+            {invoice?.invoiceType && invoice.invoiceType !== 'full' ? (
+              <View style={s.partPill}>
+                <Text style={s.partPillText}>
+                  {invoice.invoiceType === 'deposit' ? 'Deposit' : 'Balance'}
+                </Text>
+              </View>
+            ) : null}
             <Text style={s.heroAmount}>
               ${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </Text>
@@ -623,6 +632,16 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     letterSpacing: 2,
     textTransform: 'uppercase',
+  },
+  partPill: {
+    alignSelf: 'flex-start', marginTop: 6,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+  },
+  partPillText: {
+    fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: '#fff',
+    letterSpacing: 1.2, textTransform: 'uppercase',
   },
   heroAmount: {
     fontSize: 42,

@@ -89,8 +89,10 @@ type InvoiceDraft = {
   restoreDraft: () => CachedQuoteDraft | null;
   forgetSavedDraft: () => void;
 
-  // totals
+  // totals — `total` is what THIS invoice bills, `jobTotal` the whole job, so a
+  // deposit can say what it is taking now and what is left for later.
   subtotal: number; gst: number; total: number; totalCost: number; profit: number;
+  jobTotal: number; remainingAfter: number;
 
   // documents
   invoicePayload: () => any;
@@ -331,6 +333,8 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
       : fullTotal;
   const subtotal = round2(total / 1.1);
   const gst = round2(total - subtotal);
+  const jobTotal = round2(fullTotal);
+  const remainingAfter = round2(Math.max(0, jobTotal - priorInvoiced - total));
   const totalCost = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * (parseFloat(l.cost || '0') || 0), 0));
   const profit = round2(subtotal - totalCost);
 
@@ -625,7 +629,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     markupPct, setMarkupPct, toggleLineLock, roundUp, setRoundUp,
     upsertLine, removeLine, startManual,
     restorable, restoreDraft, forgetSavedDraft,
-    subtotal, gst, total, totalCost, profit,
+    subtotal, gst, total, totalCost, profit, jobTotal, remainingAfter,
     invoicePayload, shareAnyway,
     error, setError, saving, save, hasWork,
     showSendSheet, setShowSendSheet, handleSendPress, sendActions,
