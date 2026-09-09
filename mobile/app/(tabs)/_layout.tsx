@@ -1,7 +1,6 @@
 import { Tabs, router } from 'expo-router';
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
@@ -80,7 +79,7 @@ function TabBar({ state, navigation }: any) {
       pointerEvents="box-none"
     >
       <View
-        style={[styles.pill, { borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(26,14,6,0.06)' }]}
+        style={[styles.pill, { borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(26,14,6,0.10)' }]}
         onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
       >
         <TabBarBackground />
@@ -94,11 +93,14 @@ function TabBar({ state, navigation }: any) {
             style={[styles.indicatorSlider, { left: leftEdge, width: indicatorWidth }]}
             pointerEvents="none"
           >
-            <LinearGradient
-              colors={[`${c.orange}26`, `${c.orange}3D`]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.indicatorFill}
+            <View
+              style={[
+                styles.indicatorFill,
+                {
+                  backgroundColor: isDark ? 'rgba(242,106,42,0.26)' : c.orangeSoft,
+                  borderColor: isDark ? 'rgba(242,106,42,0.45)' : `${c.orange}55`,
+                },
+              ]}
             />
           </Animated.View>
         )}
@@ -191,10 +193,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     // Lifts it off the page so it reads as floating rather than painted on.
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
-    shadowRadius: 20,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.20,
+    shadowRadius: 24,
+    elevation: 14,
   },
   indicatorSlider: {
     position: 'absolute',
@@ -206,6 +208,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 5,
     borderRadius: (BAR_H - 10) / 2,
+    borderWidth: 1,
   },
   tabsRow: {
     flexDirection: 'row',

@@ -14,7 +14,7 @@ import { unitSell, type LineItem } from '@/hooks/use-quote-draft';
 import { useQuote } from '@/hooks/use-quotes';
 import { useJob } from '@/hooks/use-jobs';
 import { useCustomers, useCustomer } from '@/hooks/use-customers';
-import { useInvoices } from '@/hooks/use-invoices';
+import { useInvoices, useInvoice } from '@/hooks/use-invoices';
 import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
 import type { SheetAction } from '@/components/ActionSheetModal';
@@ -57,6 +57,8 @@ type InvoiceDraft = {
   // deposit / balance
   invoiceType: InvoiceType; setInvoiceType: (t: InvoiceType) => void;
   depositPercent: number; setDepositPercent: (p: number) => void;
+  /** A dollar figure instead of a percentage. Takes precedence when set. */
+  depositAmount: string; setDepositAmount: (v: string) => void;
   priorInvoiced: number;
 
   // fields
@@ -154,6 +156,9 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
 
   const [invoiceType, setInvoiceType] = useState<InvoiceType>('full');
   const [depositPercent, setDepositPercent] = useState(50);
+  // Some deposits are agreed as a round figure rather than a share of the job
+  // ("$500 up front"), so both ways in are offered. A dollar amount wins when set.
+  const [depositAmount, setDepositAmount] = useState('');
 
   // ── Due date ───────────────────────────────────────────────────────────────
   // The create flow never set one, so every invoice went out with no due date and
@@ -233,6 +238,44 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
+  // ── Editing an existing invoice ────────────────────────────────────────────
+  // Without this the edit route opened a blank invoice, exactly the way Tweak used
+  // to open a blank quote.
+  const { data: editInvoice } = useInvoice(editId) as any;
+  const appliedEditInvoice = useRef(false);
+  useEffect(() => {
+    if (!isEditing || appliedEditInvoice.current || !editInvoice) return;
+    appliedEditInvoice.current = true;
+
+    let saved: any[] = [];
+    try {
+      saved = typeof editInvoice.items === 'string' ? JSON.parse(editInvoice.items) : (editInvoice.items || []);
+    } catch { saved = []; }
+    if (saved.length) {
+      setLines(saved.map((it: any) => ({
+        name: it.description || '',
+        qty: String(it.quantity ?? 1),
+        price: String(it.unitPrice ?? 0),
+        unit: it.unit,
+        // A saved invoice records what was charged, not what it cost, so every line
+        // is pinned — the slider must not reprice work already billed.
+        markupLocked: true,
+        lockedPrice: String(it.unitPrice ?? 0),
+      })));
+    }
+    if (editInvoice.customerId) setCustomerId(editInvoice.customerId);
+    if (editInvoice.customerName) setCustomer(editInvoice.customerName);
+    if (editInvoice.dueDate) setDueDate(new Date(editInvoice.dueDate));
+    if (editInvoice.quoteId) { setSourceQuoteId(editInvoice.quoteId); setFromQuote(true); }
+    if (editInvoice.invoiceType) setInvoiceType(editInvoice.invoiceType);
+    // The notes field carries "Job: <title>" on the first line, then the summary.
+    const noteLines = String(editInvoice.notes || '').split('\n');
+    const titleLine = noteLines.find((l: string) => l.startsWith('Job: '));
+    if (titleLine) setJobTitle(titleLine.slice(5).trim());
+    const rest = noteLines.filter((l: string) => !l.startsWith('Job: ')).join('\n').trim();
+    if (rest) setSummary(rest);
+  }, [editInvoice, isEditing]);
+
   const appliedEntryQuote = useRef(false);
   useEffect(() => {
     if (appliedEntryQuote.current || !entryQuote) return;
@@ -278,8 +321,11 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   const fullTotal = roundUp ? Math.ceil(rawTotal) : rawTotal;
   // A deposit invoice bills a slice now; a balance invoice bills what's left after
   // everything already invoiced against the same quote.
+  const depositFixed = parseFloat(depositAmount) || 0;
   const total = invoiceType === 'deposit'
-    ? round2(fullTotal * (depositPercent / 100))
+    ? (depositFixed > 0
+        ? round2(Math.min(depositFixed, fullTotal))
+        : round2(fullTotal * (depositPercent / 100)))
     : invoiceType === 'balance'
       ? round2(Math.max(0, fullTotal - priorInvoiced))
       : fullTotal;
@@ -473,7 +519,9 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
         dueDate: dueDate.toISOString(),
         quoteId: sourceQuoteId || undefined,
         invoiceType,
-        ...(invoiceType === 'deposit' ? { depositPercent } : {}),
+        ...(invoiceType === 'deposit'
+          ? (depositFixed > 0 ? { depositAmount: depositFixed } : { depositPercent })
+          : {}),
       };
       const res = isEditing
         ? await apiRequest('PATCH', `/api/invoices/${editId}`, body)
@@ -568,7 +616,8 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   const value: InvoiceDraft = {
     isEditing, editId,
     sourceQuoteId, setSourceQuoteId, fromQuote, quoteTotal, loadFromQuote, variance, varianceTotal,
-    invoiceType, setInvoiceType, depositPercent, setDepositPercent, priorInvoiced,
+    invoiceType, setInvoiceType, depositPercent, setDepositPercent,
+    depositAmount, setDepositAmount, priorInvoiced,
     customer, setCustomer, customerId, setCustomerId, selectedCustomer,
     jobTitle, setJobTitle, summary, setSummary, notes, setNotes,
     lines, setLines, filteredCustomers,

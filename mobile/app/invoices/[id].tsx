@@ -13,6 +13,7 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { copyText } from '@/lib/clipboard';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
+import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, useMemo } from 'react';
 import PDFComposeModal from '@/components/PDFComposeModal';
@@ -37,6 +38,7 @@ export default function InvoiceDetailScreen() {
   const updateInvoice = useUpdateInvoice();
   const deleteInvoice = useDeleteInvoice();
   const [partialMode, setPartialMode] = useState(false);
+  const keyboardHeight = useKeyboardHeight();
   const [partialAmt, setPartialAmt] = useState('');
   const [showPDF, setShowPDF] = useState(false);
   const [pdfPending, setPdfPending] = useState(false);
@@ -173,6 +175,7 @@ export default function InvoiceDetailScreen() {
 
   const [showMoreSheet, setShowMoreSheet] = useState(false);
   const moreActions: SheetAction[] = [
+    { label: 'Edit invoice', onPress: () => router.push(`/invoices/create?invoiceId=${invoiceId}` as any) },
     { label: 'Record partial payment', onPress: () => setPartialMode(true) },
     invoice?.stripePaymentLinkUrl ? { label: 'Copy Stripe link', onPress: () => copyToClipboard(invoice.stripePaymentLinkUrl, 'Stripe payment link') } : null,
     invoice?.squarePaymentLinkUrl ? { label: 'Copy Square link', onPress: () => copyToClipboard(invoice.squarePaymentLinkUrl, 'Square payment link') } : null,
@@ -442,7 +445,7 @@ export default function InvoiceDetailScreen() {
 
       {/* Action bar */}
       {!isPaid ? (
-        <View style={s.bottomBar}>
+        <View style={[s.bottomBar, { bottom: keyboardHeight }]}>
           {partialMode && (
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' }}>
               <TextInput
@@ -515,7 +518,7 @@ export default function InvoiceDetailScreen() {
           </View>
         </View>
       ) : (
-        <View style={s.bottomBar}>
+        <View style={[s.bottomBar, { bottom: keyboardHeight }]}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity onPress={() => setShowPDF(true)} activeOpacity={0.7} style={s.pdfBtn}>
               <FileText size={16} color={c.orange} strokeWidth={2} />

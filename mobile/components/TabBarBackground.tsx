@@ -29,15 +29,16 @@ export function TabBarBackground() {
   if (Platform.OS === 'ios') {
     return (
       <View style={StyleSheet.absoluteFill}>
-        <BlurView intensity={isDark ? 55 : 75} tint={c.blurTint} style={StyleSheet.absoluteFill} />
+        <BlurView intensity={isDark ? 70 : 90} tint={c.blurTint} style={StyleSheet.absoluteFill} />
         {/* Blur alone leaves labels swimming over busy content — a thin wash of the
             page colour holds the contrast without reading as a solid bar. */}
         <View
           style={[
             StyleSheet.absoluteFill,
-            // Lighter than a solid bar would need: the pill is small, floats clear
-            // of the content, and should still read as something you see through.
-            { backgroundColor: isDark ? 'rgba(13,14,17,0.42)' : 'rgba(255,251,248,0.46)' },
+            // Enough wash that the pill reads as its own object sitting in front of
+            // the page. The first pass was so light it dissolved into the
+            // background, which made the bar hard to pick out at a glance.
+            { backgroundColor: isDark ? 'rgba(22,24,29,0.78)' : 'rgba(255,255,255,0.80)' },
           ]}
         />
       </View>

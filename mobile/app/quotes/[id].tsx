@@ -20,7 +20,7 @@ import { useInvoices } from '@/hooks/use-invoices';
 import { useXeroStatus, useCreateXeroInvoice } from '@/hooks/use-xero';
 import { useSettings } from '@/hooks/use-settings';
 import { buildQuotePDF, type PdfDocumentData } from '@/lib/quote-pdf';
-import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Edit2, FileText } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, MoreHorizontal, Phone, MessageSquare, Edit2, FileText } from 'lucide-react-native';
 import { format } from 'date-fns';
 import * as Linking from 'expo-linking';
 import * as Print from 'expo-print';
@@ -78,11 +78,14 @@ export default function QuoteDetailScreen() {
   const { data: allInvoices } = useInvoices();
   // Invoicing progress comes from the invoices themselves, not the quote's status —
   // a deposit leaves a balance outstanding, which the status alone can't express.
-  const invoicedTotal = useMemo(() => {
-    return ((allInvoices as any[]) || [])
-      .filter((i: any) => i.quoteId === quoteId)
-      .reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0);
-  }, [allInvoices, quoteId]);
+  const linkedInvoices = useMemo(
+    () => ((allInvoices as any[]) || []).filter((i: any) => i.quoteId === quoteId),
+    [allInvoices, quoteId]
+  );
+  const invoicedTotal = useMemo(
+    () => linkedInvoices.reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0),
+    [linkedInvoices]
+  );
 
   const duplicateQuote = useMutation({
     mutationFn: async () => {
@@ -353,6 +356,42 @@ export default function QuoteDetailScreen() {
               </View>
               <Text style={s.nudgeChevron}>›</Text>
             </TouchableOpacity>
+          )}
+
+          {/* The invoices raised against this quote — tappable, because being told a
+              quote is invoiced without a way to open the invoice is a dead end. */}
+          {linkedInvoices.length > 0 && (
+            <>
+              <Text style={[s.eyebrow, { marginBottom: 8 }]}>
+                {linkedInvoices.length === 1 ? 'Invoice' : 'Invoices'}
+              </Text>
+              <View style={{ gap: 8, marginBottom: 16 }}>
+                {linkedInvoices.map((inv: any) => (
+                  <TouchableOpacity
+                    key={inv.id}
+                    style={s.linkedInvoiceRow}
+                    activeOpacity={0.7}
+                    onPress={() => router.push(`/invoices/${inv.id}` as any)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open invoice ${inv.invoiceNumber || inv.id}`}
+                  >
+                    <View style={[s.nudgeIcon, { backgroundColor: c.blue, width: 34, height: 34, borderRadius: 11 }]}>
+                      <FileText size={15} color="#fff" strokeWidth={2.2} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.linkedInvoiceTitle} numberOfLines={1}>
+                        {inv.invoiceNumber || `Invoice #${inv.id}`}
+                        {inv.invoiceType && inv.invoiceType !== 'full' ? ` · ${inv.invoiceType}` : ''}
+                      </Text>
+                      <Text style={s.linkedInvoiceSub} numberOfLines={1}>
+                        {`$${Number(inv.totalAmount || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · ${inv.status}`}
+                      </Text>
+                    </View>
+                    <ChevronRight size={18} color={c.muted} strokeWidth={2.2} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
           )}
 
           {/* Part-invoiced: show what's billed and what's left */}
@@ -676,6 +715,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
+  linkedInvoiceRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineSoft,
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  linkedInvoiceTitle: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
+  linkedInvoiceSub: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2, textTransform: 'capitalize' },
   nudgeTitle: {
     fontSize: 14,
     fontFamily: 'Manrope_800ExtraBold',

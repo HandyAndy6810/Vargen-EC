@@ -227,18 +227,40 @@ export default function InvoiceReviewStep() {
           ) : null}
 
           {d.fromQuote && d.invoiceType === 'deposit' ? (
-            <View style={s.depositRow}>
-              {[25, 30, 50].map(p => (
-                <TouchableOpacity
-                  key={p}
-                  style={[s.depChip, d.depositPercent === p && s.depChipOn]}
-                  activeOpacity={0.8}
-                  onPress={() => { hapticPress(); d.setDepositPercent(p); }}
-                >
-                  <Text style={[s.depChipText, d.depositPercent === p && { color: '#fff' }]}>{p}%</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <>
+              <View style={s.depositRow}>
+                {[25, 30, 50].map(p => {
+                  // A typed dollar figure overrides the percentage, so the chips go
+                  // quiet while one is set rather than showing a false selection.
+                  const on = !parseFloat(d.depositAmount) && d.depositPercent === p;
+                  return (
+                    <TouchableOpacity
+                      key={p}
+                      style={[s.depChip, on && s.depChipOn]}
+                      activeOpacity={0.8}
+                      onPress={() => { hapticPress(); d.setDepositAmount(''); d.setDepositPercent(p); }}
+                    >
+                      <Text style={[s.depChipText, on && { color: '#fff' }]}>{p}%</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <View style={s.customDepRow}>
+                <Text style={s.customDepLabel}>or a set amount</Text>
+                <View style={s.customDepField}>
+                  <Text style={s.customDepPrefix}>$</Text>
+                  <TextInput
+                    style={s.customDepInput}
+                    value={d.depositAmount}
+                    onChangeText={d.setDepositAmount}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor={c.muted}
+                    accessibilityLabel="Deposit amount in dollars"
+                  />
+                </View>
+              </View>
+            </>
           ) : null}
 
           {d.fromQuote && d.priorInvoiced > 0 ? (
@@ -441,6 +463,18 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   depChipOn: { backgroundColor: c.orange, borderColor: c.orange },
   depChipText: { fontSize: 12.5, fontFamily: 'Manrope_800ExtraBold', color: c.mutedHi },
   priorNote: { fontSize: 12.5, fontFamily: 'Manrope_600SemiBold', color: c.muted, marginTop: 10 },
+  customDepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
+  customDepLabel: { fontSize: 12.5, fontFamily: 'Manrope_600SemiBold', color: c.muted, flex: 1 },
+  customDepField: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: c.card, borderRadius: 12, borderWidth: 1, borderColor: c.lineMid,
+    paddingHorizontal: 12, height: 42, minWidth: 120,
+  },
+  customDepPrefix: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: c.muted },
+  customDepInput: {
+    flex: 1, fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: c.ink,
+    padding: 0, textAlign: 'right',
+  },
   roundBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     height: 48, borderRadius: 15, marginTop: 12,
