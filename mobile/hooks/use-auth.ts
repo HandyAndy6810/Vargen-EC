@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import type { User } from "@shared/mobile-types";
 import { apiRequest } from "@/lib/api";
 import { loadCachedUser, saveCachedUser, clearCachedUser } from "@/lib/auth-cache";
+import { clearQuoteDraft } from "@/lib/quote-draft-cache";
 
 const DEV_BYPASS = process.env.EXPO_PUBLIC_DEV_BYPASS === 'true';
 
@@ -46,6 +47,18 @@ async function fetchUser(): Promise<User | null> {
 async function logoutRequest(): Promise<void> {
   await apiRequest("POST", "/api/logout").catch(() => {});
   await clearCachedUser();
+  await clearUnfinishedDrafts();
+}
+
+/**
+ * Unfinished quote and invoice drafts live on the device, not against an account,
+ * so they have to be cleared whenever the signed-in user changes. Without this a
+ * brand new account was offered the previous user's half-written quote — confusing
+ * at best, and on a shared device it would show one person's work to another.
+ */
+export async function clearUnfinishedDrafts(): Promise<void> {
+  await clearQuoteDraft("quote");
+  await clearQuoteDraft("invoice");
 }
 
 export function useAuth() {

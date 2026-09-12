@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { apiRequest } from '@/lib/api';
+import { clearUnfinishedDrafts } from "@/hooks/use-auth";
 import { saveCachedUser } from '@/lib/auth-cache';
 import { ChevronLeft } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -52,6 +53,7 @@ export default function RegisterScreen() {
       return res.json();
     },
     onSuccess: async (user) => {
+      await clearUnfinishedDrafts();
       await saveCachedUser(user);
       queryClient.setQueryData(['/api/auth/user'], user);
       router.replace('/(tabs)');

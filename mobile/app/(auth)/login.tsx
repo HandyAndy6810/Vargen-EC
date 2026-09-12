@@ -17,6 +17,7 @@ import { queryClient as globalQueryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Sparkles } from "lucide-react-native";
+import { clearUnfinishedDrafts } from "@/hooks/use-auth";
 import { saveCachedUser } from "@/lib/auth-cache";
 
 const DEV_BYPASS = process.env.EXPO_PUBLIC_DEV_BYPASS === 'true';
@@ -46,6 +47,7 @@ export default function LoginScreen() {
     },
     onSuccess: async (user) => {
       // Persist so the offline bootstrap in _layout can restore the session
+      await clearUnfinishedDrafts();
       await saveCachedUser(user);
       queryClient.setQueryData(["/api/auth/user"], user);
       router.replace("/(tabs)");
