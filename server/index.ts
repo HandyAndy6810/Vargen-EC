@@ -5,8 +5,12 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 
 // ── Environment validation ──────────────────────────────────────────────
-const REQUIRED_ENV_VARS = ["DATABASE_URL", "SESSION_SECRET"];
+const REQUIRED_ENV_VARS = ["SESSION_SECRET"];
 const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+// Either name is acceptable — see server/db.ts for why APP_DATABASE_URL exists.
+if (!process.env.APP_DATABASE_URL && !process.env.DATABASE_URL) {
+  missing.push("APP_DATABASE_URL or DATABASE_URL");
+}
 if (missing.length > 0) {
   console.error(`[startup] Missing required environment variables: ${missing.join(", ")}`);
   console.error("[startup] Set these in your .env file or hosting environment and restart.");
