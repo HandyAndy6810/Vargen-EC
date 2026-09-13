@@ -23,4 +23,16 @@ if (!connectionString) {
 }
 
 export const pool = new Pool({ connectionString });
+
+// Say out loud which database this process is actually talking to. Working that
+// out has repeatedly meant inferring from app behaviour, which is slow and gets it
+// wrong; the deploy log should just answer it. Host and database name only —
+// never the credentials.
+try {
+  const u = new URL(connectionString);
+  const source = process.env.APP_DATABASE_URL ? "APP_DATABASE_URL" : "DATABASE_URL";
+  console.log(`[startup] database: ${u.hostname}${u.pathname} (from ${source})`);
+} catch {
+  console.log("[startup] database: connection string could not be parsed for logging");
+}
 export const db = drizzle(pool, { schema });
