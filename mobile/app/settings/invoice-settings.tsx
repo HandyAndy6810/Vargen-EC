@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '@/lib/dialogs';
-import { ChevronLeft, Image as ImageIcon, X, Sparkles, Type } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Image as ImageIcon, X, Sparkles, Type } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
@@ -42,11 +42,6 @@ const FONTS = [
   { value: 'manrope', label: 'Manrope' },
   { value: 'georgia', label: 'Georgia' },
 ];
-const HEADER_STYLES = [
-  { value: 'gradient', label: 'Gradient' },
-  { value: 'minimal', label: 'Minimal' },
-  { value: 'classic', label: 'Classic' },
-];
 
 function makeInitialsSvg(businessName: string, accentColor: string): string {
   const words = businessName.trim().split(/\s+/).filter(Boolean);
@@ -84,7 +79,6 @@ export default function InvoiceSettingsScreen() {
   const gst = settings?.includeGST ?? true;
   const accent = settings?.quoteAccentColor ?? '#f26a2a';
   const font = settings?.quoteFontFamily ?? 'inter';
-  const headerStyle = settings?.quoteHeaderStyle ?? 'gradient';
   const logoUrl = settings?.logoUrl ?? '';
 
   const pickLogo = async () => {
@@ -307,29 +301,28 @@ export default function InvoiceSettingsScreen() {
           </View>
         </View>
 
-        {/* Header style */}
+        {/* Layout now belongs to the template picker. The three header chips that
+            used to live here selected a header for the one hardcoded layout; since
+            the PDF is built from a chosen template, nothing read that setting any
+            more and leaving the chips would have promised behaviour that no longer
+            exists. */}
         <View style={s.group}>
-          <Text style={s.groupLabel}>Quote header style</Text>
-          <View style={s.card}>
-            <View style={[s.row, { paddingBottom: 10 }]}>
-              <Text style={s.rowLabel}>Layout</Text>
+          <Text style={s.groupLabel}>Document style</Text>
+          <TouchableOpacity
+            style={s.card}
+            activeOpacity={0.7}
+            onPress={() => router.push('/settings/quote-styling' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Open quote styling"
+          >
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.rowLabel}>Quote styling</Text>
+                <Text style={s.rowSub}>Pick the style your customer sees</Text>
+              </View>
+              <ChevronRight size={18} color={c.muted} strokeWidth={2.2} />
             </View>
-            <View style={s.chipsRow}>
-              {HEADER_STYLES.map(hs => {
-                const active = headerStyle === hs.value;
-                return (
-                  <TouchableOpacity
-                    key={hs.value}
-                    style={[s.chip, { backgroundColor: active ? c.orange : c.paperDeep, borderColor: active ? c.orange : c.lineSoft }]}
-                    onPress={() => save({ quoteHeaderStyle: hs.value })}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[s.chipLabel, { color: active ? '#fff' : c.ink }]}>{hs.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
+          </TouchableOpacity>
           <Text style={s.hint}>Changes apply to new quotes and invoices going forward.</Text>
         </View>
       </ScrollView>

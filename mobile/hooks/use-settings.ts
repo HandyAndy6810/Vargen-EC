@@ -25,6 +25,12 @@ export type UserSettings = {
   quoteAccentColor: string;
   quoteFontFamily: string;
   quoteHeaderStyle: string;
+  /**
+   * Which PDF style quotes and invoices are sent in. One of the ids in
+   * lib/pdf-templates — falls back to 'classic' when unset or unrecognised, so an
+   * older account and a removed template both land somewhere sensible.
+   */
+  quoteTemplate?: string;
   workingHours: string;
   serviceArea: string;
   notificationPrefs: string;

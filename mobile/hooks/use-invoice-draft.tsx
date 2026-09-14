@@ -7,7 +7,7 @@ import { addDays, format } from 'date-fns';
 import { apiRequest, API_BASE_URL } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { showAlert } from '@/lib/dialogs';
-import { buildQuotePDF } from '@/lib/quote-pdf';
+import { buildQuotePDF, A4_PRINT } from '@/lib/quote-pdf';
 import { hapticSuccess, hapticError, hapticPress, hapticWarn } from '@/lib/haptics';
 import { loadQuoteDraft, saveQuoteDraft, clearQuoteDraft, type CachedQuoteDraft } from '@/lib/quote-draft-cache';
 import { unitSell, type LineItem } from '@/hooks/use-quote-draft';
@@ -482,7 +482,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   const shareAnyway = async () => {
     try {
       const html = buildQuotePDF(invoicePayload(), settings);
-      const { uri } = await Print.printToFileAsync({ html });
+      const { uri } = await Print.printToFileAsync({ html, ...A4_PRINT });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
       } else {

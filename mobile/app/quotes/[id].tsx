@@ -19,7 +19,7 @@ import { useQuote, useQuoteItems, useDeleteQuote, useUpdateQuote } from '@/hooks
 import { useInvoices } from '@/hooks/use-invoices';
 import { useXeroStatus, useCreateXeroInvoice } from '@/hooks/use-xero';
 import { useSettings } from '@/hooks/use-settings';
-import { buildQuotePDF, type PdfDocumentData } from '@/lib/quote-pdf';
+import { buildQuotePDF, A4_PRINT, type PdfDocumentData } from '@/lib/quote-pdf';
 import { ChevronLeft, ChevronRight, MoreHorizontal, Phone, MessageSquare, Edit2, FileText } from 'lucide-react-native';
 import { format } from 'date-fns';
 import * as Linking from 'expo-linking';
@@ -264,7 +264,7 @@ export default function QuoteDetailScreen() {
       };
 
       const html = buildQuotePDF(docData, settings ?? {});
-      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      const { uri } = await Print.printToFileAsync({ html, base64: false, ...A4_PRINT });
       setShowPDF(false);
       await Sharing.shareAsync(uri, {
         mimeType: 'application/pdf',

@@ -14,7 +14,7 @@ import { useQuote } from '@/hooks/use-quotes';
 import { useCustomers } from '@/hooks/use-customers';
 import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
-import { buildQuotePDF } from '@/lib/quote-pdf';
+import { buildQuotePDF, A4_PRINT } from '@/lib/quote-pdf';
 import type { SheetAction } from '@/components/ActionSheetModal';
 
 // `cost` is what the tradie actually pays; `price` is what they charge. The markup
@@ -646,7 +646,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const shareAnyway = async () => {
     try {
       const html = buildQuotePDF(quotePayload(), settings);
-      const { uri } = await Print.printToFileAsync({ html });
+      const { uri } = await Print.printToFileAsync({ html, ...A4_PRINT });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
       } else {
