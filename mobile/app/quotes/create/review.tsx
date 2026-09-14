@@ -233,6 +233,7 @@ export default function ReviewStep() {
             markupPct={d.markupPct}
             onChange={d.setMarkupPct}
             roundUp={d.roundUp}
+            gstRate={d.gstRate}
           />
 
           {/* Lands the customer-facing total on a whole dollar */}

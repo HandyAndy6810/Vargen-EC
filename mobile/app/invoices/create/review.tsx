@@ -190,7 +190,7 @@ export default function InvoiceReviewStep() {
         >
           {d.fromQuote ? (
             <View style={s.agreedCard}>
-              <Text style={s.agreedEyebrow}>Invoice total · inc GST</Text>
+              <Text style={s.agreedEyebrow}>Invoice total{d.includeGST ? ' · inc GST' : ''}</Text>
               <Text style={s.agreedTotal}>{money(d.total)}</Text>
               <Text style={s.agreedNote}>
                 Priced from the accepted quote. Edit a line to change it — the markup
@@ -203,6 +203,8 @@ export default function InvoiceReviewStep() {
               markupPct={d.markupPct}
               onChange={d.setMarkupPct}
               roundUp={d.roundUp}
+              gstRate={d.gstRate}
+              totalLabel="Invoice total"
             />
           )}
 

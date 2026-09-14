@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator,
   KeyboardAvoidingView, Platform,
@@ -25,9 +25,14 @@ export default function ClarifyStep() {
   const [answers, setAnswers] = useState<(string | null)[]>(() => questions.map(() => null));
   const [typed, setTyped] = useState('');
 
+  // Set the moment an answer is committed, so the guard below stops competing with
+  // the handler that's already on its way to Review. Without it both fired and the
+  // tradie got two stacked Review screens.
+  const leaving = useRef(false);
+
   // Nothing to ask (or we've already dealt with them) — don't strand the user here.
   useEffect(() => {
-    if (!questions.length) router.replace('/quotes/create/review');
+    if (!questions.length && !leaving.current) router.replace('/quotes/create/review');
   }, [questions.length]);
 
   if (!questions.length) return <View style={{ flex: 1, backgroundColor: c.paper }} />;
@@ -41,6 +46,7 @@ export default function ClarifyStep() {
       setTyped('');
       return;
     }
+    leaving.current = true;
     await d.finishClarify(next);
     router.replace('/quotes/create/review');
   };
@@ -60,6 +66,7 @@ export default function ClarifyStep() {
   const skipAll = async () => {
     const next = answers.map((a, i) => (i < idx ? a : null));
     setAnswers(next);
+    leaving.current = true;
     await d.finishClarify(next);
     router.replace('/quotes/create/review');
   };

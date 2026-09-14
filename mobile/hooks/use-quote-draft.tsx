@@ -118,6 +118,8 @@ type QuoteDraft = {
   // totals — subtotal/gst/total are what the client pays; totalCost/profit are the
   // tradie's side of the same numbers, shown as "You make $X".
   subtotal: number; gst: number; total: number; totalCost: number; profit: number;
+  /** False when the tradie isn't GST-registered: no tax line, total = subtotal. */
+  includeGST: boolean; gstRate: number;
   // save + send
   error: string | null; setError: (v: string | null) => void;
   saving: boolean;
@@ -167,6 +169,14 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const isEditing = editId > 0;
 
   const { data: allCustomers } = useCustomers() as any;
+  // Loaded up here, not down by the AI section where it used to sit, because the
+  // totals maths below needs to know whether this tradie charges GST at all.
+  const { data: settings } = useSettings() as any;
+  // A tradie under the GST threshold must not add GST, so "off" means no tax line
+  // and total = subtotal — not a 10% line relabelled. Anything other than an
+  // explicit false stays GST-registered, which is the overwhelming default.
+  const includeGST = settings?.includeGST !== false;
+  const gstRate = includeGST ? 0.1 : 0;
   const [custSearch, setCustSearch] = useState('');
   const [showCustList, setShowCustList] = useState(false);
   const filteredCustomers = useMemo(() => {
@@ -275,11 +285,12 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   };
 
   const rawSubtotal = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * unitSell(l, markupPct), 0));
-  const rawTotal = round2(rawSubtotal * 1.1);
+  const rawTotal = round2(rawSubtotal * (1 + gstRate));
   // "Round up" lands the customer-facing total on a whole dollar; the GST split is
-  // re-derived from it so the figures still reconcile.
+  // re-derived from it so the figures still reconcile. With GST off the rate is 0,
+  // so the total is the subtotal and gst falls out as 0 on its own.
   const total = roundUp ? Math.ceil(rawTotal) : rawTotal;
-  const subtotal = roundUp ? round2(total / 1.1) : rawSubtotal;
+  const subtotal = roundUp ? round2(total / (1 + gstRate)) : rawSubtotal;
   const gst = round2(total - subtotal);
   const totalCost = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * (parseFloat(l.cost || '0') || 0), 0));
   const profit = round2(subtotal - totalCost);
@@ -388,7 +399,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     selectedCustomer?.email ? {
       label: 'Email customer',
       onPress: () => sendViaChannel(() =>
-        Linking.openURL(`mailto:${selectedCustomer.email}?subject=Your quote&body=Hi ${customer || 'there'},\n\nPlease find your quote attached.\n\nTotal: $${total.toFixed(2)} inc. GST\n\nThanks`)
+        Linking.openURL(`mailto:${selectedCustomer.email}?subject=Your quote&body=Hi ${customer || 'there'},\n\nPlease find your quote attached.\n\nTotal: $${total.toFixed(2)}${includeGST ? ' inc. GST' : ''}\n\nThanks`)
       ),
     } : null,
     selectedCustomer?.phone ? {
@@ -397,7 +408,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     } : null,
     {
       label: 'Share link',
-      onPress: () => sendViaChannel(() => Share.share({ message: `Quote — $${total.toFixed(2)} (inc. GST)` })),
+      onPress: () => sendViaChannel(() => Share.share({ message: `Quote — $${total.toFixed(2)}${includeGST ? ' (inc. GST)' : ''}` })),
     },
   ].filter(Boolean) as SheetAction[];
 
@@ -407,7 +418,6 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   // comes back calibrated, rather than the bare description the manual flow used
   // to send.
   const [aiBusy, setAiBusy] = useState(false);
-  const { data: settings } = useSettings() as any;
 
   // Start the job-level markup at the tradie's default. Only once, and never over a
   // markup already restored from a saved quote.
@@ -493,7 +503,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
           labourRate: typeof settings?.labourRate === 'number' ? settings.labourRate : undefined,
           markupPercent: typeof settings?.markupPercent === 'number' ? settings.markupPercent : undefined,
           callOutFee: typeof settings?.callOutFee === 'number' ? settings.callOutFee : undefined,
-          includeGST: settings?.includeGST !== false,
+          includeGST,
         }),
       });
       if (!res.ok) {
@@ -569,9 +579,11 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       .filter(Boolean) as string[];
 
     if (skipped.length) setAssumptions(prev => [...prev, ...skipped]);
-    setQuestions([]);
 
-    if (!answered.length) return; // nothing to refine — keep the quote as generated
+    if (!answered.length) {
+      setQuestions([]);
+      return; // nothing to refine — keep the quote as generated
+    }
 
     const refined = [
       lastDescription.current,
@@ -589,6 +601,12 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       setError(e?.message || 'Could not refine the quote — the original is still here.');
     } finally {
       setAiBusy(false);
+      // Cleared only now that the refine has landed. Clearing it up front tripped
+      // Clarify's "nothing left to ask" guard mid-flight, which sent the tradie to
+      // Review on the FIRST result — then this call returned, rewrote the figures
+      // under them, and the screen was pushed a second time. Hence the quote that
+      // appeared to regenerate itself a few seconds after opening.
+      setQuestions([]);
     }
   };
 
@@ -617,7 +635,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
         unitPrice: unitSell(l, markupPct),
       })),
     notes: notes || undefined,
-    subtotal, gstAmount: gst, totalAmount: total, includeGST: true,
+    subtotal, gstAmount: gst, totalAmount: total, includeGST,
   });
 
   /**
@@ -700,7 +718,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     restorable, restoreDraft, forgetSavedDraft,
     custSearch, setCustSearch, showCustList, setShowCustList, filteredCustomers,
     editLineIdx, editLineDraft, setEditLineDraft, openLineEdit, saveLineEdit, deleteLineFromModal, addLine, closeLineEdit,
-    subtotal, gst, total, totalCost, profit,
+    subtotal, gst, total, totalCost, profit, includeGST, gstRate,
     error, setError, saving: saveMutation.isPending, save, hasWork,
     showSendSheet, setShowSendSheet, handleSendPress, sendActions,
     aiBusy, generateItemsWithAI, generateFromDescription,
