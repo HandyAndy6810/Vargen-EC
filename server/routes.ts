@@ -708,6 +708,10 @@ Do not invent details. If unsure of a field, use an empty string.`;
 
   // AI Quote Generation
   app.post("/api/quotes/generate", requireAuth, aiRateLimit, async (req: any, res) => {
+    // Declared out here, not inside the try: `let` is block-scoped, so the catch
+    // below could not see it and threw a ReferenceError of its own every time a
+    // generation failed — losing the real provider error behind a bare 500.
+    let sentImage = false;
     try {
       const { description, imageBase64, customerName, tradeType, labourRate, markupPercent, callOutFee, includeGST, targetPrice } = req.body;
 
@@ -716,7 +720,6 @@ Do not invent details. If unsure of a field, use an empty string.`;
       }
 
       const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-      let sentImage = false;
 
       const labourRateNum = typeof labourRate === "number" && labourRate > 0 ? labourRate : null;
       const markupNum = typeof markupPercent === "number" ? markupPercent : 0;

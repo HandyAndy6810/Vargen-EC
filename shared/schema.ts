@@ -1,7 +1,7 @@
 export * from "./models/auth";
 export * from "./models/chat";
 
-import { pgTable, text, serial, integer, boolean, timestamp, numeric, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, numeric, varchar, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -29,10 +29,15 @@ export const jobs = pgTable("jobs", {
   status: text("status").default("scheduled"), // scheduled, completed, cancelled
   scheduledDate: timestamp("scheduled_date"),
   estimatedDuration: integer("estimated_duration"), // minutes
-  // Optional links to the quote/invoice this job came from (forward refs — the
-  // quotes/invoices tables are declared below; Drizzle resolves the thunks lazily).
-  quoteId: integer("quote_id").references(() => quotes.id),
-  invoiceId: integer("invoice_id").references(() => invoices.id),
+  // Optional links to the quote/invoice this job came from. Drizzle resolves the
+  // thunks lazily at runtime, but TYPE inference is a different matter: jobs points
+  // at quotes and quotes points back at jobs, and without an explicit return type
+  // TypeScript cannot settle either one. Both silently became `any`, and that `any`
+  // spread out through storage and routes as ~30 nonsense errors elsewhere. The
+  // AnyPgColumn annotation breaks the cycle — it is Drizzle's documented fix for
+  // circular and self references. Do not remove it.
+  quoteId: integer("quote_id").references((): AnyPgColumn => quotes.id),
+  invoiceId: integer("invoice_id").references((): AnyPgColumn => invoices.id),
   completionData: text("completion_data"), // JSON: { actualHours, extraNotes, completedAt, estimatedHours, quotedAmount }
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -40,7 +45,7 @@ export const jobs = pgTable("jobs", {
 export const quotes = pgTable("quotes", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id),
-  jobId: integer("job_id").references(() => jobs.id),
+  jobId: integer("job_id").references((): AnyPgColumn => jobs.id),
   customerId: integer("customer_id").references(() => customers.id),
   totalAmount: numeric("total_amount").notNull(),
   status: text("status").default("draft"), // draft, sent, viewed, accepted, rejected, invoiced
