@@ -92,6 +92,8 @@ type InvoiceDraft = {
   // totals — `total` is what THIS invoice bills, `jobTotal` the whole job, so a
   // deposit can say what it is taking now and what is left for later.
   subtotal: number; gst: number; total: number; totalCost: number; profit: number;
+  /** False when the tradie isn't GST-registered: no tax line, total = subtotal. */
+  includeGST: boolean; gstRate: number;
   jobTotal: number; remainingAfter: number;
 
   // documents
@@ -137,6 +139,11 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
 
   const { data: allCustomers } = useCustomers() as any;
   const { data: settings } = useSettings() as any;
+  // A tradie under the GST threshold must not add GST, so "off" means no tax line
+  // and total = subtotal — not a 10% line relabelled. Anything other than an
+  // explicit false stays GST-registered, which is the overwhelming default.
+  const includeGST = settings?.includeGST !== false;
+  const gstRate = includeGST ? 0.1 : 0;
 
   const [sourceQuoteId, setSourceQuoteId] = useState(initial.current.quoteId);
   const [fromQuote, setFromQuote] = useState(false);
@@ -319,7 +326,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
 
   // ── Totals ─────────────────────────────────────────────────────────────────
   const rawSubtotal = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * unitSell(l, markupPct), 0));
-  const rawTotal = round2(rawSubtotal * 1.1);
+  const rawTotal = round2(rawSubtotal * (1 + gstRate));
   const fullTotal = roundUp ? Math.ceil(rawTotal) : rawTotal;
   // A deposit invoice bills a slice now; a balance invoice bills what's left after
   // everything already invoiced against the same quote.
@@ -331,7 +338,8 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     : invoiceType === 'balance'
       ? round2(Math.max(0, fullTotal - priorInvoiced))
       : fullTotal;
-  const subtotal = round2(total / 1.1);
+  // With GST off the rate is 0, so subtotal equals total and gst falls out as 0.
+  const subtotal = round2(total / (1 + gstRate));
   const gst = round2(total - subtotal);
   const jobTotal = round2(fullTotal);
   const remainingAfter = round2(Math.max(0, jobTotal - priorInvoiced - total));
@@ -468,7 +476,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
         unitPrice: unitSell(l, markupPct),
       })),
     notes: notes || undefined,
-    subtotal, gstAmount: gst, totalAmount: total, includeGST: true,
+    subtotal, gstAmount: gst, totalAmount: total, includeGST,
   });
 
   const shareAnyway = async () => {
@@ -516,7 +524,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
           })),
         notes: [jobTitle.trim() ? `Job: ${jobTitle.trim()}` : '', summary.trim(), notes.trim()]
           .filter(Boolean).join('\n') || undefined,
-        includeGST: true,
+        includeGST,
         status,
         // Previously omitted entirely, which left every invoice with no due date and
         // made the overdue filter permanently empty.
@@ -556,7 +564,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     selectedCustomer?.email ? {
       label: 'Email customer',
       onPress: () => sendVia(() =>
-        Linking.openURL(`mailto:${selectedCustomer.email}?subject=Your invoice&body=Hi ${customer || 'there'},%0D%0A%0D%0APlease find your invoice attached.%0D%0A%0D%0ATotal: $${total.toFixed(2)} inc. GST%0D%0ADue: ${dueDateLabel}%0D%0A%0D%0AThanks`)
+        Linking.openURL(`mailto:${selectedCustomer.email}?subject=Your invoice&body=Hi ${customer || 'there'},%0D%0A%0D%0APlease find your invoice attached.%0D%0A%0D%0ATotal: $${total.toFixed(2)}${includeGST ? ' inc. GST' : ''}%0D%0ADue: ${dueDateLabel}%0D%0A%0D%0AThanks`)
       ),
     } : null,
     selectedCustomer?.phone ? {
@@ -565,7 +573,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     } : null,
     {
       label: 'Share link',
-      onPress: () => sendVia(() => Share.share({ message: `Invoice — $${total.toFixed(2)} (inc. GST), due ${dueDateLabel}` })),
+      onPress: () => sendVia(() => Share.share({ message: `Invoice — $${total.toFixed(2)}${includeGST ? ' (inc. GST)' : ''}, due ${dueDateLabel}` })),
     },
   ].filter(Boolean) as SheetAction[];
 
@@ -585,7 +593,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
           labourRate: typeof settings?.labourRate === 'number' ? settings.labourRate : undefined,
           markupPercent: typeof settings?.markupPercent === 'number' ? settings.markupPercent : undefined,
           callOutFee: typeof settings?.callOutFee === 'number' ? settings.callOutFee : undefined,
-          includeGST: settings?.includeGST !== false,
+          includeGST,
         }),
       });
       if (!res.ok) {
@@ -629,7 +637,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     markupPct, setMarkupPct, toggleLineLock, roundUp, setRoundUp,
     upsertLine, removeLine, startManual,
     restorable, restoreDraft, forgetSavedDraft,
-    subtotal, gst, total, totalCost, profit, jobTotal, remainingAfter,
+    subtotal, gst, total, totalCost, profit, jobTotal, remainingAfter, includeGST, gstRate,
     invoicePayload, shareAnyway,
     error, setError, saving, save, hasWork,
     showSendSheet, setShowSendSheet, handleSendPress, sendActions,

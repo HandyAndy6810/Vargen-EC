@@ -38,13 +38,17 @@ export function MarkupSlider({
   onChange,
   roundUp = false,
   gstRate = 0.1,
+  totalLabel = 'Quote total',
 }: {
   lines: LineItem[];
   markupPct: number;
   onChange: (pct: number) => void;
   /** Lands the customer-facing total on a whole dollar. */
   roundUp?: boolean;
+  /** 0.1 for a GST-registered tradie, 0 for one who isn't. */
   gstRate?: number;
+  /** This card is shared with the invoice flow, where "Quote total" is wrong. */
+  totalLabel?: string;
 }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -173,7 +177,10 @@ export function MarkupSlider({
 
   return (
     <View style={s.wrap}>
-      <Text style={s.eyebrow}>Quote total · inc GST</Text>
+      {/* No "inc GST" when the tradie isn't registered for it — the figure genuinely
+          has no tax in it, and saying otherwise on a customer-facing screen is worse
+          than saying nothing. */}
+      <Text style={s.eyebrow}>{totalLabel}{gstRate > 0 ? ' · inc GST' : ''}</Text>
       <Text style={s.grand}>{money(grand)}</Text>
       <View style={s.profitRow}>
         <Text style={s.profitLabel}>You make</Text>
