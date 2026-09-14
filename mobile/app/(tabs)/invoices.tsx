@@ -112,12 +112,20 @@ export default function InvoicesScreen() {
     return list;
   }, [sorted, filter, search]);
 
-  const outstanding = useMemo(() =>
-    sorted.filter((i: any) => ['sent', 'overdue', 'partial'].includes(i.status)).reduce((s: number, i: any) => s + parseFloat(i.totalAmount || '0'), 0),
+  // What's actually still owed on an invoice, not what it was raised for. A partial
+  // invoice has money against it already, and counting it at full face value made
+  // the Outstanding hero overstate the debt by every payment ever recorded.
+  const owing = (i: any) =>
+    Math.max(0, (parseFloat(i.totalAmount || '0') || 0) - (parseFloat(i.paidAmount || '0') || 0));
+
+  const unpaid = useMemo(
+    () => sorted.filter((i: any) => ['sent', 'overdue', 'partial'].includes(i.status)),
     [sorted]
   );
+  const outstandingCount = unpaid.length;
+  const outstanding = useMemo(() => unpaid.reduce((s: number, i: any) => s + owing(i), 0), [unpaid]);
   const overdue = useMemo(() =>
-    sorted.filter((i: any) => i.status === 'overdue').reduce((s: number, i: any) => s + parseFloat(i.totalAmount || '0'), 0),
+    sorted.filter((i: any) => i.status === 'overdue').reduce((s: number, i: any) => s + owing(i), 0),
     [sorted]
   );
   const current = outstanding - overdue;
@@ -140,7 +148,10 @@ export default function InvoicesScreen() {
       <View style={{ paddingBottom: 14 }}>
         <View style={s.heroCard}>
           <View style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.3)' }} />
-          <Text style={s.heroEyebrow}>Outstanding · {sorted.filter((i: any) => i.status !== 'paid' && i.status !== 'void').length} invoices</Text>
+          {/* Same set the dollar figure is summed over. It used to count every
+              non-paid invoice, drafts included, so the count and the amount beneath
+              it described two different things. */}
+          <Text style={s.heroEyebrow}>Outstanding · {outstandingCount} invoice{outstandingCount === 1 ? '' : 's'}</Text>
           <Text style={s.heroAmt}>${outstanding.toLocaleString()}</Text>
           <View style={{ flexDirection: 'row', gap: 14, marginTop: 14 }}>
             <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: '#fff' }}>🔴 ${overdue.toLocaleString()} overdue</Text>

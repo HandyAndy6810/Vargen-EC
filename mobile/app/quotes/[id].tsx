@@ -143,15 +143,20 @@ export default function QuoteDetailScreen() {
     ? format(new Date(quote.createdAt), 'EEE d MMM')
     : '';
 
-  // Build display items: prefer saved quoteItems, fallback to content
+  // Build display items from the CONTENT first, and only fall back to the
+  // quote_items rows.
+  //
+  // The rows are not safe to read as a line total: `price` has meant different
+  // things at different times. Older quotes wrote the whole line into it (quote 19:
+  // qty 16, price 1440), while the current save path writes the per-unit sell price
+  // (quote 25: qty 60, price 55). Reading rows first and treating price as the line
+  // total therefore rendered ~$127 of items under a $4,840 headline on any recent
+  // quote. The content JSON has always stored quantity and unitPrice separately, so
+  // it is the one source that multiplies out correctly in every era — and unlike the
+  // rows it keeps fractional quantities, which quote_items.quantity (an integer
+  // column) rounds off.
   let displayItems: Array<{ name: string; qty: number; total: number }> = [];
-  if ((quoteItems as any[]).length > 0) {
-    displayItems = (quoteItems as any[]).map((item: any) => ({
-      name: item.description,
-      qty: item.quantity,
-      total: parseFloat(item.price),
-    }));
-  } else if (content.items?.length) {
+  if (content.items?.length) {
     displayItems = content.items.map((item) => {
       const qty = toMoney(item.quantity) ?? 1;
       return { name: item.description, qty, total: qty * (toMoney(item.unitPrice) ?? 0) };
@@ -161,6 +166,14 @@ export default function QuoteDetailScreen() {
       const qty = toMoney(line.qty) ?? 1;
       return { name: line.name, qty, total: qty * (toMoney(line.price) ?? 0) };
     });
+  } else if ((quoteItems as any[]).length > 0) {
+    // Last resort, for a quote whose content never carried items. Ambiguous by
+    // nature, so assume the older meaning — price as the whole line.
+    displayItems = (quoteItems as any[]).map((item: any) => ({
+      name: item.description,
+      qty: item.quantity,
+      total: parseFloat(item.price) || 0,
+    }));
   }
 
   // toMoney salvages legacy string values ("1,500.00") and returns null when
