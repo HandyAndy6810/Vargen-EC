@@ -10,7 +10,7 @@ import * as Sharing from 'expo-sharing';
 import { WebView } from 'react-native-webview';
 import { format } from 'date-fns';
 import {
-  ChevronLeft, ChevronDown, ChevronRight, Send, FileText, Trash2,
+  ChevronLeft, ChevronDown, Send, FileText, Trash2,
   Lock, Unlock, AlertTriangle, User, X, Wrench, Package, Plus, ArrowUp, Share2,
 } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
@@ -20,6 +20,8 @@ import { useSettings } from '@/hooks/use-settings';
 import { MarkupSlider } from '@/components/MarkupSlider';
 import { buildQuotePDF } from '@/lib/quote-pdf';
 import { showConfirm, showAlert } from '@/lib/dialogs';
+import { hapticSelect } from '@/lib/haptics';
+import { animateNextLayout } from '@/lib/layout-animation';
 import { apiRequest } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 
@@ -169,7 +171,12 @@ export default function ReviewStep() {
         <TouchableOpacity
           style={s.groupHead}
           activeOpacity={0.7}
-          onPress={() => setOpenGroups(g => ({ ...g, [key]: !g[key] }))}
+          onPress={() => {
+            // Before the setState, so the next commit is the one that eases.
+            animateNextLayout();
+            hapticSelect();
+            setOpenGroups(g => ({ ...g, [key]: !g[key] }));
+          }}
           accessibilityRole="button"
           accessibilityLabel={`${open ? 'Collapse' : 'Expand'} ${label}`}
         >
@@ -181,9 +188,14 @@ export default function ReviewStep() {
             <Text style={s.groupMeta}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text>
           </View>
           <Text style={s.groupSum}>{money(sum)}</Text>
-          {open
-            ? <ChevronDown size={16} color={c.muted} strokeWidth={2} />
-            : <ChevronRight size={16} color={c.muted} strokeWidth={2} />}
+          {/* One rotating chevron rather than swapping two icons, matching the
+              invoice review — a swap reads as a flicker next to the eased content. */}
+          <ChevronDown
+            size={16}
+            color={c.muted}
+            strokeWidth={2}
+            style={{ transform: [{ rotate: open ? '0deg' : '-90deg' }] }}
+          />
         </TouchableOpacity>
         {open ? (
           <View style={s.groupBody}>
@@ -307,7 +319,11 @@ export default function ReviewStep() {
               <TouchableOpacity
                 style={s.flagsHead}
                 activeOpacity={0.7}
-                onPress={() => setFlagsOpen(o => !o)}
+                onPress={() => {
+                  animateNextLayout();
+                  hapticSelect();
+                  setFlagsOpen(o => !o);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="Toggle checks and assumptions"
               >
@@ -315,9 +331,12 @@ export default function ReviewStep() {
                 <Text style={s.flagsTitle}>
                   Check before sending · {needsPrice.length + d.assumptions.length}
                 </Text>
-                {flagsOpen
-                  ? <ChevronDown size={16} color={c.orangeDeep} strokeWidth={2} />
-                  : <ChevronRight size={16} color={c.orangeDeep} strokeWidth={2} />}
+                <ChevronDown
+                  size={16}
+                  color={c.orangeDeep}
+                  strokeWidth={2}
+                  style={{ transform: [{ rotate: flagsOpen ? '0deg' : '-90deg' }] }}
+                />
               </TouchableOpacity>
               {flagsOpen ? (
                 <View style={s.flagsBody}>
