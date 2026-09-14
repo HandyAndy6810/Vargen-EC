@@ -1,5 +1,8 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, PanResponder, type GestureResponderEvent, type PanResponderGestureState } from 'react-native';
+import {
+  View, Text, StyleSheet, PanResponder,
+  type GestureResponderEvent, type LayoutChangeEvent, type PanResponderGestureState,
+} from 'react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { unitSell, type LineItem } from '@/hooks/use-quote-draft';
 import { hapticTick } from '@/lib/haptics';
@@ -7,8 +10,9 @@ import { hapticTick } from '@/lib/haptics';
 const MIN_PCT = 0;
 // 80% top end. A tradie's markup normally sits between 15% and 40%, so anchoring the
 // scale here puts the starting thumb a genuine quarter to a third along the bar with
-// room to pull it back — a 200% or 120% ceiling squeezed all the useful positions
-// into the first sliver, which is why it kept reading as "starts at zero".
+// room to pull it back, rather than squeezing every useful position into the first
+// sliver as a 200% ceiling did. (This was NOT what made the thumb start at the far
+// left — that was the width being kept in a ref alone; see trackWidth below.)
 const MAX_PCT = 80;
 const THUMB = 26;
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -50,7 +54,14 @@ export function MarkupSlider({
 
   const dragging = useRef(false);
   const trackX = useRef(0);
+  // Width is held twice on purpose: the ref keeps the drag maths synchronous inside
+  // gesture handlers, while the state is what re-renders the thumb into position.
+  // Width used to be a ref ALONE, and writing to a ref renders nothing — so on the
+  // only render that mattered the width was still its initial 1, making the thumb's
+  // travel max(0, 1 - 26) = 0. It drew hard left whatever the markup was, and only
+  // snapped to the right spot once a drag happened to re-render it.
   const trackW = useRef(1);
+  const [trackWidth, setTrackWidth] = useState(0);
   const trackRef = useRef<View>(null);
 
   // Keep in step when the committed value changes from elsewhere (restore, seed),
@@ -59,11 +70,25 @@ export function MarkupSlider({
     if (!dragging.current) setLive(clamp(markupPct));
   }, [markupPct]);
 
+  const setWidth = (w: number) => {
+    if (w <= 0) return;
+    trackW.current = w;
+    setTrackWidth(w);
+  };
+
+  /** measureInWindow is the only way to get the absolute X the drag maths needs. */
   const measure = () => {
     trackRef.current?.measureInWindow((x, _y, w) => {
       trackX.current = x;
-      if (w > 0) trackW.current = w;
+      setWidth(w);
     });
+  };
+
+  // Layout reports the width synchronously, so take it from here too rather than
+  // waiting on the async measure — the thumb lands correctly on the first paint.
+  const onTrackLayout = (e: LayoutChangeEvent) => {
+    setWidth(e.nativeEvent.layout.width);
+    measure();
   };
 
   // The thumb is a circle that slides between the track's edges, so the distance it
@@ -144,7 +169,7 @@ export function MarkupSlider({
   const trueMargin = subtotal > 0 ? ((subtotal - totalCost) / subtotal) * 100 : 0;
 
   const ratio = ratioOf(live);
-  const thumbTravel = Math.max(0, trackW.current - THUMB);
+  const thumbTravel = Math.max(0, trackWidth - THUMB);
 
   return (
     <View style={s.wrap}>
@@ -172,7 +197,7 @@ export function MarkupSlider({
 
       <View
         ref={trackRef}
-        onLayout={measure}
+        onLayout={onTrackLayout}
         style={s.track}
         hitSlop={{ top: 16, bottom: 16 }}
         {...responder.panHandlers}

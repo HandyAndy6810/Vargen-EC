@@ -569,9 +569,11 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       .filter(Boolean) as string[];
 
     if (skipped.length) setAssumptions(prev => [...prev, ...skipped]);
-    setQuestions([]);
 
-    if (!answered.length) return; // nothing to refine — keep the quote as generated
+    if (!answered.length) {
+      setQuestions([]);
+      return; // nothing to refine — keep the quote as generated
+    }
 
     const refined = [
       lastDescription.current,
@@ -589,6 +591,12 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       setError(e?.message || 'Could not refine the quote — the original is still here.');
     } finally {
       setAiBusy(false);
+      // Cleared only now that the refine has landed. Clearing it up front tripped
+      // Clarify's "nothing left to ask" guard mid-flight, which sent the tradie to
+      // Review on the FIRST result — then this call returned, rewrote the figures
+      // under them, and the screen was pushed a second time. Hence the quote that
+      // appeared to regenerate itself a few seconds after opening.
+      setQuestions([]);
     }
   };
 
