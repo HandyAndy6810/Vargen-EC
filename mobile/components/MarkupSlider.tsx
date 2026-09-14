@@ -161,6 +161,18 @@ export function MarkupSlider({
     () => round2(lines.reduce((sum, l) => sum + (parseFloat(l.qty) || 0) * (parseFloat(l.cost || '0') || 0), 0)),
     [lines]
   );
+  // Lines carrying a real price but no cost basis. They add to what the customer
+  // pays and nothing to Total cost, so "You make" counts every cent of them as
+  // profit. Every quote written before the cost-based engine is entirely made of
+  // these, and so is any line typed by hand with "Your cost" left blank — which is
+  // why Total cost could read $0 beneath a four-figure job with no hint as to why.
+  const uncosted = useMemo(
+    () => lines.filter(l =>
+      !(parseFloat(l.cost || '0') > 0) &&
+      (parseFloat(l.qty) || 0) * unitSell(l, 0) > 0
+    ).length,
+    [lines]
+  );
   const rawSubtotal = round2(lines.reduce((sum, l) => sum + (parseFloat(l.qty) || 0) * unitSell(l, live), 0));
   const rawGrand = round2(rawSubtotal * (1 + gstRate));
   // Rounding lands the GST-inclusive total on a whole dollar, and the subtotal is
@@ -201,6 +213,16 @@ export function MarkupSlider({
           <Text style={s.readoutValue}>{money(subtotal)}</Text>
         </View>
       </View>
+
+      {/* Say it plainly rather than letting the tradie read a profit figure that
+          quietly counts uncosted lines as pure margin. */}
+      {uncosted > 0 ? (
+        <Text style={s.costWarn}>
+          {uncosted === 1 ? '1 item has' : `${uncosted} items have`} no cost recorded, so
+          {uncosted === 1 ? ' it counts' : ' they count'} as all profit. Add “Your cost” to
+          {uncosted === 1 ? ' that line' : ' those lines'} for a true figure.
+        </Text>
+      ) : null}
 
       <View
         ref={trackRef}
@@ -246,6 +268,12 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     letterSpacing: 1, textTransform: 'uppercase',
   },
   readoutValue: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginTop: 3 },
+  costWarn: {
+    fontSize: 11.5, fontFamily: 'Manrope_600SemiBold', color: c.orangeDeep,
+    lineHeight: 16, marginTop: 12,
+    backgroundColor: c.orangeSoft, borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 8,
+  },
   track: { height: THUMB, justifyContent: 'center', marginTop: 20 },
   trackBg: { position: 'absolute', left: 0, right: 0, height: 8, borderRadius: 4, backgroundColor: c.paperDeep },
   trackFill: { position: 'absolute', left: 0, height: 8, borderRadius: 4, backgroundColor: c.orange },
