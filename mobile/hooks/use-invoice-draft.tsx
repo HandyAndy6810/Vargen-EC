@@ -10,7 +10,11 @@ import { showAlert } from '@/lib/dialogs';
 import { buildQuotePDF, A4_PRINT } from '@/lib/quote-pdf';
 import { hapticSuccess, hapticError, hapticPress, hapticWarn } from '@/lib/haptics';
 import { loadQuoteDraft, saveQuoteDraft, clearQuoteDraft, type CachedQuoteDraft } from '@/lib/quote-draft-cache';
-import { unitSell, type LineItem } from '@/hooks/use-quote-draft';
+import { type LineItem } from '@/hooks/use-quote-draft';
+import {
+  round2, unitSell, lineTotal, totalsFor, gstRateFor, invoiceSplitTotal, splitGst,
+  remainingAfter as remainingAfterSplit,
+} from '@shared/money';
 import { useQuote } from '@/hooks/use-quotes';
 import { useJob } from '@/hooks/use-jobs';
 import { useCustomers, useCustomer } from '@/hooks/use-customers';
@@ -19,7 +23,6 @@ import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
 import type { SheetAction } from '@/components/ActionSheetModal';
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
 const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
 
 export type InvoiceType = 'full' | 'deposit' | 'balance';
@@ -143,7 +146,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   // and total = subtotal — not a 10% line relabelled. Anything other than an
   // explicit false stays GST-registered, which is the overwhelming default.
   const includeGST = settings?.includeGST !== false;
-  const gstRate = includeGST ? 0.1 : 0;
+  const gstRate = gstRateFor(settings?.includeGST);
 
   const [sourceQuoteId, setSourceQuoteId] = useState(initial.current.quoteId);
   const [fromQuote, setFromQuote] = useState(false);
@@ -325,25 +328,22 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   }, [sourceJobCustomer]);
 
   // ── Totals ─────────────────────────────────────────────────────────────────
-  const rawSubtotal = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * unitSell(l, markupPct), 0));
-  const rawTotal = round2(rawSubtotal * (1 + gstRate));
-  const fullTotal = roundUp ? Math.ceil(rawTotal) : rawTotal;
-  // A deposit invoice bills a slice now; a balance invoice bills what's left after
-  // everything already invoiced against the same quote.
+  // The whole job first, then the slice THIS invoice bills. Both come from
+  // shared/money.ts, which is also what the server bills from — so a deposit can no
+  // longer show one figure here and save as another.
+  const jobTotals = totalsFor(lines, { markupPct, gstRate, roundUp });
+  const fullTotal = jobTotals.total;
   const depositFixed = parseFloat(depositAmount) || 0;
-  const total = invoiceType === 'deposit'
-    ? (depositFixed > 0
-        ? round2(Math.min(depositFixed, fullTotal))
-        : round2(fullTotal * (depositPercent / 100)))
-    : invoiceType === 'balance'
-      ? round2(Math.max(0, fullTotal - priorInvoiced))
-      : fullTotal;
-  // With GST off the rate is 0, so subtotal equals total and gst falls out as 0.
-  const subtotal = round2(total / (1 + gstRate));
-  const gst = round2(total - subtotal);
-  const jobTotal = round2(fullTotal);
-  const remainingAfter = round2(Math.max(0, jobTotal - priorInvoiced - total));
-  const totalCost = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * (parseFloat(l.cost || '0') || 0), 0));
+
+  const split = { fullTotal, priorInvoiced, depositPercent, depositAmount: depositFixed };
+  const total = invoiceSplitTotal(invoiceType, split);
+
+  // A part invoice bills a slice of a GST-inclusive figure, so the tax is split back
+  // out of the amount rather than added on top of it again.
+  const { subtotal, gst } = splitGst(total, gstRate);
+  const jobTotal = fullTotal;
+  const remainingAfter = remainingAfterSplit(split, total);
+  const totalCost = jobTotals.totalCost;
   const profit = round2(subtotal - totalCost);
 
   // ── Variance against the quote ─────────────────────────────────────────────
@@ -360,7 +360,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
       const k = key(l);
       if (!k) return;
       seen.add(k);
-      const invoiced = round2((parseFloat(l.qty) || 0) * unitSell(l, markupPct));
+      const invoiced = lineTotal(l, markupPct);
       const quoted = round2(quotedBy.get(k) || 0);
       if (round2(invoiced - quoted) !== 0) {
         rows.push({ label: l.name.trim(), quoted, invoiced, delta: round2(invoiced - quoted) });
@@ -370,7 +370,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     quotedLines.forEach(l => {
       const k = key(l);
       if (!k || seen.has(k)) return;
-      const quoted = round2((parseFloat(l.qty) || 0) * unitSell(l, markupPct));
+      const quoted = lineTotal(l, markupPct);
       rows.push({ label: l.name.trim(), quoted, invoiced: 0, delta: round2(-quoted) });
     });
     return rows;

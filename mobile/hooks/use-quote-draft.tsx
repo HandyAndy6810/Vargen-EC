@@ -14,6 +14,11 @@ import { useQuote } from '@/hooks/use-quotes';
 import { useCustomers } from '@/hooks/use-customers';
 import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
+import { unitSell, totalsFor, gstRateFor } from '@shared/money';
+// Re-exported because five screens already import it from here. The implementation
+// lives in shared/money.ts and is used by the server too, so a quote and the invoice
+// raised from it can never price the same line differently.
+export { unitSell } from '@shared/money';
 import { buildQuotePDF, A4_PRINT } from '@/lib/quote-pdf';
 import type { SheetAction } from '@/components/ActionSheetModal';
 
@@ -35,7 +40,6 @@ export type LineItem = {
 };
 const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /** A question the AI asks only when the answer materially changes the price. */
 export type ClarifyQuestion = {
@@ -46,17 +50,6 @@ export type ClarifyQuestion = {
   assumption?: string;
 };
 
-/**
- * What the client is charged per unit. A locked line holds the price it had when it
- * was pinned; otherwise markup is applied to cost. A line with no cost basis (typed
- * by hand) keeps its own price and simply doesn't respond to the slider.
- */
-export function unitSell(l: LineItem, markupPct: number): number {
-  if (l.markupLocked) return parseFloat(l.lockedPrice || l.price || '0') || 0;
-  const cost = parseFloat(l.cost || '0') || 0;
-  if (cost > 0) return round2(cost * (1 + markupPct / 100));
-  return parseFloat(l.price || '0') || 0;
-}
 
 /**
  * Shared draft for the stepped New Quote flow. Lives in the create/_layout so
@@ -176,7 +169,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   // and total = subtotal — not a 10% line relabelled. Anything other than an
   // explicit false stays GST-registered, which is the overwhelming default.
   const includeGST = settings?.includeGST !== false;
-  const gstRate = includeGST ? 0.1 : 0;
+  const gstRate = gstRateFor(settings?.includeGST);
   const [custSearch, setCustSearch] = useState('');
   const [showCustList, setShowCustList] = useState(false);
   const filteredCustomers = useMemo(() => {
@@ -284,16 +277,9 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     setLines(prev => prev.filter((_, i) => i !== index));
   };
 
-  const rawSubtotal = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * unitSell(l, markupPct), 0));
-  const rawTotal = round2(rawSubtotal * (1 + gstRate));
-  // "Round up" lands the customer-facing total on a whole dollar; the GST split is
-  // re-derived from it so the figures still reconcile. With GST off the rate is 0,
-  // so the total is the subtotal and gst falls out as 0 on its own.
-  const total = roundUp ? Math.ceil(rawTotal) : rawTotal;
-  const subtotal = roundUp ? round2(total / (1 + gstRate)) : rawSubtotal;
-  const gst = round2(total - subtotal);
-  const totalCost = round2(lines.reduce((s, l) => s + (parseFloat(l.qty) || 0) * (parseFloat(l.cost || '0') || 0), 0));
-  const profit = round2(subtotal - totalCost);
+  // Every figure on Review, from shared/money.ts — the same code the server bills
+  // from, and the thing shared/money.test.ts holds to a contract.
+  const { subtotal, gst, total, totalCost, profit } = totalsFor(lines, { markupPct, gstRate, roundUp });
 
   const saveMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent') => {

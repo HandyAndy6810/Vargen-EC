@@ -21,9 +21,29 @@
  * the lines that made them.
  */
 
-/** Round to whole cents. The only rounding this file does, apart from roundUp. */
+/**
+ * Round to whole cents, half away from zero.
+ *
+ * Not `Math.round(n * 100) / 100`. That looks right and is subtly wrong: 2.345 * 100
+ * is 234.49999999999997 in binary floating point, so it rounds DOWN to 2.34. Every
+ * exact half-cent went the same way — a small, systematic bias in the one place that
+ * must not have one. Its own test caught it.
+ *
+ * Shifting through the string exponent instead ("2.345e+2" parses as exactly 234.5)
+ * gets the decimal value the tradie actually typed. The sign is handled separately
+ * because Math.round breaks ties toward +Infinity, which would round -2.345 to -2.34
+ * and make a credit behave differently from a charge.
+ */
 export function round2(n: number): number {
-  return Math.round(n * 100) / 100;
+  if (!Number.isFinite(n)) return 0;
+  const sign = n < 0 ? -1 : 1;
+  const abs = Math.abs(n);
+  const shifted = Number(`${abs}e+2`);
+  // Beyond ~1e21 the string form goes exponential and the trick stops working.
+  // No trade job reaches that, but fall back rather than return NaN.
+  if (!Number.isFinite(shifted)) return Math.round(n * 100) / 100;
+  const back = Number(`${Math.round(shifted)}e-2`);
+  return Number.isFinite(back) ? sign * back : Math.round(n * 100) / 100;
 }
 
 /**

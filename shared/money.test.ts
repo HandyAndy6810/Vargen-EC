@@ -33,9 +33,27 @@ describe('num', () => {
 
 describe('round2', () => {
   test('rounds to cents', () => {
-    assert.equal(round2(1.005), 1.01);
     assert.equal(round2(2.344), 2.34);
+    assert.equal(round2(2.346), 2.35);
+  });
+
+  // These are the values a naive Math.round(n * 100) / 100 gets wrong, because
+  // 2.345 * 100 is 234.49999999999997 in binary floating point. This test is the
+  // reason round2 shifts through the string exponent.
+  test('an exact half-cent rounds up, not down', () => {
+    assert.equal(round2(1.005), 1.01);
     assert.equal(round2(2.345), 2.35);
+    assert.equal(round2(8.615), 8.62);
+  });
+
+  test('negatives round away from zero, same as positives', () => {
+    assert.equal(round2(-2.345), -2.35);
+    assert.equal(round2(-2.344), -2.34);
+  });
+
+  test('anything unusable is zero, never NaN', () => {
+    assert.equal(round2(NaN), 0);
+    assert.equal(round2(Infinity), 0);
   });
 });
 

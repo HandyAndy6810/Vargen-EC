@@ -4,7 +4,8 @@ import {
   type GestureResponderEvent, type LayoutChangeEvent, type PanResponderGestureState,
 } from 'react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
-import { unitSell, type LineItem } from '@/hooks/use-quote-draft';
+import { type LineItem } from '@/hooks/use-quote-draft';
+import { totalsFor } from '@shared/money';
 import { hapticTick } from '@/lib/haptics';
 
 const MIN_PCT = 0;
@@ -15,7 +16,6 @@ const MIN_PCT = 0;
 // left — that was the width being kept in a ref alone; see trackWidth below.)
 const MAX_PCT = 80;
 const THUMB = 26;
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 const money = (n: number) =>
   `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -156,32 +156,16 @@ export function MarkupSlider({
     })
   ).current;
 
-  // Everything derives from the live value so it all moves together on each frame.
-  const totalCost = useMemo(
-    () => round2(lines.reduce((sum, l) => sum + (parseFloat(l.qty) || 0) * (parseFloat(l.cost || '0') || 0), 0)),
-    [lines]
-  );
-  // Lines carrying a real price but no cost basis. They add to what the customer
-  // pays and nothing to Total cost, so "You make" counts every cent of them as
-  // profit. Every quote written before the cost-based engine is entirely made of
-  // these, and so is any line typed by hand with "Your cost" left blank — which is
-  // why Total cost could read $0 beneath a four-figure job with no hint as to why.
-  const uncosted = useMemo(
-    () => lines.filter(l =>
-      !(parseFloat(l.cost || '0') > 0) &&
-      (parseFloat(l.qty) || 0) * unitSell(l, 0) > 0
-    ).length,
-    [lines]
-  );
-  const rawSubtotal = round2(lines.reduce((sum, l) => sum + (parseFloat(l.qty) || 0) * unitSell(l, live), 0));
-  const rawGrand = round2(rawSubtotal * (1 + gstRate));
-  // Rounding lands the GST-inclusive total on a whole dollar, and the subtotal is
-  // re-derived from it so the figures still reconcile. This card renders the headline
-  // total, so it has to honour the flag — without it the Round up button appeared to
-  // do nothing at all, because the only number it changed was its own label.
-  const grand = roundUp ? Math.ceil(rawGrand) : rawGrand;
-  const subtotal = roundUp ? round2(grand / (1 + gstRate)) : rawSubtotal;
-  const profit = round2(subtotal - totalCost);
+  // Recomputed from the LIVE slider value on every move, so each figure moves with
+  // the thumb rather than on release. The arithmetic itself is shared/money.ts —
+  // this card used to carry its own third copy of it, which is how it once rendered
+  // a headline total that ignored Round up.
+  //
+  // `uncosted` is why Total cost can sit below the sum of the lines: a line with no
+  // cost adds to what the customer pays and nothing to cost, so it reads as pure
+  // profit. Every quote written before the cost engine is made entirely of those.
+  const { subtotal, total: grand, totalCost, profit, uncostedLines: uncosted } =
+    totalsFor(lines, { markupPct: live, gstRate, roundUp });
   const trueMargin = subtotal > 0 ? ((subtotal - totalCost) / subtotal) * 100 : 0;
 
   const ratio = ratioOf(live);
