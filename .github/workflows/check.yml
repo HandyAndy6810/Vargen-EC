@@ -26,6 +26,9 @@ jobs:
       - run: npm ci
       # Root tsconfig covers server/ and shared/, which the mobile app also imports.
       - run: npm run check
+      # The money maths. Pure functions, so these run in about a second and need
+      # no device, no database and no network.
+      - run: npm test
 
   mobile:
     name: Mobile app
