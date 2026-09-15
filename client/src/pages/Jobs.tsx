@@ -2,7 +2,7 @@ import { useJobs, useCreateJob, useUpdateJob } from "@/hooks/use-jobs";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useCustomers } from "@/hooks/use-customers";
 import { useState } from "react";
-import { Plus, ChevronLeft, ChevronRight, Loader2, Calendar, Briefcase, FileText, Check, AlertTriangle, XCircle, Search } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Loader2, Calendar, Briefcase, FileText, Check, AlertTriangle, XCircle, Search, User } from "lucide-react";
 import { SwipeableRow } from "@/components/SwipeableRow";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";

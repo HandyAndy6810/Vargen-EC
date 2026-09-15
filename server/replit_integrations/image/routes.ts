@@ -20,7 +20,13 @@ export function registerImageRoutes(app: Express, requireAuth?: Middleware): voi
         size: size as "1024x1024" | "512x512" | "256x256",
       });
 
-      const imageData = response.data[0];
+      // `data` is optional on the response type, and an empty array is a real
+      // outcome when the provider refuses a prompt — indexing it blindly threw a
+      // TypeError inside the try and surfaced as a bare 500.
+      const imageData = response.data?.[0];
+      if (!imageData) {
+        return res.status(502).json({ error: "The image provider returned nothing" });
+      }
       res.json({
         url: imageData.url,
         b64_json: imageData.b64_json,

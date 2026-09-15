@@ -13,7 +13,7 @@ import {
   type Receipt, type InsertReceipt,
   type CustomerMessage, type InsertCustomerMessage,
 } from "../shared/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, getTableColumns } from "drizzle-orm";
 
 export interface IStorage {
   // Customers (userId-scoped)
@@ -146,18 +146,15 @@ export class DatabaseStorage implements IStorage {
 
   async getJobsWithCustomer(userId: string): Promise<(Job & { customerName: string | null; customerPhone: string | null })[]> {
     return await db
+      // getTableColumns rather than a hand-written column list. Every one of these
+      // selects had silently gone stale: the jobs one dropped quoteId/invoiceId, so
+      // a job's links to its quote and invoice never reached the app; the quotes one
+      // dropped jobTitle; the invoices one dropped invoiceType, which is what marks a
+      // deposit or balance. The row TYPE said the columns were there, so nothing
+      // complained — the values just arrived undefined. Spreading the table's columns
+      // cannot drift when a column is added.
       .select({
-        id: jobs.id,
-        userId: jobs.userId,
-        customerId: jobs.customerId,
-        title: jobs.title,
-        description: jobs.description,
-        address: jobs.address,
-        status: jobs.status,
-        scheduledDate: jobs.scheduledDate,
-        estimatedDuration: jobs.estimatedDuration,
-        completionData: jobs.completionData,
-        createdAt: jobs.createdAt,
+        ...getTableColumns(jobs),
         customerName: customers.name,
         customerPhone: customers.phone,
       })
@@ -202,19 +199,7 @@ export class DatabaseStorage implements IStorage {
   async getQuotesWithCustomer(userId: string): Promise<(Quote & { customerName: string | null })[]> {
     return await db
       .select({
-        id: quotes.id,
-        userId: quotes.userId,
-        jobId: quotes.jobId,
-        customerId: quotes.customerId,
-        totalAmount: quotes.totalAmount,
-        status: quotes.status,
-        content: quotes.content,
-        xeroInvoiceId: quotes.xeroInvoiceId,
-        xeroInvoiceNumber: quotes.xeroInvoiceNumber,
-        shareToken: quotes.shareToken,
-        followUpSchedule: quotes.followUpSchedule,
-        sentAt: quotes.sentAt,
-        createdAt: quotes.createdAt,
+        ...getTableColumns(quotes),
         customerName: customers.name,
       })
       .from(quotes)
@@ -286,27 +271,7 @@ export class DatabaseStorage implements IStorage {
   async getInvoicesWithCustomer(userId: string): Promise<(Invoice & { customerName: string | null })[]> {
     return await db
       .select({
-        id: invoices.id,
-        userId: invoices.userId,
-        quoteId: invoices.quoteId,
-        customerId: invoices.customerId,
-        invoiceNumber: invoices.invoiceNumber,
-        status: invoices.status,
-        items: invoices.items,
-        subtotal: invoices.subtotal,
-        gstAmount: invoices.gstAmount,
-        totalAmount: invoices.totalAmount,
-        dueDate: invoices.dueDate,
-        paidDate: invoices.paidDate,
-        paidAmount: invoices.paidAmount,
-        notes: invoices.notes,
-        stripePaymentLinkId: invoices.stripePaymentLinkId,
-        stripePaymentLinkUrl: invoices.stripePaymentLinkUrl,
-        squarePaymentLinkId: invoices.squarePaymentLinkId,
-        squarePaymentLinkUrl: invoices.squarePaymentLinkUrl,
-        xeroInvoiceId: invoices.xeroInvoiceId,
-        xeroInvoiceNumber: invoices.xeroInvoiceNumber,
-        createdAt: invoices.createdAt,
+        ...getTableColumns(invoices),
         customerName: customers.name,
       })
       .from(invoices)
