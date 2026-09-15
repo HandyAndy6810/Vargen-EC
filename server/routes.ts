@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { api } from "../shared/routes";
 import { isValidISODate, toISODate } from "../shared/mobile-types";
 import { round2, totalsFor, gstRateFor } from "../shared/money";
+import { checkLinePrice } from "../shared/price-sanity";
 import { z } from "zod";
 import OpenAI, { toFile } from "openai";
 
@@ -1043,17 +1044,35 @@ CRITICAL RULES — follow these exactly:
 
         parsed.items = parsed.items.map((item: any) => {
           const price = Number(item.unitPrice) || 0;
-          let cost = Number(item.unitCost);
-          // Guard the model ignoring rule 0: a missing or nonsensical cost would
-          // otherwise report the whole line as pure profit.
-          if (!Number.isFinite(cost) || cost <= 0 || cost > price) {
-            cost = price > 0 ? Math.round(price * 0.7 * 100) / 100 : 0;
-          }
+
+          // The cost the model gave, or nothing. This used to fabricate
+          // `price * 0.7` whenever the model left it out or returned something
+          // odd — which meant an invented price silently became an invented cost
+          // and an invented profit, three made-up figures shown as data with
+          // nothing marking them as guesses. An unknown cost is now left unknown:
+          // the line reports no cost, and Review already says out loud that a
+          // line without one is being counted as pure profit.
+          const rawCost = Number(item.unitCost);
+          const costKnown = Number.isFinite(rawCost) && rawCost > 0 && rawCost <= price;
+          const unitCost = costKnown ? round2(rawCost) : 0;
+
           const category = String(item.category || "").toLowerCase() === "labour" ? "labour" : "material";
           const needsPrice = canVerify && category === "material"
             ? !matchesPriceBook(item.description, book)
             : false;
-          return { ...item, category, unitCost: cost, needsPrice };
+
+          // Catches a figure that is wrong by an order of magnitude — the $20 five
+          // litre tin of paint. Deliberately crude: it only ever adds a note.
+          const flag = checkLinePrice({ description: item.description, unitPrice: price, unit: item.unit });
+
+          return {
+            ...item,
+            category,
+            unitCost,
+            costUnknown: !costKnown,
+            needsPrice,
+            priceNote: flag?.message,
+          };
         });
       }
 

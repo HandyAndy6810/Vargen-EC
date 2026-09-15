@@ -37,6 +37,12 @@ export type LineItem = {
   markupLocked?: boolean;
   lockedPrice?: string;
   needsPrice?: boolean;
+  /**
+   * A sanity warning from shared/price-sanity.ts — set when the AI's figure is out
+   * by an order of magnitude (the $20 five litre tin of paint). A whole sentence,
+   * ready to show.
+   */
+  priceNote?: string;
 };
 const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
 
@@ -512,9 +518,13 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       qty: String(it.quantity || 1),
       price: String(it.unitPrice || 0),
       unit: it.unit || 'ea',
-      cost: it.unitCost != null ? String(it.unitCost) : undefined,
+      // costUnknown means the model gave no usable cost. Left genuinely empty
+      // rather than filled with a guess, so Review's "no cost recorded" warning
+      // covers it honestly.
+      cost: !it.costUnknown && it.unitCost != null ? String(it.unitCost) : undefined,
       category: String(it.category || '').toLowerCase() === 'labour' ? 'labour' : 'material',
       needsPrice: !!it.needsPrice,
+      priceNote: typeof it.priceNote === 'string' ? it.priceNote : undefined,
     }));
   };
 

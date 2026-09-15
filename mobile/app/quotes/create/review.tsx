@@ -15,6 +15,7 @@ import {
 } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useQuoteDraft, unitSell, type LineItem } from '@/hooks/use-quote-draft';
+import { checkLinePrice } from '@shared/price-sanity';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { useSettings } from '@/hooks/use-settings';
 import { MarkupSlider } from '@/components/MarkupSlider';
@@ -52,7 +53,22 @@ export default function ReviewStep() {
   const labour = d.lines.filter(l => l.category === 'labour');
   const materials = d.lines.filter(l => l.category !== 'labour');
   const needsPrice = d.lines.filter(l => l.needsPrice);
-  const hasFlags = needsPrice.length > 0 || d.assumptions.length > 0;
+  // Lines whose figure looks wrong by an order of magnitude. Listed first and in red
+  // because, unlike "needs price", this is the AI having probably got it wrong rather
+  // than simply not being able to confirm it.
+  //
+  // Recomputed from the CURRENT lines rather than read from the note the server sent
+  // back, so the warning disappears the moment the tradie corrects the figure. A
+  // stale warning on a price they have already fixed is how a flag stops being read.
+  // Checked at zero markup, which is the line's cost if it has one and its typed
+  // price otherwise — that is the number the AI actually chose.
+  const priceWarnings = useMemo(
+    () => d.lines
+      .map(l => ({ line: l, flag: checkLinePrice({ description: l.name, unitPrice: unitSell(l, 0), unit: l.unit }) }))
+      .filter((x): x is { line: LineItem; flag: NonNullable<ReturnType<typeof checkLinePrice>> } => !!x.flag),
+    [d.lines],
+  );
+  const hasFlags = needsPrice.length > 0 || priceWarnings.length > 0 || d.assumptions.length > 0;
 
   const labourHours = labour.reduce((n, l) => n + (parseFloat(l.qty) || 0), 0);
   const labourRate = labour.length
@@ -329,7 +345,7 @@ export default function ReviewStep() {
               >
                 <AlertTriangle size={16} color={c.orangeDeep} strokeWidth={2.4} />
                 <Text style={s.flagsTitle}>
-                  Check before sending · {needsPrice.length + d.assumptions.length}
+                  Check before sending · {priceWarnings.length + needsPrice.length + d.assumptions.length}
                 </Text>
                 <ChevronDown
                   size={16}
@@ -340,6 +356,15 @@ export default function ReviewStep() {
               </TouchableOpacity>
               {flagsOpen ? (
                 <View style={s.flagsBody}>
+                  {priceWarnings.map((w, i) => (
+                    <View key={`pw-${i}`} style={s.flagRow}>
+                      <Text style={[s.flagTag, { color: '#fff', backgroundColor: c.red }]}>CHECK PRICE</Text>
+                      <Text style={s.flagText}>
+                        <Text style={{ fontFamily: 'Manrope_800ExtraBold' }}>{w.line.name || 'Unnamed item'}</Text>
+                        {' — '}{w.flag.message}
+                      </Text>
+                    </View>
+                  ))}
                   {needsPrice.map((l, i) => (
                     <View key={`np-${i}`} style={s.flagRow}>
                       <Text style={s.flagTag}>NEEDS PRICE</Text>
