@@ -20,7 +20,8 @@ import { SwipeableRow } from '@/components/SwipeableRow';
 import { ActionSheetModal } from '@/components/ActionSheetModal';
 import { buildQuotePDF } from '@/lib/quote-pdf';
 import { showConfirm, showAlert } from '@/lib/dialogs';
-import { hapticPress } from '@/lib/haptics';
+import { hapticPress, hapticSelect } from '@/lib/haptics';
+import { animateNextLayout } from '@/lib/layout-animation';
 
 const money = (n: number) =>
   `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -130,7 +131,12 @@ export default function InvoiceReviewStep() {
         <TouchableOpacity
           style={s.groupHead}
           activeOpacity={0.7}
-          onPress={() => setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }))}
+          onPress={() => {
+            // Before the setState, so the next commit is the one that eases.
+            animateNextLayout();
+            hapticSelect();
+            setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }));
+          }}
         >
           <View style={[s.groupIcon, { backgroundColor: key === 'labour' ? c.blueSoft : c.orangeSoft }]}>
             <Icon size={16} color={key === 'labour' ? c.blue : c.orange} strokeWidth={2.2} />
@@ -340,7 +346,11 @@ export default function InvoiceReviewStep() {
               <TouchableOpacity
                 style={s.varianceHead}
                 activeOpacity={0.7}
-                onPress={() => setVarianceOpen(o => !o)}
+                onPress={() => {
+                  animateNextLayout();
+                  hapticSelect();
+                  setVarianceOpen(o => !o);
+                }}
               >
                 <TrendingUp size={15} color={d.varianceTotal >= 0 ? c.orange : c.green} strokeWidth={2.4} />
                 <Text style={s.varianceTitle}>

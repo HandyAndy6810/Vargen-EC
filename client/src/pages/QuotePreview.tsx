@@ -135,11 +135,11 @@ export default function QuotePreview() {
   const fontFamily = FONT_MAP[settings?.quoteFontFamily || "inter"] || FONT_MAP.inter;
   const logoUrl = settings?.logoUrl || "";
   const headerStyle = settings?.quoteHeaderStyle || "gradient";
-  const businessName = settings?.businessName || "Your Business";
+  const businessName: string = settings?.businessName || "Your Business";
 
   const initials = businessName
     .split(" ")
-    .map(w => w[0])
+    .map((w: string) => w[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);

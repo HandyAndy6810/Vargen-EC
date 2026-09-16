@@ -4,6 +4,8 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { storage } from "./storage";
 import { api } from "../shared/routes";
 import { isValidISODate, toISODate } from "../shared/mobile-types";
+import { round2, totalsFor, gstRateFor } from "../shared/money";
+import { checkLinePrice } from "../shared/price-sanity";
 import { z } from "zod";
 import OpenAI, { toFile } from "openai";
 
@@ -466,9 +468,62 @@ export async function registerRoutes(
     res.json(quotes);
   });
 
+/**
+ * Recompute a quote's total from its own line items, and correct it if the client
+ * disagrees.
+ *
+ * The phone used to be the only thing that computed a total, and the server stored
+ * whatever it was handed. So when the phone's maths was wrong the database was
+ * permanently wrong and nothing ever noticed — which is the shape of nearly every
+ * money bug this app has had, the 50% deposit that billed the full amount included.
+ *
+ * It corrects rather than rejects on purpose. A tradie halfway through saving a job
+ * should not be blocked by a disagreement they cannot see or fix; the server takes
+ * its own figure, which is the authoritative one, and logs the discrepancy so we
+ * find out. A quote with no items in its content is left alone — a hand-written
+ * quote is legitimately just a number.
+ */
+function verifiedQuoteBody(body: any): any {
+  if (!body || typeof body.content !== "string") return body;
+
+  let content: any;
+  try {
+    content = JSON.parse(body.content);
+  } catch {
+    return body; // Not our JSON; leave it be.
+  }
+
+  const items = Array.isArray(content?.items) ? content.items : null;
+  if (!items || items.length === 0) return body;
+
+  // content.items carry quantity and unitPrice, which is a sell price already — the
+  // markup is baked in by the time it is saved. So totalsFor is given the price, not
+  // a cost, and asked for no further markup.
+  const lines = items.map((it: any) => ({ qty: it?.quantity, price: it?.unitPrice }));
+  const gstRate = gstRateFor(content?.includeGST);
+  const { subtotal, gst, total } = totalsFor(lines, {
+    markupPct: 0,
+    gstRate,
+    roundUp: !!content?.roundUp,
+  });
+
+  const claimed = round2(Number(body.totalAmount));
+  if (Number.isFinite(claimed) && Math.abs(claimed - total) <= 0.01) return body;
+
+  console.warn(
+    `[quote] client total ${claimed} disagreed with the server's ${total} ` +
+    `(${items.length} items, gstRate ${gstRate}) — storing the server figure`
+  );
+
+  content.subtotal = subtotal;
+  content.gstAmount = gst;
+  content.totalAmount = total;
+  return { ...body, totalAmount: String(total), content: JSON.stringify(content) };
+}
+
   app.post(api.quotes.create.path, requireAuth, async (req: any, res) => {
     try {
-      const input = api.quotes.create.input.parse(req.body);
+      const input = api.quotes.create.input.parse(verifiedQuoteBody(req.body));
       const quote = await storage.createQuote({ ...input, userId: req.userId });
       res.status(201).json(quote);
     } catch (err) {
@@ -490,7 +545,7 @@ export async function registerRoutes(
   app.patch(api.quotes.update.path, requireAuth, async (req: any, res) => {
     try {
       const quoteId = Number(req.params.id);
-      const input = api.quotes.update.input.parse(req.body);
+      const input = api.quotes.update.input.parse(verifiedQuoteBody(req.body));
       const prevQuote = await storage.getQuote(quoteId, req.userId);
 
       // Validate status transition
@@ -708,6 +763,10 @@ Do not invent details. If unsure of a field, use an empty string.`;
 
   // AI Quote Generation
   app.post("/api/quotes/generate", requireAuth, aiRateLimit, async (req: any, res) => {
+    // Declared out here, not inside the try: `let` is block-scoped, so the catch
+    // below could not see it and threw a ReferenceError of its own every time a
+    // generation failed — losing the real provider error behind a bare 500.
+    let sentImage = false;
     try {
       const { description, imageBase64, customerName, tradeType, labourRate, markupPercent, callOutFee, includeGST, targetPrice } = req.body;
 
@@ -716,7 +775,6 @@ Do not invent details. If unsure of a field, use an empty string.`;
       }
 
       const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-      let sentImage = false;
 
       const labourRateNum = typeof labourRate === "number" && labourRate > 0 ? labourRate : null;
       const markupNum = typeof markupPercent === "number" ? markupPercent : 0;
@@ -986,17 +1044,35 @@ CRITICAL RULES — follow these exactly:
 
         parsed.items = parsed.items.map((item: any) => {
           const price = Number(item.unitPrice) || 0;
-          let cost = Number(item.unitCost);
-          // Guard the model ignoring rule 0: a missing or nonsensical cost would
-          // otherwise report the whole line as pure profit.
-          if (!Number.isFinite(cost) || cost <= 0 || cost > price) {
-            cost = price > 0 ? Math.round(price * 0.7 * 100) / 100 : 0;
-          }
+
+          // The cost the model gave, or nothing. This used to fabricate
+          // `price * 0.7` whenever the model left it out or returned something
+          // odd — which meant an invented price silently became an invented cost
+          // and an invented profit, three made-up figures shown as data with
+          // nothing marking them as guesses. An unknown cost is now left unknown:
+          // the line reports no cost, and Review already says out loud that a
+          // line without one is being counted as pure profit.
+          const rawCost = Number(item.unitCost);
+          const costKnown = Number.isFinite(rawCost) && rawCost > 0 && rawCost <= price;
+          const unitCost = costKnown ? round2(rawCost) : 0;
+
           const category = String(item.category || "").toLowerCase() === "labour" ? "labour" : "material";
           const needsPrice = canVerify && category === "material"
             ? !matchesPriceBook(item.description, book)
             : false;
-          return { ...item, category, unitCost: cost, needsPrice };
+
+          // Catches a figure that is wrong by an order of magnitude — the $20 five
+          // litre tin of paint. Deliberately crude: it only ever adds a note.
+          const flag = checkLinePrice({ description: item.description, unitPrice: price, unit: item.unit });
+
+          return {
+            ...item,
+            category,
+            unitCost,
+            costUnknown: !costKnown,
+            needsPrice,
+            priceNote: flag?.message,
+          };
         });
       }
 
@@ -1203,7 +1279,6 @@ CRITICAL RULES — follow these exactly:
   });
 
   // Standalone invoice creation (no quote required)
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 type InvoiceSplitInput = {
   items: any[];

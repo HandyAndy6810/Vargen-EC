@@ -1,0 +1,46 @@
+name: Check
+
+# Every push and every pull request. The point is that a compile error is found
+# here in about two minutes, rather than twenty minutes into an EAS build or —
+# worse — not at all, on a phone in front of a customer.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# A new push to the same branch makes the previous run pointless.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: Server and shared types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      # Root tsconfig covers server/ and shared/, which the mobile app also imports.
+      - run: npm run check
+      # The money maths. Pure functions, so these run in about a second and need
+      # no device, no database and no network.
+      - run: npm test
+
+  mobile:
+    name: Mobile app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+        working-directory: mobile
+      - run: npm run typecheck
+        working-directory: mobile

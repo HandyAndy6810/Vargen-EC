@@ -10,16 +10,19 @@ import * as Sharing from 'expo-sharing';
 import { WebView } from 'react-native-webview';
 import { format } from 'date-fns';
 import {
-  ChevronLeft, ChevronDown, ChevronRight, Send, FileText, Trash2,
+  ChevronLeft, ChevronDown, Send, FileText, Trash2,
   Lock, Unlock, AlertTriangle, User, X, Wrench, Package, Plus, ArrowUp, Share2,
 } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useQuoteDraft, unitSell, type LineItem } from '@/hooks/use-quote-draft';
+import { checkLinePrice } from '@shared/price-sanity';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { useSettings } from '@/hooks/use-settings';
 import { MarkupSlider } from '@/components/MarkupSlider';
 import { buildQuotePDF } from '@/lib/quote-pdf';
 import { showConfirm, showAlert } from '@/lib/dialogs';
+import { hapticSelect } from '@/lib/haptics';
+import { animateNextLayout } from '@/lib/layout-animation';
 import { apiRequest } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 
@@ -50,7 +53,22 @@ export default function ReviewStep() {
   const labour = d.lines.filter(l => l.category === 'labour');
   const materials = d.lines.filter(l => l.category !== 'labour');
   const needsPrice = d.lines.filter(l => l.needsPrice);
-  const hasFlags = needsPrice.length > 0 || d.assumptions.length > 0;
+  // Lines whose figure looks wrong by an order of magnitude. Listed first and in red
+  // because, unlike "needs price", this is the AI having probably got it wrong rather
+  // than simply not being able to confirm it.
+  //
+  // Recomputed from the CURRENT lines rather than read from the note the server sent
+  // back, so the warning disappears the moment the tradie corrects the figure. A
+  // stale warning on a price they have already fixed is how a flag stops being read.
+  // Checked at zero markup, which is the line's cost if it has one and its typed
+  // price otherwise — that is the number the AI actually chose.
+  const priceWarnings = useMemo(
+    () => d.lines
+      .map(l => ({ line: l, flag: checkLinePrice({ description: l.name, unitPrice: unitSell(l, 0), unit: l.unit }) }))
+      .filter((x): x is { line: LineItem; flag: NonNullable<ReturnType<typeof checkLinePrice>> } => !!x.flag),
+    [d.lines],
+  );
+  const hasFlags = needsPrice.length > 0 || priceWarnings.length > 0 || d.assumptions.length > 0;
 
   const labourHours = labour.reduce((n, l) => n + (parseFloat(l.qty) || 0), 0);
   const labourRate = labour.length
@@ -169,7 +187,12 @@ export default function ReviewStep() {
         <TouchableOpacity
           style={s.groupHead}
           activeOpacity={0.7}
-          onPress={() => setOpenGroups(g => ({ ...g, [key]: !g[key] }))}
+          onPress={() => {
+            // Before the setState, so the next commit is the one that eases.
+            animateNextLayout();
+            hapticSelect();
+            setOpenGroups(g => ({ ...g, [key]: !g[key] }));
+          }}
           accessibilityRole="button"
           accessibilityLabel={`${open ? 'Collapse' : 'Expand'} ${label}`}
         >
@@ -181,9 +204,14 @@ export default function ReviewStep() {
             <Text style={s.groupMeta}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text>
           </View>
           <Text style={s.groupSum}>{money(sum)}</Text>
-          {open
-            ? <ChevronDown size={16} color={c.muted} strokeWidth={2} />
-            : <ChevronRight size={16} color={c.muted} strokeWidth={2} />}
+          {/* One rotating chevron rather than swapping two icons, matching the
+              invoice review — a swap reads as a flicker next to the eased content. */}
+          <ChevronDown
+            size={16}
+            color={c.muted}
+            strokeWidth={2}
+            style={{ transform: [{ rotate: open ? '0deg' : '-90deg' }] }}
+          />
         </TouchableOpacity>
         {open ? (
           <View style={s.groupBody}>
@@ -307,20 +335,36 @@ export default function ReviewStep() {
               <TouchableOpacity
                 style={s.flagsHead}
                 activeOpacity={0.7}
-                onPress={() => setFlagsOpen(o => !o)}
+                onPress={() => {
+                  animateNextLayout();
+                  hapticSelect();
+                  setFlagsOpen(o => !o);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="Toggle checks and assumptions"
               >
                 <AlertTriangle size={16} color={c.orangeDeep} strokeWidth={2.4} />
                 <Text style={s.flagsTitle}>
-                  Check before sending · {needsPrice.length + d.assumptions.length}
+                  Check before sending · {priceWarnings.length + needsPrice.length + d.assumptions.length}
                 </Text>
-                {flagsOpen
-                  ? <ChevronDown size={16} color={c.orangeDeep} strokeWidth={2} />
-                  : <ChevronRight size={16} color={c.orangeDeep} strokeWidth={2} />}
+                <ChevronDown
+                  size={16}
+                  color={c.orangeDeep}
+                  strokeWidth={2}
+                  style={{ transform: [{ rotate: flagsOpen ? '0deg' : '-90deg' }] }}
+                />
               </TouchableOpacity>
               {flagsOpen ? (
                 <View style={s.flagsBody}>
+                  {priceWarnings.map((w, i) => (
+                    <View key={`pw-${i}`} style={s.flagRow}>
+                      <Text style={[s.flagTag, { color: '#fff', backgroundColor: c.red }]}>CHECK PRICE</Text>
+                      <Text style={s.flagText}>
+                        <Text style={{ fontFamily: 'Manrope_800ExtraBold' }}>{w.line.name || 'Unnamed item'}</Text>
+                        {' — '}{w.flag.message}
+                      </Text>
+                    </View>
+                  ))}
                   {needsPrice.map((l, i) => (
                     <View key={`np-${i}`} style={s.flagRow}>
                       <Text style={s.flagTag}>NEEDS PRICE</Text>

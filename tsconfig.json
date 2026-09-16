@@ -3,6 +3,11 @@
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
     "incremental": true,
+    // Without this, target defaults to ES5 and modern iteration (for..of over an
+    // iterator) fails to typecheck. The server runs on Node 20 and the client is
+    // bundled by vite, both of which set their own output target, so this only
+    // affects what the checker will accept.
+    "target": "ES2022",
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
     "noEmit": true,
     "module": "ESNext",
