@@ -6,7 +6,9 @@ import { dirname, join } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const DATABASE_URL = process.env.DATABASE_URL;
+// APP_DATABASE_URL first — Replit injects a DATABASE_URL of its own, and pushing
+// the schema to the wrong database is a bad way to find that out.
+const DATABASE_URL = process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   console.error("DATABASE_URL is not set");
   process.exit(1);
