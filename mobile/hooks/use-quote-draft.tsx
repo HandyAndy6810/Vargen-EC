@@ -240,13 +240,10 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     if (typeof (c as any).markupPct === 'number') setMarkupPct((c as any).markupPct);
     if (Array.isArray((c as any).assumptions)) setAssumptions((c as any).assumptions);
     if (typeof (c as any).roundUp === 'boolean') setRoundUp((c as any).roundUp);
-    if (c.lines?.length) {
-      setLines(c.lines.map((l: any) => ({
-        name: l.name || '', qty: String(l.qty || 1), price: String(l.price || ''),
-        unit: l.unit, cost: l.cost, category: l.category,
-        markupLocked: l.markupLocked, lockedPrice: l.lockedPrice, needsPrice: l.needsPrice,
-      })));
-    } else if (c.items?.length) {
+    // items FIRST. Both records describe the same lines, but items carries the
+    // computed sell price while lines[].price could be stale on any quote saved
+    // before that was fixed — and there are plenty of those already saved.
+    if (c.items?.length) {
       setLines(c.items.map((it: any) => ({
         name: it.description || '', qty: String(it.quantity || 1), price: String(it.unitPrice || ''),
         unit: it.unit,
@@ -290,9 +287,18 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const saveMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent') => {
       const originalContent: any = isEditing ? parseQuoteContent((editQuote as any)?.content) : {};
+      // A quote used to save two records of itself that could disagree. Once a line
+      // has a cost, its sell price comes from cost x markup and `price` was never
+      // written back — so after pulling the markup slider down, `items` and
+      // totalAmount held the new figures while `lines` still held the AI's original
+      // ones. Quote 25 read $4,840 on its own screen and priced an invoice at
+      // $5,655.10 off the stale copy. Writing the computed price back means the two
+      // cannot drift apart again.
+      const pricedLines = lines.map(l => ({ ...l, price: String(unitSell(l, markupPct)) }));
       const mergedContent: any = {
         ...originalContent,
-        customerName: customer, jobTitle, summary, schedDate, expiryDate, notes, lines,
+        customerName: customer, jobTitle, summary, schedDate, expiryDate, notes,
+        lines: pricedLines,
         markupPct, assumptions, roundUp,
       };
       // Persist the full line shape — cost/category/lock state were previously

@@ -222,7 +222,12 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   const applyQuote = (quote: any): boolean => {
     if (!quote) return false;
     const content: any = parseQuoteContent(quote.content);
-    const src: any[] = content.lines?.length ? content.lines : (content.items || []);
+    // items FIRST, and this is the whole reason quote 25 invoiced at $5,655.10
+    // instead of $4,840. A quote saves two records of itself; items carries the
+    // computed sell price, while lines[].price could be left holding the figures
+    // from before the markup slider was moved. Reading the stale one priced an
+    // invoice at numbers the customer never agreed to.
+    const src: any[] = content.items?.length ? content.items : (content.lines || []);
     const mapped: LineItem[] = src.map((l: any) => ({
       name: l.name ?? l.description ?? '',
       qty: String(l.qty ?? l.quantity ?? 1),
