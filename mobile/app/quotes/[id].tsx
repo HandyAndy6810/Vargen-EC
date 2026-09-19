@@ -222,7 +222,7 @@ export default function QuoteDetailScreen() {
     // No longer a hard block once invoiced — a quote can carry a deposit
     // invoice and then a balance invoice. The convert screen shows what's
     // already been billed and only offers what's still valid.
-    router.push(`/invoices/create?quoteId=${id}` as any);
+    router.push(`/invoices/create/review?quoteId=${id}` as any);
   };
 
   const generateAndSharePDF = async (customMessage: string, notes: string) => {
@@ -554,7 +554,7 @@ export default function QuoteDetailScreen() {
           <TouchableOpacity
             style={s.tweakBtn}
             activeOpacity={0.7}
-            onPress={() => router.push(`/quotes/create?quoteId=${id}` as any)}
+            onPress={() => router.push(`/quotes/create/review?quoteId=${id}` as any)}
           >
             <Edit2 size={15} color={c.ink} strokeWidth={2} />
             <Text style={s.tweakBtnText}>Tweak</Text>

@@ -299,7 +299,7 @@ export default function JobDetailScreen() {
           <TouchableOpacity
             style={[s.startBtn, { backgroundColor: c.green }]}
             activeOpacity={0.8}
-            onPress={() => router.push(`/invoices/create?jobId=${id}` as any)}
+            onPress={() => router.push(`/invoices/create/review?jobId=${id}` as any)}
           >
             <CheckCircle2 size={14} color="#fff" strokeWidth={2.5} />
             <Text style={s.startBtnText}>Make invoice</Text>
