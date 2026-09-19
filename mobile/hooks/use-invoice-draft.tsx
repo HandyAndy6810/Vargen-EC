@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, Share } from 'react-native';
 import { router } from 'expo-router';
-import { useEntryId } from '@/hooks/use-entry-params';
+import { useEntryId, useEntryText } from '@/hooks/use-entry-params';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { addDays, format } from 'date-fns';
@@ -134,6 +134,9 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   const entryQuoteId = useEntryId('quoteId');
   const entryJobId = useEntryId('jobId');
   const editId = useEntryId('invoiceId');
+  // Arriving straight on "invoice the balance" rather than landing on Full amount
+  // and making the tradie find the right tab on a job they have already deposited.
+  const entryType = useEntryText('type');
   const initial = useRef({ quoteId: 0, jobId: 0, editId: 0 });
   initial.current = { quoteId: entryQuoteId, jobId: entryJobId, editId };
   const isEditing = editId > 0;
@@ -216,6 +219,15 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   const { data: entryQuote } = useQuote(initial.current.quoteId) as any;
   const { data: sourceJob } = useJob(initial.current.jobId) as any;
   const { data: sourceJobCustomer } = useCustomer(sourceJob?.customerId || 0) as any;
+
+  const appliedEntryType = useRef(false);
+  useEffect(() => {
+    if (appliedEntryType.current || isEditing) return;
+    if (entryType === 'balance' || entryType === 'deposit') {
+      appliedEntryType.current = true;
+      setInvoiceType(entryType);
+    }
+  }, [entryType, isEditing]);
 
   const applyQuote = (quote: any): boolean => {
     if (!quote) return false;

@@ -192,7 +192,7 @@ export default function JobCompleteScreen() {
           <TouchableOpacity
             style={s.invoiceNudge}
             activeOpacity={0.85}
-            onPress={() => router.push(`/invoices/create?jobId=${id}` as any)}
+            onPress={() => router.push(`/invoices/create/review?jobId=${id}` as any)}
           >
             <View style={s.nudgeIcon}>
               <Sparkles size={20} color="#fff" strokeWidth={2} />
@@ -213,7 +213,7 @@ export default function JobCompleteScreen() {
         <TouchableOpacity
           style={s.makeInvoiceBtn}
           activeOpacity={0.8}
-          onPress={() => router.push(`/invoices/create?jobId=${id}` as any)}
+          onPress={() => router.push(`/invoices/create/review?jobId=${id}` as any)}
         >
           <Text style={s.makeInvoiceBtnText}>Make invoice ›</Text>
         </TouchableOpacity>
