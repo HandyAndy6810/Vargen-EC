@@ -18,12 +18,28 @@ const authRateLimit = rateLimit({
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
+  // Same precedence as server/db.ts, and it matters.
+  //
+  // Replit injects its own DATABASE_URL at runtime, so reading it directly sent
+  // every login session to REPLIT's database while all the app's data lives in
+  // Neon. Logins worked, so nothing looked wrong — but the sessions sat in a
+  // database we had otherwise stopped using, and which had already been frozen
+  // once for billing. Had it been deleted, every tradie would have been signed
+  // out with no clue why.
+  const conString = process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
   const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
+    conString,
     createTableIfMissing: true,
     ttl: sessionTtl,
     tableName: "sessions",
   });
+  try {
+    const u = new URL(conString!);
+    const source = process.env.APP_DATABASE_URL ? "APP_DATABASE_URL" : "DATABASE_URL";
+    console.log(`[startup] sessions: ${u.hostname}${u.pathname} (from ${source})`);
+  } catch {
+    console.log("[startup] sessions: connection string could not be parsed");
+  }
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,

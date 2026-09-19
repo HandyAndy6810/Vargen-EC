@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { Linking, Share } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { router, useLocalSearchParams, useGlobalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
+import { useEntryId, useEntryText } from '@/hooks/use-entry-params';
 import { useMutation } from '@tanstack/react-query';
 import { format, addDays } from 'date-fns';
 import { apiRequest, API_BASE_URL } from '@/lib/api';
@@ -147,24 +148,13 @@ export function useQuoteDraft(): QuoteDraft {
 }
 
 export function QuoteDraftProvider({ children }: { children: ReactNode }) {
-  // Capture the entry params once — they belong to the flow, not to whichever
-  // step happens to be focused later.
-  //
-  // Both hooks are read because this runs in the route GROUP's layout, and
-  // useLocalSearchParams is scoped to the layout's own segment — the query string on
-  // /quotes/create?quoteId=23 lands on the child route, not here, so locally it came
-  // back empty. That's why Tweak opened a blank quote: editId was 0, so the flow
-  // never knew it was editing anything. useGlobalSearchParams sees the focused
-  // route's params, and the ref keeps them from changing under us later.
-  type EntryParams = { customerName?: string; customerId?: string; quoteId?: string };
-  const localParams = useLocalSearchParams<EntryParams>();
-  const globalParams = useGlobalSearchParams<EntryParams>();
-  const initial = useRef({
-    prefillName: localParams.customerName ?? globalParams.customerName,
-    prefillCustomerId: localParams.customerId ?? globalParams.customerId,
-    editId: Number(localParams.quoteId ?? globalParams.quoteId ?? 0) || 0,
-  });
-  const editId = initial.current.editId;
+  // Entry params belong to the flow, not to whichever step happens to be focused
+  // later — see use-entry-params for why they are latched rather than read once.
+  const editId = useEntryId('quoteId');
+  const prefillName = useEntryText('customerName');
+  const prefillCustomerId = useEntryText('customerId');
+  const initial = useRef({ prefillName, prefillCustomerId, editId });
+  initial.current = { prefillName, prefillCustomerId, editId };
   const isEditing = editId > 0;
 
   const { data: allCustomers } = useCustomers() as any;
@@ -240,13 +230,10 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     if (typeof (c as any).markupPct === 'number') setMarkupPct((c as any).markupPct);
     if (Array.isArray((c as any).assumptions)) setAssumptions((c as any).assumptions);
     if (typeof (c as any).roundUp === 'boolean') setRoundUp((c as any).roundUp);
-    if (c.lines?.length) {
-      setLines(c.lines.map((l: any) => ({
-        name: l.name || '', qty: String(l.qty || 1), price: String(l.price || ''),
-        unit: l.unit, cost: l.cost, category: l.category,
-        markupLocked: l.markupLocked, lockedPrice: l.lockedPrice, needsPrice: l.needsPrice,
-      })));
-    } else if (c.items?.length) {
+    // items FIRST. Both records describe the same lines, but items carries the
+    // computed sell price while lines[].price could be stale on any quote saved
+    // before that was fixed — and there are plenty of those already saved.
+    if (c.items?.length) {
       setLines(c.items.map((it: any) => ({
         name: it.description || '', qty: String(it.quantity || 1), price: String(it.unitPrice || ''),
         unit: it.unit,
@@ -290,9 +277,18 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const saveMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent') => {
       const originalContent: any = isEditing ? parseQuoteContent((editQuote as any)?.content) : {};
+      // A quote used to save two records of itself that could disagree. Once a line
+      // has a cost, its sell price comes from cost x markup and `price` was never
+      // written back — so after pulling the markup slider down, `items` and
+      // totalAmount held the new figures while `lines` still held the AI's original
+      // ones. Quote 25 read $4,840 on its own screen and priced an invoice at
+      // $5,655.10 off the stale copy. Writing the computed price back means the two
+      // cannot drift apart again.
+      const pricedLines = lines.map(l => ({ ...l, price: String(unitSell(l, markupPct)) }));
       const mergedContent: any = {
         ...originalContent,
-        customerName: customer, jobTitle, summary, schedDate, expiryDate, notes, lines,
+        customerName: customer, jobTitle, summary, schedDate, expiryDate, notes,
+        lines: pricedLines,
         markupPct, assumptions, roundUp,
       };
       // Persist the full line shape — cost/category/lock state were previously

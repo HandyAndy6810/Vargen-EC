@@ -1,6 +1,7 @@
-import { Modal, View, Text, TouchableOpacity, TouchableWithoutFeedback, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useMemo, type ReactNode } from 'react';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { BottomSheetModal } from '@/components/BottomSheetModal';
 
 export interface SheetAction {
   label: string;
@@ -27,10 +28,7 @@ export function ActionSheetModal({
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose} accessibilityLabel="Close menu">
-        <View style={s.backdrop} />
-      </TouchableWithoutFeedback>
+    <BottomSheetModal visible={visible} onClose={onClose}>
       <View style={s.sheet}>
         <View style={s.handle} />
         {title ? <Text style={s.title}>{title}</Text> : null}
@@ -55,15 +53,11 @@ export function ActionSheetModal({
           <Text style={s.cancelText}>Cancel</Text>
         </TouchableOpacity>
       </View>
-    </Modal>
+    </BottomSheetModal>
   );
 }
 
 const makeStyles = (c: Colors) => StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
   sheet: {
     backgroundColor: c.card,
     borderTopLeftRadius: 24,

@@ -596,10 +596,53 @@ function verifiedQuoteBody(body: any): any {
     }
   });
 
+/**
+ * Reconcile a quote's two records of itself before it leaves the server.
+ *
+ * A quote stores `content.items` (with the computed sell price) and `content.lines`
+ * (the raw draft). Once a line has a cost, its sell price comes from cost x markup,
+ * and `lines[].price` was never written back — so on any quote saved after the
+ * markup slider was moved, the two disagree. Quote 25 showed $4,840 on its own
+ * screen and priced an invoice at $5,655.10, because the invoice read `lines`.
+ *
+ * The client now writes them in step and prefers `items`, but every quote already
+ * saved still carries the stale copy, and older builds still read it. Repairing on
+ * the way out fixes both without touching a stored row: items is authoritative,
+ * matched to lines by position, and anything that does not line up is left exactly
+ * as it is rather than guessed at.
+ */
+function reconcileQuoteContent(quote: any): any {
+  if (!quote || typeof quote.content !== "string") return quote;
+
+  let content: any;
+  try {
+    content = JSON.parse(quote.content);
+  } catch {
+    return quote;
+  }
+
+  const items = content?.items;
+  const lines = content?.lines;
+  if (!Array.isArray(items) || !Array.isArray(lines)) return quote;
+  if (items.length !== lines.length || items.length === 0) return quote;
+
+  let changed = false;
+  const repaired = lines.map((line: any, i: number) => {
+    const authoritative = Number(items[i]?.unitPrice);
+    if (!Number.isFinite(authoritative)) return line;
+    if (round2(Number(line?.price)) === round2(authoritative)) return line;
+    changed = true;
+    return { ...line, price: String(authoritative) };
+  });
+
+  if (!changed) return quote;
+  return { ...quote, content: JSON.stringify({ ...content, lines: repaired }) };
+}
+
   app.get("/api/quotes/:id", requireAuth, async (req: any, res) => {
     const quote = await storage.getQuote(Number(req.params.id), req.userId);
     if (!quote) return res.status(404).json({ message: "Quote not found" });
-    res.json(quote);
+    res.json(reconcileQuoteContent(quote));
   });
 
   // Quote Items
