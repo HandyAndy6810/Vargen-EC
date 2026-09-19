@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme, type Colors, type ThemeMode } from '@/hooks/use-theme';
+import { BottomSheetModal } from '@/components/BottomSheetModal';
 import { useXeroStatus, useXeroDisconnect, useXeroSyncAll, useXeroConnect } from '@/hooks/use-xero';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { API_BASE_URL } from '@/lib/api';
@@ -360,8 +361,7 @@ function AppearanceModal({ visible, onClose }: { visible: boolean; onClose: () =
   const insets = useSafeAreaInsets();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={onClose} />
+    <BottomSheetModal visible={visible} onClose={onClose} avoidKeyboard={false}>
       <View style={{ backgroundColor: c.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }}>
         <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: c.lineSoft, alignSelf: 'center', marginBottom: 20 }} />
         <Text style={{ fontSize: 17, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginBottom: 4 }}>Appearance</Text>
@@ -384,7 +384,7 @@ function AppearanceModal({ visible, onClose }: { visible: boolean; onClose: () =
           </TouchableOpacity>
         ))}
       </View>
-    </Modal>
+    </BottomSheetModal>
   );
 }
 

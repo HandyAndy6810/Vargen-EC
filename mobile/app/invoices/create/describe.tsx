@@ -10,6 +10,7 @@ import {
 } from 'expo-audio';
 import { ChevronLeft, Mic, Square, User, X, PencilLine, FileText, ChevronRight } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { BottomSheetModal } from '@/components/BottomSheetModal';
 import { useInvoiceDraft } from '@/hooks/use-invoice-draft';
 import { useSettings } from '@/hooks/use-settings';
 import { useCustomers } from '@/hooks/use-customers';
@@ -287,8 +288,7 @@ export default function InvoiceDescribeStep() {
         </View>
       </KeyboardAvoidingView>
 
-      <Modal visible={showCustomers} transparent animationType="slide" onRequestClose={() => setShowCustomers(false)}>
-        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setShowCustomers(false)} />
+      <BottomSheetModal visible={showCustomers} onClose={() => setShowCustomers(false)}>
         <View style={s.sheet}>
           <View style={s.handle} />
           <Text style={s.sheetTitle}>Attach a customer</Text>
@@ -323,7 +323,7 @@ export default function InvoiceDescribeStep() {
             <Text style={s.skipText}>Skip for now</Text>
           </TouchableOpacity>
         </View>
-      </Modal>
+      </BottomSheetModal>
     </SafeAreaView>
   );
 }

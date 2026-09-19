@@ -13,6 +13,7 @@ import {
   FlatList,
 } from 'react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { BottomSheetModal } from '@/components/BottomSheetModal';
 import { router, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -399,8 +400,7 @@ export default function JobCreateScreen() {
         </View>
 
         {/* Quote / invoice picker */}
-        <Modal visible={picker !== null} transparent animationType="slide" onRequestClose={() => setPicker(null)}>
-          <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => setPicker(null)} />
+        <BottomSheetModal visible={picker !== null} onClose={() => setPicker(null)}>
           <View style={s.modalSheet}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>{picker === 'quote' ? 'Link a quote' : 'Link an invoice'}</Text>
@@ -440,7 +440,7 @@ export default function JobCreateScreen() {
               }
             />
           </View>
-        </Modal>
+        </BottomSheetModal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

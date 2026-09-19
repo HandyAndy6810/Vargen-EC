@@ -1,17 +1,16 @@
 import {
   View,
   Text,
-  Modal,
   TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { BottomSheetModal } from '@/components/BottomSheetModal';
 import { FileText, X, Share2 } from 'lucide-react-native';
 
 
@@ -61,13 +60,8 @@ export default function PDFComposeModal({
   const amt = totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen" onRequestClose={onClose}>
-      <View style={s.overlay}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1, justifyContent: 'flex-end' }}
-        >
-          <View style={s.sheet}>
+    <BottomSheetModal visible={visible} onClose={onClose}>
+      <View style={s.sheet}>
             {/* Handle */}
             <View style={s.handle} />
 
@@ -152,19 +146,12 @@ export default function PDFComposeModal({
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </KeyboardAvoidingView>
       </View>
-    </Modal>
+    </BottomSheetModal>
   );
 }
 
 const makeStyles = (c: Colors) => StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
   sheet: {
     backgroundColor: c.paper,
     borderTopLeftRadius: 24,
