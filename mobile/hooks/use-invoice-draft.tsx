@@ -60,6 +60,8 @@ type InvoiceDraft = {
 
   // deposit / balance
   invoiceType: InvoiceType; setInvoiceType: (t: InvoiceType) => void;
+  /** False when part of the job is already billed — Full amount is then disabled. */
+  canBillFull: boolean;
   depositPercent: number; setDepositPercent: (p: number) => void;
   /** A dollar figure instead of a percentage. Takes precedence when set. */
   depositAmount: string; setDepositAmount: (v: string) => void;
@@ -211,9 +213,25 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
       .filter((i: any) => i.quoteId === sourceQuoteId && i.id !== editId)
       .reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0);
   }, [allInvoices, sourceQuoteId, editId]);
+  // Default to Balance once we learn the job has already been part-invoiced — but
+  // ONCE. This used to depend on invoiceType and correct it on every render, so
+  // tapping "Full amount" set it and the effect immediately set it back: the button
+  // visibly flicked to Balance and looked broken. A control the tradie cannot use
+  // should say so, not fight them. See canBillFull.
+  const defaultedToBalance = useRef(false);
   useEffect(() => {
-    if (priorInvoiced > 0 && invoiceType === 'full') setInvoiceType('balance');
-  }, [priorInvoiced, invoiceType]);
+    if (defaultedToBalance.current || isEditing) return;
+    if (priorInvoiced > 0) {
+      defaultedToBalance.current = true;
+      setInvoiceType(prev => (prev === 'full' ? 'balance' : prev));
+    }
+  }, [priorInvoiced, isEditing]);
+
+  /**
+   * False once part of the job has been billed. The whole job can no longer go on
+   * one invoice without double-charging, so Full amount is offered but disabled.
+   */
+  const canBillFull = priorInvoiced <= 0;
 
   // ── Pull a quote's contents in ─────────────────────────────────────────────
   const { data: entryQuote } = useQuote(initial.current.quoteId) as any;
@@ -643,7 +661,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   const value: InvoiceDraft = {
     isEditing, editId,
     sourceQuoteId, setSourceQuoteId, fromQuote, quoteTotal, loadFromQuote, variance, varianceTotal,
-    invoiceType, setInvoiceType, depositPercent, setDepositPercent,
+    invoiceType, setInvoiceType, canBillFull, depositPercent, setDepositPercent,
     depositAmount, setDepositAmount, priorInvoiced,
     customer, setCustomer, customerId, setCustomerId, selectedCustomer,
     jobTitle, setJobTitle, summary, setSummary, notes, setNotes,
