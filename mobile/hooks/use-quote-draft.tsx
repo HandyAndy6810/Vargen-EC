@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { Linking, Share } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { router, useLocalSearchParams, useGlobalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
+import { useEntryId, useEntryText } from '@/hooks/use-entry-params';
 import { useMutation } from '@tanstack/react-query';
 import { format, addDays } from 'date-fns';
 import { apiRequest, API_BASE_URL } from '@/lib/api';
@@ -147,24 +148,13 @@ export function useQuoteDraft(): QuoteDraft {
 }
 
 export function QuoteDraftProvider({ children }: { children: ReactNode }) {
-  // Capture the entry params once — they belong to the flow, not to whichever
-  // step happens to be focused later.
-  //
-  // Both hooks are read because this runs in the route GROUP's layout, and
-  // useLocalSearchParams is scoped to the layout's own segment — the query string on
-  // /quotes/create?quoteId=23 lands on the child route, not here, so locally it came
-  // back empty. That's why Tweak opened a blank quote: editId was 0, so the flow
-  // never knew it was editing anything. useGlobalSearchParams sees the focused
-  // route's params, and the ref keeps them from changing under us later.
-  type EntryParams = { customerName?: string; customerId?: string; quoteId?: string };
-  const localParams = useLocalSearchParams<EntryParams>();
-  const globalParams = useGlobalSearchParams<EntryParams>();
-  const initial = useRef({
-    prefillName: localParams.customerName ?? globalParams.customerName,
-    prefillCustomerId: localParams.customerId ?? globalParams.customerId,
-    editId: Number(localParams.quoteId ?? globalParams.quoteId ?? 0) || 0,
-  });
-  const editId = initial.current.editId;
+  // Entry params belong to the flow, not to whichever step happens to be focused
+  // later — see use-entry-params for why they are latched rather than read once.
+  const editId = useEntryId('quoteId');
+  const prefillName = useEntryText('customerName');
+  const prefillCustomerId = useEntryText('customerId');
+  const initial = useRef({ prefillName, prefillCustomerId, editId });
+  initial.current = { prefillName, prefillCustomerId, editId };
   const isEditing = editId > 0;
 
   const { data: allCustomers } = useCustomers() as any;

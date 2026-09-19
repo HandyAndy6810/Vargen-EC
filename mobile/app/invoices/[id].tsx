@@ -176,6 +176,15 @@ export default function InvoiceDetailScreen() {
   const [showMoreSheet, setShowMoreSheet] = useState(false);
   const moreActions: SheetAction[] = [
     { label: 'Edit invoice', onPress: () => router.push(`/invoices/create?invoiceId=${invoiceId}` as any) },
+    // A deposit leaves money on the job, and the only way to bill the rest used to
+    // be to go back to the QUOTE and find "Invoice balance" there. Nobody looking at
+    // a deposit invoice thinks to do that, so the way through is offered here too.
+    invoice?.invoiceType === 'deposit' && invoice?.quoteId
+      ? {
+          label: 'Invoice the balance',
+          onPress: () => router.push(`/quotes/${invoice.quoteId}` as any),
+        }
+      : null,
     { label: 'Record partial payment', onPress: () => setPartialMode(true) },
     invoice?.stripePaymentLinkUrl ? { label: 'Copy Stripe link', onPress: () => copyToClipboard(invoice.stripePaymentLinkUrl, 'Stripe payment link') } : null,
     invoice?.squarePaymentLinkUrl ? { label: 'Copy Square link', onPress: () => copyToClipboard(invoice.squarePaymentLinkUrl, 'Square payment link') } : null,

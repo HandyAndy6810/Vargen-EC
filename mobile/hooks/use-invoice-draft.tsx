@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, Share } from 'react-native';
-import { router, useLocalSearchParams, useGlobalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
+import { useEntryId } from '@/hooks/use-entry-params';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { addDays, format } from 'date-fns';
@@ -126,18 +127,15 @@ export function useInvoiceDraft(): InvoiceDraft {
 }
 
 export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
-  // Read both, for the same reason the quote flow does: this runs in the route
-  // group's layout, and useLocalSearchParams is scoped to the layout's own segment,
-  // so a query string on the child route never reaches it.
-  type EntryParams = { quoteId?: string; jobId?: string; invoiceId?: string };
-  const localParams = useLocalSearchParams<EntryParams>();
-  const globalParams = useGlobalSearchParams<EntryParams>();
-  const initial = useRef({
-    quoteId: Number(localParams.quoteId ?? globalParams.quoteId ?? 0) || 0,
-    jobId: Number(localParams.jobId ?? globalParams.jobId ?? 0) || 0,
-    editId: Number(localParams.invoiceId ?? globalParams.invoiceId ?? 0) || 0,
-  });
-  const editId = initial.current.editId;
+  // Latched rather than captured on the first render — see use-entry-params.
+  // Capturing meant "Edit invoice" opened a blank builder whenever the router had
+  // not resolved the query string by frame one, which is a race and so failed only
+  // some of the time.
+  const entryQuoteId = useEntryId('quoteId');
+  const entryJobId = useEntryId('jobId');
+  const editId = useEntryId('invoiceId');
+  const initial = useRef({ quoteId: 0, jobId: 0, editId: 0 });
+  initial.current = { quoteId: entryQuoteId, jobId: entryJobId, editId };
   const isEditing = editId > 0;
 
   const { data: allCustomers } = useCustomers() as any;
