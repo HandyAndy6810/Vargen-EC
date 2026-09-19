@@ -1665,7 +1665,7 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
         patchBody.paidAmount = String(newPaidAmount);
         if (newPaidAmount >= total) {
           patchBody.status = "paid";
-          patchBody.paidDate = new Date().toISOString();
+          patchBody.paidDate = new Date();
         } else {
           patchBody.status = "partial";
         }
@@ -1717,7 +1717,20 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
         patchBody.quoteId = quoteId || null;
         patchBody.invoiceType = invoiceType;
       }
-      if (typeof patchBody.dueDate === "string") patchBody.dueDate = new Date(patchBody.dueDate);
+      // Every date column, not just the one someone happened to hit. dueDate was
+      // handled and paidDate was not, so "Mark as paid" threw
+      // "toISOString is not a function" every time — this route builds its body by
+      // hand and never passes it through the schema that would have coerced it.
+      for (const field of ["dueDate", "paidDate"] as const) {
+        const v = patchBody[field];
+        if (typeof v === "string") {
+          const d = new Date(v);
+          if (isNaN(d.getTime())) {
+            return res.status(400).json({ message: `Invalid ${field}` });
+          }
+          patchBody[field] = d;
+        }
+      }
       for (const notAColumn of ["depositPercent", "depositAmount", "includeGST", "customerName"]) {
         delete patchBody[notAColumn];
       }
