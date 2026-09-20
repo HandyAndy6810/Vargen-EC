@@ -107,6 +107,26 @@ export function thumbnailHtml(html: string, scale: number): string {
 }
 
 /**
+ * Make a rendered page readable in a phone-sized WebView.
+ *
+ * The page is laid out at a true A4 width of 794px, so on a ~390pt screen it
+ * arrives roughly twice as wide as the window and the tradie sees the top-left
+ * corner with no way to pull back. Telling the viewport the content is 794 wide
+ * lets the browser scale the whole sheet to fit, and leaves pinch-to-zoom working
+ * for reading the small print.
+ *
+ * Done by rewriting the viewport rather than scaling with a transform: a transform
+ * does not change layout size, so a multi-page document would have been clipped at
+ * whatever height one page happened to be.
+ */
+export function fitToWidthHtml(html: string): string {
+  return html.replace(
+    /<meta name="viewport"[^>]*>/,
+    `<meta name="viewport" content="width=${Math.round(A4_PX.width)}, initial-scale=1, user-scalable=yes">`,
+  );
+}
+
+/**
  * A believable job for the style previews. Real enough that each template is judged
  * on how it handles actual content — a long description that wraps, a fractional
  * labour quantity, a GST line — rather than on placeholder text.
