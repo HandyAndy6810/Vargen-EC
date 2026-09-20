@@ -216,6 +216,7 @@ export default function InvoiceReviewStep() {
 
           {/* Deposit / balance — only meaningful against a quote */}
           {d.fromQuote ? (
+            <>
             <View style={s.typeRow}>
               {(['full', 'deposit', 'balance'] as const).map(t => {
                 const on = d.invoiceType === t;
@@ -250,6 +251,7 @@ export default function InvoiceReviewStep() {
                 billed as a balance or a further deposit.
               </Text>
             ) : null}
+            </>
           ) : null}
 
           {d.fromQuote && d.invoiceType === 'deposit' ? (
