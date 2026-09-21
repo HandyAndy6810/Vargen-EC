@@ -22,11 +22,10 @@ import { useInvoice, useUpdateInvoice, useDeleteInvoice } from '@/hooks/use-invo
 import { useStripePaymentLink } from '@/hooks/use-stripe';
 import { useSquarePaymentLink } from '@/hooks/use-square';
 import { useSettings } from '@/hooks/use-settings';
-import { buildQuotePDF, A4_PRINT, type PdfDocumentData } from '@/lib/quote-pdf';
+import { buildQuotePDF, type PdfDocumentData } from '@/lib/quote-pdf';
+import { sharePdf, documentFilename } from '@/lib/share-pdf';
 import { ChevronLeft, Check, CreditCard, Building2, Copy, FileText, MoreHorizontal } from 'lucide-react-native';
 import { format, differenceInCalendarDays } from 'date-fns';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 
 
 export default function InvoiceDetailScreen() {
@@ -149,13 +148,8 @@ export default function InvoiceDetailScreen() {
       };
 
       const html = buildQuotePDF(docData, settings ?? {});
-      const { uri } = await Print.printToFileAsync({ html, base64: false, ...A4_PRINT });
       setShowPDF(false);
-      await Sharing.shareAsync(uri, {
-        mimeType: 'application/pdf',
-        UTI: '.pdf',
-        dialogTitle: `Invoice ${invoice?.invoiceNumber || id}`,
-      });
+      await sharePdf(html, documentFilename(docData));
     } catch (err: any) {
       showAlert('Could not generate PDF', err?.message ?? 'Please try again.');
     } finally {

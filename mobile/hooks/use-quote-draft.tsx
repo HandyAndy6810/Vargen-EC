@@ -1,7 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, Share } from 'react-native';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { router } from 'expo-router';
 import { useEntryId, useEntryText } from '@/hooks/use-entry-params';
 import { useMutation } from '@tanstack/react-query';
@@ -20,7 +18,8 @@ import { unitSell, totalsFor, gstRateFor } from '@shared/money';
 // lives in shared/money.ts and is used by the server too, so a quote and the invoice
 // raised from it can never price the same line differently.
 export { unitSell } from '@shared/money';
-import { buildQuotePDF, A4_PRINT } from '@/lib/quote-pdf';
+import { buildQuotePDF } from '@/lib/quote-pdf';
+import { sharePdf, documentFilename } from '@/lib/share-pdf';
 import type { SheetAction } from '@/components/ActionSheetModal';
 
 // `cost` is what the tradie actually pays; `price` is what they charge. The markup
@@ -641,13 +640,8 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
    */
   const shareAnyway = async () => {
     try {
-      const html = buildQuotePDF(quotePayload(), settings);
-      const { uri } = await Print.printToFileAsync({ html, ...A4_PRINT });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
-      } else {
-        showAlert('Sharing unavailable', "This device can't open the share sheet.");
-      }
+      const payload = quotePayload();
+      await sharePdf(buildQuotePDF(payload, settings), documentFilename(payload));
     } catch (e: any) {
       const msg = String(e?.message || '');
       if (/cancel|dismiss/i.test(msg)) return;

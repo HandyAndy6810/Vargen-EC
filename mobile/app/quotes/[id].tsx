@@ -19,12 +19,11 @@ import { useQuote, useQuoteItems, useDeleteQuote, useUpdateQuote } from '@/hooks
 import { useInvoices } from '@/hooks/use-invoices';
 import { useXeroStatus, useCreateXeroInvoice } from '@/hooks/use-xero';
 import { useSettings } from '@/hooks/use-settings';
-import { buildQuotePDF, A4_PRINT, type PdfDocumentData } from '@/lib/quote-pdf';
+import { buildQuotePDF, type PdfDocumentData } from '@/lib/quote-pdf';
+import { sharePdf, documentFilename } from '@/lib/share-pdf';
 import { ChevronLeft, ChevronRight, MoreHorizontal, Phone, MessageSquare, Edit2, FileText } from 'lucide-react-native';
 import { format } from 'date-fns';
 import * as Linking from 'expo-linking';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import PDFComposeModal from '@/components/PDFComposeModal';
 import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
 import { showAlert, showConfirm } from '@/lib/dialogs';
@@ -264,13 +263,8 @@ export default function QuoteDetailScreen() {
       };
 
       const html = buildQuotePDF(docData, settings ?? {});
-      const { uri } = await Print.printToFileAsync({ html, base64: false, ...A4_PRINT });
       setShowPDF(false);
-      await Sharing.shareAsync(uri, {
-        mimeType: 'application/pdf',
-        UTI: '.pdf',
-        dialogTitle: `Quote ${num}`,
-      });
+      await sharePdf(html, documentFilename(docData));
     } catch (err: any) {
       showAlert('Could not generate PDF', err?.message ?? 'Please try again.');
     } finally {
