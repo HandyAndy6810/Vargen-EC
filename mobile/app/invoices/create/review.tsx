@@ -101,6 +101,7 @@ export default function InvoiceReviewStep() {
             <Text style={s.lineMeta}>
               {l.qty} {l.unit || 'ea'}
               {parseFloat(l.cost || '0') > 0 ? ` · cost ${money(parseFloat(l.cost || '0'))}` : ''}
+              {l.noMarkup ? '  ·  At cost' : ''}
             </Text>
           </View>
           <View style={{ alignItems: 'flex-end', gap: 4 }}>

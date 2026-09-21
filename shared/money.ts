@@ -75,15 +75,26 @@ export type MoneyLine = {
   /** Pinned: the job-level markup slider skips this line, it still counts in totals. */
   markupLocked?: boolean;
   lockedPrice?: string | number;
+  /**
+   * Charged at cost, with no markup — a permit, a tip fee, a council charge, an
+   * excess passed straight through. Different from markupLocked, which freezes a
+   * line at whatever price it happened to have: this one tracks cost, so correcting
+   * what the item actually cost still flows through to what the customer pays.
+   */
+  noMarkup?: boolean;
 };
 
 /**
  * What the customer pays per unit.
  *
- * Three cases, in order:
+ * Four cases, in order:
  *  - locked → the price it held when it was pinned, whatever the slider does since
+ *  - at cost → exactly what it cost, no markup, but still tracking the cost
  *  - has a cost → cost plus markup
  *  - no cost → its own typed price, unmoved by the slider
+ *
+ * Locked is checked before at-cost because pinning names an exact figure, which is
+ * a stronger instruction than "follow the cost".
  *
  * The last case is why "Total cost" can sit below the sum of the lines: such a line
  * adds to what the customer pays and nothing to cost, so it reads as pure profit.
@@ -95,6 +106,7 @@ export function unitSell(line: MoneyLine, markupPct: number): number {
     return locked > 0 ? locked : num(line.price);
   }
   const cost = num(line.cost);
+  if (line.noMarkup) return cost > 0 ? round2(cost) : num(line.price);
   if (cost > 0) return round2(cost * (1 + num(markupPct) / 100));
   return num(line.price);
 }

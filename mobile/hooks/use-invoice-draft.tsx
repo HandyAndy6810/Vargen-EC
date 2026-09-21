@@ -263,6 +263,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
       unit: l.unit,
       cost: l.cost ?? (l.unitCost != null ? String(l.unitCost) : undefined),
       category: l.category,
+      noMarkup: !!l.noMarkup,
       // A quoted price is agreed with the customer. Every line comes across locked
       // so the markup slider can't quietly move a number they've already accepted.
       markupLocked: true,

@@ -37,6 +37,8 @@ export type LineItem = {
   category?: 'labour' | 'material';
   markupLocked?: boolean;
   lockedPrice?: string;
+  /** Charged at cost — a permit, tip fee or council charge passed straight through. */
+  noMarkup?: boolean;
   needsPrice?: boolean;
   /**
    * A sanity warning from shared/price-sanity.ts — set when the AI's figure is out
@@ -241,6 +243,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
         category: it.category,
         markupLocked: !!it.markupLocked,
         lockedPrice: it.lockedPrice != null ? String(it.lockedPrice) : undefined,
+        noMarkup: !!it.noMarkup,
         needsPrice: !!it.needsPrice,
       })));
     }
@@ -303,6 +306,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
         category: l.category || 'material',
         markupLocked: !!l.markupLocked,
         lockedPrice: l.lockedPrice ? parseFloat(l.lockedPrice) : undefined,
+        noMarkup: !!l.noMarkup,
         needsPrice: !!l.needsPrice,
       }));
       mergedContent.subtotal = subtotal;

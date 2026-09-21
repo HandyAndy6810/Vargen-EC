@@ -153,6 +153,7 @@ export default function ReviewStep() {
             <Text style={s.lineName} numberOfLines={2}>{l.name || 'Untitled item'}</Text>
             <Text style={s.lineMetaLabel}>
               {l.qty || '1'} {l.unit || 'ea'} · cost {money(parseFloat(l.cost || '0') || 0)}
+              {l.noMarkup ? '  ·  At cost' : ''}
               {l.needsPrice ? '  ·  Needs price' : ''}
             </Text>
           </View>

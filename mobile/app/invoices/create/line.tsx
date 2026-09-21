@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Trash2 } from 'lucide-react-native';
+import { Trash2, Check } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { unitSell, type LineItem } from '@/hooks/use-quote-draft';
 import { useInvoiceDraft } from '@/hooks/use-invoice-draft';
@@ -113,8 +113,31 @@ export default function InvoiceLineEditorSheet() {
           </View>
         </View>
 
+        {/* Some lines are a pass-through, not a sale: a permit, a tip fee, a council
+            charge. Marking one up is how a tradie ends up explaining an invoice.
+            This tracks the cost rather than freezing a figure, so correcting what it
+            actually cost still reaches the customer. */}
+        <TouchableOpacity
+          style={s.costRow}
+          activeOpacity={0.7}
+          onPress={() => { hapticPress(); set({ noMarkup: !line.noMarkup }); }}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: !!line.noMarkup }}
+          accessibilityLabel="Charge this item at cost, with no markup"
+        >
+          <View style={[s.checkbox, line.noMarkup && { backgroundColor: c.orange, borderColor: c.orange }]}>
+            {line.noMarkup ? <Check size={13} color="#fff" strokeWidth={3} /> : null}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.costRowLabel}>Charge at cost — no markup</Text>
+            <Text style={s.costRowSub}>For permits, tip fees and anything passed straight through.</Text>
+          </View>
+        </TouchableOpacity>
+
         <Text style={s.hint}>
-          Charged at {money(unitSell(line, d.markupPct))} each with your {Math.round(d.markupPct)}% markup.
+          {line.noMarkup
+            ? `Charged at ${money(unitSell(line, d.markupPct))} each — your cost, no markup.`
+            : `Charged at ${money(unitSell(line, d.markupPct))} each with your ${Math.round(d.markupPct)}% markup.`}
         </Text>
 
         <View style={s.actions}>
@@ -157,6 +180,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     fontSize: 15, fontFamily: 'Manrope_600SemiBold', color: c.ink,
   },
   row: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  costRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginTop: 18 },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 7, borderWidth: 1.5, borderColor: c.lineMid,
+    alignItems: 'center', justifyContent: 'center', marginTop: 1,
+  },
+  costRowLabel: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink },
+  costRowSub: { fontSize: 11.5, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2, lineHeight: 16 },
   hint: { fontSize: 12.5, fontFamily: 'Manrope_600SemiBold', color: c.muted, marginTop: 14 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 20 },
   deleteBtn: {
