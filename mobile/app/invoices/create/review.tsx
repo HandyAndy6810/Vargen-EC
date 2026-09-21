@@ -101,6 +101,7 @@ export default function InvoiceReviewStep() {
             <Text style={s.lineMeta}>
               {l.qty} {l.unit || 'ea'}
               {parseFloat(l.cost || '0') > 0 ? ` · cost ${money(parseFloat(l.cost || '0'))}` : ''}
+              {l.noMarkup ? '  ·  At cost' : ''}
             </Text>
           </View>
           <View style={{ alignItems: 'flex-end', gap: 4 }}>
@@ -216,22 +217,42 @@ export default function InvoiceReviewStep() {
 
           {/* Deposit / balance — only meaningful against a quote */}
           {d.fromQuote ? (
+            <>
             <View style={s.typeRow}>
               {(['full', 'deposit', 'balance'] as const).map(t => {
                 const on = d.invoiceType === t;
+                // Billing the whole job again after part of it has gone out would
+                // double-charge, so the option is shown but off — clearer than
+                // hiding it, and far clearer than letting it snap back.
+                const disabled = t === 'full' && !d.canBillFull;
                 const label = t === 'full' ? 'Full amount' : t === 'deposit' ? 'Deposit' : 'Balance';
                 return (
                   <TouchableOpacity
                     key={t}
-                    style={[s.typeChip, on && s.typeChipOn]}
-                    activeOpacity={0.8}
+                    style={[s.typeChip, on && s.typeChipOn, disabled && s.typeChipOff]}
+                    activeOpacity={disabled ? 1 : 0.8}
+                    disabled={disabled}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on, disabled }}
+                    accessibilityLabel={
+                      disabled ? `${label}, unavailable — part of this job is already invoiced` : label
+                    }
                     onPress={() => { hapticPress(); d.setInvoiceType(t); }}
                   >
-                    <Text style={[s.typeChipText, on && { color: '#fff' }]}>{label}</Text>
+                    <Text style={[s.typeChipText, on && { color: '#fff' }, disabled && { color: c.muted }]}>
+                      {label}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
+            {!d.canBillFull ? (
+              <Text style={s.typeNote}>
+                {money(d.priorInvoiced)} of this job has already been invoiced, so it can only be
+                billed as a balance or a further deposit.
+              </Text>
+            ) : null}
+            </>
           ) : null}
 
           {d.fromQuote && d.invoiceType === 'deposit' ? (
@@ -489,6 +510,8 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     flex: 1, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
     backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft,
   },
+  typeChipOff: { backgroundColor: c.paperDeep, borderColor: c.lineSoft },
+  typeNote: { fontSize: 11.5, fontFamily: 'Manrope_500Medium', color: c.muted, lineHeight: 16, marginTop: 8 },
   depChipOn: { backgroundColor: c.orange, borderColor: c.orange },
   depChipText: { fontSize: 12.5, fontFamily: 'Manrope_800ExtraBold', color: c.mutedHi },
   priorNote: { fontSize: 12.5, fontFamily: 'Manrope_600SemiBold', color: c.muted, marginTop: 10 },

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal, ActivityIndicator, Tex
 import { useAudioRecorder, useAudioRecorderState, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio';
 import { Mic, Square, X } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { BottomSheetModal } from '@/components/BottomSheetModal';
 import { API_BASE_URL } from '@/lib/api';
 
 type Phase = 'idle' | 'recording' | 'transcribing' | 'questions' | 'error';
@@ -230,10 +231,8 @@ export function VoiceCaptureModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={s.overlay}>
-          <View style={s.sheet}>
+    <BottomSheetModal visible={visible} onClose={handleClose}>
+      <View style={s.sheet}>
             <View style={s.handle} />
             <TouchableOpacity style={s.closeBtn} onPress={handleClose} accessibilityRole="button" accessibilityLabel="Close">
               <X size={18} color={c.mutedHi} strokeWidth={2} />
@@ -324,10 +323,8 @@ export function VoiceCaptureModal({
                 )}
               </>
             )}
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      </View>
+    </BottomSheetModal>
   );
 }
 

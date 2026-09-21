@@ -266,7 +266,16 @@ export const insertJobSchema = createInsertSchema(jobs)
   .extend({ scheduledDate: z.coerce.date().nullable().optional() });
 export const insertQuoteSchema = createInsertSchema(quotes).omit({ id: true, createdAt: true });
 export const insertQuoteItemSchema = createInsertSchema(quoteItems).omit({ id: true });
-export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
+// JSON has no date type, so every date a client sends arrives as a string, and a
+// Drizzle timestamp column calls .toISOString() on whatever it is handed — hence
+// "toISOString is not a function" when marking an invoice paid. Coerced here the way
+// insertJobSchema already does for scheduledDate.
+export const insertInvoiceSchema = createInsertSchema(invoices)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    dueDate: z.coerce.date().nullable().optional(),
+    paidDate: z.coerce.date().nullable().optional(),
+  });
 export const insertPortalFeedbackSchema = createInsertSchema(portalFeedback).omit({ id: true, createdAt: true });
 
 // Types

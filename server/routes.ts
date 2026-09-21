@@ -195,6 +195,12 @@ const AI_MODEL = process.env.AI_CHAT_MODEL || (isGroq ? 'openai/gpt-oss-120b' : 
 const AI_TRANSCRIBE_MODEL = process.env.AI_TRANSCRIBE_MODEL || (isGroq ? 'whisper-large-v3-turbo' : 'gpt-4o-mini-transcribe');
 // gpt-oss (and most Groq text models) are text-only — don't send job photos to them.
 const AI_SUPPORTS_VISION = process.env.AI_SUPPORTS_VISION === 'true' || !isGroq;
+// Reading a receipt needs a model that can actually see. The chat model does not
+// have to be one: Groq's gpt-oss is text-only, so scanning a receipt sent an image
+// to a model incapable of looking at it and failed every single time, reported to
+// the tradie as "couldn't read receipt" — blaming their photo for something no
+// photo could have fixed. Set AI_VISION_MODEL to a multimodal model to enable it.
+const AI_VISION_MODEL = process.env.AI_VISION_MODEL || (AI_SUPPORTS_VISION ? AI_MODEL : '');
 try {
   openai = new OpenAI({
     apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -1100,6 +1106,18 @@ CRITICAL RULES — follow these exactly:
           const unitCost = costKnown ? round2(rawCost) : 0;
 
           const category = String(item.category || "").toLowerCase() === "labour" ? "labour" : "material";
+
+          // The prompt ASKS the model to use the tradie's labour rate, and a model
+          // is free to ignore it — which is why the rate in settings never quite
+          // matched the quote. What a job takes in HOURS is a judgement the AI is
+          // reasonable at; what an hour COSTS is a fact the tradie already knows.
+          // So the hours stand and the rate is imposed, for hourly lines only —
+          // labour billed as a lot or a flat fee has no rate to apply.
+          const hourly = ["hr", "hrs", "hour", "hours"].includes(
+            String(item.unit || "").trim().toLowerCase()
+          );
+          const useRate = category === "labour" && hourly && labourRateNum;
+          const unitPrice = useRate ? labourRateNum : price;
           const needsPrice = canVerify && category === "material"
             ? !matchesPriceBook(item.description, book)
             : false;
@@ -1111,8 +1129,9 @@ CRITICAL RULES — follow these exactly:
           return {
             ...item,
             category,
-            unitCost,
-            costUnknown: !costKnown,
+            unitPrice,
+            unitCost: useRate ? labourRateNum : unitCost,
+            costUnknown: useRate ? false : !costKnown,
             needsPrice,
             priceNote: flag?.message,
           };
@@ -1665,7 +1684,7 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
         patchBody.paidAmount = String(newPaidAmount);
         if (newPaidAmount >= total) {
           patchBody.status = "paid";
-          patchBody.paidDate = new Date().toISOString();
+          patchBody.paidDate = new Date();
         } else {
           patchBody.status = "partial";
         }
@@ -1717,7 +1736,20 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
         patchBody.quoteId = quoteId || null;
         patchBody.invoiceType = invoiceType;
       }
-      if (typeof patchBody.dueDate === "string") patchBody.dueDate = new Date(patchBody.dueDate);
+      // Every date column, not just the one someone happened to hit. dueDate was
+      // handled and paidDate was not, so "Mark as paid" threw
+      // "toISOString is not a function" every time — this route builds its body by
+      // hand and never passes it through the schema that would have coerced it.
+      for (const field of ["dueDate", "paidDate"] as const) {
+        const v = patchBody[field];
+        if (typeof v === "string") {
+          const d = new Date(v);
+          if (isNaN(d.getTime())) {
+            return res.status(400).json({ message: `Invalid ${field}` });
+          }
+          patchBody[field] = d;
+        }
+      }
       for (const notAColumn of ["depositPercent", "depositAmount", "includeGST", "customerName"]) {
         delete patchBody[notAColumn];
       }
@@ -2639,6 +2671,14 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       const { imageBase64 } = req.body;
       if (!imageBase64) return res.status(400).json({ message: "imageBase64 required" });
 
+      // Say what is actually wrong. Without this the route sent the photo to a
+      // text-only model and returned a failure that read as "your photo is bad".
+      if (!AI_VISION_MODEL) {
+        return res.status(503).json({
+          message: "Receipt scanning needs an AI model that can read images, and the one configured can't. Enter the receipt by hand for now.",
+        });
+      }
+
       const imagePayload = typeof imageBase64 === 'string'
         ? imageBase64.includes(';base64,') ? imageBase64.split(';base64,')[1] : imageBase64
         : null;
@@ -2675,7 +2715,7 @@ If you cannot read the image clearly, return your best guess. Always return vali
       ];
 
       const response = await openai.chat.completions.create({
-        model: AI_MODEL,
+        model: AI_VISION_MODEL,
         messages,
         max_tokens: 800,
         temperature: 0,

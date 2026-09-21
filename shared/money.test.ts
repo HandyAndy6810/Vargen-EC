@@ -77,6 +77,35 @@ describe('unitSell', () => {
   test('a locked line with no locked price falls back to its price', () => {
     assert.equal(unitSell({ markupLocked: true, price: '42' }, 30), 42);
   });
+
+  test('an at-cost line charges exactly its cost, whatever the markup', () => {
+    // A permit, a tip fee, a council charge — passed straight through.
+    assert.equal(unitSell({ cost: '250', noMarkup: true }, 0), 250);
+    assert.equal(unitSell({ cost: '250', noMarkup: true }, 80), 250);
+  });
+
+  test('an at-cost line still follows its cost when the cost is corrected', () => {
+    // This is what separates it from pinning: pinning freezes a figure, at-cost
+    // tracks the real cost.
+    assert.equal(unitSell({ cost: '250', noMarkup: true }, 30), 250);
+    assert.equal(unitSell({ cost: '310', noMarkup: true }, 30), 310);
+  });
+
+  test('pinning beats at-cost, because it names an exact figure', () => {
+    assert.equal(unitSell({ cost: '250', noMarkup: true, markupLocked: true, lockedPrice: '400' }, 30), 400);
+  });
+
+  test('an at-cost line with no cost keeps its typed price', () => {
+    assert.equal(unitSell({ price: '90', noMarkup: true }, 50), 90);
+  });
+
+  test('an at-cost line earns nothing, and the totals say so', () => {
+    const t = totalsFor([{ qty: '1', cost: '250', noMarkup: true }], { markupPct: 40, gstRate: 0 });
+    assert.equal(t.subtotal, 250);
+    assert.equal(t.totalCost, 250);
+    assert.equal(t.profit, 0);
+    assert.equal(t.uncostedLines, 0);
+  });
 });
 
 describe('lineTotal and lineCost', () => {

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { ChevronLeft, Check, Maximize2, X } from 'lucide-react-native';
@@ -13,10 +13,29 @@ import { hapticSelect, hapticPress } from '@/lib/haptics';
 import { animateNextLayout } from '@/lib/layout-animation';
 import {
   QUOTE_TEMPLATES, DEFAULT_TEMPLATE_ID, buildDocumentWith, sampleDocument,
-  thumbnailHtml, A4_PX,
+  thumbnailHtml, fitToWidthHtml, A4_PX,
 } from '@/lib/pdf-templates';
 
-const ACCENTS = ['#f26a2a', '#2563eb', '#16a34a', '#7c3aed', '#0d9488', '#64748b', '#141310'];
+// A spread wide enough that most trades find something that is theirs, kept to
+// colours that stay legible as a heading and as white text on a solid block —
+// every template uses the accent both ways.
+const ACCENTS = [
+  '#f26a2a', // the default orange
+  '#d97706', // amber
+  '#b45309', // bronze
+  '#dc2626', // red
+  '#e11d48', // rose
+  '#7c3aed', // violet
+  '#4f46e5', // indigo
+  '#2563eb', // blue
+  '#0284c7', // sky
+  '#0d9488', // teal
+  '#16a34a', // green
+  '#15803d', // forest
+  '#78350f', // brown
+  '#475569', // slate
+  '#141310', // near black
+];
 const FONTS = [
   { value: 'inter',   label: 'Modern' },
   { value: 'manrope', label: 'Rounded' },
@@ -36,6 +55,7 @@ const CARD_H = Math.round(A4_PX.height * THUMB_SCALE);
 export default function QuoteStylingScreen() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
+  const insets = useSafeAreaInsets();
   const { data: settings, isLoading } = useSettings();
   const update = useUpdateSettings();
   const [fullId, setFullId] = useState<string | null>(null);
@@ -56,7 +76,9 @@ export default function QuoteStylingScreen() {
 
   const html = (id: string, scale?: number) => {
     const doc = buildDocumentWith(id, sample, settings ?? {});
-    return scale ? thumbnailHtml(doc, scale) : doc;
+    // Thumbnails are scaled to the card; the full preview is fitted to the screen
+    // width, which a raw A4 page is about twice as wide as.
+    return scale ? thumbnailHtml(doc, scale) : fitToWidthHtml(doc);
   };
 
   if (isLoading) {
@@ -198,7 +220,10 @@ export default function QuoteStylingScreen() {
 
       {/* Full-size preview, on the real A4 page */}
       <Modal visible={!!fullId} animationType="slide" onRequestClose={() => setFullId(null)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top', 'bottom']}>
+        {/* SafeAreaView does not receive the insets inside a Modal, so the bar
+            rendered underneath the status bar and its close button could not be
+            tapped — the preview became a trap. The measured inset always works. */}
+        <View style={{ flex: 1, backgroundColor: c.paper, paddingTop: insets.top }}>
           <View style={s.modalBar}>
             <Text style={s.modalTitle}>
               {QUOTE_TEMPLATES.find(t => t.id === fullId)?.name ?? 'Preview'}
@@ -220,7 +245,7 @@ export default function QuoteStylingScreen() {
             />
           ) : null}
           {fullId && fullId !== selected ? (
-            <View style={s.modalFoot}>
+            <View style={[s.modalFoot, { paddingBottom: 12 + insets.bottom }]}>
               <TouchableOpacity
                 style={[s.useBtn, { backgroundColor: c.orange }]}
                 activeOpacity={0.85}
@@ -234,7 +259,7 @@ export default function QuoteStylingScreen() {
               </TouchableOpacity>
             </View>
           ) : null}
-        </SafeAreaView>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -273,7 +298,7 @@ function makeStyles(c: Colors) {
     cardBlurb: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, lineHeight: 15, marginTop: 2 },
     hint: { fontSize: 11.5, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 14, lineHeight: 17 },
     swatchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    swatch: { width: 38, height: 38, borderRadius: 12, borderWidth: 2.5 },
+    swatch: { width: 34, height: 34, borderRadius: 11, borderWidth: 2.5 },
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
     chipLabel: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold' },
