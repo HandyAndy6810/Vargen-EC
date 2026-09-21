@@ -23,6 +23,18 @@ jobs:
         with:
           node-version: '20'
           cache: npm
+      # Installing a package on Replit writes ITS proxy into the lockfile —
+      # package-firewall.replit.internal, a host that exists only inside Replit. Any
+      # install anywhere else then fails to resolve it, including the EAS build
+      # servers, so this would surface as a broken build twenty minutes in rather
+      # than here. Caught in seconds instead, with the fix in the message.
+      - name: No Replit-internal URLs in lockfiles
+        run: |
+          if grep -rn "replit.internal" package-lock.json mobile/package-lock.json 2>/dev/null; then
+            echo "::error::A lockfile points at Replit's internal npm proxy, which only resolves inside Replit."
+            echo "Rewrite those 'resolved' URLs to https://registry.npmjs.org/... — the integrity hashes stay as they are."
+            exit 1
+          fi
       - run: npm ci
       # Root tsconfig covers server/ and shared/, which the mobile app also imports.
       - run: npm run check
