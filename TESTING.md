@@ -105,12 +105,19 @@ Re-check these if the invoice flow changes:
 billed against a quote before testing a deposit on it, or the guard will refuse
 the second one and look like a bug — which is exactly what happened here.
 
-## 6. Payments
+## 6. Payments — server side VERIFIED 22 Sep 2026
 
-- [ ] Record a full payment — invoice goes to paid
-- [ ] Record a partial payment — invoice goes to partial, amount received shows
-- [ ] The number pad accepts the amount properly
-- [ ] Invoices tab Outstanding **drops by what was paid**, not the full invoice
+Driven over the API against the deployed server, confirmed in the database:
+marking paid set the status and the date; $1,000 of a $5,000 invoice went to
+`partial` with paidAmount 1000 and no paid date; the remaining $4,000 took it to
+`paid` with paidAmount 5000 exactly and a server-set date. That last one is the
+branch that used to throw "toISOString is not a function".
+
+- [P] Record a full payment — invoice goes to paid
+- [P] Record a partial payment — invoice goes to partial, amount received shows
+- [P] A partial payment that completes the invoice flips it to paid
+- [ ] The number pad accepts the amount properly *(UI, still needs a build)*
+- [ ] Invoices tab Outstanding **drops by what was paid**, not the full invoice *(UI)*
 - [ ] An invoice past its due date shows as overdue
 
 ## 7. PDF and sending
