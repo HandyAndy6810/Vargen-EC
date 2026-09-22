@@ -1736,6 +1736,27 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
         patchBody.quoteId = quoteId || null;
         patchBody.invoiceType = invoiceType;
       }
+      // Marking an invoice paid outright should record the money as received, and
+      // un-marking it should let go of it again.
+      //
+      // Both Xero sync paths already set paidAmount when they mark an invoice paid;
+      // this route never did. Nothing reads it wrongly TODAY, because every caller
+      // checks the status first — but an invoice that says "paid" while claiming
+      // nothing was received is a trap for whatever reads it next, and any revenue
+      // figure built on paidAmount would have quietly missed it.
+      //
+      // The reverse direction is a live bug rather than a latent one: un-marking a
+      // paid invoice left paidAmount at the full total, and "sent" IS in the set the
+      // invoices tab sums, so a reopened invoice showed as nothing owing.
+      if (patchBody.status === "paid" && patchBody.paidAmount === undefined) {
+        patchBody.paidAmount = String(existing.totalAmount);
+      }
+      if (patchBody.status && patchBody.status !== "paid" && patchBody.status !== "partial"
+          && patchBody.paidAmount === undefined && patchBody.payAmount === undefined) {
+        patchBody.paidAmount = "0";
+        patchBody.paidDate = null;
+      }
+
       // Every date column, not just the one someone happened to hit. dueDate was
       // handled and paidDate was not, so "Mark as paid" threw
       // "toISOString is not a function" every time — this route builds its body by
