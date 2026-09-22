@@ -26,7 +26,7 @@ Legend: `[ ]` untested · `[P]` pass · `[F]` fail · `[-]` not applicable / not
 
 | Date | Build / commit | Who | Result |
 |---|---|---|---|
-| | | | |
+| 19–22 Sep 2026 | 7b8a7c5 build + 59503ec server | Andrew | §5 deposits PASS, §7 PDF PASS, §8 GST PASS, §13 mostly PASS. Findings below. |
 
 ---
 
@@ -83,17 +83,27 @@ Legend: `[ ]` untested · `[P]` pass · `[F]` fail · `[-]` not applicable / not
 - [ ] Due date can be set and shows on the saved invoice
 - [ ] Save, reopen, edit — changes survive
 
-## 5. Deposits and balances — **never yet verified end to end**
+## 5. Deposits and balances — **VERIFIED 22 Sep 2026**
 
-On one accepted quote, in this order:
+Passed on quote 25 ($4,840): two $2,420 part-invoices reconciling to $4,840.00
+exactly, GST split proportionally ($2,200 + $220), the quote flipping to
+`invoiced` at exactly the right point, and the over-invoicing guard refusing a
+third invoice. Confirmed against the database rows, not the screen.
 
-- [ ] Deposit 50%: Review says "Billing 50% — $X now" with the remainder underneath
-- [ ] Saved deposit invoice total is **half the quote**, not the full amount
-- [ ] It carries a DEPOSIT marker
-- [ ] The quote stays **accepted**, not invoiced
-- [ ] Balance on the same quote bills **exactly the remainder**
-- [ ] The quote now flips to **invoiced**
-- [ ] A fixed dollar deposit (not a percentage) bills that exact amount
+Re-check these if the invoice flow changes:
+
+- [P] Deposit 50%: Review says "Billing 50% — $X now" with the remainder underneath
+- [P] Saved deposit invoice total is **half the quote**, not the full amount
+- [P] It carries a DEPOSIT marker
+- [P] The quote stays **accepted** until fully billed, not invoiced on the first part
+- [P] Balance on the same quote bills **exactly the remainder**
+- [P] The quote flips to **invoiced** only once the whole value is billed
+- [P] Billing more than the job is worth is refused
+- [P] A fixed dollar deposit (not a percentage) bills that exact amount (INV-0021, $1,000 on quote 27)
+
+**A note on testing this:** a quote keeps its invoices. Check what is already
+billed against a quote before testing a deposit on it, or the guard will refuse
+the second one and look like a bug — which is exactly what happened here.
 
 ## 6. Payments
 
