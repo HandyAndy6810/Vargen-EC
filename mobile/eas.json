@@ -9,7 +9,8 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
@@ -22,7 +23,8 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://vargon-ec--andrewyoukhana.replit.app",
         "EXPO_PUBLIC_DEV_BYPASS": "true"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
@@ -34,7 +36,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://vargon-ec--andrewyoukhana.replit.app"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {
