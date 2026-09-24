@@ -257,6 +257,12 @@ export class DatabaseStorage implements IStorage {
     return newItem;
   }
 
+  /** One row by id, so a caller can check who owns the quote it belongs to. */
+  async getQuoteItem(id: number): Promise<QuoteItem | undefined> {
+    const [row] = await db.select().from(quoteItems).where(eq(quoteItems.id, id));
+    return row;
+  }
+
   async deleteQuoteItem(id: number): Promise<void> {
     await db.delete(quoteItems).where(eq(quoteItems.id, id));
   }

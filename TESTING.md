@@ -140,6 +140,28 @@ For each: check the figures on the page, not just that a page appears.
 - [ ] PDF matches in both states
 - [ ] Turn it back on afterwards
 
+## 8b. Ownership — another user cannot touch your data
+
+Deleting a quote line took only an id, with no check on who owned it. To verify by
+hand you need two accounts; `curl` is easier than the app.
+
+```bash
+API=https://vargon-ec--andrewyoukhana.replit.app
+# Sign in as account A and note one of your quote item ids
+curl -s -c /tmp/a.jar -X POST "$API/api/login" -H 'Content-Type: application/json' \
+  -d '{"username":"A@example.com","password":"..."}' -o /dev/null
+curl -s -b /tmp/a.jar "$API/api/quotes/<A_QUOTE_ID>/items"
+
+# Sign in as account B and try to delete A's row
+curl -s -c /tmp/b.jar -X POST "$API/api/login" -H 'Content-Type: application/json' \
+  -d '{"username":"B@example.com","password":"..."}' -o /dev/null
+curl -s -b /tmp/b.jar -X DELETE "$API/api/quotes/items/<A_ITEM_ID>" -w "\nHTTP %{http_code}\n"
+```
+
+- [ ] B gets **HTTP 404** (not 403 — a 403 would confirm the row exists)
+- [ ] A's row is **still there** when A refetches
+- [ ] A can still delete their own row
+
 ## 9. Customers
 
 - [ ] Create a customer with only a name

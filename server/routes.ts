@@ -705,8 +705,11 @@ function reconcileQuoteContent(quote: any): any {
       const item = await storage.createQuoteItem({
         quoteId: quote.id,
         description: req.body.description,
-        quantity: Number(req.body.quantity),
-        price: String(req.body.price),
+        // Both numeric columns now, and drizzle wants numeric as a string.
+        // num() first so "1.5" from an older client survives as 1.5 rather than
+        // being coerced to an integer on the way in — which is the whole bug.
+        quantity: String(num(req.body.quantity) || 1),
+        price: String(num(req.body.price)),
       });
       res.status(201).json(item);
     } catch (err) {
@@ -715,7 +718,19 @@ function reconcileQuoteContent(quote: any): any {
   });
 
   app.delete("/api/quotes/items/:id", requireAuth, async (req: any, res) => {
-    await storage.deleteQuoteItem(Number(req.params.id));
+    // This took an id and deleted it. Any signed-in user could walk the sequence
+    // and delete another tradie's line items off their quotes.
+    //
+    // 404 rather than 403 for someone else's row, deliberately: a 403 confirms
+    // the id exists and belongs to somebody, which hands an attacker a way to map
+    // the table by probing. "Not found" is true from this caller's point of view.
+    const item = await storage.getQuoteItem(Number(req.params.id));
+    if (!item?.quoteId) return res.status(404).json({ message: "Item not found" });
+
+    const quote = await storage.getQuote(item.quoteId, req.userId);
+    if (!quote) return res.status(404).json({ message: "Item not found" });
+
+    await storage.deleteQuoteItem(item.id);
     res.json({ ok: true });
   });
 
