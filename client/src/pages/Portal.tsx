@@ -73,8 +73,15 @@ export default function Portal() {
   const totalAmount = Number(quote.totalAmount) || (subtotal + gstAmount);
   const quoteRef = `Q-${String(quote.id).padStart(4, "0")}`;
   const quoteDate = quote.createdAt ? format(new Date(quote.createdAt), "dd MMMM yyyy") : "N/A";
-  const isAlreadyAccepted = quote.status === "accepted" || accepted;
-  const isAlreadyDeclined = quote.status === "rejected" || declined;
+  // The server writes "declined"; this checked only for "rejected", so a customer
+  // who declined and then reloaded the page was shown the Accept and Decline
+  // buttons again as though nothing had happened. "rejected" is legacy — one row
+  // in production — and both are treated as declined until that is migrated.
+  // "invoiced" is past accepted, so it counts as accepted here too.
+  const isAlreadyAccepted =
+    quote.status === "accepted" || quote.status === "invoiced" || accepted;
+  const isAlreadyDeclined =
+    quote.status === "declined" || quote.status === "rejected" || declined;
 
   const handleAccept = () => {
     acceptQuote(preferredDate || undefined, {

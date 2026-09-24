@@ -260,6 +260,47 @@ const loginRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
+// The portal is the only unauthenticated surface in the app: no session, and the
+// token is in a link that gets forwarded around. trust proxy is set in setupAuth,
+// which runs before these routes are registered, so req.ip is the real client.
+const portalReadRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: { message: "Too many requests. Please try again shortly." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Keyed by token as well as IP: accepting or declining is a one-off act, and a
+// hundred attempts against one quote is not a customer changing their mind.
+const portalWriteRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { message: "Too many attempts. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: any) => `${req.ip}:${req.params?.token ?? ""}`,
+});
+
+const PORTAL_FEEDBACK_MAX = 2000;
+
+/** A customer may only act on a quote that is still open to them. */
+const PORTAL_ACTIONABLE = ["sent", "viewed"];
+
+/** Why a quote can no longer be accepted or declined, in words a customer reads. */
+function portalClosedReason(status: string | null): string | null {
+  if (status && PORTAL_ACTIONABLE.includes(status)) return null;
+  switch (status) {
+    case "accepted": return "This quote has already been accepted.";
+    case "invoiced": return "This quote has already been invoiced.";
+    case "declined":
+    case "rejected": return "This quote has already been declined.";
+    case "draft":    return "This quote is not ready yet.";
+    case "expired":  return "This quote has expired.";
+    default:         return "This quote is no longer open.";
+  }
+}
+
 const emailRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 30,                   // 30 emails per user per hour
@@ -1281,7 +1322,7 @@ CRITICAL RULES — follow these exactly:
 
   // ─── Portal Routes (Public — no auth) ───
 
-  app.get("/api/portal/:token", async (req, res) => {
+  app.get("/api/portal/:token", portalReadRateLimit, async (req, res) => {
     try {
       const { token } = req.params;
       const quote = await storage.getQuoteByShareToken(token);
@@ -1310,11 +1351,18 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.post("/api/portal/:token/accept", async (req, res) => {
+  app.post("/api/portal/:token/accept", portalWriteRateLimit, async (req, res) => {
     try {
       const { token } = req.params;
       const quote = await storage.getQuoteByShareToken(token);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      // The status was set unconditionally, so a customer could accept a quote
+      // that had already been declined or invoiced — and accepting fires the Xero
+      // invoice hook below, which would have raised a second invoice for a job
+      // already billed.
+      const closed = portalClosedReason(quote.status);
+      if (closed) return res.status(409).json({ message: closed });
 
       const { preferredDate } = req.body;
       const updates: any = { status: "accepted" };
@@ -1336,11 +1384,15 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.post("/api/portal/:token/decline", async (req, res) => {
+  app.post("/api/portal/:token/decline", portalWriteRateLimit, async (req, res) => {
     try {
       const { token } = req.params;
       const quote = await storage.getQuoteByShareToken(token);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      // Same guard as accept: an invoiced job must not be declinable.
+      const closed = portalClosedReason(quote.status);
+      if (closed) return res.status(409).json({ message: closed });
 
       await storage.updateQuote(quote.id, { status: "declined" });
       res.json({ ok: true });
@@ -1349,15 +1401,23 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.post("/api/portal/:token/feedback", async (req, res) => {
+  app.post("/api/portal/:token/feedback", portalWriteRateLimit, async (req, res) => {
     try {
       const { token } = req.params;
       const quote = await storage.getQuoteByShareToken(token);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
-      const { message } = req.body;
-      if (!message || typeof message !== "string") {
+      // Unauthenticated and uncapped: anyone with the link could have written an
+      // arbitrarily large row.
+      const raw = req.body?.message;
+      if (!raw || typeof raw !== "string" || !raw.trim()) {
         return res.status(400).json({ message: "Message is required" });
+      }
+      const message = raw.trim();
+      if (message.length > PORTAL_FEEDBACK_MAX) {
+        return res.status(400).json({
+          message: `Please keep your message under ${PORTAL_FEEDBACK_MAX} characters.`,
+        });
       }
 
       const feedback = await storage.createPortalFeedback({ quoteId: quote.id, message });
