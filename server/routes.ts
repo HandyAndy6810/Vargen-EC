@@ -1042,12 +1042,17 @@ CRITICAL RULES — follow these exactly:
 
       messages.push({ role: "system", content: systemPrompt });
 
-      // Learn from past quotes — inject recent accepted/sent quotes as few-shot examples
+      // Learn from past quotes — recent ones the customer engaged with, as few-shot
+      // examples. "invoiced" belongs here and was missing: a quote that reached an
+      // invoice is the strongest evidence there is of a price a customer actually
+      // paid, which is exactly what makes a good example. getQuotes already
+      // returns newest first.
       try {
         const allQuotes = await storage.getQuotes(req.userId);
+        const PRICED_WELL = ["invoiced", "accepted", "sent"];
         const pastQuotes = allQuotes
-          .filter(q => q.content && (q.status === "accepted" || q.status === "sent"))
-          .slice(0, 5); // up to 5 most recent successful quotes
+          .filter(q => q.content && PRICED_WELL.includes(String(q.status)))
+          .slice(0, 5);
 
         if (pastQuotes.length > 0) {
           const examples = pastQuotes.map(q => {
