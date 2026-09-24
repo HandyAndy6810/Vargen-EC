@@ -4,7 +4,8 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { storage } from "./storage";
 import { api } from "../shared/routes";
 import { isValidISODate, toISODate } from "../shared/mobile-types";
-import { round2, totalsFor, gstRateFor } from "../shared/money";
+import { num, round2, totalsFor, gstRateFor } from "../shared/money";
+import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
 import { buildPortalView } from "./lib/portal-view";
 import { z } from "zod";
@@ -71,9 +72,12 @@ async function autoCreateXeroInvoice(userId: string, quoteId: number) {
     const jobTitle = parsed?.jobTitle || `Quote #${quoteId}`;
     const includeGST = parsed?.includeGST ?? true;
 
+    // quantity is a numeric column, so Drizzle hands it over as a string. Sent
+    // straight through, Xero would receive Quantity: "1.50" and reject or
+    // mis-parse it — and this is the path that bills the customer.
     const lineItems = items.map((i) => ({
       description: i.description,
-      quantity: i.quantity,
+      quantity: num(i.quantity),
       unitPrice: parseFloat(String(i.price)),
     }));
 
@@ -528,10 +532,41 @@ function verifiedQuoteBody(body: any): any {
   return { ...body, totalAmount: String(total), content: JSON.stringify(content) };
 }
 
+/**
+ * Keep a quote's rows in step with its own content.
+ *
+ * The rows exist for Xero and for older clients; content is what every screen
+ * actually reads. They used to be written separately — the app posted the rows
+ * itself, one HTTP call per line, swallowing failures — which is how fractional
+ * quantities came to be missing from the rows of live quotes while sitting
+ * correctly in content.
+ *
+ * Now the server owns them. Content arrives, the rows are rebuilt from it in one
+ * transaction, and there is no second opinion about what a line costs.
+ *
+ * Content with no items array leaves the rows untouched: a caller that says
+ * nothing about the lines must not wipe them. An EMPTY array is different — it
+ * says there are no lines — and clears them.
+ *
+ * Never throws. A quote that saved should not be reported as failed because its
+ * rows could not be rewritten; the tradie's work is safe in content either way,
+ * and the backfill script can repair the rows later.
+ */
+async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> {
+  try {
+    const rows = quoteItemRowsFromContent(content);
+    if (rows === null) return;
+    await storage.replaceQuoteItems(quoteId, rows);
+  } catch (err) {
+    console.error(`[quote ${quoteId}] could not rebuild quote_items:`, err);
+  }
+}
+
   app.post(api.quotes.create.path, requireAuth, async (req: any, res) => {
     try {
       const input = api.quotes.create.input.parse(verifiedQuoteBody(req.body));
       const quote = await storage.createQuote({ ...input, userId: req.userId });
+      await syncQuoteItems(quote.id, (input as any).content);
       res.status(201).json(quote);
     } catch (err) {
       res.status(400).json({ message: "Validation error" });
@@ -589,6 +624,9 @@ function verifiedQuoteBody(body: any): any {
       }
 
       const quote = await storage.updateQuote(quoteId, input, req.userId);
+      // Before the response, and before the Xero hook below — that builds its
+      // line items from these rows, so it must not read the previous set.
+      await syncQuoteItems(quoteId, (input as any).content);
       res.json(quote);
 
       // Auto-create Xero invoice when a quote is first accepted
@@ -2395,9 +2433,10 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       const jobTitle = parsed?.jobTitle || `Quote #`;
       const includeGST = parsed?.includeGST ?? true;
 
+      // See the note in autoCreateXeroInvoice: numeric arrives as a string.
       const lineItems = items.map((i) => ({
         description: i.description,
-        quantity: i.quantity,
+        quantity: num(i.quantity),
         unitPrice: parseFloat(String(i.price)),
       }));
       if (lineItems.length === 0) {

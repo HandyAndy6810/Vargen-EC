@@ -324,33 +324,12 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       if (!res.ok) throw new Error('Failed to save quote');
       const saved = await res.json();
 
-      // Keep the quote_items ROWS in step with the content JSON. The quote detail
-      // screen prefers rows over content, so writing content alone (as this did
-      // before) left an edited quote showing its original line items beside its
-      // new total — numbers that no longer added up.
-      const savedId = Number(saved?.id) || editId;
-      if (savedId) {
-        if (isEditing) {
-          try {
-            const cur = await apiRequest('GET', `/api/quotes/${savedId}/items`);
-            if (cur.ok) {
-              const rows: any[] = await cur.json();
-              await Promise.all(rows.map(r =>
-                apiRequest('DELETE', `/api/quotes/items/${r.id}`).catch(() => {})
-              ));
-            }
-          } catch { /* fall through — better a fresh set than none */ }
-        }
-        for (const l of lines) {
-          const price = unitSell(l, markupPct);
-          if (!l.name.trim() && price <= 0) continue;
-          await apiRequest('POST', `/api/quotes/${savedId}/items`, {
-            description: l.name.trim() || 'Item',
-            quantity: parseFloat(l.qty) || 1,
-            price: String(price),
-          }).catch(() => {});
-        }
-      }
+      // The quote_items rows are the SERVER's job now. This used to write them
+      // from here — a GET, N deletes and N posts, each able to fail on its own and
+      // every failure swallowed with .catch(() => {}). A fractional quantity was
+      // rejected outright by the integer column, so "0.5 hr cleanup" disappeared
+      // from the rows while staying in content, and nothing said so. The server
+      // rebuilds them from content.items in one transaction on save.
       return saved;
     },
     onSuccess: () => {

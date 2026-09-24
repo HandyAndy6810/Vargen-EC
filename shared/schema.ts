@@ -63,7 +63,13 @@ export const quoteItems = pgTable("quote_items", {
   id: serial("id").primaryKey(),
   quoteId: integer("quote_id").references(() => quotes.id),
   description: text("description").notNull(),
-  quantity: integer("quantity").notNull(),
+  // NUMERIC, not integer. As an integer, any fractional quantity failed to insert
+  // — "0.5 hr cleanup", "1.5 hr labour" — and the mobile save loop swallowed the
+  // error, so the line vanished from the rows while staying in content. The AI
+  // prompt asks for at least fifteen minutes of cleanup, so this hit most AI
+  // quotes. Drizzle returns numeric as a STRING: read it through num() from
+  // shared/money.ts, never with a bare arithmetic operator.
+  quantity: numeric("quantity", { precision: 10, scale: 2 }).notNull(),
   price: numeric("price").notNull(),
 });
 

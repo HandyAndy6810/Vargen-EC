@@ -261,6 +261,33 @@ export class DatabaseStorage implements IStorage {
     await db.delete(quoteItems).where(eq(quoteItems.id, id));
   }
 
+  /**
+   * Replace a quote's rows wholesale, in ONE transaction.
+   *
+   * The mobile app used to do this as N sequential HTTP deletes followed by N
+   * posts, each able to fail on its own and each failure swallowed — so a quote
+   * could be left with some old rows, some new, or none. Inside a transaction it
+   * is all or nothing.
+   */
+  async replaceQuoteItems(
+    quoteId: number,
+    rows: { description: string; quantity: number; price: number }[],
+  ): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.delete(quoteItems).where(eq(quoteItems.quoteId, quoteId));
+      if (rows.length === 0) return;
+      await tx.insert(quoteItems).values(
+        rows.map((r) => ({
+          quoteId,
+          description: r.description,
+          // Both numeric columns; drizzle wants them as strings.
+          quantity: String(r.quantity),
+          price: String(r.price),
+        })),
+      );
+    });
+  }
+
   // ── Invoices ──────────────────────────────────────────────────────────
   async getInvoices(userId: string): Promise<Invoice[]> {
     return await db.select().from(invoices)
