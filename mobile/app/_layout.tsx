@@ -112,14 +112,6 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper } }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="ai-chat"
-            options={{
-              presentation: 'modal',
-              headerShown: false,
-              animation: 'slide_from_bottom',
-            }}
-          />
           <Stack.Screen name="jobs/list" />
           <Stack.Screen name="jobs/[id]" />
           <Stack.Screen name="jobs/complete" />
