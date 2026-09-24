@@ -4,8 +4,10 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { storage } from "./storage";
 import { api } from "../shared/routes";
 import { isValidISODate, toISODate } from "../shared/mobile-types";
-import { round2, totalsFor, gstRateFor } from "../shared/money";
+import { num, round2, totalsFor, gstRateFor } from "../shared/money";
+import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
+import { buildPortalView } from "./lib/portal-view";
 import { z } from "zod";
 import OpenAI, { toFile } from "openai";
 
@@ -70,9 +72,12 @@ async function autoCreateXeroInvoice(userId: string, quoteId: number) {
     const jobTitle = parsed?.jobTitle || `Quote #${quoteId}`;
     const includeGST = parsed?.includeGST ?? true;
 
+    // quantity is a numeric column, so Drizzle hands it over as a string. Sent
+    // straight through, Xero would receive Quantity: "1.50" and reject or
+    // mis-parse it — and this is the path that bills the customer.
     const lineItems = items.map((i) => ({
       description: i.description,
-      quantity: i.quantity,
+      quantity: num(i.quantity),
       unitPrice: parseFloat(String(i.price)),
     }));
 
@@ -254,6 +259,47 @@ const loginRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// The portal is the only unauthenticated surface in the app: no session, and the
+// token is in a link that gets forwarded around. trust proxy is set in setupAuth,
+// which runs before these routes are registered, so req.ip is the real client.
+const portalReadRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: { message: "Too many requests. Please try again shortly." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Keyed by token as well as IP: accepting or declining is a one-off act, and a
+// hundred attempts against one quote is not a customer changing their mind.
+const portalWriteRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { message: "Too many attempts. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: any) => `${req.ip}:${req.params?.token ?? ""}`,
+});
+
+const PORTAL_FEEDBACK_MAX = 2000;
+
+/** A customer may only act on a quote that is still open to them. */
+const PORTAL_ACTIONABLE = ["sent", "viewed"];
+
+/** Why a quote can no longer be accepted or declined, in words a customer reads. */
+function portalClosedReason(status: string | null): string | null {
+  if (status && PORTAL_ACTIONABLE.includes(status)) return null;
+  switch (status) {
+    case "accepted": return "This quote has already been accepted.";
+    case "invoiced": return "This quote has already been invoiced.";
+    case "declined":
+    case "rejected": return "This quote has already been declined.";
+    case "draft":    return "This quote is not ready yet.";
+    case "expired":  return "This quote has expired.";
+    default:         return "This quote is no longer open.";
+  }
+}
 
 const emailRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
@@ -527,10 +573,41 @@ function verifiedQuoteBody(body: any): any {
   return { ...body, totalAmount: String(total), content: JSON.stringify(content) };
 }
 
+/**
+ * Keep a quote's rows in step with its own content.
+ *
+ * The rows exist for Xero and for older clients; content is what every screen
+ * actually reads. They used to be written separately — the app posted the rows
+ * itself, one HTTP call per line, swallowing failures — which is how fractional
+ * quantities came to be missing from the rows of live quotes while sitting
+ * correctly in content.
+ *
+ * Now the server owns them. Content arrives, the rows are rebuilt from it in one
+ * transaction, and there is no second opinion about what a line costs.
+ *
+ * Content with no items array leaves the rows untouched: a caller that says
+ * nothing about the lines must not wipe them. An EMPTY array is different — it
+ * says there are no lines — and clears them.
+ *
+ * Never throws. A quote that saved should not be reported as failed because its
+ * rows could not be rewritten; the tradie's work is safe in content either way,
+ * and the backfill script can repair the rows later.
+ */
+async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> {
+  try {
+    const rows = quoteItemRowsFromContent(content);
+    if (rows === null) return;
+    await storage.replaceQuoteItems(quoteId, rows);
+  } catch (err) {
+    console.error(`[quote ${quoteId}] could not rebuild quote_items:`, err);
+  }
+}
+
   app.post(api.quotes.create.path, requireAuth, async (req: any, res) => {
     try {
       const input = api.quotes.create.input.parse(verifiedQuoteBody(req.body));
       const quote = await storage.createQuote({ ...input, userId: req.userId });
+      await syncQuoteItems(quote.id, (input as any).content);
       res.status(201).json(quote);
     } catch (err) {
       res.status(400).json({ message: "Validation error" });
@@ -588,6 +665,9 @@ function verifiedQuoteBody(body: any): any {
       }
 
       const quote = await storage.updateQuote(quoteId, input, req.userId);
+      // Before the response, and before the Xero hook below — that builds its
+      // line items from these rows, so it must not read the previous set.
+      await syncQuoteItems(quoteId, (input as any).content);
       res.json(quote);
 
       // Auto-create Xero invoice when a quote is first accepted
@@ -666,8 +746,11 @@ function reconcileQuoteContent(quote: any): any {
       const item = await storage.createQuoteItem({
         quoteId: quote.id,
         description: req.body.description,
-        quantity: Number(req.body.quantity),
-        price: String(req.body.price),
+        // Both numeric columns now, and drizzle wants numeric as a string.
+        // num() first so "1.5" from an older client survives as 1.5 rather than
+        // being coerced to an integer on the way in — which is the whole bug.
+        quantity: String(num(req.body.quantity) || 1),
+        price: String(num(req.body.price)),
       });
       res.status(201).json(item);
     } catch (err) {
@@ -676,7 +759,19 @@ function reconcileQuoteContent(quote: any): any {
   });
 
   app.delete("/api/quotes/items/:id", requireAuth, async (req: any, res) => {
-    await storage.deleteQuoteItem(Number(req.params.id));
+    // This took an id and deleted it. Any signed-in user could walk the sequence
+    // and delete another tradie's line items off their quotes.
+    //
+    // 404 rather than 403 for someone else's row, deliberately: a 403 confirms
+    // the id exists and belongs to somebody, which hands an attacker a way to map
+    // the table by probing. "Not found" is true from this caller's point of view.
+    const item = await storage.getQuoteItem(Number(req.params.id));
+    if (!item?.quoteId) return res.status(404).json({ message: "Item not found" });
+
+    const quote = await storage.getQuote(item.quoteId, req.userId);
+    if (!quote) return res.status(404).json({ message: "Item not found" });
+
+    await storage.deleteQuoteItem(item.id);
     res.json({ ok: true });
   });
 
@@ -947,12 +1042,17 @@ CRITICAL RULES — follow these exactly:
 
       messages.push({ role: "system", content: systemPrompt });
 
-      // Learn from past quotes — inject recent accepted/sent quotes as few-shot examples
+      // Learn from past quotes — recent ones the customer engaged with, as few-shot
+      // examples. "invoiced" belongs here and was missing: a quote that reached an
+      // invoice is the strongest evidence there is of a price a customer actually
+      // paid, which is exactly what makes a good example. getQuotes already
+      // returns newest first.
       try {
         const allQuotes = await storage.getQuotes(req.userId);
+        const PRICED_WELL = ["invoiced", "accepted", "sent"];
         const pastQuotes = allQuotes
-          .filter(q => q.content && (q.status === "accepted" || q.status === "sent"))
-          .slice(0, 5); // up to 5 most recent successful quotes
+          .filter(q => q.content && PRICED_WELL.includes(String(q.status)))
+          .slice(0, 5);
 
         if (pastQuotes.length > 0) {
           const examples = pastQuotes.map(q => {
@@ -1227,47 +1327,47 @@ CRITICAL RULES — follow these exactly:
 
   // ─── Portal Routes (Public — no auth) ───
 
-  app.get("/api/portal/:token", async (req, res) => {
+  app.get("/api/portal/:token", portalReadRateLimit, async (req, res) => {
     try {
       const { token } = req.params;
       const quote = await storage.getQuoteByShareToken(token);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
-      const items = await storage.getQuoteItems(quote.id);
       let customer = null;
       if (quote.customerId) {
         customer = await storage.getCustomer(quote.customerId) || null;
       }
 
-      const feedback = await storage.getPortalFeedback(quote.id);
-
       // Fetch business details from the quote owner's settings
       const s = quote.userId ? await storage.getUserSettings(quote.userId) : undefined;
-      const businessName = s?.businessName || "";
-      const businessPhone = s?.phone || "";
-      const businessEmail = s?.email || "";
-      const businessAddress = s?.address || "";
 
-      res.json({
+      // Built from an allow-list rather than by stripping the row. The raw quote
+      // carries each line's unitCost, lines[].cost, markupPct and the lock state,
+      // so the customer link was handing out the tradie's cost prices and margin.
+      // The quote_items rows and the feedback list are gone too: Portal.tsx reads
+      // its line items out of content, and only ever WRITES feedback.
+      res.json(buildPortalView({
         quote,
         customer,
-        items,
-        feedback,
-        businessName,
-        businessPhone,
-        businessEmail,
-        businessAddress,
-      });
+        business: { name: s?.businessName, phone: s?.phone, email: s?.email, address: s?.address },
+      }));
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to load portal" });
     }
   });
 
-  app.post("/api/portal/:token/accept", async (req, res) => {
+  app.post("/api/portal/:token/accept", portalWriteRateLimit, async (req, res) => {
     try {
       const { token } = req.params;
       const quote = await storage.getQuoteByShareToken(token);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      // The status was set unconditionally, so a customer could accept a quote
+      // that had already been declined or invoiced — and accepting fires the Xero
+      // invoice hook below, which would have raised a second invoice for a job
+      // already billed.
+      const closed = portalClosedReason(quote.status);
+      if (closed) return res.status(409).json({ message: closed });
 
       const { preferredDate } = req.body;
       const updates: any = { status: "accepted" };
@@ -1289,11 +1389,15 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.post("/api/portal/:token/decline", async (req, res) => {
+  app.post("/api/portal/:token/decline", portalWriteRateLimit, async (req, res) => {
     try {
       const { token } = req.params;
       const quote = await storage.getQuoteByShareToken(token);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      // Same guard as accept: an invoiced job must not be declinable.
+      const closed = portalClosedReason(quote.status);
+      if (closed) return res.status(409).json({ message: closed });
 
       await storage.updateQuote(quote.id, { status: "declined" });
       res.json({ ok: true });
@@ -1302,15 +1406,23 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
-  app.post("/api/portal/:token/feedback", async (req, res) => {
+  app.post("/api/portal/:token/feedback", portalWriteRateLimit, async (req, res) => {
     try {
       const { token } = req.params;
       const quote = await storage.getQuoteByShareToken(token);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
-      const { message } = req.body;
-      if (!message || typeof message !== "string") {
+      // Unauthenticated and uncapped: anyone with the link could have written an
+      // arbitrarily large row.
+      const raw = req.body?.message;
+      if (!raw || typeof raw !== "string" || !raw.trim()) {
         return res.status(400).json({ message: "Message is required" });
+      }
+      const message = raw.trim();
+      if (message.length > PORTAL_FEEDBACK_MAX) {
+        return res.status(400).json({
+          message: `Please keep your message under ${PORTAL_FEEDBACK_MAX} characters.`,
+        });
       }
 
       const feedback = await storage.createPortalFeedback({ quoteId: quote.id, message });
@@ -2401,9 +2513,10 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       const jobTitle = parsed?.jobTitle || `Quote #`;
       const includeGST = parsed?.includeGST ?? true;
 
+      // See the note in autoCreateXeroInvoice: numeric arrives as a string.
       const lineItems = items.map((i) => ({
         description: i.description,
-        quantity: i.quantity,
+        quantity: num(i.quantity),
         unitPrice: parseFloat(String(i.price)),
       }));
       if (lineItems.length === 0) {

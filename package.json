@@ -15,7 +15,7 @@
     "cap:android": "npx cap open android",
     "cap:run:android": "npx cap run android",
     "cap:run:ios": "npx cap run ios",
-    "test": "node --import tsx --test shared/*.test.ts"
+    "test": "node --import tsx --test shared/*.test.ts server/lib/*.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",
