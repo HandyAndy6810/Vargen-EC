@@ -20,9 +20,6 @@ import { Sparkles } from "lucide-react-native";
 import { clearUnfinishedDrafts } from "@/hooks/use-auth";
 import { saveCachedUser } from "@/lib/auth-cache";
 
-const DEV_BYPASS = process.env.EXPO_PUBLIC_DEV_BYPASS === 'true';
-
-
 export default function LoginScreen() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -170,7 +167,7 @@ export default function LoginScreen() {
             By continuing, you agree to our Terms of Service and Privacy Policy.
           </Text>
 
-          {(__DEV__ || DEV_BYPASS) && (
+          {__DEV__ && (
             <TouchableOpacity
               onPress={async () => {
                 try {
