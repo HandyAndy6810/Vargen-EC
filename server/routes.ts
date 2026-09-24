@@ -6,6 +6,7 @@ import { api } from "../shared/routes";
 import { isValidISODate, toISODate } from "../shared/mobile-types";
 import { round2, totalsFor, gstRateFor } from "../shared/money";
 import { checkLinePrice } from "../shared/price-sanity";
+import { buildPortalView } from "./lib/portal-view";
 import { z } from "zod";
 import OpenAI, { toFile } from "openai";
 
@@ -1233,31 +1234,24 @@ CRITICAL RULES — follow these exactly:
       const quote = await storage.getQuoteByShareToken(token);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
-      const items = await storage.getQuoteItems(quote.id);
       let customer = null;
       if (quote.customerId) {
         customer = await storage.getCustomer(quote.customerId) || null;
       }
 
-      const feedback = await storage.getPortalFeedback(quote.id);
-
       // Fetch business details from the quote owner's settings
       const s = quote.userId ? await storage.getUserSettings(quote.userId) : undefined;
-      const businessName = s?.businessName || "";
-      const businessPhone = s?.phone || "";
-      const businessEmail = s?.email || "";
-      const businessAddress = s?.address || "";
 
-      res.json({
+      // Built from an allow-list rather than by stripping the row. The raw quote
+      // carries each line's unitCost, lines[].cost, markupPct and the lock state,
+      // so the customer link was handing out the tradie's cost prices and margin.
+      // The quote_items rows and the feedback list are gone too: Portal.tsx reads
+      // its line items out of content, and only ever WRITES feedback.
+      res.json(buildPortalView({
         quote,
         customer,
-        items,
-        feedback,
-        businessName,
-        businessPhone,
-        businessEmail,
-        businessAddress,
-      });
+        business: { name: s?.businessName, phone: s?.phone, email: s?.email, address: s?.address },
+      }));
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to load portal" });
     }
