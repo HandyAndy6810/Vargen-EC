@@ -56,8 +56,10 @@ function makeStyles(c: Colors, isDark: boolean) {
     daySubhead: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2 },
     hourLine: { position: 'absolute', left: 0, right: 12, height: 1, borderTopWidth: 1, borderTopColor: c.lineSoft, borderStyle: 'dashed', overflow: 'visible' as any },
     hourLabel: { position: 'absolute', left: -44, top: -8, fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, width: 38, textAlign: 'right' },
-    nowLabel: { width: 40, textAlign: 'right', paddingRight: 4, fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
-    nowDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.orange, marginRight: -4, zIndex: 2 },
+    // Exactly the gutter width, so the dot begins where the timeline does rather
+    // than sitting half in the labels.
+    nowLabel: { width: 44, textAlign: 'right', paddingRight: 6, fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+    nowDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.orange, marginLeft: -5, marginRight: -4, zIndex: 2 },
     nowBar: { flex: 1, height: 2, backgroundColor: c.orange, borderRadius: 999 },
     eventTime: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 0.8, textTransform: 'uppercase' },
     eventTitle: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.2, marginTop: 1 },
@@ -483,11 +485,19 @@ export default function CalendarScreen() {
       >
         <View style={{ paddingLeft: 52, paddingRight: 8, position: 'relative', overflow: 'visible' }}>
           <View style={{ paddingLeft: 44, position: 'relative', overflow: 'visible' }}>
-            {Array.from({ length: END_H - START_H + 1 }, (_, i) => (
-              <View key={i} style={[s.hourLine, { top: i * HOUR_H }]}>
-                <Text style={s.hourLabel}>{START_H + i}:00</Text>
-              </View>
-            ))}
+            {Array.from({ length: END_H - START_H + 1 }, (_, i) => {
+              // The current-time label lives in the same gutter as the hour labels,
+              // so near the top of an hour the two print over each other — at 12:49
+              // "12:49" landed on top of "13:00". The hour it would collide with is
+              // dropped instead: the now label already says what time it is, and two
+              // overlapping times are worse than one.
+              const hidden = showNow && Math.abs(nowTop - i * HOUR_H) < 12;
+              return (
+                <View key={i} style={[s.hourLine, { top: i * HOUR_H }]}>
+                  {hidden ? null : <Text style={s.hourLabel}>{START_H + i}:00</Text>}
+                </View>
+              );
+            })}
 
             {showNow && (
               <View style={{ position: 'absolute', left: -44, right: 12, top: nowTop, flexDirection: 'row', alignItems: 'center', zIndex: 10 }}>

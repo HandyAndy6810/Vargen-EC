@@ -187,10 +187,24 @@ export const api = {
       method: 'GET' as const,
       path: '/api/portal/:token',
       responses: {
+        // Deliberately NOT the quote row. A customer holding a share link gets an
+        // allow-listed view — see server/lib/portal-view.ts. The quote_items rows
+        // and the feedback list are not sent at all; the portal reads its line
+        // items from `content` and only ever writes feedback.
         200: z.object({
-          quote: z.custom<typeof quotes.$inferSelect>(),
-          customer: z.custom<typeof customers.$inferSelect>().nullable(),
-          items: z.array(z.custom<typeof quoteItems.$inferSelect>()),
+          quote: z.object({
+            id: z.number(),
+            status: z.string().nullable(),
+            totalAmount: z.string(),
+            createdAt: z.union([z.string(), z.date()]).nullable(),
+            content: z.string().nullable(),
+          }),
+          customer: z.object({
+            name: z.string(),
+            email: z.string().nullable(),
+            phone: z.string().nullable(),
+            address: z.string().nullable(),
+          }).nullable(),
           businessName: z.string(),
           businessPhone: z.string(),
           businessEmail: z.string(),

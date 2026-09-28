@@ -1,12 +1,20 @@
 export * from "./models/auth";
 export * from "./models/chat";
 
-import { pgTable, text, serial, integer, boolean, timestamp, numeric, varchar, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, numeric, varchar, index, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 import { users } from "./models/auth";
 
+// Indexes are declared in this file, not created by hand in the database.
+// db:push diffs the live schema against this one and drops anything it does not
+// find here — so an index added with a console would survive exactly until the
+// next publish. Every foreign key the app filters or joins on is covered:
+// user_id on the per-tradie tables, quote_id where rows hang off a quote, and
+// share_token for the portal lookup (a plain index, not unique: adding a unique
+// constraint to a populated table can make push prompt, and the tokens come from
+// crypto.randomUUID()).
 export const customers = pgTable("customers", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id),
@@ -17,7 +25,9 @@ export const customers = pgTable("customers", {
   notes: text("notes").default(""),
   xeroContactId: text("xero_contact_id"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  customers_user_id_idx: index("customers_user_id_idx").on(t.userId),
+}));
 
 export const jobs = pgTable("jobs", {
   id: serial("id").primaryKey(),
@@ -40,7 +50,9 @@ export const jobs = pgTable("jobs", {
   invoiceId: integer("invoice_id").references((): AnyPgColumn => invoices.id),
   completionData: text("completion_data"), // JSON: { actualHours, extraNotes, completedAt, estimatedHours, quotedAmount }
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  jobs_user_id_idx: index("jobs_user_id_idx").on(t.userId),
+}));
 
 export const quotes = pgTable("quotes", {
   id: serial("id").primaryKey(),
@@ -57,15 +69,26 @@ export const quotes = pgTable("quotes", {
   followUpSchedule: text("follow_up_schedule"), // JSON: [{ day, status, sentAt? }]
   sentAt: timestamp("sent_at"), // set when status first changes to "sent"
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  quotes_user_id_idx: index("quotes_user_id_idx").on(t.userId),
+  quotes_share_token_idx: index("quotes_share_token_idx").on(t.shareToken),
+}));
 
 export const quoteItems = pgTable("quote_items", {
   id: serial("id").primaryKey(),
   quoteId: integer("quote_id").references(() => quotes.id),
   description: text("description").notNull(),
-  quantity: integer("quantity").notNull(),
+  // NUMERIC, not integer. As an integer, any fractional quantity failed to insert
+  // — "0.5 hr cleanup", "1.5 hr labour" — and the mobile save loop swallowed the
+  // error, so the line vanished from the rows while staying in content. The AI
+  // prompt asks for at least fifteen minutes of cleanup, so this hit most AI
+  // quotes. Drizzle returns numeric as a STRING: read it through num() from
+  // shared/money.ts, never with a bare arithmetic operator.
+  quantity: numeric("quantity", { precision: 10, scale: 2 }).notNull(),
   price: numeric("price").notNull(),
-});
+}, (t) => ({
+  quote_items_quote_id_idx: index("quote_items_quote_id_idx").on(t.quoteId),
+}));
 
 export const invoices = pgTable("invoices", {
   id: serial("id").primaryKey(),
@@ -92,14 +115,19 @@ export const invoices = pgTable("invoices", {
   xeroInvoiceId: text("xero_invoice_id"),
   xeroInvoiceNumber: text("xero_invoice_number"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  invoices_user_id_idx: index("invoices_user_id_idx").on(t.userId),
+  invoices_quote_id_idx: index("invoices_quote_id_idx").on(t.quoteId),
+}));
 
 export const portalFeedback = pgTable("portal_feedback", {
   id: serial("id").primaryKey(),
   quoteId: integer("quote_id").references(() => quotes.id),
   message: text("message").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  portal_feedback_quote_id_idx: index("portal_feedback_quote_id_idx").on(t.quoteId),
+}));
 
 // Relations
 export const customersRelations = relations(customers, ({ many }) => ({
@@ -236,7 +264,9 @@ export const priceBook = pgTable("price_book", {
   category: text("category"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (t) => ({
+  price_book_user_id_idx: index("price_book_user_id_idx").on(t.userId),
+}));
 
 export const insertPriceBookSchema = createInsertSchema(priceBook).omit({ id: true, createdAt: true, updatedAt: true });
 export type PriceBookItem = typeof priceBook.$inferSelect;
@@ -253,7 +283,9 @@ export const receipts = pgTable("receipts", {
   items: text("items"), // JSON array of { description, amount }
   jobId: integer("job_id"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  receipts_user_id_idx: index("receipts_user_id_idx").on(t.userId),
+}));
 
 export const insertReceiptSchema = createInsertSchema(receipts).omit({ id: true, createdAt: true });
 export type Receipt = typeof receipts.$inferSelect;
@@ -303,7 +335,9 @@ export const customerMessages = pgTable("customer_messages", {
   body: text("body").notNull(),
   readAt: timestamp("read_at"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (t) => ({
+  customer_messages_user_id_idx: index("customer_messages_user_id_idx").on(t.userId),
+}));
 
 export const insertCustomerMessageSchema = createInsertSchema(customerMessages).omit({ id: true, createdAt: true });
 export type CustomerMessage = typeof customerMessages.$inferSelect;

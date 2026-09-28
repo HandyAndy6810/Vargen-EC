@@ -257,8 +257,41 @@ export class DatabaseStorage implements IStorage {
     return newItem;
   }
 
+  /** One row by id, so a caller can check who owns the quote it belongs to. */
+  async getQuoteItem(id: number): Promise<QuoteItem | undefined> {
+    const [row] = await db.select().from(quoteItems).where(eq(quoteItems.id, id));
+    return row;
+  }
+
   async deleteQuoteItem(id: number): Promise<void> {
     await db.delete(quoteItems).where(eq(quoteItems.id, id));
+  }
+
+  /**
+   * Replace a quote's rows wholesale, in ONE transaction.
+   *
+   * The mobile app used to do this as N sequential HTTP deletes followed by N
+   * posts, each able to fail on its own and each failure swallowed — so a quote
+   * could be left with some old rows, some new, or none. Inside a transaction it
+   * is all or nothing.
+   */
+  async replaceQuoteItems(
+    quoteId: number,
+    rows: { description: string; quantity: number; price: number }[],
+  ): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.delete(quoteItems).where(eq(quoteItems.quoteId, quoteId));
+      if (rows.length === 0) return;
+      await tx.insert(quoteItems).values(
+        rows.map((r) => ({
+          quoteId,
+          description: r.description,
+          // Both numeric columns; drizzle wants them as strings.
+          quantity: String(r.quantity),
+          price: String(r.price),
+        })),
+      );
+    });
   }
 
   // ── Invoices ──────────────────────────────────────────────────────────

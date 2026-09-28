@@ -26,7 +26,7 @@ Legend: `[ ]` untested · `[P]` pass · `[F]` fail · `[-]` not applicable / not
 
 | Date | Build / commit | Who | Result |
 |---|---|---|---|
-| | | | |
+| 19–22 Sep 2026 | 7b8a7c5 build + 59503ec server | Andrew | §5 deposits PASS, §7 PDF PASS, §8 GST PASS, §13 mostly PASS. Findings below. |
 
 ---
 
@@ -83,24 +83,41 @@ Legend: `[ ]` untested · `[P]` pass · `[F]` fail · `[-]` not applicable / not
 - [ ] Due date can be set and shows on the saved invoice
 - [ ] Save, reopen, edit — changes survive
 
-## 5. Deposits and balances — **never yet verified end to end**
+## 5. Deposits and balances — **VERIFIED 22 Sep 2026**
 
-On one accepted quote, in this order:
+Passed on quote 25 ($4,840): two $2,420 part-invoices reconciling to $4,840.00
+exactly, GST split proportionally ($2,200 + $220), the quote flipping to
+`invoiced` at exactly the right point, and the over-invoicing guard refusing a
+third invoice. Confirmed against the database rows, not the screen.
 
-- [ ] Deposit 50%: Review says "Billing 50% — $X now" with the remainder underneath
-- [ ] Saved deposit invoice total is **half the quote**, not the full amount
-- [ ] It carries a DEPOSIT marker
-- [ ] The quote stays **accepted**, not invoiced
-- [ ] Balance on the same quote bills **exactly the remainder**
-- [ ] The quote now flips to **invoiced**
-- [ ] A fixed dollar deposit (not a percentage) bills that exact amount
+Re-check these if the invoice flow changes:
 
-## 6. Payments
+- [P] Deposit 50%: Review says "Billing 50% — $X now" with the remainder underneath
+- [P] Saved deposit invoice total is **half the quote**, not the full amount
+- [P] It carries a DEPOSIT marker
+- [P] The quote stays **accepted** until fully billed, not invoiced on the first part
+- [P] Balance on the same quote bills **exactly the remainder**
+- [P] The quote flips to **invoiced** only once the whole value is billed
+- [P] Billing more than the job is worth is refused
+- [P] A fixed dollar deposit (not a percentage) bills that exact amount (INV-0021, $1,000 on quote 27)
 
-- [ ] Record a full payment — invoice goes to paid
-- [ ] Record a partial payment — invoice goes to partial, amount received shows
-- [ ] The number pad accepts the amount properly
-- [ ] Invoices tab Outstanding **drops by what was paid**, not the full invoice
+**A note on testing this:** a quote keeps its invoices. Check what is already
+billed against a quote before testing a deposit on it, or the guard will refuse
+the second one and look like a bug — which is exactly what happened here.
+
+## 6. Payments — server side VERIFIED 22 Sep 2026
+
+Driven over the API against the deployed server, confirmed in the database:
+marking paid set the status and the date; $1,000 of a $5,000 invoice went to
+`partial` with paidAmount 1000 and no paid date; the remaining $4,000 took it to
+`paid` with paidAmount 5000 exactly and a server-set date. That last one is the
+branch that used to throw "toISOString is not a function".
+
+- [P] Record a full payment — invoice goes to paid
+- [P] Record a partial payment — invoice goes to partial, amount received shows
+- [P] A partial payment that completes the invoice flips it to paid
+- [ ] The number pad accepts the amount properly *(UI, still needs a build)*
+- [ ] Invoices tab Outstanding **drops by what was paid**, not the full invoice *(UI)*
 - [ ] An invoice past its due date shows as overdue
 
 ## 7. PDF and sending
@@ -122,6 +139,28 @@ For each: check the figures on the page, not just that a page appears.
 - [ ] Turn GST off in settings: **no GST line anywhere**, total = subtotal
 - [ ] PDF matches in both states
 - [ ] Turn it back on afterwards
+
+## 8b. Ownership — another user cannot touch your data
+
+Deleting a quote line took only an id, with no check on who owned it. To verify by
+hand you need two accounts; `curl` is easier than the app.
+
+```bash
+API=https://vargon-ec--andrewyoukhana.replit.app
+# Sign in as account A and note one of your quote item ids
+curl -s -c /tmp/a.jar -X POST "$API/api/login" -H 'Content-Type: application/json' \
+  -d '{"username":"A@example.com","password":"..."}' -o /dev/null
+curl -s -b /tmp/a.jar "$API/api/quotes/<A_QUOTE_ID>/items"
+
+# Sign in as account B and try to delete A's row
+curl -s -c /tmp/b.jar -X POST "$API/api/login" -H 'Content-Type: application/json' \
+  -d '{"username":"B@example.com","password":"..."}' -o /dev/null
+curl -s -b /tmp/b.jar -X DELETE "$API/api/quotes/items/<A_ITEM_ID>" -w "\nHTTP %{http_code}\n"
+```
+
+- [ ] B gets **HTTP 404** (not 403 — a 403 would confirm the row exists)
+- [ ] A's row is **still there** when A refetches
+- [ ] A can still delete their own row
 
 ## 9. Customers
 
