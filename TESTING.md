@@ -27,6 +27,7 @@ Legend: `[ ]` untested · `[P]` pass · `[F]` fail · `[-]` not applicable / not
 | Date | Build / commit | Who | Result |
 |---|---|---|---|
 | 19–22 Sep 2026 | 7b8a7c5 build + 59503ec server | Andrew | §5 deposits PASS, §7 PDF PASS, §8 GST PASS, §13 mostly PASS. Findings below. |
+| 28–29 Sep 2026 | f7fd953 server (no new build) | Andrew | Audit PR #131 deployed. Portal leak and portal accept guard PASS over the API; db:push applied on production; quote_items backfill run, all 28 quotes' rows reconcile to their totals. |
 
 ---
 
@@ -223,10 +224,7 @@ you expected.
 
 ## Known gaps — not bugs, don't re-report
 
-- `quote_items.quantity` is a whole-number column, so the rows round fractional
-  quantities. Display reads from the content JSON instead, so this is invisible —
-  but the rows themselves are lossy.
 - No "Declined" filter on the quotes tab; declined quotes appear only under All.
-- `app/ai-chat.tsx` and `CreateAllSheet.tsx` are unreachable and pending deletion.
+- `CreateAllSheet.tsx` is unreachable and pending deletion.
 - Free Replit hosting expires around 10 Oct 2026; the backend goes down then unless
   moved. The database is already independent of Replit.
