@@ -182,18 +182,37 @@ curl -s -b /tmp/b.jar -X DELETE "$API/api/quotes/items/<A_ITEM_ID>" -w "\nHTTP %
 
 ## 11. Receipts
 
-- [ ] Profile → Receipts opens
+Scanning needs the `AI_VISION_MODEL` secret on Replit; without it, use "Enter
+manually instead".
+
+- [ ] Home → Receipt quick action opens the scanner
 - [ ] Scan a receipt — the total and date come out right
-- [ ] Attach it to a job and it counts toward that job's cost
 - [ ] A blurry or odd receipt fails **clearly**, rather than saving a wrong figure
+- [ ] Pick a job before saving — the receipts list shows "Job: …" on it
+- [ ] Job page → Costs lists that receipt, and the total adds up
+- [ ] Job page → Add receipt opens the scanner already linked, and saving returns to the job
+- [ ] Open a receipt, change its job (or set "No job") — it moves off the old job's Costs
+- [ ] Complete the job — Profit check's Materials equals the Costs total
 
 ## 12. Settings
 
-- [ ] Business details: logo upload, ABN, address all save and persist
-- [ ] Bank details save and appear on an invoice PDF
-- [ ] Labour rate and markup defaults feed a new quote
-- [ ] Payment terms change the due date on a new invoice
-- [ ] Working hours, service area, reminders, notifications all save
+- [ ] Profile shows only: Business profile, Quotes & invoices, Quote style,
+      Receipts & expenses, AI quoting, Price book, Follow-up reminders,
+      Integrations, Appearance, Home widgets, Sign out
+- [ ] Business profile: name read-only; business fields, ABN and bank save and persist
+- [ ] A BSB that isn't 6 digits is refused
+- [ ] Logo: pick, use initials, remove — each saves immediately, and pressing Save
+      afterwards does **not** undo it
+- [ ] The pencil on the profile header opens Business profile
+- [ ] Bank details appear on an invoice PDF; an invoice's "add bank details" opens Business profile
+- [ ] Quotes & invoices: payment terms change the due date on a new invoice
+- [ ] GST is set **only** in Quotes & invoices; AI quoting has no GST switch
+- [ ] AI quoting: call-out fee **off** → no call-out line on a new AI quote;
+      **on** at $X → exactly one call-out line at $X
+- [ ] Labour rate and markup feed a new quote
+- [ ] Follow-up reminders: turn on, send a quote, and it appears in Calendar → Outreach on the chosen day
+- [ ] Sending a follow-up then tapping "Yes, sent" does **not** email the customer a second message
+- [ ] Integrations: Xero and Stripe both show "Coming soon", nothing to tap
 - [ ] Dark mode — walk the whole app, no white-on-white or black-on-black
 - [ ] Home widgets can be toggled and reordered
 
@@ -226,5 +245,10 @@ you expected.
 
 - No "Declined" filter on the quotes tab; declined quotes appear only under All.
 - `CreateAllSheet.tsx` is unreachable and pending deletion.
+- Hidden from Profile until built: working hours, service area, notifications,
+  SMS templates, subscription. Their screens still exist but nothing reads what
+  they save.
+- Xero can't be connected yet (see Integrations). It needs rebuilding around
+  invoices first, because it invoices the whole quote on acceptance.
 - Free Replit hosting expires around 10 Oct 2026; the backend goes down then unless
   moved. The database is already independent of Replit.
