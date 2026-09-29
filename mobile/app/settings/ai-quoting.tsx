@@ -100,8 +100,8 @@ export default function AiQuotingScreen() {
           <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
         </TouchableOpacity>
         <View style={s.titleWrap}>
-          <Text style={s.eyebrow}>AI & Automations</Text>
-          <Text style={s.title}>AI Quoting</Text>
+          <Text style={s.eyebrow}>Pricing</Text>
+          <Text style={s.title}>AI quoting</Text>
         </View>
         <TouchableOpacity style={s.saveBtn} onPress={handleSave} activeOpacity={0.7} disabled={update.isPending}>
           {update.isPending ? <ActivityIndicator size="small" color="#fff" /> : <Save size={18} color="#fff" strokeWidth={2.2} />}

@@ -26,9 +26,6 @@ function makeStyles(c: Colors) {
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingBottom: 14 },
     chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
     chipLabel: { fontSize: 13, fontFamily: 'Manrope_700Bold' },
-    channelRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 14, paddingBottom: 14 },
-    channelBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
-    channelLabel: { fontSize: 13, fontFamily: 'Manrope_700Bold' },
     hint: { fontSize: 11, color: c.muted, fontFamily: 'Manrope_500Medium', marginTop: 6, paddingHorizontal: 2 },
   });
 }
@@ -54,7 +51,6 @@ export default function RemindersScreen() {
   useEffect(() => { setEnabled(serverEnabled); }, [serverEnabled]);
 
   const days: number[] = (() => { try { return JSON.parse(settings?.followUpDays ?? '[3,7,14]'); } catch { return [3, 7, 14]; } })();
-  const channel = settings?.followUpChannel ?? 'sms';
 
   const save = (patch: object) => {
     update.mutate(patch as any, {
@@ -75,19 +71,19 @@ export default function RemindersScreen() {
           <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
         </TouchableOpacity>
         <View style={s.titleWrap}>
-          <Text style={s.eyebrow}>AI & Automations</Text>
-          <Text style={s.title}>Reminders</Text>
+          <Text style={s.eyebrow}>Follow-ups</Text>
+          <Text style={s.title}>Follow-up reminders</Text>
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
         <View style={s.group}>
-          <Text style={s.groupLabel}>Follow-ups</Text>
+          <Text style={s.groupLabel}>Sent quotes</Text>
           <View style={s.card}>
             <View style={s.row}>
               <View style={{ flex: 1 }}>
-                <Text style={s.rowLabel}>Automatic follow-ups</Text>
-                <Text style={s.rowSub}>Chase unpaid invoices and overdue quotes</Text>
+                <Text style={s.rowLabel}>Remind me to follow up</Text>
+                <Text style={s.rowSub}>On quotes the customer hasn't answered</Text>
               </View>
               <Switch
                 value={enabled}
@@ -97,17 +93,17 @@ export default function RemindersScreen() {
               />
             </View>
           </View>
-          <Text style={s.hint}>When enabled, customers receive a polite nudge at the intervals below.</Text>
+          <Text style={s.hint}>Due follow-ups show up in Calendar → Outreach. You send each one yourself from your phone — nothing goes to a customer without you.</Text>
         </View>
 
         {enabled && (
           <>
             <View style={s.group}>
-              <Text style={s.groupLabel}>Send reminders after</Text>
+              <Text style={s.groupLabel}>Remind me after</Text>
               <View style={s.card}>
                 <View style={[s.row, { paddingBottom: 8 }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.rowLabel}>Days overdue</Text>
+                    <Text style={s.rowLabel}>Days since the quote was sent</Text>
                     <Text style={s.rowSub}>Select all that apply</Text>
                   </View>
                 </View>
@@ -129,30 +125,6 @@ export default function RemindersScreen() {
               </View>
             </View>
 
-            <View style={s.group}>
-              <Text style={s.groupLabel}>Channel</Text>
-              <View style={s.card}>
-                <View style={[s.row, { paddingBottom: 8 }]}>
-                  <Text style={s.rowLabel}>Send reminders via</Text>
-                </View>
-                <View style={s.channelRow}>
-                  {(['sms', 'email'] as const).map(ch => {
-                    const active = channel === ch;
-                    return (
-                      <TouchableOpacity
-                        key={ch}
-                        style={[s.channelBtn, { backgroundColor: active ? c.orange : c.paperDeep, borderColor: active ? c.orange : c.lineSoft }]}
-                        onPress={() => save({ followUpChannel: ch })}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[s.channelLabel, { color: active ? '#fff' : c.ink }]}>{ch === 'sms' ? 'SMS' : 'Email'}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-              <Text style={s.hint}>SMS reminders require Twilio to be configured in your account settings.</Text>
-            </View>
           </>
         )}
       </ScrollView>
