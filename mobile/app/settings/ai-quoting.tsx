@@ -45,7 +45,6 @@ export default function AiQuotingScreen() {
     markupPercent: '15',
     callOutFee: '80',
     callOutFeeEnabled: false,
-    includeGST: true,
   });
 
   useEffect(() => {
@@ -56,7 +55,6 @@ export default function AiQuotingScreen() {
         markupPercent: String(settings.markupPercent ?? 15),
         callOutFee: String(settings.callOutFee ?? 80),
         callOutFeeEnabled: settings.callOutFeeEnabled ?? false,
-        includeGST: settings.includeGST ?? true,
       });
     }
   }, [settings]);
@@ -67,7 +65,6 @@ export default function AiQuotingScreen() {
     update.mutate({
       tradeType: next.tradeType,
       callOutFeeEnabled: next.callOutFeeEnabled,
-      includeGST: next.includeGST,
     }, { onError: () => showAlert('Error', 'Could not save.') });
   };
 
@@ -79,7 +76,6 @@ export default function AiQuotingScreen() {
         markupPercent: parseInt(form.markupPercent, 10) || 15,
         callOutFee: parseInt(form.callOutFee, 10) || 80,
         callOutFeeEnabled: form.callOutFeeEnabled,
-        includeGST: form.includeGST,
       });
       router.back();
     } catch {
@@ -201,24 +197,11 @@ export default function AiQuotingScreen() {
           </View>
         </View>
 
-        {/* GST */}
+        {/* GST is set once, in Quotes & invoices. It used to have a switch here
+            too, and this screen's Save sent its copy back — so saving your rates
+            could quietly undo a GST change made on the other screen. */}
         <View style={s.group}>
-          <Text style={s.groupLabel}>Tax</Text>
-          <View style={s.card}>
-            <View style={s.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.rowLabel}>Include GST</Text>
-                <Text style={s.rowSub}>Add 10% GST to all AI-generated quotes</Text>
-              </View>
-              <Switch
-                value={form.includeGST}
-                onValueChange={(v) => autoSave({ includeGST: v })}
-                trackColor={{ false: c.lineSoft, true: c.orange }}
-                thumbColor="#fff"
-              />
-            </View>
-          </View>
-          <Text style={s.hint}>Tap Save to apply pricing changes to future AI quotes.</Text>
+          <Text style={s.hint}>Tap Save to apply pricing changes to future AI quotes. GST is set in Quotes & invoices.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
