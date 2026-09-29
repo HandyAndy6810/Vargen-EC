@@ -147,7 +147,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCustomer(id: number, userId: string): Promise<void> {
-    await db.delete(customers).where(and(eq(customers.id, id), eq(customers.userId, userId)));
+    // Their message log goes with them — the app promises "all their contact
+    // history" is removed — and it has to go first: the messages point at the
+    // customer, so deleting the customer alone failed on any customer who had one.
+    await db.transaction(async (tx) => {
+      await tx.delete(customerMessages).where(and(eq(customerMessages.customerId, id), eq(customerMessages.userId, userId)));
+      await tx.delete(customers).where(and(eq(customers.id, id), eq(customers.userId, userId)));
+    });
   }
 
   // ── Jobs ─────────────────────────────────────────────────────────────

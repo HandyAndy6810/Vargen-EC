@@ -385,7 +385,7 @@ export default function HomeScreen() {
                 <TouchableOpacity style={s.startBtn} onPress={() => router.push(`/jobs/${nextJob.id}`)}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Play size={14} color="#fff" strokeWidth={2.5} />
-                    <Text style={s.startBtnText}>Start job</Text>
+                    <Text style={s.startBtnText}>Open job</Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity

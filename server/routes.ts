@@ -426,6 +426,13 @@ export async function registerRoutes(
       if (linkedQuotes.length > 0) {
         return res.status(409).json({ message: `Customer has ${linkedQuotes.length} linked quote(s). Remove or reassign them first.` });
       }
+      // Invoices too. They weren't checked, and the database refuses to delete a
+      // customer an invoice points at — so this failed as a bare 500 instead of
+      // saying why. An invoice is a money record; it must block the delete.
+      const linkedInvoices = (await storage.getInvoices(req.userId)).filter(i => i.customerId === id);
+      if (linkedInvoices.length > 0) {
+        return res.status(409).json({ message: `Customer has ${linkedInvoices.length} invoice(s). Invoices are kept for your records, so this customer can't be deleted.` });
+      }
       await storage.deleteCustomer(id, req.userId);
       res.json({ ok: true });
     } catch (err) {
@@ -2152,23 +2159,11 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       quoteId: quoteId ?? null,
     });
 
-    // If channel is 'sms' and Twilio is configured, try to send
-    if (channel === "sms" && direction === "out") {
-      const customer = await storage.getCustomer(customerId, req.userId);
-      const phone = customer?.phone;
-      const accountSid = process.env.TWILIO_ACCOUNT_SID;
-      const authToken  = process.env.TWILIO_AUTH_TOKEN;
-      const from       = process.env.TWILIO_PHONE_NUMBER;
-      if (phone && accountSid && authToken && from) {
-        try {
-          const twilio = (await import('twilio')).default;
-          await twilio(accountSid, authToken).messages.create({ body: body.trim(), from, to: phone });
-        } catch (smsErr) {
-          console.error("SMS send failed:", smsErr);
-          // Don't fail the request — message is still saved
-        }
-      }
-    }
+    // A log entry, not a send. This used to text the customer through Twilio
+    // whenever an outgoing SMS was logged — but the log is where you record a
+    // text you already sent from your phone, so a configured Twilio sent it a
+    // second time, and an unconfigured one silently didn't. Sending is the
+    // phone's job, as it is for follow-ups.
 
     res.status(201).json(msg);
   });
