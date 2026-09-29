@@ -441,7 +441,7 @@ export default function ProfileScreen() {
               <Text style={s.name}>{fullName}</Text>
               <Text style={s.biz}>{user?.email || ''}</Text>
             </View>
-            <TouchableOpacity style={s.editBtn} activeOpacity={0.7} onPress={() => router.push('/settings/edit-profile' as any)}>
+            <TouchableOpacity style={s.editBtn} activeOpacity={0.7} onPress={() => router.push('/settings/business-details' as any)}>
               <Pencil size={18} color={c.ink} strokeWidth={2.1} />
             </TouchableOpacity>
           </View>

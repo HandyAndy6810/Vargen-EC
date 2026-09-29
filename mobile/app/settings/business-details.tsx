@@ -1,10 +1,13 @@
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Save } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
+import { useAuth } from '@/hooks/use-auth';
+import { showAlert } from '@/lib/dialogs';
+import { LogoPicker } from '@/components/LogoPicker';
 
 function makeStyles(c: Colors) {
   return StyleSheet.create({
@@ -22,6 +25,7 @@ function makeStyles(c: Colors) {
     label: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
     input: { fontSize: 14, fontFamily: 'Manrope_500Medium', color: c.ink, padding: 0 },
     hint: { fontSize: 11, color: c.muted, fontFamily: 'Manrope_500Medium', marginTop: 6, paddingHorizontal: 2 },
+    readOnly: { fontSize: 14, fontFamily: 'Manrope_500Medium', color: c.mutedHi },
   });
 }
 
@@ -31,7 +35,6 @@ const IDENTITY_FIELDS = [
   { key: 'phone', label: 'Phone', placeholder: '0400 000 000', keyboardType: 'phone-pad' },
   { key: 'email', label: 'Email', placeholder: 'you@example.com', keyboardType: 'email-address' },
   { key: 'address', label: 'Address', placeholder: '123 Street, Suburb NSW 2000' },
-  { key: 'logoUrl', label: 'Logo URL', placeholder: 'https://example.com/logo.png', keyboardType: 'url' },
 ] as const;
 
 const BANK_FIELDS = [
@@ -44,14 +47,19 @@ const BANK_FIELDS = [
 type FormKeys = (typeof IDENTITY_FIELDS[number] | typeof BANK_FIELDS[number])['key'];
 type Form = Record<FormKeys, string>;
 
+// The one place for who you are and how you get paid. This used to be spread
+// over Edit profile (a subset of these fields), Bank details (the bank fields
+// again) and Invoice settings (the logo) — three screens editing the same
+// settings, so which one "won" depended on which you saved last.
 export default function BusinessDetailsScreen() {
   const { colors: c } = useTheme();
   const s = makeStyles(c);
+  const { user } = useAuth() as any;
   const { data: settings, isLoading } = useSettings();
   const update = useUpdateSettings();
 
   const [form, setForm] = useState<Form>({
-    businessName: '', abn: '', phone: '', email: '', address: '', logoUrl: '',
+    businessName: '', abn: '', phone: '', email: '', address: '',
     bankName: '', bsb: '', accountNumber: '', accountName: '',
   });
 
@@ -63,7 +71,6 @@ export default function BusinessDetailsScreen() {
         phone: settings.phone || '',
         email: settings.email || '',
         address: settings.address || '',
-        logoUrl: settings.logoUrl || '',
         bankName: settings.bankName || '',
         bsb: settings.bsb || '',
         accountNumber: settings.accountNumber || '',
@@ -73,13 +80,19 @@ export default function BusinessDetailsScreen() {
   }, [settings]);
 
   const handleSave = async () => {
+    const rawBsb = form.bsb.replace(/\D/g, '');
+    if (rawBsb.length > 0 && rawBsb.length !== 6) {
+      showAlert('Invalid BSB', 'BSB must be 6 digits (e.g. 062-001)');
+      return;
+    }
+    const trimmed = Object.fromEntries(
+      Object.entries(form).map(([k, v]) => [k, v.trim()]),
+    ) as Form;
     try {
-      await update.mutateAsync(form);
+      await update.mutateAsync(trimmed);
       router.back();
     } catch {
-      const msg = 'Could not save changes. Please try again.';
-      if (Platform.OS === 'web') window.alert(msg);
-      else Alert.alert('Error', msg);
+      showAlert('Error', 'Could not save changes. Please try again.');
     }
   };
 
@@ -118,18 +131,36 @@ export default function BusinessDetailsScreen() {
         </TouchableOpacity>
         <View style={s.titleWrap}>
           <Text style={s.eyebrow}>Business</Text>
-          <Text style={s.title}>Business Details</Text>
+          <Text style={s.title}>Business profile</Text>
         </View>
         <TouchableOpacity style={s.saveBtn} onPress={handleSave} activeOpacity={0.7} disabled={update.isPending}>
           {update.isPending ? <ActivityIndicator size="small" color="#fff" /> : <Save size={18} color="#fff" strokeWidth={2.2} />}
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 130 }}>
         <View style={s.group}>
-          <Text style={s.groupLabel}>Identity</Text>
+          <Text style={s.groupLabel}>Your name</Text>
+          <View style={[s.card, { backgroundColor: c.paperDeep }]}>
+            <View style={s.row}>
+              <Text style={s.label}>Name</Text>
+              <Text style={s.readOnly}>{`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || '—'}</Text>
+            </View>
+          </View>
+          <Text style={s.hint}>Read-only · To change your name, contact support.</Text>
+        </View>
+
+        <View style={s.group}>
+          <Text style={s.groupLabel}>Business</Text>
           <View style={s.card}>{renderFields(IDENTITY_FIELDS)}</View>
-          <Text style={s.hint}>Your logo URL appears on invoices and quotes sent to customers.</Text>
+          <Text style={s.hint}>Shown on every quote and invoice you send.</Text>
+        </View>
+
+        <View style={s.group}>
+          <Text style={s.groupLabel}>Logo</Text>
+          <LogoPicker />
+          <Text style={s.hint}>Saves as soon as you change it. Crop to a wide (4:2) shape for best results.</Text>
         </View>
 
         <View style={s.group}>
@@ -138,6 +169,7 @@ export default function BusinessDetailsScreen() {
           <Text style={s.hint}>Bank details appear on invoices so customers can pay via direct transfer.</Text>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
