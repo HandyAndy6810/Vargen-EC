@@ -620,7 +620,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
           tradeType: settings?.tradeType || undefined,
           labourRate: typeof settings?.labourRate === 'number' ? settings.labourRate : undefined,
           markupPercent: typeof settings?.markupPercent === 'number' ? settings.markupPercent : undefined,
-          callOutFee: typeof settings?.callOutFee === 'number' ? settings.callOutFee : undefined,
+          callOutFee: settings?.callOutFeeEnabled && typeof settings?.callOutFee === 'number' ? settings.callOutFee : undefined,
           includeGST,
         }),
       });

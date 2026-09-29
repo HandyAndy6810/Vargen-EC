@@ -922,7 +922,12 @@ Do not invent details. If unsure of a field, use an empty string.`;
 
       const labourRateNum = typeof labourRate === "number" && labourRate > 0 ? labourRate : null;
       const markupNum = typeof markupPercent === "number" ? markupPercent : 0;
-      const callOutNum = typeof callOutFee === "number" && callOutFee > 0 ? callOutFee : 0;
+      // The app sent the fee whether or not its switch was on, and the fee has a
+      // default of $80 — so every AI quote got a call-out line the tradie had
+      // switched off. The saved switch is authoritative, which also covers builds
+      // already on phones that still send the fee unconditionally.
+      const callOutSettings = await storage.getUserSettings(req.userId);
+      const callOutNum = callOutSettings?.callOutFeeEnabled && typeof callOutFee === "number" && callOutFee > 0 ? callOutFee : 0;
       const gstEnabled = includeGST === true;
 
       let pricingInstructions = "";
