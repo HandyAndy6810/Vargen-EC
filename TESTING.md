@@ -168,17 +168,32 @@ curl -s -b /tmp/b.jar -X DELETE "$API/api/quotes/items/<A_ITEM_ID>" -w "\nHTTP %
 - [ ] Create a customer with only a name
 - [ ] Call and text buttons open the right app
 - [ ] Quote from a customer's page prefills them
-- [ ] Customer's history shows their quotes, invoices and jobs
-- [ ] Edit and delete
+- [ ] Customer page → History lists their quotes, invoices and jobs; Billed / Paid / Owing add up
+- [ ] Tapping a history row opens that quote, invoice or job
+- [ ] Edit a customer; changes survive reopening
+- [ ] Delete a customer with **no** quotes, jobs or invoices — gone, contact log included
+- [ ] Delete a customer **with** an invoice — refused, with a message saying why (not "Internal server error")
+- [ ] Compose → send by text, answer "Yes, sent" — it appears in the customer's contact log
+- [ ] Contact log → log an outgoing text — it's recorded, and the customer is **not** texted by the app
 
 ## 10. Jobs and calendar
 
 - [ ] Create a job, set a date and time
 - [ ] It appears on the calendar at the right time
 - [ ] Link a quote and an invoice to a job; reopen — links survived
-- [ ] Complete a job
+- [ ] Complete a job linked to a quote, entering hours — Profit check shows Quoted (ex-GST),
+      Actual cost and a **Real profit figure**, not "—"
+- [ ] Delete a job a quote is linked to — the job goes, the quote stays
 - [ ] Calendar → Outreach lists overdue quotes and overdue invoices
 - [ ] Sending a follow-up opens Messages prefilled
+
+## 10b. Deleting money records
+
+- [ ] Delete a quote that has an invoice — refused, and the quote **still has all its lines**
+- [ ] Delete an invoice that fully billed its quote — the quote goes back to **Accepted** and
+      can be invoiced again
+- [ ] Home, Invoices tab and a customer's History show the **same** outstanding figures,
+      part-paid invoices included
 
 ## 11. Receipts
 
