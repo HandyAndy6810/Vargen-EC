@@ -13,8 +13,6 @@ import OpenAI, { toFile } from "openai";
 
 // Integration imports
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
-import { registerChatRoutes } from "./replit_integrations/chat";
-import { registerAudioRoutes } from "./replit_integrations/audio";
 import { registerImageRoutes } from "./replit_integrations/image";
 import multer from "multer";
 import fs from "fs";
@@ -32,7 +30,7 @@ async function autoSyncCustomerToXero(userId: string, customerId: number) {
   try {
     const token = await getValidToken(userId);
     if (!token) return;
-    const customer = await storage.getCustomer(customerId);
+    const customer = await storage.getCustomer(customerId, userId);
     if (!customer) return;
     const result = await upsertXeroContact(token.accessToken, token.tenantId, customer);
     if (result.contactId !== customer.xeroContactId) {
@@ -49,16 +47,16 @@ async function autoCreateXeroInvoice(userId: string, quoteId: number) {
     const token = await getValidToken(userId);
     if (!token) return;
 
-    const quote = await storage.getQuote(quoteId);
+    const quote = await storage.getQuote(quoteId, userId);
     if (!quote || quote.xeroInvoiceId) return;
 
     // Ensure customer is synced first
     let xeroContactId = quote.customerId
-      ? (await storage.getCustomer(quote.customerId))?.xeroContactId
+      ? (await storage.getCustomer(quote.customerId, userId))?.xeroContactId
       : null;
 
     if (!xeroContactId && quote.customerId) {
-      const syncResult = await syncCustomerToXero(token, quote.customerId);
+      const syncResult = await syncCustomerToXero(token, quote.customerId, userId);
       xeroContactId = syncResult?.contactId ?? null;
     }
 
@@ -112,12 +110,12 @@ async function syncPaymentToXero(userId: string, invoiceId: number, amount: numb
   try {
     const token = await getValidToken(userId);
     if (!token) return;
-    const invoice = await storage.getInvoice(invoiceId);
+    const invoice = await storage.getInvoice(invoiceId, userId);
     if (!invoice) return;
 
     // Path A: invoice was generated from a quote — use the quote's Xero invoice ID
     if (invoice.quoteId) {
-      const quote = await storage.getQuote(invoice.quoteId);
+      const quote = await storage.getQuote(invoice.quoteId, userId);
       if (!quote?.xeroInvoiceId) return;
       await recordXeroPayment(token.accessToken, token.tenantId, quote.xeroInvoiceId, amount, date);
       console.log(`Xero payment recorded for invoice ${invoiceId} (Xero: ${quote.xeroInvoiceId})`);
@@ -130,10 +128,10 @@ async function syncPaymentToXero(userId: string, invoiceId: number, amount: numb
       // Resolve Xero contact ID for this customer
       let xeroContactId: string | null = null;
       if (invoice.customerId) {
-        const customer = await storage.getCustomer(invoice.customerId);
+        const customer = await storage.getCustomer(invoice.customerId, userId);
         xeroContactId = customer?.xeroContactId ?? null;
         if (!xeroContactId && customer) {
-          const synced = await syncCustomerToXero(token, invoice.customerId);
+          const synced = await syncCustomerToXero(token, invoice.customerId, userId);
           xeroContactId = synced?.contactId ?? null;
         }
       }
@@ -181,9 +179,10 @@ async function syncPaymentToXero(userId: string, invoiceId: number, amount: numb
 /** Helper to sync a customer to Xero and persist the contactId. */
 async function syncCustomerToXero(
   token: { accessToken: string; tenantId: string },
-  customerId: number
+  customerId: number,
+  userId: string,
 ): Promise<{ contactId: string } | null> {
-  const customer = await storage.getCustomer(customerId);
+  const customer = await storage.getCustomer(customerId, userId);
   if (!customer) return null;
   const result = await upsertXeroContact(token.accessToken, token.tenantId, customer);
   await storage.updateCustomer(customerId, { xeroContactId: result.contactId });
@@ -327,11 +326,43 @@ export async function registerRoutes(
   };
 
   // 2. Register Integration Routes
-  registerChatRoutes(app);
-  registerAudioRoutes(app);
+  // The Replit chat and voice-chat integrations registered /api/conversations
+  // with no sign-in check: anyone could list and read every conversation, delete
+  // them, and run AI on the app's key by posting messages. Nothing in the app or
+  // the web client called them (the AI chat screen was deleted), so they're gone.
   registerImageRoutes(app, requireAuth);
 
   // 3. Register Application Routes
+
+  // Records point at each other by id — a quote at its customer, a job at its
+  // quote, an invoice at its customer — and those ids arrive in the request
+  // body. Nothing checked they belonged to the caller, and several places later
+  // load the referenced record by id alone. The worst was the portal: create a
+  // quote pointing at any customer id, send it, open its link, and the page
+  // showed that customer's name, email, phone and address — another tradie's
+  // customer, and customer ids are sequential. So every foreign id in a body is
+  // checked here, before anything is written. Returns the first field that
+  // isn't the caller's (routes answer 404, as the other ownership checks do),
+  // or null when they all are. Absent and null ids are fine: they unlink.
+  async function unownedRef(
+    body: Record<string, unknown> | undefined | null,
+    userId: string,
+  ): Promise<string | null> {
+    if (!body) return null;
+    const checks: [string, (id: number) => Promise<unknown>][] = [
+      ["customerId", (id) => storage.getCustomer(id, userId)],
+      ["jobId",      (id) => storage.getJob(id, userId)],
+      ["quoteId",    (id) => storage.getQuote(id, userId)],
+      ["invoiceId",  (id) => storage.getInvoice(id, userId)],
+    ];
+    for (const [field, load] of checks) {
+      const raw = body[field];
+      if (raw === undefined || raw === null || raw === "" || raw === 0) continue;
+      const id = Number(raw);
+      if (!Number.isInteger(id) || id <= 0 || !(await load(id))) return field;
+    }
+    return null;
+  }
 
   // Customers
   app.get(api.customers.list.path, requireAuth, async (req: any, res) => {
@@ -416,6 +447,10 @@ export async function registerRoutes(
 
   app.post(api.jobs.create.path, requireAuth, async (req: any, res) => {
     try {
+      {
+        const bad = await unownedRef(req.body, req.userId);
+        if (bad) return res.status(404).json({ message: "Not found" });
+      }
       const input = api.jobs.create.input.parse(req.body);
       const job = await storage.createJob({ ...input, userId: req.userId });
       res.status(201).json(job);
@@ -433,6 +468,10 @@ export async function registerRoutes(
       const id = Number(req.params.id);
       const existing = await storage.getJob(id, req.userId);
       if (!existing) return res.status(404).json({ message: "Job not found" });
+      {
+        const bad = await unownedRef(req.body, req.userId);
+        if (bad) return res.status(404).json({ message: "Not found" });
+      }
       const input = api.jobs.update.input.parse(req.body);
       const job = await storage.updateJob(id, input, req.userId);
       res.json(job);
@@ -605,6 +644,10 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
 
   app.post(api.quotes.create.path, requireAuth, async (req: any, res) => {
     try {
+      {
+        const bad = await unownedRef(req.body, req.userId);
+        if (bad) return res.status(404).json({ message: "Not found" });
+      }
       const input = api.quotes.create.input.parse(verifiedQuoteBody(req.body));
       const quote = await storage.createQuote({ ...input, userId: req.userId });
       await syncQuoteItems(quote.id, (input as any).content);
@@ -628,6 +671,10 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
   app.patch(api.quotes.update.path, requireAuth, async (req: any, res) => {
     try {
       const quoteId = Number(req.params.id);
+      {
+        const bad = await unownedRef(req.body, req.userId);
+        if (bad) return res.status(404).json({ message: "Not found" });
+      }
       const input = api.quotes.update.input.parse(verifiedQuoteBody(req.body));
       const prevQuote = await storage.getQuote(quoteId, req.userId);
 
@@ -1340,7 +1387,8 @@ CRITICAL RULES — follow these exactly:
 
       let customer = null;
       if (quote.customerId) {
-        customer = await storage.getCustomer(quote.customerId) || null;
+        // Scoped to the quote's owner: an id that isn't theirs shows no customer.
+        customer = (quote.userId && await storage.getCustomer(quote.customerId, quote.userId)) || null;
       }
 
       // Fetch business details from the quote owner's settings
@@ -1559,6 +1607,10 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
 
   app.post("/api/invoices", requireAuth, async (req: any, res) => {
     try {
+      {
+        const bad = await unownedRef(req.body, req.userId);
+        if (bad) return res.status(404).json({ message: "Not found" });
+      }
       const {
         customerId, customerName, items: rawItems, dueDate, notes, includeGST, status,
         quoteId: rawQuoteId, invoiceType: rawInvoiceType, depositPercent, depositAmount,
@@ -1791,6 +1843,10 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       const id = Number(req.params.id);
       const existing = await storage.getInvoice(id, req.userId);
       if (!existing) return res.status(404).json({ message: "Invoice not found" });
+      {
+        const bad = await unownedRef(req.body, req.userId);
+        if (bad) return res.status(404).json({ message: "Not found" });
+      }
 
       // Partial payment handling: if payAmount is provided, accumulate and decide status
       let patchBody = { ...req.body };
@@ -1909,7 +1965,7 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       // Send email when invoice is first marked as sent
       const justSent = req.body.status === "sent" && existing.status !== "sent";
       if (justSent && existing.customerId) {
-        const customer = await storage.getCustomer(existing.customerId);
+        const customer = await storage.getCustomer(existing.customerId, req.userId);
         if (customer?.email) {
           const s = await storage.getUserSettings(req.userId);
           const businessName = s?.businessName || "Your Tradie";
@@ -1937,7 +1993,7 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       if (!invoice) return res.status(404).json({ message: "Invoice not found" });
       if (!invoice.customerId) return res.status(400).json({ message: "Invoice has no customer" });
 
-      const customer = await storage.getCustomer(invoice.customerId);
+      const customer = await storage.getCustomer(invoice.customerId, req.userId);
       if (!customer?.email) return res.status(400).json({ message: "Customer has no email address" });
 
       const s = await storage.getUserSettings(req.userId);
@@ -2080,6 +2136,11 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
     const customerId = parseInt(req.params.customerId);
     if (isNaN(customerId)) return res.status(400).json({ message: "Invalid customer id" });
     const { body, direction = "out", channel = "note", jobId, quoteId } = req.body || {};
+    // The customer is in the URL, so check it with the body's job and quote. An
+    // unowned customer here also meant an SMS to another tradie's customer.
+    if (await unownedRef({ customerId, jobId, quoteId }, req.userId)) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
     if (!body?.trim()) return res.status(400).json({ message: "body is required" });
     const msg = await storage.createCustomerMessage({
       userId: req.userId,
@@ -2093,7 +2154,7 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
 
     // If channel is 'sms' and Twilio is configured, try to send
     if (channel === "sms" && direction === "out") {
-      const customer = await storage.getCustomer(customerId);
+      const customer = await storage.getCustomer(customerId, req.userId);
       const phone = customer?.phone;
       const accountSid = process.env.TWILIO_ACCOUNT_SID;
       const authToken  = process.env.TWILIO_AUTH_TOKEN;
@@ -2125,7 +2186,15 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       if (!to || !subject || !body) {
         return res.status(400).json({ message: "to, subject and body are required" });
       }
-      await sendCustomerEmail(to, subject, body);
+      // Only to one of your own customers. Any address was accepted before, and
+      // sign-up is open, so anyone could send whatever they liked from the app's
+      // email domain — an open relay that gets a sending account suspended.
+      const recipient = String(to).trim().toLowerCase();
+      const mine = await storage.getCustomers(req.userId);
+      if (!mine.some((c) => (c.email || "").trim().toLowerCase() === recipient)) {
+        return res.status(403).json({ message: "You can only email your own customers" });
+      }
+      await sendCustomerEmail(recipient, subject, body);
       res.json({ ok: true });
     } catch (error: any) {
       console.error("Send email error:", error);
@@ -2484,10 +2553,10 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
     try {
       // Ensure customer has a Xero contact
       let xeroContactId = quote.customerId
-        ? (await storage.getCustomer(quote.customerId))?.xeroContactId
+        ? (await storage.getCustomer(quote.customerId, req.userId))?.xeroContactId
         : null;
       if (!xeroContactId && quote.customerId) {
-        const syncResult = await syncCustomerToXero(token, quote.customerId);
+        const syncResult = await syncCustomerToXero(token, quote.customerId, req.userId);
         xeroContactId = syncResult?.contactId ?? null;
       }
       if (!xeroContactId) return res.status(400).json({ message: "Customer must be synced to Xero first" });
@@ -2611,7 +2680,7 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       return res.json({ url: invoice.stripePaymentLinkUrl, id: invoice.stripePaymentLinkId });
     }
 
-    const customer = invoice.customerId ? await storage.getCustomer(invoice.customerId) : null;
+    const customer = invoice.customerId ? await storage.getCustomer(invoice.customerId, req.userId) : null;
     const amountCents = Math.round(parseFloat(String(invoice.totalAmount)) * 100);
     const description = `Invoice ${invoice.invoiceNumber}`;
 
@@ -2642,28 +2711,30 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
     const sig = req.headers['stripe-signature'] as string;
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+    // Only a verified event from Stripe may mark an invoice paid. This used to
+    // fall back to trusting the parsed body whenever the secret was unset OR the
+    // request simply left the signature header off — so one POST from anywhere,
+    // with any invoice id in its metadata, marked that invoice paid.
+    if (!webhookSecret || !stripe) return res.status(503).json({ message: "Stripe webhooks are not configured" });
+    if (!sig) return res.status(400).json({ message: "Missing Stripe signature" });
+
     let event: any;
-    if (webhookSecret && sig) {
-      try {
-        // Must use req.rawBody (the raw buffer) — constructEvent needs the original
-        // bytes to verify the HMAC signature. req.body is already a parsed object.
-        event = stripe!.webhooks.constructEvent((req as any).rawBody, sig, webhookSecret);
-      } catch (err: any) {
-        return res.status(400).json({ message: `Webhook signature verification failed: ${err.message}` });
-      }
-    } else {
-      // Dev mode: no webhook secret — body is already parsed by express.json
-      event = req.body;
+    try {
+      // Must use req.rawBody (the raw buffer) — constructEvent needs the original
+      // bytes to verify the HMAC signature. req.body is already a parsed object.
+      event = stripe.webhooks.constructEvent((req as any).rawBody, sig, webhookSecret);
+    } catch (err: any) {
+      return res.status(400).json({ message: `Webhook signature verification failed: ${err.message}` });
     }
 
     if (event?.type === 'checkout.session.completed') {
       const invoiceId = parseInt(event.data?.object?.metadata?.invoiceId);
       const webhookUserId = event.data?.object?.metadata?.userId || null;
       if (!isNaN(invoiceId)) {
-        // Scope lookup to the userId stored in metadata — falls back to unscoped if missing
-        const invoice = webhookUserId
-          ? await storage.getInvoice(invoiceId, webhookUserId)
-          : await storage.getInvoice(invoiceId);
+        // Both ids come from the metadata we attached when creating the payment
+        // link, and the event is signed, so they are ours. Still require the
+        // user id: an event without one is not one we created.
+        const invoice = webhookUserId ? await storage.getInvoice(invoiceId, webhookUserId) : undefined;
         if (invoice && invoice.status !== 'paid') {
           const paidDate = new Date();
           await storage.updateInvoice(invoiceId, {
@@ -2727,7 +2798,24 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
 
   // POST /api/square/webhook — mark invoice paid on payment.completed
   app.post("/api/square/webhook", async (req, res) => {
+    // Square signs each notification: base64 HMAC-SHA256 of the notification URL
+    // followed by the raw body, keyed with the subscription's signature key. The
+    // key was read here but never checked, so any POST could mark any invoice
+    // paid. Unconfigured, the endpoint now refuses rather than trusting.
     const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+    const notificationUrl = process.env.SQUARE_WEBHOOK_URL;
+    if (!signatureKey || !notificationUrl) {
+      return res.status(503).json({ message: "Square webhooks are not configured" });
+    }
+    const sig = String(req.headers["x-square-hmacsha256-signature"] || "");
+    const raw: Buffer | undefined = (req as any).rawBody;
+    const expected = raw
+      ? crypto.createHmac("sha256", signatureKey).update(notificationUrl + raw.toString("utf8")).digest("base64")
+      : "";
+    const valid = sig.length > 0 && sig.length === expected.length
+      && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+    if (!valid) return res.status(401).json({ message: "Invalid Square signature" });
+
     try {
       const event = req.body;
       if (event?.type === 'payment.completed' || event?.type === 'payment_link.completed') {
@@ -2755,31 +2843,11 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
     res.json({ received: true });
   });
 
-  // ── Twilio SMS ─────────────────────────────────────────────────────────────
-
-  // POST /api/sms/send  — send an SMS to a customer phone number
-  app.post("/api/sms/send", requireAuth, async (req, res) => {
-
-    const { to, message } = req.body as { to?: string; message?: string };
-    if (!to || !message) return res.status(400).json({ message: "to and message are required" });
-
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken  = process.env.TWILIO_AUTH_TOKEN;
-    const from       = process.env.TWILIO_PHONE_NUMBER;
-
-    if (!accountSid || !authToken || !from) {
-      return res.status(503).json({ message: "SMS is not configured. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to environment." });
-    }
-
-    try {
-      const twilio = (await import('twilio')).default;
-      const client = twilio(accountSid, authToken);
-      const msg = await client.messages.create({ body: message, from, to });
-      res.json({ ok: true, sid: msg.sid });
-    } catch (err: any) {
-      res.status(500).json({ message: err.message || "Failed to send SMS" });
-    }
-  });
+  // POST /api/sms/send was here: it texted any number on the app's Twilio
+  // account, for any signed-in user, with no rate limit, and nothing in the app
+  // called it. Removed rather than locked down. Messages to a customer go
+  // through /api/customers/:customerId/messages, which checks the customer is
+  // yours.
 
   // ── Receipts ──────────────────────────────────────────────────────────
 

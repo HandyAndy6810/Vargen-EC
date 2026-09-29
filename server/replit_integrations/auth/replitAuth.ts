@@ -154,7 +154,9 @@ export async function setupAuth(app: Express) {
   }
 
   // Forgot password — generate reset token and (stub) send email
-  app.post("/api/auth/forgot-password", async (req, res) => {
+  // Rate-limited like login: each call can send an email, so unlimited it was a
+  // way to flood someone's inbox with reset mail from the app's domain.
+  app.post("/api/auth/forgot-password", authRateLimit, async (req, res) => {
     try {
       const { email } = req.body || {};
       if (!email) {
@@ -177,7 +179,7 @@ export async function setupAuth(app: Express) {
   });
 
   // Reset password — validate token and set new password
-  app.post("/api/auth/reset-password", async (req, res) => {
+  app.post("/api/auth/reset-password", authRateLimit, async (req, res) => {
     try {
       const { token, password } = req.body || {};
       if (!token || !password) {
