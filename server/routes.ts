@@ -504,6 +504,19 @@ export async function registerRoutes(
     }
   });
 
+  // A quote's value before GST: the stored subtotal when there is one, otherwise
+  // the total less its GST, otherwise the total (a quote with GST off).
+  function quoteExGst(q: { totalAmount: unknown; content: string | null }): number | null {
+    let c: any = null;
+    try { c = q.content ? JSON.parse(q.content) : null; } catch { /* use the total */ }
+    const sub = Number(c?.subtotal);
+    if (Number.isFinite(sub) && sub > 0) return round2(sub);
+    const total = Number(q.totalAmount);
+    if (!Number.isFinite(total)) return null;
+    const gst = Number(c?.gstAmount);
+    return round2(Number.isFinite(gst) && gst > 0 ? total - gst : total);
+  }
+
   app.get('/api/jobs/:id/reconciliation', requireAuth, async (req: any, res) => {
     try {
       const id = Number(req.params.id);
@@ -521,7 +534,18 @@ export async function registerRoutes(
         // malformed completion data — treat as unavailable
       }
 
-      const quotedAmount = completion.quotedAmount != null ? Number(completion.quotedAmount) : null;
+      // What the job was quoted at, before GST — GST is collected for the ATO, not
+      // earned, so profit has to be measured against the ex-GST figure. The
+      // complete-job screen always saved quotedAmount as null, so realProfit
+      // could never be worked out and every Profit check showed "—". Fall back
+      // to the job's linked quote (or a quote linked to this job).
+      let quotedAmount = completion.quotedAmount != null ? Number(completion.quotedAmount) : null;
+      if (quotedAmount == null) {
+        const linked = job.quoteId
+          ? await storage.getQuote(job.quoteId, req.userId)
+          : (await storage.getQuotes(req.userId)).find(q => q.jobId === id);
+        if (linked) quotedAmount = quoteExGst(linked);
+      }
       const estimatedHours = completion.estimatedHours != null ? Number(completion.estimatedHours) : null;
       const actualHours = completion.actualHours != null ? Number(completion.actualHours) : null;
 
@@ -833,6 +857,12 @@ function reconcileQuoteContent(quote: any): any {
     try {
       const quote = await storage.getQuote(Number(req.params.id), req.userId);
       if (!quote) return res.status(404).json({ message: "Quote not found" });
+      const billed = await storage.getInvoicesByQuoteId(quote.id);
+      if (billed.some((i) => i.userId === req.userId)) {
+        return res.status(409).json({
+          message: `This quote has ${billed.length} invoice${billed.length === 1 ? '' : 's'}. Delete ${billed.length === 1 ? 'it' : 'them'} first — invoices are kept for your records.`,
+        });
+      }
       await storage.deleteQuote(Number(req.params.id), req.userId);
       res.json({ ok: true });
     } catch (err) {
@@ -2029,6 +2059,20 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       const existing = await storage.getInvoice(id, req.userId);
       if (!existing) return res.status(404).json({ message: "Invoice not found" });
       await storage.deleteInvoice(id, req.userId);
+
+      // Reopen the quote if this invoice was what closed it. "invoiced" allows no
+      // way out, so deleting a mistaken invoice left its quote closed for good —
+      // nothing more could be billed against it.
+      if (existing.quoteId) {
+        const quote = await storage.getQuote(existing.quoteId, req.userId);
+        if (quote?.status === "invoiced") {
+          const remaining = (await storage.getInvoicesByQuoteId(quote.id)).filter((i) => i.userId === req.userId);
+          const billedTotal = round2(remaining.reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0));
+          if (billedTotal < round2(Number(quote.totalAmount) || 0) - 0.01) {
+            await storage.updateQuote(quote.id, { status: "accepted" }, req.userId);
+          }
+        }
+      }
       res.json({ ok: true });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to delete invoice" });
@@ -2043,7 +2087,8 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       const dueFollowUps: any[] = [];
 
       for (const quote of allQuotes) {
-        if (quote.status !== "sent" || !quote.followUpSchedule) continue;
+        // "viewed" is still waiting on the customer — the one most worth chasing.
+        if (!["sent", "viewed"].includes(String(quote.status)) || !quote.followUpSchedule) continue;
         try {
           const schedule = JSON.parse(quote.followUpSchedule);
           const sentDate = (quote as any).sentAt || quote.createdAt;
@@ -2076,7 +2121,7 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
           invoice,
           daysOverdue: Math.floor((now - new Date(invoice.dueDate!).getTime()) / 86_400_000),
           outstanding:
-            (Number(invoice.totalAmount) || 0) - (Number(invoice.paidAmount) || 0),
+            round2((Number(invoice.totalAmount) || 0) - (Number(invoice.paidAmount) || 0)),
         }))
         .filter((row) => row.outstanding > 0)
         .sort((a, b) => b.daysOverdue - a.daysOverdue);

@@ -205,7 +205,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteJob(id: number, userId: string): Promise<void> {
-    await db.delete(jobs).where(and(eq(jobs.id, id), eq(jobs.userId, userId)));
+    // A job is a slot in the diary; the quote and the receipts it gathered are
+    // records in their own right. Quotes point at the job with a foreign key, so
+    // deleting a job a quote was linked to failed outright. Unlink first: the
+    // quote stays, and its receipts become general expenses instead of pointing
+    // at a job that no longer exists.
+    await db.transaction(async (tx) => {
+      await tx.update(quotes).set({ jobId: null }).where(and(eq(quotes.jobId, id), eq(quotes.userId, userId)));
+      await tx.update(receipts).set({ jobId: null }).where(and(eq(receipts.jobId, id), eq(receipts.userId, userId)));
+      await tx.update(customerMessages).set({ jobId: null }).where(and(eq(customerMessages.jobId, id), eq(customerMessages.userId, userId)));
+      await tx.delete(jobs).where(and(eq(jobs.id, id), eq(jobs.userId, userId)));
+    });
   }
 
   // ── Quotes ────────────────────────────────────────────────────────────
@@ -262,8 +272,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteQuote(id: number, userId: string): Promise<void> {
-    await db.delete(quoteItems).where(eq(quoteItems.quoteId, id));
-    await db.delete(quotes).where(and(eq(quotes.id, id), eq(quotes.userId, userId)));
+    // One transaction, ownership checked inside it. This used to delete the line
+    // items first, on their own, by quote id alone — then delete the quote, which
+    // the database refused whenever anything else pointed at it. The error came
+    // back, but the quote had already lost every line. Jobs keep existing with
+    // the link cleared; portal feedback and line items belong to the quote and
+    // go with it. Invoices are refused at the route: they're money records.
+    await db.transaction(async (tx) => {
+      const [owned] = await tx.select({ id: quotes.id }).from(quotes)
+        .where(and(eq(quotes.id, id), eq(quotes.userId, userId)));
+      if (!owned) return;
+      await tx.update(jobs).set({ quoteId: null }).where(and(eq(jobs.quoteId, id), eq(jobs.userId, userId)));
+      await tx.delete(portalFeedback).where(eq(portalFeedback.quoteId, id));
+      await tx.delete(quoteItems).where(eq(quoteItems.quoteId, id));
+      await tx.delete(quotes).where(and(eq(quotes.id, id), eq(quotes.userId, userId)));
+    });
   }
 
   // ── Quote Items ───────────────────────────────────────────────────────
@@ -333,7 +356,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteInvoice(id: number, userId: string): Promise<void> {
-    await db.delete(invoices).where(and(eq(invoices.id, id), eq(invoices.userId, userId)));
+    // A job can point at its invoice, which made this fail for any linked job.
+    await db.transaction(async (tx) => {
+      await tx.update(jobs).set({ invoiceId: null }).where(and(eq(jobs.invoiceId, id), eq(jobs.userId, userId)));
+      await tx.delete(invoices).where(and(eq(invoices.id, id), eq(invoices.userId, userId)));
+    });
   }
 
   async getInvoice(id: number, userId?: string): Promise<Invoice | undefined> {
