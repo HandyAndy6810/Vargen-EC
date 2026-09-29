@@ -19,6 +19,7 @@ import { useQuotes } from '@/hooks/use-quotes';
 import { Plus, Search, Filter } from 'lucide-react-native';
 import { parseQuoteContent } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { isQuoteOverdue } from '@shared/invoice-figures';
 import { LargeTitleHeader, LARGE_TITLE_COLLAPSE } from '@/components/LargeTitleHeader';
 import { hapticSelect } from '@/lib/haptics';
 
@@ -134,13 +135,8 @@ export default function QuotesScreen() {
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
     [allQuotes]
   );
-  const overdueQuotes = sorted.filter((q) => {
-    // sent and viewed are one bucket everywhere else on this screen — a
-    // quote the customer opened must not vanish from overdue chasing
-    if (!['sent', 'viewed'].includes(q.status || '') || !q.expiryDate) return false;
-    const exp = new Date(q.expiryDate);
-    return !isNaN(exp.getTime()) && exp < new Date();
-  });
+  // Sent or viewed and past expiry — shared with Home's pipeline count.
+  const overdueQuotes = sorted.filter((q) => isQuoteOverdue(q));
 
   const filtered = useMemo(() => {
     let list = sorted;

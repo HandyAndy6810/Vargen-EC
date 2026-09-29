@@ -23,6 +23,7 @@ import { useSettings } from '@/hooks/use-settings';
 import { queryClient } from '@/lib/queryClient';
 import { Play, Navigation, MessageCircle, Sparkles, Mic, Users, AlertTriangle, Zap, FileText, ScanLine } from 'lucide-react-native';
 import { quoteTitle } from '@shared/mobile-types';
+import { summariseInvoices, isInvoiceOverdue, invoiceOwing, isQuoteOverdue } from '@shared/invoice-figures';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/dialogs';
 import { SplitActionButton } from '@/components/SplitActionButton';
@@ -77,7 +78,7 @@ function fmtAUD(n: number): string {
 // Static render — the old 28-tick setInterval count-up churned the JS thread
 // on every data refresh for a decorative effect
 function AnimatedNumber({ value, prefix = '$', style }: { value: number; prefix?: string; style?: any }) {
-  const fmt = value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toLocaleString();
+  const fmt = value >= 1000 ? `${(value / 1000).toFixed(1)}k` : Math.round(value).toLocaleString('en-AU');
   return <Text style={style}>{prefix}{fmt}</Text>;
 }
 
@@ -98,7 +99,7 @@ function CyclingPill({ nextJob, pipelineAmt, colors: c, weather }: { nextJob: an
     { icon: weather?.current?.icon || '🌤', label: weatherLabel },
     { icon: '🕐', label: format(now, "EEE d · h:mm a") },
     { icon: '📍', label: nextJob ? nextJob.title.slice(0, 22) : 'No jobs' },
-    { icon: '💰', label: pipelineAmt >= 1000 ? `$${(pipelineAmt / 1000).toFixed(1)}k out` : `$${pipelineAmt} out` },
+    { icon: '💰', label: pipelineAmt >= 1000 ? `$${(pipelineAmt / 1000).toFixed(1)}k out` : `$${Math.round(pipelineAmt)} out` },
   ];
 
   const advance = () => {
@@ -271,7 +272,7 @@ export default function HomeScreen() {
     draft:    allQuotes.filter((q: any) => q.status === 'draft').length,
     sent:     allQuotes.filter((q: any) => q.status === 'sent' || q.status === 'viewed').length,
     accepted: allQuotes.filter((q: any) => q.status === 'accepted').length,
-    overdue:  allQuotes.filter((q: any) => q.status === 'overdue').length,
+    overdue:  allQuotes.filter((q: any) => isQuoteOverdue(q)).length,
   }), [allQuotes]);
 
   const pipelineTotal = allQuotes.filter((q: any) => ['draft', 'sent', 'viewed', 'accepted'].includes(q.status)).length;
@@ -279,25 +280,28 @@ export default function HomeScreen() {
     .filter((q: any) => ['sent', 'viewed', 'accepted'].includes(q.status))
     .reduce((sum: number, q: any) => sum + (Number(q.totalAmount) || 0), 0);
 
-  const totalPaid    = allInvoices.filter((i: any) => i.status === 'paid').reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
-  const totalPending = allInvoices.filter((i: any) => ['sent', 'pending', 'unpaid'].includes(i.status)).reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
-  const totalOverdue = allInvoices.filter((i: any) => i.status === 'overdue').reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
+  // Same rules as the Invoices tab (shared/invoice-figures): what's still owed,
+  // part-paid invoices included, and every dollar received.
+  const invoiceSummary = useMemo(() => summariseInvoices(allInvoices), [allInvoices]);
+  const totalPaid    = invoiceSummary.received;
+  const totalPending = invoiceSummary.current;
+  const totalOverdue = invoiceSummary.overdue;
 
   // Resolve titles here so rows don't re-parse the content blob per render
   const recentQuotes     = useMemo(() => allQuotes.slice(0, 5).map((q: any) => ({ ...q, displayTitle: quoteTitle(q) })), [allQuotes]);
-  const overdueInvoices  = useMemo(() => allInvoices.filter((i: any) => i.status === 'overdue'), [allInvoices]);
-  const pendingInvoices  = useMemo(() => allInvoices.filter((i: any) => ['sent', 'pending', 'unpaid'].includes(i.status)), [allInvoices]);
+  const overdueInvoices  = useMemo(() => allInvoices.filter((i: any) => isInvoiceOverdue(i)), [allInvoices]);
+  const pendingInvoices  = useMemo(() => allInvoices.filter((i: any) => invoiceOwing(i) > 0 && !isInvoiceOverdue(i)), [allInvoices]);
 
   const aiNudge = useMemo(() => {
     if (overdueInvoices.length > 0) {
-      const total = overdueInvoices.reduce((sum: number, i: any) => sum + (Number(i.totalAmount) || 0), 0);
+      const total = invoiceSummary.overdue;
       return `${overdueInvoices.length} overdue invoice${overdueInvoices.length > 1 ? 's' : ''} totalling $${fmtAUD(total)} — worth a follow-up today.`;
     }
     if (pipeline.draft > 2) return `${pipeline.draft} quotes sitting in draft — send them before they go cold.`;
     if (pipeline.accepted > 0) return `${pipeline.accepted} quote${pipeline.accepted > 1 ? 's' : ''} accepted — time to raise an invoice.`;
     if (todayJobs.length > 0) return `${todayJobs.length} job${todayJobs.length > 1 ? 's' : ''} on today — have a good one out there.`;
     return 'Tap the AI rail above to quote a new job in seconds.';
-  }, [overdueInvoices, pipeline, todayJobs]);
+  }, [overdueInvoices, invoiceSummary, pipeline, todayJobs]);
 
   const bladeOrderIds = useMemo<string[] | null>(() => {
     try {
@@ -603,7 +607,7 @@ export default function HomeScreen() {
             </View>
             <View style={s.card}>
               {[...overdueInvoices.slice(0, 2), ...pendingInvoices.slice(0, 1)].map((inv: any, i: number) => {
-                const isOverdue = inv.status === 'overdue';
+                const isOverdue = isInvoiceOverdue(inv);
                 return (
                   <TouchableOpacity
                     key={inv.id ?? i}
@@ -618,7 +622,7 @@ export default function HomeScreen() {
                       <Text style={s.rqTitle} numberOfLines={1}>{inv.customerName || 'Customer'}</Text>
                       <Text style={[s.rqSub, isOverdue && { color: c.orange }]}>{isOverdue ? 'Overdue' : 'Pending'}</Text>
                     </View>
-                    <Text style={[s.rqAmt, { color: isOverdue ? c.orange : c.ink }]}>${fmtAUD(Number(inv.totalAmount || 0))}</Text>
+                    <Text style={[s.rqAmt, { color: isOverdue ? c.orange : c.ink }]}>${fmtAUD(invoiceOwing(inv))}</Text>
                   </TouchableOpacity>
                 );
               })}
