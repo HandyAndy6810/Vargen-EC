@@ -104,6 +104,19 @@ export interface IStorage {
   deleteCustomerMessage(id: number, userId: string): Promise<void>;
 }
 
+/**
+ * An update never changes who owns a record, or its id. The update schemas are
+ * partial copies of the insert schemas, which include userId, and .set() writes
+ * whatever it is given — so a PATCH carrying a userId moved the record into
+ * that account. A quote moved that way showed the other tradie's business name,
+ * logo and ABN on its customer page above content its sender wrote. Stripping
+ * here covers every route, including ones not yet written.
+ */
+function withoutOwnership<T extends Record<string, any>>(patch: T): Omit<T, 'userId' | 'id'> {
+  const { userId: _u, id: _i, ...rest } = patch ?? ({} as T);
+  return rest;
+}
+
 export class DatabaseStorage implements IStorage {
   // ── Customers ───────────────────────────────────────────────────────
   async getCustomers(userId: string): Promise<Customer[]> {
@@ -129,7 +142,7 @@ export class DatabaseStorage implements IStorage {
     const conditions = userId
       ? and(eq(customers.id, id), eq(customers.userId, userId))
       : eq(customers.id, id);
-    const [updated] = await db.update(customers).set(customer).where(conditions).returning();
+    const [updated] = await db.update(customers).set(withoutOwnership(customer)).where(conditions).returning();
     return updated;
   }
 
@@ -181,7 +194,7 @@ export class DatabaseStorage implements IStorage {
     const conditions = userId
       ? and(eq(jobs.id, id), eq(jobs.userId, userId))
       : eq(jobs.id, id);
-    const [updatedJob] = await db.update(jobs).set(job).where(conditions).returning();
+    const [updatedJob] = await db.update(jobs).set(withoutOwnership(job)).where(conditions).returning();
     return updatedJob;
   }
 
@@ -232,7 +245,7 @@ export class DatabaseStorage implements IStorage {
     const conditions = userId
       ? and(eq(quotes.id, id), eq(quotes.userId, userId))
       : eq(quotes.id, id);
-    const [updatedQuote] = await db.update(quotes).set(quote).where(conditions).returning();
+    const [updatedQuote] = await db.update(quotes).set(withoutOwnership(quote)).where(conditions).returning();
     return updatedQuote;
   }
 
@@ -351,7 +364,7 @@ export class DatabaseStorage implements IStorage {
     const conditions = userId
       ? and(eq(invoices.id, id), eq(invoices.userId, userId))
       : eq(invoices.id, id);
-    const [updated] = await db.update(invoices).set(invoice).where(conditions).returning();
+    const [updated] = await db.update(invoices).set(withoutOwnership(invoice)).where(conditions).returning();
     return updated;
   }
 
@@ -511,7 +524,7 @@ export class DatabaseStorage implements IStorage {
 
   async updatePriceBookItem(id: number, userId: string, updates: Partial<InsertPriceBookItem>): Promise<PriceBookItem> {
     const [updated] = await db.update(priceBook)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...withoutOwnership(updates), updatedAt: new Date() })
       .where(and(eq(priceBook.id, id), eq(priceBook.userId, userId)))
       .returning();
     return updated;
@@ -541,7 +554,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateReceipt(id: number, userId: string, updates: Partial<InsertReceipt>): Promise<Receipt> {
     const [updated] = await db.update(receipts)
-      .set(updates)
+      .set(withoutOwnership(updates))
       .where(and(eq(receipts.id, id), eq(receipts.userId, userId)))
       .returning();
     return updated;
