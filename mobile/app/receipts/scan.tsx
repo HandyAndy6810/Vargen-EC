@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '@/lib/dialogs';
@@ -19,6 +19,8 @@ import { ChevronLeft, Camera, ImageIcon, RotateCw, Check } from 'lucide-react-na
 import * as ImagePicker from 'expo-image-picker';
 import { apiRequest } from '@/lib/api';
 import { useCreateReceipt } from '@/hooks/use-receipts';
+import { useEntryId } from '@/hooks/use-entry-params';
+import { JobPickerField } from '@/components/JobPickerField';
 
 
 const CATEGORIES = ['Materials', 'Equipment', 'Fuel', 'Subcontractor', 'Food', 'Other'] as const;
@@ -48,6 +50,17 @@ export default function ScanReceiptScreen() {
   const [category, setCategory] = useState('Other');
   const [notes, setNotes] = useState('');
   const [lineItems, setLineItems] = useState<Array<{ description: string; amount: number }>>([]);
+
+  // Opened from a job's page, the receipt starts linked to that job. The param
+  // can arrive a render late, so adopt it when it does — unless the tradie has
+  // already picked something themselves.
+  const entryJobId = useEntryId('jobId');
+  const [jobId, setJobId] = useState<number | null>(null);
+  const jobTouched = useRef(false);
+  useEffect(() => {
+    if (entryJobId && !jobTouched.current) setJobId(entryJobId);
+  }, [entryJobId]);
+  const chooseJob = (id: number | null) => { jobTouched.current = true; setJobId(id); };
 
   const createReceipt = useCreateReceipt();
 
@@ -138,8 +151,11 @@ export default function ScanReceiptScreen() {
         category: category || undefined,
         notes: notes || undefined,
         items: lineItems.length > 0 ? JSON.stringify(lineItems) : undefined,
+        jobId: jobId ?? undefined,
       });
-      router.replace('/receipts' as any);
+      // Back to the job it was added from; otherwise to the receipts list.
+      if (entryJobId) router.back();
+      else router.replace('/receipts' as any);
     } catch (err: any) {
       const msg = err?.message || 'Could not save receipt. Please try again.';
       showAlert('Save failed', msg);
@@ -256,6 +272,8 @@ export default function ScanReceiptScreen() {
               </Text>
             </View>
           )}
+          <JobPickerField jobId={jobId} onChange={chooseJob} />
+
           {/* Vendor */}
           <View style={s.fieldCard}>
             <Text style={s.fieldLabel}>Vendor / Supplier</Text>

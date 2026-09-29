@@ -22,7 +22,7 @@ type WidgetMeta = {
 
 const WIDGET_META: WidgetMeta[] = [
   { id: 'upnext',       label: 'Up Next',           description: 'Your next scheduled job, front and centre' },
-  { id: 'quickactions', label: 'Quick Actions',     description: 'Follow up, new job, customers' },
+  { id: 'quickactions', label: 'Quick Actions',     description: 'Follow up, add a receipt, customers' },
   { id: 'schedule',     label: 'Today\'s Schedule', description: 'Jobs on today and upcoming' },
   { id: 'outstanding',  label: 'Outstanding',       description: 'Unpaid & overdue invoice totals' },
   { id: 'weather',      label: 'Weather',           description: '7-day forecast + rain warnings' },

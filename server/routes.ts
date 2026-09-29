@@ -2882,6 +2882,18 @@ If you cannot read the image clearly, return your best guess. Always return vali
     }
   });
 
+  // A receipt's job decides which job's profit it counts against, so it has to
+  // be one of the caller's own jobs. Returns null for "no job", the id when the
+  // job is theirs, and undefined when it isn't — which the routes turn into a
+  // 404 rather than a 403, so the response doesn't confirm the job exists.
+  async function ownedReceiptJobId(raw: unknown, userId: string): Promise<number | null | undefined> {
+    if (raw === null || raw === undefined || raw === '') return null;
+    const id = Number(raw);
+    if (!Number.isInteger(id) || id <= 0) return undefined;
+    const job = await storage.getJob(id, userId);
+    return job ? id : undefined;
+  }
+
   app.get("/api/receipts", requireAuth, async (req: any, res) => {
     const list = await storage.getReceipts(req.userId);
     res.json(list);
@@ -2895,6 +2907,9 @@ If you cannot read the image clearly, return your best guess. Always return vali
       if (typeof body.receiptDate === 'string' && body.receiptDate) {
         body.receiptDate = toISODate(body.receiptDate);
       }
+      const jobId = await ownedReceiptJobId(body.jobId, req.userId);
+      if (jobId === undefined) return res.status(404).json({ message: "Job not found" });
+      body.jobId = jobId;
       const receipt = await storage.createReceipt({ ...body, userId: req.userId });
       res.status(201).json(receipt);
     } catch (err: any) {
@@ -2914,6 +2929,12 @@ If you cannot read the image clearly, return your best guess. Always return vali
       const existing = await storage.getReceipt(id, req.userId);
       if (!existing) return res.status(404).json({ message: "Not found" });
       const { vendor, receiptDate, totalAmount, category, notes, items } = req.body;
+      // null detaches the receipt from its job; an id must be one of your jobs.
+      let jobId: number | null | undefined;
+      if (req.body.jobId !== undefined) {
+        jobId = await ownedReceiptJobId(req.body.jobId, req.userId);
+        if (jobId === undefined) return res.status(404).json({ message: "Job not found" });
+      }
       const normalizedDate = typeof receiptDate === 'string' && receiptDate ? toISODate(receiptDate) : receiptDate;
       const updated = await storage.updateReceipt(id, req.userId, {
         ...(vendor !== undefined && { vendor }),
@@ -2922,6 +2943,7 @@ If you cannot read the image clearly, return your best guess. Always return vali
         ...(category !== undefined && { category }),
         ...(notes !== undefined && { notes }),
         ...(items !== undefined && { items }),
+        ...(jobId !== undefined && { jobId }),
       });
       res.json(updated);
     } catch (error: any) {

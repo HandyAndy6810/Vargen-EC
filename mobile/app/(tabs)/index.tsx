@@ -21,7 +21,7 @@ import { useInvoices } from '@/hooks/use-invoices';
 import { useWeather } from '@/hooks/use-weather';
 import { useSettings } from '@/hooks/use-settings';
 import { queryClient } from '@/lib/queryClient';
-import { Play, Navigation, MessageCircle, Sparkles, Mic, Briefcase, Users, AlertTriangle, Zap, FileText } from 'lucide-react-native';
+import { Play, Navigation, MessageCircle, Sparkles, Mic, Users, AlertTriangle, Zap, FileText, ScanLine } from 'lucide-react-native';
 import { quoteTitle } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/dialogs';
@@ -426,7 +426,7 @@ export default function HomeScreen() {
             <View style={s.qaRow}>
               {([
                 { Icon: MessageCircle, label: 'Follow Up',  color: c.orange, bg: c.orangeSoft, route: '/(tabs)/calendar?tab=outreach' },
-                { Icon: Briefcase, label: 'New Job',      color: c.blue,     bg: isDark ? 'rgba(31,111,235,0.15)' : c.blueSoft,    route: '/jobs/create' },
+                { Icon: ScanLine,  label: 'Receipt',      color: c.blue,     bg: isDark ? 'rgba(31,111,235,0.15)' : c.blueSoft,    route: '/receipts/scan' },
                 { Icon: Users,     label: 'Customers',    color: c.green,  bg: c.greenSoft,  route: '/customers' },
               ] as const).map(({ Icon, label, color, bg, route }) => (
                 <TouchableOpacity key={label} style={[s.qaBtn, { backgroundColor: bg }]} onPress={() => router.push(route as any)} activeOpacity={0.75}>

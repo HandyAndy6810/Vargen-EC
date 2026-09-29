@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { showConfirm } from '@/lib/dialogs';
 import { ChevronLeft, Plus, Camera, Trash2, Tag } from 'lucide-react-native';
 import { useReceipts, useDeleteReceipt } from '@/hooks/use-receipts';
+import { useJobs } from '@/hooks/use-jobs';
 
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
@@ -41,6 +42,11 @@ export default function ReceiptsScreen() {
   const s = useMemo(() => makeStyles(c), [c]);
   const { data: receipts = [], isLoading, refetch, isRefetching } = useReceipts();
   const deleteMutation = useDeleteReceipt();
+  const { data: jobs } = useJobs();
+  const jobTitles = useMemo(
+    () => new Map(((jobs as any[]) || []).map((j) => [j.id, j.title as string])),
+    [jobs],
+  );
 
   const totalSpend = receipts.reduce((sum: number, r: any) => sum + (Number(r.totalAmount) || 0), 0);
 
@@ -72,6 +78,9 @@ export default function ReceiptsScreen() {
             {item.receiptDate ? (
               <Text style={s.dateText}>{formatDate(item.receiptDate)}</Text>
             ) : null}
+            <Text style={s.dateText} numberOfLines={1}>
+              {item.jobId && jobTitles.get(item.jobId) ? `Job: ${jobTitles.get(item.jobId)}` : 'Not linked to a job'}
+            </Text>
           </View>
           <View style={{ alignItems: 'flex-end', gap: 6 }}>
             <Text style={s.amountText}>
