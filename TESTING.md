@@ -244,7 +244,6 @@ you expected.
 ## Known gaps — not bugs, don't re-report
 
 - No "Declined" filter on the quotes tab; declined quotes appear only under All.
-- `CreateAllSheet.tsx` is unreachable and pending deletion.
 - Hidden from Profile until built: working hours, service area, notifications,
   SMS templates, subscription. Their screens still exist but nothing reads what
   they save.
