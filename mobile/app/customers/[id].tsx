@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { ChevronLeft, Phone, MessageSquare, Mail, MapPin, FileText, Pencil, Trash2 } from 'lucide-react-native';
 import { useCustomer, useUpdateCustomer, useDeleteCustomer } from '@/hooks/use-customers';
+import { CustomerHistory } from '@/components/CustomerHistory';
 
 
 function initials(name: string) {
@@ -342,6 +343,8 @@ export default function CustomerDetailScreen() {
                 </View>
               </View>
             ) : null}
+
+            <CustomerHistory customerId={Number(id)} />
           </>
         )}
       </ScrollView>

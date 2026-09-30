@@ -27,6 +27,7 @@ Legend: `[ ]` untested · `[P]` pass · `[F]` fail · `[-]` not applicable / not
 | Date | Build / commit | Who | Result |
 |---|---|---|---|
 | 19–22 Sep 2026 | 7b8a7c5 build + 59503ec server | Andrew | §5 deposits PASS, §7 PDF PASS, §8 GST PASS, §13 mostly PASS. Findings below. |
+| 28–29 Sep 2026 | f7fd953 server (no new build) | Andrew | Audit PR #131 deployed. Portal leak and portal accept guard PASS over the API; db:push applied on production; quote_items backfill run, all 28 quotes' rows reconcile to their totals. |
 
 ---
 
@@ -167,32 +168,66 @@ curl -s -b /tmp/b.jar -X DELETE "$API/api/quotes/items/<A_ITEM_ID>" -w "\nHTTP %
 - [ ] Create a customer with only a name
 - [ ] Call and text buttons open the right app
 - [ ] Quote from a customer's page prefills them
-- [ ] Customer's history shows their quotes, invoices and jobs
-- [ ] Edit and delete
+- [ ] Customer page → History lists their quotes, invoices and jobs; Billed / Paid / Owing add up
+- [ ] Tapping a history row opens that quote, invoice or job
+- [ ] Edit a customer; changes survive reopening
+- [ ] Delete a customer with **no** quotes, jobs or invoices — gone, contact log included
+- [ ] Delete a customer **with** an invoice — refused, with a message saying why (not "Internal server error")
+- [ ] Compose → send by text, answer "Yes, sent" — it appears in the customer's contact log
+- [ ] Contact log → log an outgoing text — it's recorded, and the customer is **not** texted by the app
 
 ## 10. Jobs and calendar
 
 - [ ] Create a job, set a date and time
 - [ ] It appears on the calendar at the right time
 - [ ] Link a quote and an invoice to a job; reopen — links survived
-- [ ] Complete a job
+- [ ] Complete a job linked to a quote, entering hours — Profit check shows Quoted (ex-GST),
+      Actual cost and a **Real profit figure**, not "—"
+- [ ] Delete a job a quote is linked to — the job goes, the quote stays
 - [ ] Calendar → Outreach lists overdue quotes and overdue invoices
 - [ ] Sending a follow-up opens Messages prefilled
 
+## 10b. Deleting money records
+
+- [ ] Delete a quote that has an invoice — refused, and the quote **still has all its lines**
+- [ ] Delete an invoice that fully billed its quote — the quote goes back to **Accepted** and
+      can be invoiced again
+- [ ] Home, Invoices tab and a customer's History show the **same** outstanding figures,
+      part-paid invoices included
+
 ## 11. Receipts
 
-- [ ] Profile → Receipts opens
+Scanning needs the `AI_VISION_MODEL` secret on Replit; without it, use "Enter
+manually instead".
+
+- [ ] Home → Receipt quick action opens the scanner
 - [ ] Scan a receipt — the total and date come out right
-- [ ] Attach it to a job and it counts toward that job's cost
 - [ ] A blurry or odd receipt fails **clearly**, rather than saving a wrong figure
+- [ ] Pick a job before saving — the receipts list shows "Job: …" on it
+- [ ] Job page → Costs lists that receipt, and the total adds up
+- [ ] Job page → Add receipt opens the scanner already linked, and saving returns to the job
+- [ ] Open a receipt, change its job (or set "No job") — it moves off the old job's Costs
+- [ ] Complete the job — Profit check's Materials equals the Costs total
 
 ## 12. Settings
 
-- [ ] Business details: logo upload, ABN, address all save and persist
-- [ ] Bank details save and appear on an invoice PDF
-- [ ] Labour rate and markup defaults feed a new quote
-- [ ] Payment terms change the due date on a new invoice
-- [ ] Working hours, service area, reminders, notifications all save
+- [ ] Profile shows only: Business profile, Quotes & invoices, Quote style,
+      Receipts & expenses, AI quoting, Price book, Follow-up reminders,
+      Integrations, Appearance, Home widgets, Sign out
+- [ ] Business profile: name read-only; business fields, ABN and bank save and persist
+- [ ] A BSB that isn't 6 digits is refused
+- [ ] Logo: pick, use initials, remove — each saves immediately, and pressing Save
+      afterwards does **not** undo it
+- [ ] The pencil on the profile header opens Business profile
+- [ ] Bank details appear on an invoice PDF; an invoice's "add bank details" opens Business profile
+- [ ] Quotes & invoices: payment terms change the due date on a new invoice
+- [ ] GST is set **only** in Quotes & invoices; AI quoting has no GST switch
+- [ ] AI quoting: call-out fee **off** → no call-out line on a new AI quote;
+      **on** at $X → exactly one call-out line at $X
+- [ ] Labour rate and markup feed a new quote
+- [ ] Follow-up reminders: turn on, send a quote, and it appears in Calendar → Outreach on the chosen day
+- [ ] Sending a follow-up then tapping "Yes, sent" does **not** email the customer a second message
+- [ ] Integrations: Xero and Stripe both show "Coming soon", nothing to tap
 - [ ] Dark mode — walk the whole app, no white-on-white or black-on-black
 - [ ] Home widgets can be toggled and reordered
 
@@ -223,10 +258,11 @@ you expected.
 
 ## Known gaps — not bugs, don't re-report
 
-- `quote_items.quantity` is a whole-number column, so the rows round fractional
-  quantities. Display reads from the content JSON instead, so this is invisible —
-  but the rows themselves are lossy.
 - No "Declined" filter on the quotes tab; declined quotes appear only under All.
-- `app/ai-chat.tsx` and `CreateAllSheet.tsx` are unreachable and pending deletion.
+- Hidden from Profile until built: working hours, service area, notifications,
+  SMS templates, subscription. Their screens still exist but nothing reads what
+  they save.
+- Xero can't be connected yet (see Integrations). It needs rebuilding around
+  invoices first, because it invoices the whole quote on acceptance.
 - Free Replit hosting expires around 10 Oct 2026; the backend goes down then unless
   moved. The database is already independent of Replit.

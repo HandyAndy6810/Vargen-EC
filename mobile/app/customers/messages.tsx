@@ -121,7 +121,7 @@ export default function CustomerMessagesScreen() {
             <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.eyebrow}>Messages</Text>
+            <Text style={s.eyebrow}>Contact log</Text>
             <Text style={s.title} numberOfLines={1}>{name}</Text>
           </View>
           {customer?.phone && (
@@ -186,8 +186,9 @@ export default function CustomerMessagesScreen() {
               value={body}
               onChangeText={setBody}
               placeholder={
-                channel === 'sms'   ? 'Type an SMS message…' :
-                channel === 'email' ? 'Type an email…' :
+                // A log, not a send — record a text or email you've already had.
+                channel === 'sms'   ? 'Log a text…' :
+                channel === 'email' ? 'Log an email…' :
                 'Add a note…'
               }
               placeholderTextColor={c.muted}

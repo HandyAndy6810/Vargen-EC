@@ -16,6 +16,7 @@ import { showAlert, showConfirm } from '@/lib/dialogs';
 import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
 import { useQuery } from '@tanstack/react-query';
 import { useJob, useUpdateJob, useDeleteJob } from '@/hooks/use-jobs';
+import { JobCosts } from '@/components/JobCosts';
 import { useCustomer } from '@/hooks/use-customers';
 import { apiRequest } from '@/lib/api';
 import { api, buildUrl } from '@shared/mobile-routes';
@@ -268,6 +269,8 @@ export default function JobDetailScreen() {
               </>
             );
           })() : null}
+
+          {jobId ? <JobCosts jobId={jobId} /> : null}
 
           {/* Notes */}
           {notes ? (

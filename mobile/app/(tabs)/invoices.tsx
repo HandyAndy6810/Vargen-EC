@@ -20,9 +20,12 @@ import { api } from '@shared/mobile-routes';
 import { useInvoices } from '@/hooks/use-invoices';
 import { Plus, Sparkles, FileText, Search, Filter } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { summariseInvoices, isInvoiceOverdue } from '@shared/invoice-figures';
 import { LargeTitleHeader, LARGE_TITLE_COLLAPSE } from '@/components/LargeTitleHeader';
 import { hapticSelect } from '@/lib/haptics';
 
+
+const money = (n: number) => n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 type Filter = 'all' | 'draft' | 'sent' | 'partial' | 'paid' | 'overdue';
 
@@ -102,7 +105,9 @@ export default function InvoicesScreen() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let list = filter === 'all' ? sorted : sorted.filter((i: any) => i.status === filter);
+    let list = filter === 'all' ? sorted
+      : filter === 'overdue' ? sorted.filter((i: any) => isInvoiceOverdue(i))
+      : sorted.filter((i: any) => i.status === filter);
     if (q) {
       list = list.filter((i: any) =>
         String(i.invoiceNumber || '').toLowerCase().includes(q) ||
@@ -112,23 +117,15 @@ export default function InvoicesScreen() {
     return list;
   }, [sorted, filter, search]);
 
-  // What's actually still owed on an invoice, not what it was raised for. A partial
-  // invoice has money against it already, and counting it at full face value made
-  // the Outstanding hero overstate the debt by every payment ever recorded.
-  const owing = (i: any) =>
-    Math.max(0, (parseFloat(i.totalAmount || '0') || 0) - (parseFloat(i.paidAmount || '0') || 0));
-
-  const unpaid = useMemo(
-    () => sorted.filter((i: any) => ['sent', 'overdue', 'partial'].includes(i.status)),
-    [sorted]
-  );
-  const outstandingCount = unpaid.length;
-  const outstanding = useMemo(() => unpaid.reduce((s: number, i: any) => s + owing(i), 0), [unpaid]);
-  const overdue = useMemo(() =>
-    sorted.filter((i: any) => i.status === 'overdue').reduce((s: number, i: any) => s + owing(i), 0),
-    [sorted]
-  );
-  const current = outstanding - overdue;
+  // Outstanding, overdue and current come from shared/invoice-figures, the same
+  // rules Home uses, so the two screens can't show different figures. What's
+  // owed is the remainder after payments, and a part-paid invoice past its due
+  // date counts as overdue even though the server only flips "sent" ones.
+  const summary = useMemo(() => summariseInvoices(sorted), [sorted]);
+  const outstandingCount = summary.outstandingCount;
+  const outstanding = summary.outstanding;
+  const overdue = summary.overdue;
+  const current = summary.current;
 
   const counts = useMemo(() => ({
     all:     sorted.length,
@@ -136,8 +133,8 @@ export default function InvoicesScreen() {
     sent:    sorted.filter((i: any) => i.status === 'sent').length,
     partial: sorted.filter((i: any) => i.status === 'partial').length,
     paid:    sorted.filter((i: any) => i.status === 'paid').length,
-    overdue: sorted.filter((i: any) => i.status === 'overdue').length,
-  }), [sorted]);
+    overdue: summary.overdueCount,
+  }), [sorted, summary]);
 
   if (isLoading) {
     return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.paper }}><ActivityIndicator size="large" color={c.orange} /></View>;
@@ -152,10 +149,10 @@ export default function InvoicesScreen() {
               non-paid invoice, drafts included, so the count and the amount beneath
               it described two different things. */}
           <Text style={s.heroEyebrow}>Outstanding · {outstandingCount} invoice{outstandingCount === 1 ? '' : 's'}</Text>
-          <Text style={s.heroAmt}>${outstanding.toLocaleString()}</Text>
+          <Text style={s.heroAmt}>${money(outstanding)}</Text>
           <View style={{ flexDirection: 'row', gap: 14, marginTop: 14 }}>
-            <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: '#fff' }}>🔴 ${overdue.toLocaleString()} overdue</Text>
-            <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: 'rgba(255,255,255,0.7)' }}>● ${current.toLocaleString()} current</Text>
+            <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: '#fff' }}>🔴 ${money(overdue)} overdue</Text>
+            <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: 'rgba(255,255,255,0.7)' }}>● ${money(current)} current</Text>
           </View>
           {counts.overdue > 0 && (
             <TouchableOpacity style={s.nudgeBtn} onPress={() => setFilter('overdue')} activeOpacity={0.8}>
@@ -277,11 +274,12 @@ export default function InvoicesScreen() {
             const pill = STATUS_PILL[inv.status] ?? STATUS_PILL.draft;
             const amount = parseFloat(inv.totalAmount || '0');
             const num = inv.invoiceNumber || String(inv.id).slice(-3);
-            const amtColor = inv.status === 'paid' ? c.green : inv.status === 'overdue' ? c.orangeDeep : c.ink;
+            const late = isInvoiceOverdue(inv);
+            const amtColor = inv.status === 'paid' ? c.green : late ? c.orangeDeep : c.ink;
             return (
               <TouchableOpacity key={inv.id} onPress={() => router.push(`/invoices/${inv.id}`)} activeOpacity={0.7} style={s.invCard}>
-                <View style={[s.invAvatar, { backgroundColor: inv.status === 'overdue' ? c.orangeSoft : c.paperDeep }]}>
-                  <Text style={[s.invAvatarText, { color: inv.status === 'overdue' ? c.orangeDeep : c.mutedHi }]}>{num}</Text>
+                <View style={[s.invAvatar, { backgroundColor: late ? c.orangeSoft : c.paperDeep }]}>
+                  <Text style={[s.invAvatarText, { color: late ? c.orangeDeep : c.mutedHi }]}>{num}</Text>
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={s.invTitle} numberOfLines={1}>{inv.title || `Invoice #${num}`}</Text>
@@ -293,7 +291,7 @@ export default function InvoicesScreen() {
                   </View>
                 </View>
                 <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
-                  <Text style={[s.invAmt, { color: amtColor }]}>${amount > 0 ? amount.toLocaleString() : '—'}</Text>
+                  <Text style={[s.invAmt, { color: amtColor }]}>${amount > 0 ? money(amount) : '—'}</Text>
                   <Text style={{ fontSize: 14, color: c.muted, fontFamily: 'Manrope_600SemiBold', marginTop: 4 }}>›</Text>
                 </View>
               </TouchableOpacity>

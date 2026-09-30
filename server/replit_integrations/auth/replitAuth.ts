@@ -73,11 +73,16 @@ export async function setupAuth(app: Express) {
       if (!valid) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
-      (req.session as any).localUserId = user.id;
-      req.session.save((err) => {
-        if (err) return res.status(500).json({ message: "Session error" });
-        const { password: _pw, ...safeUser } = user as any;
-        res.json(safeUser);
+      // A fresh session id on sign-in, so an id handed out before login can't
+      // be carried across into the signed-in session.
+      req.session.regenerate((regenErr) => {
+        if (regenErr) return res.status(500).json({ message: "Session error" });
+        (req.session as any).localUserId = user.id;
+        req.session.save((err) => {
+          if (err) return res.status(500).json({ message: "Session error" });
+          const { password: _pw, ...safeUser } = user as any;
+          res.json(safeUser);
+        });
       });
     } catch (error) {
       console.error("Login error:", error);
@@ -101,7 +106,7 @@ export async function setupAuth(app: Express) {
       }
       const hashed = await bcrypt.hash(password, 12);
       const user = await authStorage.upsertUser({
-        email,
+        email: String(email).trim().toLowerCase(),
         firstName: firstName || null,
         lastName: lastName || null,
         phone: phone || null,
@@ -154,7 +159,9 @@ export async function setupAuth(app: Express) {
   }
 
   // Forgot password — generate reset token and (stub) send email
-  app.post("/api/auth/forgot-password", async (req, res) => {
+  // Rate-limited like login: each call can send an email, so unlimited it was a
+  // way to flood someone's inbox with reset mail from the app's domain.
+  app.post("/api/auth/forgot-password", authRateLimit, async (req, res) => {
     try {
       const { email } = req.body || {};
       if (!email) {
@@ -167,7 +174,7 @@ export async function setupAuth(app: Express) {
         const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
         await authStorage.saveResetToken(user.id, token, expiry);
         const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
-        await sendPasswordResetEmail(email, `${baseUrl}/reset-password?token=${token}`);
+        await sendPasswordResetEmail(user.email ?? email, `${baseUrl}/reset-password?token=${token}`);
       }
       res.json({ message: "If that email is registered, a reset link has been sent." });
     } catch (error) {
@@ -177,7 +184,7 @@ export async function setupAuth(app: Express) {
   });
 
   // Reset password — validate token and set new password
-  app.post("/api/auth/reset-password", async (req, res) => {
+  app.post("/api/auth/reset-password", authRateLimit, async (req, res) => {
     try {
       const { token, password } = req.body || {};
       if (!token || !password) {

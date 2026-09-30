@@ -105,7 +105,7 @@ export default function QuoteStylingScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.eyebrow}>Business</Text>
-          <Text style={s.title}>Quote styling</Text>
+          <Text style={s.title}>Quote style</Text>
         </View>
       </View>
 

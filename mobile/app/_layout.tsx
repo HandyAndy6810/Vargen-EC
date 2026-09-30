@@ -119,7 +119,6 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="quotes/create" />
           <Stack.Screen name="invoices/[id]" />
           <Stack.Screen name="invoices/create" />
-          <Stack.Screen name="settings/edit-profile" />
           <Stack.Screen name="settings/business-details" />
           <Stack.Screen name="settings/invoice-settings" />
           <Stack.Screen name="settings/working-hours" />
@@ -129,8 +128,6 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="settings/notifications" />
           <Stack.Screen name="settings/sms-templates" />
           <Stack.Screen name="settings/subscription" />
-          <Stack.Screen name="settings/bank" />
-          <Stack.Screen name="settings/payment-terms" />
           <Stack.Screen name="settings/widgets" />
           <Stack.Screen name="customers/index" />
           <Stack.Screen name="customers/[id]" />

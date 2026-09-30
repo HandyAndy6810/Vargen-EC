@@ -404,7 +404,7 @@ export default function InvoiceDetailScreen() {
                 <Check size={14} color={c.green} strokeWidth={2.5} />
               </View>
             ) : (
-              <TouchableOpacity style={s.pmRow} onPress={() => router.push('/settings/bank' as any)} activeOpacity={0.7}>
+              <TouchableOpacity style={s.pmRow} onPress={() => router.push('/settings/business-details' as any)} activeOpacity={0.7}>
                 <View style={s.pmIcon}>
                   <Building2 size={16} color={c.mutedHi} strokeWidth={2} />
                 </View>

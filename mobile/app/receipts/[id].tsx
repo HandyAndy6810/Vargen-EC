@@ -17,6 +17,7 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { isValidISODate, toISODate } from '@/lib/dates';
 import { useReceipt, useUpdateReceipt, useDeleteReceipt } from '@/hooks/use-receipts';
+import { JobPickerField } from '@/components/JobPickerField';
 
 const CATEGORIES = ['Materials', 'Equipment', 'Fuel', 'Subcontractor', 'Food', 'Other'] as const;
 
@@ -34,6 +35,7 @@ export default function ReceiptDetailScreen() {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Other');
   const [notes, setNotes] = useState('');
+  const [jobId, setJobId] = useState<number | null>(null);
 
   const prefilled = useRef(false);
   useEffect(() => {
@@ -44,6 +46,7 @@ export default function ReceiptDetailScreen() {
     setAmount(receipt.totalAmount || '');
     setCategory(receipt.category || 'Other');
     setNotes(receipt.notes || '');
+    setJobId(receipt.jobId ?? null);
   }, [receipt]);
 
   const handleSave = () => {
@@ -63,6 +66,7 @@ export default function ReceiptDetailScreen() {
         totalAmount: amount,
         category,
         notes: notes || null,
+        jobId,
       },
       {
         onSuccess: () => router.back(),
@@ -121,6 +125,7 @@ export default function ReceiptDetailScreen() {
         </View>
 
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 140, gap: 12 }} keyboardShouldPersistTaps="handled">
+          <JobPickerField jobId={jobId} onChange={setJobId} />
           <View style={s.fieldCard}>
             <Text style={s.fieldLabel}>Vendor / Supplier</Text>
             <TextInput style={s.input} value={vendor} onChangeText={setVendor} placeholder="e.g. Bunnings" placeholderTextColor={c.muted} />

@@ -1,6 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api';
 
+// A job's profit check adds up its receipts, so any receipt change has to
+// refresh it — as well as the receipt lists themselves.
+function invalidateReceiptViews(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['/api/receipts'] });
+  queryClient.invalidateQueries({ queryKey: ['/api/jobs/:id/reconciliation'] });
+}
+
 export function useReceipts() {
   return useQuery({
     queryKey: ['/api/receipts'],
@@ -22,15 +29,13 @@ export function useCreateReceipt() {
       category?: string;
       notes?: string;
       items?: string;
-      jobId?: number;
+      jobId?: number | null;
     }) => {
       const res = await apiRequest('POST', '/api/receipts', data);
       if (!res.ok) throw new Error('Failed to save receipt');
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/receipts'] });
-    },
+    onSuccess: () => invalidateReceiptViews(queryClient),
   });
 }
 
@@ -42,9 +47,7 @@ export function useDeleteReceipt() {
       if (!res.ok) throw new Error('Failed to delete receipt');
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/receipts'] });
-    },
+    onSuccess: () => invalidateReceiptViews(queryClient),
   });
 }
 
@@ -72,9 +75,6 @@ export function useUpdateReceipt() {
       }
       return res.json();
     },
-    onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/receipts'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/receipts', vars.id] });
-    },
+    onSuccess: () => invalidateReceiptViews(queryClient),
   });
 }

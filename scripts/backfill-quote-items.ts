@@ -57,7 +57,7 @@ async function main() {
 
   const all = await db.select().from(quotes).orderBy(quotes.id);
 
-  let changedRows = 0, changedTotals = 0, skipped = 0, reconciled = 0, mismatched = 0;
+  let changedRows = 0, changedTotals = 0, skipped = 0, reconciled = 0, mismatched = 0, unchecked = 0;
 
   for (const q of all) {
     const rows = quoteItemRowsFromContent(q.content);
@@ -90,8 +90,13 @@ async function main() {
         return c?.subtotal !== undefined ? round2(num(c.subtotal)) : null;
       } catch { return null; }
     })();
-    const agrees = subtotalFromContent === null || Math.abs(afterTotal - subtotalFromContent) <= 0.01;
-    if (agrees) reconciled++; else mismatched++;
+    // Older quotes carry no subtotal in their content, so there is nothing to
+    // check them against. Count those separately: folding them into "reconciled"
+    // made the summary claim a check that never happened.
+    const agrees = subtotalFromContent !== null && Math.abs(afterTotal - subtotalFromContent) <= 0.01;
+    if (subtotalFromContent === null) unchecked++;
+    else if (agrees) reconciled++;
+    else mismatched++;
 
     if (!rowsDiffer && !totalNeedsRounding) continue;
 
@@ -130,6 +135,7 @@ async function main() {
   console.log(`skipped (no content items): ${skipped}`);
   console.log(`rows reconcile to subtotal: ${reconciled}`);
   console.log(`rows DISAGREE with subtotal: ${mismatched}${mismatched ? '  <- investigate before writing' : ''}`);
+  console.log(`unchecked (no subtotal):    ${unchecked}${unchecked ? '  <- compare these against quotes.total_amount' : ''}`);
   if (DRY_RUN) console.log('\nDry run — nothing was written.');
 }
 

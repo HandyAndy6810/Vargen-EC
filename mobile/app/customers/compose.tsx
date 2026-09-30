@@ -157,13 +157,26 @@ export default function ComposeScreen() {
     } catch { /* non-blocking */ }
   };
 
-  const confirmFollowUpSent = () => {
-    if (!quoteId) return;
+  // Opening Messages or Mail doesn't mean it went — so ask, once, and on "yes"
+  // record it in the customer's contact log and tick off the follow-up if this
+  // was one. Before, only follow-ups asked, and nothing sent from here ever
+  // reached the contact log, so the log stayed empty unless you retyped it.
+  const confirmSent = (channel: 'sms' | 'email') => {
+    const canLog = Number(customerId) > 0;
+    if (!canLog && !quoteId) return;
     showConfirm({
       title: 'Did you send it?',
-      message: 'Mark this follow-up as done so it stops nagging you.',
+      message: quoteId
+        ? `Mark this follow-up as done${canLog ? ` and add it to ${name.split(' ')[0]}'s contact log` : ''}.`
+        : `Add it to ${name.split(' ')[0]}'s contact log.`,
       confirmLabel: 'Yes, sent',
-      onConfirm: () => { markFollowUpSent(); },
+      onConfirm: async () => {
+        if (canLog) {
+          try { await sendMessage.mutateAsync({ body: body.trim(), channel, direction: 'out', quoteId: quoteId ? Number(quoteId) : undefined }); }
+          catch { /* the message went; failing to log it shouldn't block the follow-up */ }
+        }
+        await markFollowUpSent();
+      },
     });
   };
 
@@ -178,9 +191,7 @@ export default function ComposeScreen() {
     }
     const sep = Platform.OS === 'ios' ? '&' : '?';
     Linking.openURL(`sms:${phone}${sep}body=${encodeURIComponent(body)}`).then(() => {
-      // The composer opening doesn't mean the message went out — confirm before
-      // ticking off the follow-up, otherwise cancelled sends get marked done.
-      confirmFollowUpSent();
+      confirmSent('sms');
     }).catch(() =>
       showAlert('Cannot open Messages', 'Make sure a SIM is installed.')
     );
@@ -198,7 +209,7 @@ export default function ComposeScreen() {
     const bizName = settings?.businessName || 'Your tradie';
     const subject = encodeURIComponent(`Message from ${bizName}`);
     Linking.openURL(`mailto:${email}?subject=${subject}&body=${encodeURIComponent(body)}`).then(() => {
-      confirmFollowUpSent();
+      confirmSent('email');
     }).catch(() =>
       showAlert('Cannot open Mail', 'No mail app found.')
     );
