@@ -8,6 +8,7 @@ import { num, round2, totalsFor, gstRateFor } from "../shared/money";
 import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
 import { buildPortalView } from "./lib/portal-view";
+import { extractJsonObject, receiptTotal } from "./lib/ai-json";
 import { z } from "zod";
 import OpenAI, { toFile } from "openai";
 
@@ -2943,15 +2944,21 @@ If you cannot read the image clearly, return your best guess. Always return vali
       const response = await openai.chat.completions.create({
         model: AI_VISION_MODEL,
         messages,
-        max_tokens: 800,
+        // Room for a reasoning model to think before it answers. At 800 the
+        // thinking could use the whole budget and the answer never arrived.
+        max_tokens: 3000,
         temperature: 0,
       });
 
-      const raw = response.choices[0]?.message?.content || '{}';
-      // Strip markdown code fences if present
-      const cleaned = raw.replace(/```json?\n?/gi, '').replace(/```/g, '').trim();
-      let parsed: any = {};
-      try { parsed = JSON.parse(cleaned); } catch { parsed = {}; }
+      // An unreadable reply used to become an empty receipt — $0, no vendor —
+      // returned as a success, so the app filled the form with nothing and
+      // never said the scan had failed. Now a reply with no readable total is
+      // an error, and the app shows "Couldn't read the receipt".
+      const parsed = extractJsonObject(response.choices[0]?.message?.content);
+      const total = receiptTotal(parsed?.total);
+      if (!parsed || total == null) {
+        return res.status(422).json({ message: "Couldn't read a total from that photo. Try a clearer one, or enter it yourself." });
+      }
 
       // Normalize the AI-extracted date to YYYY-MM-DD; blank it when it
       // can't be interpreted so the client never prefills garbage
@@ -2959,9 +2966,9 @@ If you cannot read the image clearly, return your best guess. Always return vali
       res.json({
         vendor: parsed.vendor || '',
         date: isValidISODate(scanDate) ? scanDate : '',
-        total: String(parsed.total || '0'),
+        total: total.toFixed(2),
         category: parsed.category || 'Other',
-        items: parsed.items || [],
+        items: Array.isArray(parsed.items) ? parsed.items : [],
         notes: parsed.notes || '',
       });
     } catch (err: any) {
