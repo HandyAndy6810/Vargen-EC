@@ -19,6 +19,7 @@ import { ChevronLeft, Camera, ImageIcon, RotateCw, Check } from 'lucide-react-na
 import * as ImagePicker from 'expo-image-picker';
 import { apiRequest } from '@/lib/api';
 import { useCreateReceipt } from '@/hooks/use-receipts';
+import { receiptImageDataUri } from '@/lib/receipt-image';
 import { useEntryId } from '@/hooks/use-entry-params';
 import { JobPickerField } from '@/components/JobPickerField';
 
@@ -78,12 +79,12 @@ export default function ScanReceiptScreen() {
     setLineItems(result.items || []);
   };
 
-  const scanImage = async (base64: string) => {
+  const scanImage = async (asset: ImagePicker.ImagePickerAsset) => {
     setStep('scanning');
     try {
-      const res = await apiRequest('POST', '/api/receipts/scan', {
-        imageBase64: base64.startsWith('data:') ? base64 : `data:image/jpeg;base64,${base64}`,
-      });
+      // Always a real JPEG of a sensible size — see lib/receipt-image.
+      const imageBase64 = await receiptImageDataUri(asset);
+      const res = await apiRequest('POST', '/api/receipts/scan', { imageBase64 });
       if (res.ok) {
         const data: ScanResult = await res.json();
         setScanResult(data);
@@ -108,13 +109,14 @@ export default function ScanReceiptScreen() {
       showAlert('Permission required', 'Camera access is needed to scan receipts.');
       return;
     }
+    // No base64 from the picker: the photo is re-encoded before upload, so
+    // carrying a second full-size copy in memory would be wasted.
     const result = await ImagePicker.launchCameraAsync({
-      base64: true,
-      quality: 0.6,
+      quality: 1,
       allowsEditing: false,
     });
-    if (!result.canceled && result.assets?.[0]?.base64) {
-      await scanImage(result.assets[0].base64);
+    if (!result.canceled && result.assets?.[0]) {
+      await scanImage(result.assets[0]);
     }
   };
 
@@ -125,12 +127,11 @@ export default function ScanReceiptScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      base64: true,
-      quality: 0.6,
+      quality: 1,
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
     });
-    if (!result.canceled && result.assets?.[0]?.base64) {
-      await scanImage(result.assets[0].base64);
+    if (!result.canceled && result.assets?.[0]) {
+      await scanImage(result.assets[0]);
     }
   };
 
