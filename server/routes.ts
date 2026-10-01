@@ -2919,8 +2919,9 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
             {
               type: "image_url",
               image_url: {
+                // No "detail" field: that's an OpenAI option, and other providers
+                // can reject a request carrying a field they don't know.
                 url: imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
-                detail: "low",
               },
             },
             {
@@ -2941,14 +2942,27 @@ If you cannot read the image clearly, return your best guess. Always return vali
         },
       ];
 
-      const response = await openai.chat.completions.create({
-        model: AI_VISION_MODEL,
-        messages,
+      // Size of what goes to the model: providers cap inline images (Groq at
+      // about 4 MB), and a full-resolution phone photo can be over that.
+      const imageMB = Math.round((imagePayload.length * 3) / 4 / 1024 / 102.4) / 10;
+
+      let response;
+      try {
+        response = await openai.chat.completions.create({
+          model: AI_VISION_MODEL,
+          messages,
         // Room for a reasoning model to think before it answers. At 800 the
         // thinking could use the whole budget and the answer never arrived.
-        max_tokens: 3000,
-        temperature: 0,
-      });
+          max_tokens: 3000,
+          temperature: 0,
+        });
+      } catch (aiErr: any) {
+        // Log the provider's own reason — every failure used to reach the app
+        // as the same "couldn't read", with nothing in the logs to say why.
+        console.error(`[receipt-scan] AI call failed (model ${AI_VISION_MODEL}, image ${imageMB} MB):`,
+          aiErr?.status ?? '', aiErr?.message ?? aiErr);
+        return res.status(502).json({ message: "The receipt reader couldn't process that photo. Enter it yourself for now." });
+      }
 
       // An unreadable reply used to become an empty receipt — $0, no vendor —
       // returned as a success, so the app filled the form with nothing and
@@ -2957,6 +2971,9 @@ If you cannot read the image clearly, return your best guess. Always return vali
       const parsed = extractJsonObject(response.choices[0]?.message?.content);
       const total = receiptTotal(parsed?.total);
       if (!parsed || total == null) {
+        const reply = String(response.choices[0]?.message?.content ?? '');
+        console.error(`[receipt-scan] no total in reply (model ${AI_VISION_MODEL}, image ${imageMB} MB, finish ${response.choices[0]?.finish_reason}):`,
+          reply.slice(0, 400).replace(/\s+/g, ' '));
         return res.status(422).json({ message: "Couldn't read a total from that photo. Try a clearer one, or enter it yourself." });
       }
 
