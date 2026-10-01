@@ -8,7 +8,7 @@ import { num, round2, totalsFor, gstRateFor } from "../shared/money";
 import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
 import { buildPortalView } from "./lib/portal-view";
-import { extractJsonObject, receiptTotal } from "./lib/ai-json";
+import { extractJsonObject, receiptTotal, providerRejectedField, isRateLimited } from "./lib/ai-json";
 import { imageDataUri } from "./lib/image-type";
 import { z } from "zod";
 import OpenAI, { toFile } from "openai";
@@ -2960,21 +2960,37 @@ If you cannot read the image clearly, return your best guess. Always return vali
       // about 4 MB), and a full-resolution phone photo can be over that.
       const imageMB = Math.round((imagePayload.length * 3) / 4 / 1024 / 102.4) / 10;
 
-      let response;
+      // A receipt's answer is a few hundred tokens of JSON. The budget was 3000
+      // to leave room for a reasoning model to think first — but Groq's free
+      // tier allows this model 1,000 output tokens per minute account-wide and
+      // refuses any request asking for more, so every scan was rejected before
+      // the photo was read. Reading a receipt needs no reasoning: turn it off
+      // (Groq's reasoning_effort) and keep the budget well under the limit.
+      const ask = (withReasoningOff: boolean) => openai.chat.completions.create({
+        model: AI_VISION_MODEL,
+        messages,
+        max_tokens: 700,
+        temperature: 0,
+        ...(withReasoningOff ? { reasoning_effort: "none" } : {}),
+      } as any);
+
+      let response: any;
       try {
-        response = await openai.chat.completions.create({
-          model: AI_VISION_MODEL,
-          messages,
-        // Room for a reasoning model to think before it answers. At 800 the
-        // thinking could use the whole budget and the answer never arrived.
-          max_tokens: 3000,
-          temperature: 0,
-        });
+        try {
+          response = await ask(true);
+        } catch (first: any) {
+          // A model or provider that doesn't know the field: ask again without it.
+          if (!providerRejectedField(first, "reasoning_effort")) throw first;
+          response = await ask(false);
+        }
       } catch (aiErr: any) {
         // Log the provider's own reason — every failure used to reach the app
         // as the same "couldn't read", with nothing in the logs to say why.
         console.error(`[receipt-scan] AI call failed (model ${AI_VISION_MODEL}, ${image.kind}, ${imageMB} MB):`,
           aiErr?.status ?? '', aiErr?.message ?? aiErr);
+        if (isRateLimited(aiErr)) {
+          return res.status(503).json({ message: "Receipt scanning is busy right now. Try again in a minute, or enter it yourself." });
+        }
         return res.status(502).json({ message: "The receipt reader couldn't process that photo. Enter it yourself for now." });
       }
 

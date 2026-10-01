@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractJsonObject, receiptTotal } from './ai-json';
+import { extractJsonObject, receiptTotal, providerRejectedField, isRateLimited } from './ai-json';
 
 const RECEIPT = { vendor: 'Bunnings', date: '2026-09-28', total: 84.5 };
 
@@ -41,5 +41,24 @@ describe('receiptTotal', () => {
     assert.equal(receiptTotal('-5'), null);
     assert.equal(receiptTotal(undefined), null);
     assert.equal(receiptTotal('unknown'), null);
+  });
+});
+
+describe('providerRejectedField', () => {
+  test('a 400 naming the field', () => {
+    assert.equal(providerRejectedField({ status: 400, message: "property 'reasoning_effort' is unsupported" }, 'reasoning_effort'), true);
+  });
+  test('other errors are not the field', () => {
+    assert.equal(providerRejectedField({ status: 400, message: 'invalid image data' }, 'reasoning_effort'), false);
+    assert.equal(providerRejectedField({ status: 429, message: 'reasoning_effort too high' }, 'reasoning_effort'), false);
+    assert.equal(providerRejectedField(null, 'reasoning_effort'), false);
+  });
+});
+
+describe('isRateLimited', () => {
+  test('429 only', () => {
+    assert.equal(isRateLimited({ status: 429 }), true);
+    assert.equal(isRateLimited({ status: 400 }), false);
+    assert.equal(isRateLimited(undefined), false);
   });
 });
