@@ -44,3 +44,18 @@ export function receiptTotal(v: unknown): number | null {
   const n = typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(/[$,\s]/g, ''));
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
 }
+
+/**
+ * Did the provider refuse the request because of one specific field? Used to
+ * send an optional, provider-specific setting (Groq's reasoning_effort) and
+ * fall back cleanly when a model or provider doesn't recognise it.
+ */
+export function providerRejectedField(err: unknown, field: string): boolean {
+  const e = err as { status?: unknown; message?: unknown } | null;
+  return Number(e?.status) === 400 && String(e?.message ?? '').toLowerCase().includes(field.toLowerCase());
+}
+
+/** A provider rate limit — retrying in a minute can succeed, the photo is fine. */
+export function isRateLimited(err: unknown): boolean {
+  return Number((err as { status?: unknown } | null)?.status) === 429;
+}
