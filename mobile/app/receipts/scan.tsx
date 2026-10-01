@@ -20,6 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { apiRequest } from '@/lib/api';
 import { useCreateReceipt } from '@/hooks/use-receipts';
 import { receiptImageDataUri } from '@/lib/receipt-image';
+import { ReceiptLineItems, ReceiptTotalWarning } from '@/components/ReceiptLineItems';
 import { useEntryId } from '@/hooks/use-entry-params';
 import { JobPickerField } from '@/components/JobPickerField';
 
@@ -313,6 +314,8 @@ export default function ScanReceiptScreen() {
               keyboardType="decimal-pad"
               returnKeyType="next"
             />
+            {/* Before saving, where the number to check is. Updates as it's edited. */}
+            <ReceiptTotalWarning total={amount} items={lineItems} />
           </View>
 
           {/* Category */}
@@ -355,23 +358,7 @@ export default function ScanReceiptScreen() {
           </View>
 
           {/* Line items (read-only from AI) */}
-          {lineItems.length > 0 && (
-            <View style={s.fieldCard}>
-              <Text style={s.fieldLabel}>Line Items (from scan)</Text>
-              {lineItems.map((item, idx) => (
-                <View
-                  key={idx}
-                  style={[
-                    s.lineItemRow,
-                    idx > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft },
-                  ]}
-                >
-                  <Text style={s.lineItemDesc} numberOfLines={2}>{item.description}</Text>
-                  <Text style={s.lineItemAmt}>${Number(item.amount || 0).toFixed(2)}</Text>
-                </View>
-              ))}
-            </View>
-          )}
+          <ReceiptLineItems items={lineItems} title="Line items (from scan)" />
         </ScrollView>
 
         {/* Footer save button */}
@@ -540,24 +527,6 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   categoryChipTextActive: {
     color: '#fff',
-  },
-  lineItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 9,
-    gap: 12,
-  },
-  lineItemDesc: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'Manrope_500Medium',
-    color: c.ink,
-  },
-  lineItemAmt: {
-    fontSize: 13,
-    fontFamily: 'Manrope_700Bold',
-    color: c.ink,
   },
   footer: {
     paddingHorizontal: 16,

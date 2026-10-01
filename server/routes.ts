@@ -2940,6 +2940,9 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
             },
             {
               type: "text",
+              // The rules spell out the two misreads seen on a real receipt: the
+              // subtotal taken for the total (with a digit dropped), and prices
+              // shifted one line out of step with their items.
               text: `You are a receipt scanner. Extract the following from this receipt image and return ONLY valid JSON with no markdown:
 {
   "vendor": "store or supplier name",
@@ -2949,6 +2952,13 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
   "items": [{ "description": "item name", "amount": 0.00 }],
   "notes": "any useful notes or empty string"
 }
+
+Rules:
+- "total" is the final amount paid: the line labelled AMOUNT DUE, TOTAL, or TOTAL (INC. GST), including GST and any surcharge. Never the subtotal. Copy every digit exactly.
+- Include every purchased line as an item, in order. Skip subtotal, GST, surcharge, payment and change lines.
+- Each item's "amount" is that line's total price (quantity × unit price), taken from the same line or the price printed beside it. Do not shift prices between items.
+- The item amounts should add up to roughly the total (before any surcharge). If they don't, re-read the prices.
+- Dates on Australian receipts are day first: 05/03/2026 is 5 March 2026.
 
 If you cannot read the image clearly, return your best guess. Always return valid JSON.`,
             },

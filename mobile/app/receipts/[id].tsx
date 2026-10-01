@@ -18,6 +18,7 @@ import { showAlert, showConfirm } from '@/lib/dialogs';
 import { isValidISODate, toISODate } from '@/lib/dates';
 import { useReceipt, useUpdateReceipt, useDeleteReceipt } from '@/hooks/use-receipts';
 import { JobPickerField } from '@/components/JobPickerField';
+import { ReceiptLineItems, ReceiptTotalWarning } from '@/components/ReceiptLineItems';
 
 const CATEGORIES = ['Materials', 'Equipment', 'Fuel', 'Subcontractor', 'Food', 'Other'] as const;
 
@@ -133,7 +134,10 @@ export default function ReceiptDetailScreen() {
           <View style={s.fieldCard}>
             <Text style={s.fieldLabel}>Total amount ($)</Text>
             <TextInput style={s.input} value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={c.muted} />
+            <ReceiptTotalWarning total={amount} items={receipt.items} />
           </View>
+          {/* The items were always saved, but this screen never showed them. */}
+          <ReceiptLineItems items={receipt.items} />
           <View style={s.fieldCard}>
             <Text style={s.fieldLabel}>Date</Text>
             <TextInput style={s.input} value={date} onChangeText={setDate} placeholder="2026-07-06" placeholderTextColor={c.muted} autoCapitalize="none" />
