@@ -9,6 +9,7 @@ import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
 import { buildPortalView } from "./lib/portal-view";
 import { extractJsonObject, receiptTotal } from "./lib/ai-json";
+import { imageDataUri } from "./lib/image-type";
 import { z } from "zod";
 import OpenAI, { toFile } from "openai";
 
@@ -2912,6 +2913,19 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
 
       if (!imagePayload) return res.status(400).json({ message: "Invalid image data" });
 
+      // Label the photo by what its bytes are. The app called everything JPEG,
+      // and an iPhone's HEIC sent under that label came back "invalid image
+      // data" from the provider — every scan failed with no clear reason.
+      const image = imageDataUri(imagePayload);
+      if (!image.uri) {
+        console.error(`[receipt-scan] unsupported image format: ${image.kind}`);
+        return res.status(415).json({
+          message: image.kind === 'heic'
+            ? "That photo is in Apple's HEIC format, which the receipt reader can't open. Update the app, or enter it yourself for now."
+            : "That doesn't look like a photo the receipt reader can open. Try again, or enter it yourself.",
+        });
+      }
+
       const messages: any[] = [
         {
           role: "user",
@@ -2921,7 +2935,7 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
               image_url: {
                 // No "detail" field: that's an OpenAI option, and other providers
                 // can reject a request carrying a field they don't know.
-                url: imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
+                url: image.uri,
               },
             },
             {
@@ -2959,7 +2973,7 @@ If you cannot read the image clearly, return your best guess. Always return vali
       } catch (aiErr: any) {
         // Log the provider's own reason — every failure used to reach the app
         // as the same "couldn't read", with nothing in the logs to say why.
-        console.error(`[receipt-scan] AI call failed (model ${AI_VISION_MODEL}, image ${imageMB} MB):`,
+        console.error(`[receipt-scan] AI call failed (model ${AI_VISION_MODEL}, ${image.kind}, ${imageMB} MB):`,
           aiErr?.status ?? '', aiErr?.message ?? aiErr);
         return res.status(502).json({ message: "The receipt reader couldn't process that photo. Enter it yourself for now." });
       }
