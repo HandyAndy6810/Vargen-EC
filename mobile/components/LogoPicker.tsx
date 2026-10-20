@@ -112,7 +112,7 @@ export function LogoPicker() {
           ) : null}
           {logoUrl ? (
             <TouchableOpacity style={{ paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' }} onPress={() => save('')} activeOpacity={0.7}>
-              <Text style={{ fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: c.muted }}>Remove logo</Text>
+              <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted }}>Remove logo</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -143,12 +143,12 @@ function makeStyles(c: Colors) {
     card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
     row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14 },
     rowDivider: { borderTopWidth: 1, borderTopColor: c.lineSoft },
-    rowSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted },
+    rowSub: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted },
     logoPreview: { width: 72, height: 72, borderRadius: 12, resizeMode: 'contain' },
     logoPlaceholder: { width: 72, height: 72, borderRadius: 12, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
-    urlInput: { flex: 1, fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.ink, paddingVertical: 0 },
+    urlInput: { flex: 1, fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.ink, paddingVertical: 0 },
     btn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center' },
     btnRow: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
-    btnText: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink },
+    btnText: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
   });
 }

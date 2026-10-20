@@ -204,8 +204,8 @@ export default function InvoiceDetailScreen() {
           </TouchableOpacity>
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 16, fontFamily: 'Manrope_700Bold', color: c.muted }}>Invoice not found</Text>
-          <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted }}>It may have been deleted.</Text>
+          <Text style={{ fontSize: 16, fontFamily: 'HostGrotesk_700Bold', color: c.muted }}>Invoice not found</Text>
+          <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted }}>It may have been deleted.</Text>
         </View>
       </SafeAreaView>
     );
@@ -303,7 +303,7 @@ export default function InvoiceDetailScreen() {
             </Text>
             {dueLine && !isPaid ? (
               <Text style={s.heroDue}>
-                Due <Text style={{ color: '#fff', fontFamily: 'Manrope_700Bold' }}>{dueLine}</Text>
+                Due <Text style={{ color: '#fff', fontFamily: 'HostGrotesk_700Bold' }}>{dueLine}</Text>
               </Text>
             ) : null}
           </View>
@@ -346,7 +346,7 @@ export default function InvoiceDetailScreen() {
               })
             ) : (
               <View style={{ padding: 16 }}>
-                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted }}>No items</Text>
+                <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted }}>No items</Text>
               </View>
             )}
             <View style={s.totalSection}>
@@ -367,8 +367,8 @@ export default function InvoiceDetailScreen() {
                 </View>
               )}
               <View style={s.totalRow}>
-                <Text style={[s.totalLabel, { color: c.ink, fontFamily: 'Manrope_800ExtraBold', fontSize: 14 }]}>Total</Text>
-                <Text style={[s.totalValue, { fontSize: 14, fontFamily: 'Manrope_800ExtraBold' }]}>
+                <Text style={[s.totalLabel, { color: c.ink, fontFamily: 'HostGrotesk_800ExtraBold', fontSize: 14 }]}>Total</Text>
+                <Text style={[s.totalValue, { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold' }]}>
                   ${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
@@ -447,7 +447,7 @@ export default function InvoiceDetailScreen() {
             <>
               <Text style={s.sectionEyebrow}>Notes</Text>
               <View style={s.card}>
-                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.mutedHi, lineHeight: 20 }}>
+                <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.mutedHi, lineHeight: 20 }}>
                   {invoice.notes}
                 </Text>
               </View>
@@ -462,7 +462,7 @@ export default function InvoiceDetailScreen() {
           {partialMode && (
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' }}>
               <TextInput
-                style={{ flex: 1, height: 44, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid, borderRadius: 12, paddingHorizontal: 14, fontSize: 15, fontFamily: 'Manrope_600SemiBold', color: c.ink }}
+                style={{ flex: 1, height: 44, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid, borderRadius: 12, paddingHorizontal: 14, fontSize: 15, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink }}
                 placeholder="Amount received ($)"
                 placeholderTextColor={c.muted}
                 keyboardType="decimal-pad"
@@ -475,14 +475,14 @@ export default function InvoiceDetailScreen() {
                 onPress={handleRecordPartial}
                 activeOpacity={0.8}
               >
-                <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>Record</Text>
+                <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' }}>Record</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={{ height: 44, paddingHorizontal: 12, backgroundColor: c.paperDeep, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}
                 onPress={() => { setPartialMode(false); setPartialAmt(''); }}
                 activeOpacity={0.7}
               >
-                <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.mutedHi }}>Cancel</Text>
+                <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.mutedHi }}>Cancel</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -546,7 +546,7 @@ export default function InvoiceDetailScreen() {
               activeOpacity={0.7}
               style={{ height: 54, paddingHorizontal: 14, borderRadius: 18, backgroundColor: c.paperDeep, alignItems: 'center', justifyContent: 'center' }}
             >
-              <Text style={{ fontSize: 12, fontFamily: 'Manrope_700Bold', color: c.mutedHi }}>Undo</Text>
+              <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_700Bold', color: c.mutedHi }}>Undo</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -596,21 +596,21 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   eyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   title: {
     fontSize: 18,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.4,
     marginTop: 2,
   },
   customerLink: {
     fontSize: 12,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'HostGrotesk_600SemiBold',
     color: c.blue,
     marginTop: 2,
   },
@@ -632,7 +632,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   heroEyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: 'rgba(255,255,255,0.6)',
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -644,12 +644,12 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
   },
   partPillText: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: '#fff',
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff',
     letterSpacing: 1.2, textTransform: 'uppercase',
   },
   heroAmount: {
     fontSize: 42,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
     letterSpacing: -1.5,
     lineHeight: 46,
@@ -657,13 +657,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   heroDue: {
     fontSize: 12,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: 'rgba(255,255,255,0.6)',
     marginTop: 8,
   },
   sectionEyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -684,12 +684,12 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   statusTitle: {
     fontSize: 13,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
   statusSub: {
     fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     marginTop: 1,
   },
@@ -702,19 +702,19 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   lineName: {
     fontSize: 13,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.ink,
     lineHeight: 18,
   },
   lineMeta: {
     fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     marginTop: 2,
   },
   lineAmt: {
     fontSize: 13,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     minWidth: 70,
     textAlign: 'right',
@@ -732,12 +732,12 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   totalLabel: {
     fontSize: 12,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'HostGrotesk_600SemiBold',
     color: c.mutedHi,
   },
   totalValue: {
     fontSize: 12,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.ink,
   },
   pmRow: {
@@ -757,17 +757,17 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   pmLabel: {
     fontSize: 13,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
   pmDetail: {
     fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     marginTop: 1,
   },
   pmDetailBold: {
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.ink,
   },
   copyRow: {
@@ -814,7 +814,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   cardBtnText: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
   markPaidBtn: {
@@ -833,7 +833,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   markPaidBtnText: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
   },
   paidBadge: {
@@ -849,7 +849,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   paidBadgeText: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.green,
   },
   pdfBtn: {
@@ -866,7 +866,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   pdfBtnText: {
     fontSize: 13,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.orange,
   },
 });

@@ -121,8 +121,8 @@ export default function QuoteDetailScreen() {
           </TouchableOpacity>
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 16, fontFamily: 'Manrope_700Bold', color: c.muted }}>Quote not found</Text>
-          <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted }}>It may have been deleted.</Text>
+          <Text style={{ fontSize: 16, fontFamily: 'HostGrotesk_700Bold', color: c.muted }}>Quote not found</Text>
+          <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted }}>It may have been deleted.</Text>
         </View>
       </SafeAreaView>
     );
@@ -317,7 +317,7 @@ export default function QuoteDetailScreen() {
             {terminalStatus ? (
               <View style={{ marginTop: 16, alignItems: 'flex-start' }}>
                 <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: terminalStatus.color + '22', borderWidth: 1, borderColor: terminalStatus.color + '44' }}>
-                  <Text style={{ fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: terminalStatus.color, letterSpacing: 1, textTransform: 'uppercase' }}>{terminalStatus.label}</Text>
+                  <Text style={{ fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold', color: terminalStatus.color, letterSpacing: 1, textTransform: 'uppercase' }}>{terminalStatus.label}</Text>
                 </View>
               </View>
             ) : (
@@ -466,7 +466,7 @@ export default function QuoteDetailScreen() {
               ))
             ) : (
               <View style={{ padding: 16 }}>
-                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted }}>
+                <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted }}>
                   No line items recorded
                 </Text>
               </View>
@@ -489,10 +489,10 @@ export default function QuoteDetailScreen() {
                 </View>
               )}
               <View style={s.totalRow}>
-                <Text style={[s.totalLabel, { color: c.ink, fontFamily: 'Manrope_800ExtraBold', fontSize: 14 }]}>
+                <Text style={[s.totalLabel, { color: c.ink, fontFamily: 'HostGrotesk_800ExtraBold', fontSize: 14 }]}>
                   Total
                 </Text>
-                <Text style={[s.totalValue, { fontSize: 14, fontFamily: 'Manrope_800ExtraBold' }]}>
+                <Text style={[s.totalValue, { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold' }]}>
                   ${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
@@ -504,7 +504,7 @@ export default function QuoteDetailScreen() {
             <>
               <Text style={s.sectionEyebrow}>Notes</Text>
               <View style={s.card}>
-                <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.mutedHi, lineHeight: 20 }}>
+                <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.mutedHi, lineHeight: 20 }}>
                   {content.notes}
                 </Text>
               </View>
@@ -622,14 +622,14 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   eyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   title: {
     fontSize: 18,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.4,
     marginTop: 2,
@@ -647,13 +647,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   statusCardTitle: {
     fontSize: 20,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.4,
   },
   statusCardSub: {
     fontSize: 12,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     marginTop: 2,
   },
@@ -665,20 +665,20 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   statusPillText: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   amountLarge: {
     fontSize: 36,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.orange,
     letterSpacing: -1.1,
     lineHeight: 38,
   },
   amountSub: {
     fontSize: 12,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.muted,
   },
   railBar: {
@@ -687,14 +687,14 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   railLabel: {
     fontSize: 9.5,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
     marginTop: 6,
   },
   sectionEyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -727,24 +727,24 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineSoft,
     paddingHorizontal: 14, paddingVertical: 12,
   },
-  linkedInvoiceTitle: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
-  linkedInvoiceSub: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2, textTransform: 'capitalize' },
+  linkedInvoiceTitle: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
+  linkedInvoiceSub: { fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2, textTransform: 'capitalize' },
   nudgeTitle: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.orangeDeep,
     letterSpacing: -0.2,
   },
   nudgeSub: {
     fontSize: 12,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.orangeDeep,
     marginTop: 2,
   },
   nudgeChevron: {
     fontSize: 20,
     color: c.orangeDeep,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     flexShrink: 0,
   },
   card: {
@@ -764,12 +764,12 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   custAvatarText: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.orange,
   },
   custName: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
   iconAction: {
@@ -790,19 +790,19 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   lineName: {
     flex: 1,
     fontSize: 13,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.ink,
   },
   lineQty: {
     fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     width: 24,
     textAlign: 'right',
   },
   lineAmt: {
     fontSize: 13,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     minWidth: 70,
     textAlign: 'right',
@@ -819,12 +819,12 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   totalLabel: {
     fontSize: 12,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'HostGrotesk_600SemiBold',
     color: c.mutedHi,
   },
   totalValue: {
     fontSize: 12,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.ink,
   },
   xeroBar: {
@@ -844,7 +844,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   xeroText: {
     fontSize: 11,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.green,
   },
   xeroSyncBtn: {
@@ -857,7 +857,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   xeroSyncBtnText: {
     fontSize: 11,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.blue,
   },
   bottomBar: {
@@ -898,7 +898,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   tweakBtnText: {
     fontSize: 13,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
   pdfBtn: {
@@ -915,7 +915,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   pdfBtnText: {
     fontSize: 11,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.orange,
   },
   convertBtn: {
@@ -933,7 +933,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   convertBtnText: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
     letterSpacing: -0.2,
   },

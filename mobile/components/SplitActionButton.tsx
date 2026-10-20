@@ -90,5 +90,5 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   half: { flex: 1, justifyContent: 'center' },
   halfQuote: { alignItems: 'flex-start', paddingLeft: 28 },
   halfInvoice: { alignItems: 'flex-end', paddingRight: 28 },
-  label: { fontSize: 17, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.3 },
+  label: { fontSize: 17, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.3 },
 });

@@ -41,29 +41,29 @@ function getJobHour(dateStr: string | Date): number {
 function makeStyles(c: Colors, isDark: boolean) {
   return StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingBottom: 16 },
-    eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 },
-    title: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
+    eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 },
+    title: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
     iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
     iconBtnActive: { backgroundColor: c.orange, borderColor: c.orange },
     addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', shadowColor: c.orange, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.33, shadowRadius: 14, elevation: 6 },
     searchBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 10, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, gap: 8 },
-    searchInput: { flex: 1, fontSize: 14, fontFamily: 'Manrope_500Medium', color: c.ink, paddingVertical: 0 },
+    searchInput: { flex: 1, fontSize: 14, fontFamily: 'HostGrotesk_500Medium', color: c.ink, paddingVertical: 0 },
     dayCell: { flex: 1, minWidth: 0, paddingVertical: 10, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', gap: 2 },
     dayCellActive: { backgroundColor: c.orange, borderColor: c.orange },
-    dayLabel: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: 1, opacity: 0.55, textTransform: 'uppercase' },
-    dayNum: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
-    dayHeadline: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
-    daySubhead: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2 },
+    dayLabel: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: 1, opacity: 0.55, textTransform: 'uppercase' },
+    dayNum: { fontSize: 16, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
+    dayHeadline: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
+    daySubhead: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2 },
     hourLine: { position: 'absolute', left: 0, right: 12, height: 1, borderTopWidth: 1, borderTopColor: c.lineSoft, borderStyle: 'dashed', overflow: 'visible' as any },
-    hourLabel: { position: 'absolute', left: -44, top: -8, fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, width: 38, textAlign: 'right' },
+    hourLabel: { position: 'absolute', left: -44, top: -8, fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, width: 38, textAlign: 'right' },
     // Exactly the gutter width, so the dot begins where the timeline does rather
     // than sitting half in the labels.
-    nowLabel: { width: 44, textAlign: 'right', paddingRight: 6, fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+    nowLabel: { width: 44, textAlign: 'right', paddingRight: 6, fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
     nowDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.orange, marginLeft: -5, marginRight: -4, zIndex: 2 },
     nowBar: { flex: 1, height: 2, backgroundColor: c.orange, borderRadius: 999 },
-    eventTime: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 0.8, textTransform: 'uppercase' },
-    eventTitle: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.2, marginTop: 1 },
-    eventSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', marginTop: 1, opacity: 0.6 },
+    eventTime: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: 0.8, textTransform: 'uppercase' },
+    eventTitle: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.2, marginTop: 1 },
+    eventSub: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', marginTop: 1, opacity: 0.6 },
   });
 }
 
@@ -236,7 +236,7 @@ export default function CalendarScreen() {
                   shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: active ? 2 : 0,
                 }}
               >
-                <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: active ? c.ink : c.muted }}>
+                <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: active ? c.ink : c.muted }}>
                   {seg === 'calendar' ? 'Calendar' : 'Outreach'}
                 </Text>
               </TouchableOpacity>
@@ -275,8 +275,8 @@ export default function CalendarScreen() {
           ) : followUps.length === 0 ? (
             <View style={{ alignItems: 'center', marginTop: 60, gap: 10 }}>
               <Text style={{ fontSize: 28 }}>🎉</Text>
-              <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>All caught up</Text>
-              <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted, textAlign: 'center' }}>
+              <Text style={{ fontSize: 15, fontFamily: 'HostGrotesk_700Bold', color: c.ink }}>All caught up</Text>
+              <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted, textAlign: 'center' }}>
                 No follow-ups due and nothing overdue
               </Text>
             </View>
@@ -295,16 +295,16 @@ export default function CalendarScreen() {
                     <View key={`inv-${inv.id}`} style={{ backgroundColor: c.card, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: `${c.red}55` }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                         <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.redSoft, alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.red }}>{initials}</Text>
+                          <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.red }}>{initials}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink }} numberOfLines={1}>{custName}</Text>
-                          <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted }} numberOfLines={1}>
+                          <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink }} numberOfLines={1}>{custName}</Text>
+                          <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted }} numberOfLines={1}>
                             {inv.invoiceNumber ? `${inv.invoiceNumber} · ` : ''}${owed.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} owing
                           </Text>
                         </View>
                         <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: c.redSoft, borderWidth: 1, borderColor: `${c.red}44` }}>
-                          <Text style={{ fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.red }}>
+                          <Text style={{ fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.red }}>
                             {item.daysOverdue === 0 ? 'Due today' : `${item.daysOverdue}d late`}
                           </Text>
                         </View>
@@ -318,14 +318,14 @@ export default function CalendarScreen() {
                           )}
                         >
                           <Send size={14} color="#fff" strokeWidth={2} />
-                          <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>Chase it</Text>
+                          <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' }}>Chase it</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={{ height: 42, paddingHorizontal: 16, borderRadius: 12, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, flexDirection: 'row', alignItems: 'center', gap: 6 }}
                           activeOpacity={0.7}
                           onPress={() => router.push(`/invoices/${inv.id}` as any)}
                         >
-                          <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.muted }}>Open</Text>
+                          <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.muted }}>Open</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -341,16 +341,16 @@ export default function CalendarScreen() {
                   <View key={i} style={{ backgroundColor: c.card, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: c.lineSoft }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                       <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.orange }}>{initials}</Text>
+                        <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange }}>{initials}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink }} numberOfLines={1}>{custName}</Text>
-                        <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted }} numberOfLines={1}>
+                        <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink }} numberOfLines={1}>{custName}</Text>
+                        <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted }} numberOfLines={1}>
                           {jobTitle}{total ? ` · ${total}` : ''}
                         </Text>
                       </View>
                       <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: c.orangeSoft, borderWidth: 1, borderColor: `${c.orange}44` }}>
-                        <Text style={{ fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.orange }}>Day {item.dayNumber}</Text>
+                        <Text style={{ fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange }}>Day {item.dayNumber}</Text>
                       </View>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -362,7 +362,7 @@ export default function CalendarScreen() {
                         )}
                       >
                         <Send size={14} color="#fff" strokeWidth={2} />
-                        <Text style={{ fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>Send</Text>
+                        <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' }}>Send</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={{ height: 42, paddingHorizontal: 16, borderRadius: 12, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, flexDirection: 'row', alignItems: 'center', gap: 6 }}
@@ -370,7 +370,7 @@ export default function CalendarScreen() {
                         onPress={() => skipFollowUp.mutate({ quoteId: item.quote?.id, dayIndex: item.dueIndex })}
                       >
                         <SkipForward size={14} color={c.muted} strokeWidth={2} />
-                        <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.muted }}>Skip</Text>
+                        <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.muted }}>Skip</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -399,7 +399,7 @@ export default function CalendarScreen() {
               onPress={goToToday}
               activeOpacity={0.7}
             >
-              <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: c.orange }}>Today</Text>
+              <Text style={{ fontSize: 11, fontFamily: 'HostGrotesk_700Bold', color: c.orange }}>Today</Text>
             </TouchableOpacity>
           )}
           <View style={{ flex: 1 }} />
@@ -469,7 +469,7 @@ export default function CalendarScreen() {
       {outOfRangeBefore > 0 && (
         <View style={{ paddingHorizontal: 20, marginBottom: 4 }}>
           <View style={{ alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft }}>
-            <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: c.muted }}>
+            <Text style={{ fontSize: 11, fontFamily: 'HostGrotesk_700Bold', color: c.muted }}>
               ↑ {outOfRangeBefore} job{outOfRangeBefore > 1 ? 's' : ''} before 6am
             </Text>
           </View>
@@ -574,7 +574,7 @@ export default function CalendarScreen() {
         {outOfRangeAfter > 0 && (
           <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
             <View style={{ alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft }}>
-              <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: c.muted }}>
+              <Text style={{ fontSize: 11, fontFamily: 'HostGrotesk_700Bold', color: c.muted }}>
                 ↓ {outOfRangeAfter} job{outOfRangeAfter > 1 ? 's' : ''} after 8pm
               </Text>
             </View>

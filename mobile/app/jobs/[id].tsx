@@ -359,14 +359,14 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   eyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   title: {
     fontSize: 18,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.4,
     marginTop: 2,
@@ -383,7 +383,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   statusBadgeCancelled: { backgroundColor: '#fde5e5' },
   statusBadgeText: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.orangeDeep,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -408,7 +408,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   mapPlaceholderText: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
@@ -424,7 +424,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   mapDistText: {
     fontSize: 11,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
   card: {
@@ -444,25 +444,25 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   calDay: {
     fontSize: 9,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.orangeDeep,
     letterSpacing: 1,
   },
   calNum: {
     fontSize: 18,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.orangeDeep,
     letterSpacing: -0.4,
     lineHeight: 20,
   },
   schedTime: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
   schedSub: {
     fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     marginTop: 2,
   },
@@ -474,7 +474,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   reschedText: {
     fontSize: 12,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
   custAvatar: {
@@ -487,17 +487,17 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   custAvatarText: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.orange,
   },
   custName: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
   custAddr: {
     fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     marginTop: 1,
   },
@@ -511,7 +511,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   sectionEyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -520,7 +520,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   notesText: {
     fontSize: 13,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.mutedHi,
     lineHeight: 20,
   },
@@ -534,19 +534,19 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   profitStatLabel: {
     fontSize: 11,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'HostGrotesk_600SemiBold',
     color: c.muted,
     marginBottom: 2,
   },
   profitStatValue: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.2,
   },
   profitStatPct: {
     fontSize: 12,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
   },
   profitBreakdownRow: {
     paddingTop: 12,
@@ -555,12 +555,12 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   profitBreakdownText: {
     fontSize: 11.5,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.mutedHi,
   },
   profitVarianceText: {
     fontSize: 12,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'HostGrotesk_600SemiBold',
     color: c.mutedHi,
     marginTop: 8,
   },
@@ -607,7 +607,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   navBtnText: {
     fontSize: 13,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
   startBtn: {
@@ -627,7 +627,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   startBtnText: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
   },
 });

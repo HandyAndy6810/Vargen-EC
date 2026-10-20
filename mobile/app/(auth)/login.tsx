@@ -144,7 +144,7 @@ export default function LoginScreen() {
             style={{ alignItems: 'center', paddingVertical: 14 }}
             activeOpacity={0.7}
           >
-            <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.orange }}>
+            <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.orange }}>
               Forgot your password?
             </Text>
           </TouchableOpacity>
@@ -210,7 +210,7 @@ function Feature({ emoji, text }: { emoji: string; text: string }) {
       <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontSize: 16 }}>{emoji}</Text>
       </View>
-      <Text style={{ fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: 'rgba(255,255,255,0.8)' }}>{text}</Text>
+      <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_600SemiBold', color: 'rgba(255,255,255,0.8)' }}>{text}</Text>
     </View>
   );
 }
@@ -249,20 +249,20 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   logoText: {
     fontSize: 22,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
     letterSpacing: -0.5,
   },
   heroHeading: {
     fontSize: 40,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
     lineHeight: 44,
     letterSpacing: -1.2,
   },
   heroSub: {
     fontSize: 14,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: 'rgba(255,255,255,0.6)',
     marginTop: 14,
     lineHeight: 20,
@@ -278,14 +278,14 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   formTitle: {
     fontSize: 26,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.6,
     marginBottom: 4,
   },
   formSub: {
     fontSize: 13,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     marginBottom: 24,
   },
@@ -297,7 +297,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'HostGrotesk_600SemiBold',
     color: c.red,
   },
   fieldWrap: {
@@ -305,7 +305,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.mutedHi,
     marginBottom: 6,
     letterSpacing: 0.2,
@@ -318,7 +318,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.ink,
   },
   primaryBtn: {
@@ -335,7 +335,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   primaryBtnText: {
     fontSize: 16,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
     letterSpacing: -0.2,
   },
@@ -352,7 +352,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   dividerText: {
     fontSize: 11,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'HostGrotesk_600SemiBold',
     color: c.muted,
   },
   secondaryBtn: {
@@ -365,13 +365,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   secondaryBtnText: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.orange,
     letterSpacing: -0.2,
   },
   legal: {
     fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     textAlign: 'center',
     marginTop: 20,
@@ -389,7 +389,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   devBtnText: {
     fontSize: 12,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: '#92400e',
   },
 });

@@ -87,7 +87,7 @@ export default function CustomerNewScreen() {
                 autoCapitalize="words"
                 returnKeyType="next"
               />
-              {error ? <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 12, color: '#d23b3b', marginTop: 4 }}>{error}</Text> : null}
+              {error ? <Text style={{ fontFamily: 'HostGrotesk_600SemiBold', fontSize: 12, color: '#d23b3b', marginTop: 4 }}>{error}</Text> : null}
             </View>
 
             {/* Phone */}
@@ -172,26 +172,26 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   eyebrow: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 2, textTransform: 'uppercase',
   },
   title: {
-    fontSize: 18, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 18, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink, letterSpacing: -0.4, marginTop: 2,
   },
   avatar: {
     width: 80, height: 80, borderRadius: 40,
     backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { fontSize: 26, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+  avatarText: { fontSize: 26, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
   fieldGroup: { gap: 8 },
   fieldLabel: {
-    fontSize: 11, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase',
   },
   input: {
     backgroundColor: c.card, borderRadius: 14, paddingHorizontal: 16,
-    paddingVertical: 14, fontSize: 14, fontFamily: 'Manrope_500Medium',
+    paddingVertical: 14, fontSize: 14, fontFamily: 'HostGrotesk_500Medium',
     color: c.ink, borderWidth: 1, borderColor: c.lineMid,
   },
   saveBar: {
@@ -218,5 +218,5 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     shadowColor: c.orange, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35, shadowRadius: 20, elevation: 6,
   },
-  saveBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  saveBtnText: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
 });

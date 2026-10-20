@@ -60,11 +60,11 @@ export function Snackbar() {
           elevation: 10,
         }}
       >
-        <Text style={{ fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.paper }}>
+        <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.paper }}>
           {current.title}
         </Text>
         {current.description ? (
-          <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.paper, opacity: 0.8, marginTop: 2 }}>
+          <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.paper, opacity: 0.8, marginTop: 2 }}>
             {current.description}
           </Text>
         ) : null}

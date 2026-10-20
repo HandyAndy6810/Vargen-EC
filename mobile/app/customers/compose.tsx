@@ -301,7 +301,7 @@ export default function ComposeScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <Text style={s.sectionEyebrow}>Your message</Text>
               {charCount > 0 && (
-                <Text style={{ fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: charCount > 160 ? '#d23b3b' : c.muted }}>
+                <Text style={{ fontSize: 11, fontFamily: 'HostGrotesk_600SemiBold', color: charCount > 160 ? '#d23b3b' : c.muted }}>
                   {charCount} chars{smsPages > 1 ? ` · ${smsPages} SMS` : ''}
                 </Text>
               )}
@@ -337,7 +337,7 @@ export default function ComposeScreen() {
               ) : null}
               {!phone && !email && (
                 <View style={[s.sendBtn, { flex: 1, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineMid }]}>
-                  <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.muted }}>No contact info on file</Text>
+                  <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted }}>No contact info on file</Text>
                 </View>
               )}
             </View>
@@ -381,21 +381,21 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   eyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   title: {
     fontSize: 22,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.5,
     marginTop: 2,
   },
   sectionEyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -422,7 +422,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   templateLabel: {
     fontSize: 11,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.mutedHi,
     textAlign: 'center',
     lineHeight: 15,
@@ -438,7 +438,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   aiBtnText: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
   },
   composerWrap: {
@@ -451,7 +451,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   composerInput: {
     padding: 16,
     fontSize: 15,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.ink,
     minHeight: 160,
     lineHeight: 22,
@@ -466,7 +466,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   sendBtnText: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
   },
   logBtn: {
@@ -482,7 +482,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   logBtnText: {
     fontSize: 13,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.mutedHi,
   },
 });

@@ -76,7 +76,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   title: {
     fontSize: 13,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.muted,
     textAlign: 'center',
     paddingVertical: 8,
@@ -94,7 +94,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   rowText: {
     fontSize: 15,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.ink,
   },
   rowTextDestructive: {
@@ -110,7 +110,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   cancelText: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
 });

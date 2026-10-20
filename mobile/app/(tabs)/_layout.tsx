@@ -132,7 +132,7 @@ function TabBar({ state, navigation }: any) {
                   styles.tabLabel,
                   {
                     color,
-                    fontFamily: isFocused ? 'Manrope_600SemiBold' : 'Manrope_400Regular',
+                    fontFamily: isFocused ? 'HostGrotesk_600SemiBold' : 'HostGrotesk_400Regular',
                   },
                 ]}
               >

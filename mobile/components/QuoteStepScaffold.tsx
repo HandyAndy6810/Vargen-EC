@@ -118,12 +118,12 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     width: 44, height: 44, borderRadius: 14, backgroundColor: c.card,
     borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center',
   },
-  eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase' },
-  title: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
+  eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase' },
+  title: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
   rail: { flexDirection: 'row', gap: 6, paddingHorizontal: 20, marginBottom: 8 },
   railBar: { height: 4, borderRadius: 2 },
-  railLabel: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', marginTop: 6, letterSpacing: 0.5 },
-  subtitle: { fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted, paddingHorizontal: 20, marginTop: 6, marginBottom: 4, lineHeight: 18 },
+  railLabel: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', marginTop: 6, letterSpacing: 0.5 },
+  subtitle: { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted, paddingHorizontal: 20, marginTop: 6, marginBottom: 4, lineHeight: 18 },
   footer: {
     paddingTop: 12, paddingBottom: 34, paddingHorizontal: 16,
     backgroundColor: c.paper, borderTopWidth: 1, borderTopColor: c.lineSoft,
@@ -134,5 +134,5 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     shadowColor: c.orange, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 18, elevation: 8,
   },
-  nextText: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  nextText: { fontSize: 16, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
 });

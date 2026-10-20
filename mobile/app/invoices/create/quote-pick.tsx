@@ -66,8 +66,8 @@ export default function QuotePickStep() {
           )}
           ListEmptyComponent={
             <View style={{ alignItems: 'center', paddingTop: 60, gap: 8 }}>
-              <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>No quotes to invoice</Text>
-              <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted, textAlign: 'center' }}>Accepted and sent quotes show up here.</Text>
+              <Text style={{ fontSize: 15, fontFamily: 'HostGrotesk_700Bold', color: c.ink }}>No quotes to invoice</Text>
+              <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted, textAlign: 'center' }}>Accepted and sent quotes show up here.</Text>
             </View>
           }
         />
@@ -79,14 +79,14 @@ export default function QuotePickStep() {
 const makeStyles = (c: Colors) => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14 },
   backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
-  eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase' },
-  title: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
+  eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase' },
+  title: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.card,
     borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, paddingHorizontal: 14, paddingVertical: 13,
   },
   icon: { width: 38, height: 38, borderRadius: 12, backgroundColor: c.orangeSoft, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  rowTitle: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
-  rowSub: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2, textTransform: 'capitalize' },
-  amount: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink, flexShrink: 0 },
+  rowTitle: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
+  rowSub: { fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2, textTransform: 'capitalize' },
+  amount: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, flexShrink: 0 },
 });

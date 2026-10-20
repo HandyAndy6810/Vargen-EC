@@ -203,7 +203,7 @@ export default function ScanReceiptScreen() {
               setStep('review');
             }}
           >
-            <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.muted }}>
+            <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted }}>
               Enter manually instead
             </Text>
           </TouchableOpacity>
@@ -218,8 +218,8 @@ export default function ScanReceiptScreen() {
       <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18 }}>
           <ActivityIndicator color={c.orange} size="large" />
-          <Text style={{ fontSize: 16, fontFamily: 'Manrope_700Bold', color: c.ink }}>Scanning receipt...</Text>
-          <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted }}>AI is extracting the details</Text>
+          <Text style={{ fontSize: 16, fontFamily: 'HostGrotesk_700Bold', color: c.ink }}>Scanning receipt...</Text>
+          <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted }}>AI is extracting the details</Text>
         </View>
       </SafeAreaView>
     );
@@ -241,11 +241,11 @@ export default function ScanReceiptScreen() {
           <View style={{ flex: 1 }}>
             <Text style={s.headerTitle}>Review Receipt</Text>
             {scanResult ? (
-              <Text style={{ fontSize: 10, fontFamily: 'Manrope_600SemiBold', color: c.orange, marginTop: 1 }}>
+              <Text style={{ fontSize: 10, fontFamily: 'HostGrotesk_600SemiBold', color: c.orange, marginTop: 1 }}>
                 AI extracted — confirm the details
               </Text>
             ) : (
-              <Text style={{ fontSize: 10, fontFamily: 'Manrope_600SemiBold', color: c.muted, marginTop: 1 }}>
+              <Text style={{ fontSize: 10, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted, marginTop: 1 }}>
                 Enter details manually
               </Text>
             )}
@@ -266,10 +266,10 @@ export default function ScanReceiptScreen() {
         >
           {scanFailed && (
             <View style={{ backgroundColor: c.orangeSoft, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: c.orange, marginBottom: 12 }}>
-              <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.orangeDeep }}>
+              <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.orangeDeep }}>
                 Couldn't read the receipt
               </Text>
-              <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.orangeDeep, marginTop: 2 }}>
+              <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.orangeDeep, marginTop: 2 }}>
                 The fields below are blank — enter the details manually, or go back and try a clearer photo.
               </Text>
             </View>
@@ -323,7 +323,7 @@ export default function ScanReceiptScreen() {
             <Text style={s.fieldLabel}>Category</Text>
             <TouchableOpacity style={s.categoryRow} onPress={cycleCategory} activeOpacity={0.75}>
               <Text style={s.categoryValue}>{category}</Text>
-              <Text style={{ fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: c.orange }}>
+              <Text style={{ fontSize: 11, fontFamily: 'HostGrotesk_600SemiBold', color: c.orange }}>
                 Tap to change
               </Text>
             </TouchableOpacity>
@@ -404,7 +404,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.4,
   },
@@ -419,7 +419,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   captureTitle: {
     fontSize: 24,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.5,
     marginBottom: 10,
@@ -427,7 +427,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   captureSub: {
     fontSize: 14,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.mutedHi,
     textAlign: 'center',
     lineHeight: 20,
@@ -449,7 +449,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   captureBtnText: {
     fontSize: 16,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
     letterSpacing: -0.2,
   },
@@ -466,7 +466,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   libraryBtnText: {
     fontSize: 16,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.orange,
     letterSpacing: -0.2,
   },
@@ -481,14 +481,14 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   fieldInput: {
     fontSize: 15,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'HostGrotesk_600SemiBold',
     color: c.ink,
     padding: 0,
   },
@@ -499,7 +499,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   categoryValue: {
     fontSize: 15,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.ink,
   },
   categoryChips: {
@@ -522,7 +522,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   categoryChipText: {
     fontSize: 12,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'HostGrotesk_600SemiBold',
     color: c.mutedHi,
   },
   categoryChipTextActive: {
@@ -557,7 +557,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   saveBtnText: {
     fontSize: 16,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
     letterSpacing: -0.2,
   },

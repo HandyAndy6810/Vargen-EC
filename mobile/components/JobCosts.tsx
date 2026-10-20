@@ -71,15 +71,15 @@ export function JobCosts({ jobId }: { jobId: number }) {
 
 const makeStyles = (c: Colors) => StyleSheet.create({
   headRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 22, marginBottom: 8 },
-  eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase' },
-  total: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
+  eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase' },
+  total: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
   card: { backgroundColor: c.card, borderRadius: 18, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
   rowBorder: { borderTopWidth: 1, borderTopColor: c.lineSoft },
-  vendor: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink },
-  sub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2 },
-  amount: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
-  empty: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4, lineHeight: 17 },
+  vendor: { fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
+  sub: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2 },
+  amount: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
+  empty: { fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4, lineHeight: 17 },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 13 },
-  addText: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+  addText: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
 });

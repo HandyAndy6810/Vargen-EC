@@ -17,21 +17,21 @@ function makeStyles(c: Colors) {
     header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14, paddingTop: 4 },
     backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
     titleWrap: { flex: 1 },
-    eyebrow: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
-    title: { fontSize: 20, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
+    eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
+    title: { fontSize: 20, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
     saveBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center' },
     group: { paddingHorizontal: 20, paddingTop: 22 },
-    groupLabel: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
+    groupLabel: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
     card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
     row: { paddingHorizontal: 14, paddingVertical: 12 },
     rowDivider: { borderTopWidth: 1, borderTopColor: c.lineSoft },
-    label: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
-    input: { fontSize: 14, fontFamily: 'Manrope_500Medium', color: c.ink, padding: 0 },
+    label: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
+    input: { fontSize: 14, fontFamily: 'HostGrotesk_500Medium', color: c.ink, padding: 0 },
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingBottom: 14 },
     chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
-    chipLabel: { fontSize: 13, fontFamily: 'Manrope_700Bold' },
+    chipLabel: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold' },
     stateChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingBottom: 14 },
-    hint: { fontSize: 11, color: c.muted, fontFamily: 'Manrope_500Medium', marginTop: 6, paddingHorizontal: 2 },
+    hint: { fontSize: 11, color: c.muted, fontFamily: 'HostGrotesk_500Medium', marginTop: 6, paddingHorizontal: 2 },
   });
 }
 
@@ -128,7 +128,7 @@ export default function ServiceAreaScreen() {
           <Text style={s.groupLabel}>Travel radius</Text>
           <View style={s.card}>
             <View style={[s.row, { paddingBottom: 8 }]}>
-              <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink }}>How far will you travel?</Text>
+              <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink }}>How far will you travel?</Text>
             </View>
             <View style={s.chipsRow}>
               {RADII.map(r => {

@@ -229,29 +229,29 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   formEyebrow: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 2, textTransform: 'uppercase',
   },
   formTitle: {
-    fontSize: 24, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 24, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink, letterSpacing: -0.5, marginTop: 4,
   },
   formSub: {
-    fontSize: 13, fontFamily: 'Manrope_500Medium',
+    fontSize: 13, fontFamily: 'HostGrotesk_500Medium',
     color: c.muted, marginTop: 4,
   },
   fieldGroup: { gap: 8 },
   fieldLabel: {
-    fontSize: 11, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase',
   },
   input: {
     backgroundColor: c.card, borderRadius: 14, paddingHorizontal: 16,
-    paddingVertical: 14, fontSize: 14, fontFamily: 'Manrope_500Medium',
+    paddingVertical: 14, fontSize: 14, fontFamily: 'HostGrotesk_500Medium',
     color: c.ink, borderWidth: 1, borderColor: c.lineMid,
   },
   errorText: {
-    fontFamily: 'Manrope_600SemiBold', fontSize: 12, color: '#d23b3b', marginTop: 4,
+    fontFamily: 'HostGrotesk_600SemiBold', fontSize: 12, color: '#d23b3b', marginTop: 4,
   },
   hero: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8, alignItems: 'center' },
   checkCircle: {
@@ -259,11 +259,11 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     backgroundColor: c.greenSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 18,
   },
   heroEyebrow: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 2, textTransform: 'uppercase',
   },
   heroTitle: {
-    fontSize: 30, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 30, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink, letterSpacing: -1, textAlign: 'center', marginTop: 4, lineHeight: 34,
   },
   summaryCard: {
@@ -274,10 +274,10 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 14,
   },
-  summaryLabel: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.muted },
-  summaryValue: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
+  summaryLabel: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted },
+  summaryValue: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
   sectionEyebrow: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginTop: 22, marginBottom: 8,
   },
   invoiceNudge: {
@@ -293,11 +293,11 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   nudgeEyebrow: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold',
     color: 'rgba(255,255,255,0.85)', letterSpacing: 1.4, textTransform: 'uppercase',
   },
   nudgeTitle: {
-    fontSize: 15, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff', letterSpacing: -0.3, marginTop: 2,
   },
   bottomBar: {
@@ -325,12 +325,12 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
     alignItems: 'center', justifyContent: 'center',
   },
-  finishBtnText: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
+  finishBtnText: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
   makeInvoiceBtn: {
     flex: 2, height: 54, borderRadius: 18, backgroundColor: c.orange,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: c.orange, shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.4, shadowRadius: 24, elevation: 8,
   },
-  makeInvoiceBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  makeInvoiceBtnText: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
 });

@@ -107,7 +107,7 @@ export default function CustomerDetailScreen() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: c.muted, fontFamily: 'Manrope_500Medium' }}>Loading…</Text>
+          <Text style={{ color: c.muted, fontFamily: 'HostGrotesk_500Medium' }}>Loading…</Text>
         </View>
       </SafeAreaView>
     );
@@ -117,10 +117,10 @@ export default function CustomerDetailScreen() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={{ padding: 20 }}>
-          <Text style={{ color: c.orange, fontFamily: 'Manrope_700Bold' }}>← Back</Text>
+          <Text style={{ color: c.orange, fontFamily: 'HostGrotesk_700Bold' }}>← Back</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-          <Text style={{ color: c.muted, fontFamily: 'Manrope_500Medium' }}>
+          <Text style={{ color: c.muted, fontFamily: 'HostGrotesk_500Medium' }}>
             {isError ? 'Couldn\'t load customer — check your connection' : 'Customer not found'}
           </Text>
           {isError && (
@@ -129,7 +129,7 @@ export default function CustomerDetailScreen() {
               style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: c.orange }}
               activeOpacity={0.8}
             >
-              <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: '#fff' }}>Retry</Text>
+              <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: '#fff' }}>Retry</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -150,7 +150,7 @@ export default function CustomerDetailScreen() {
               onPress={() => setIsEditing(false)}
               style={[s.navBtn, { width: 'auto', paddingHorizontal: 14 }]}
             >
-              <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.muted }}>Cancel</Text>
+              <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.muted }}>Cancel</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={s.navBtn}>
@@ -166,7 +166,7 @@ export default function CustomerDetailScreen() {
             >
               {isSaving
                 ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: '#fff' }}>Save</Text>}
+                : <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: '#fff' }}>Save</Text>}
             </TouchableOpacity>
           ) : (
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -250,7 +250,7 @@ export default function CustomerDetailScreen() {
             <Text style={[s.sectionEyebrow, { marginTop: 18 }]}>Notes</Text>
             <View style={[s.card, { padding: 14 }]}>
               <TextInput
-                style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.ink, minHeight: 80, textAlignVertical: 'top' }}
+                style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.ink, minHeight: 80, textAlignVertical: 'top' }}
                 value={editNotes}
                 onChangeText={setEditNotes}
                 placeholder="Gate codes, preferences, parking…"
@@ -328,7 +328,7 @@ export default function CustomerDetailScreen() {
                 ) : null}
                 {!customer.phone && !customer.email && !customer.address ? (
                   <View style={s.detailRow}>
-                    <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted }}>No contact details on file</Text>
+                    <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted }}>No contact details on file</Text>
                   </View>
                 ) : null}
               </View>
@@ -339,7 +339,7 @@ export default function CustomerDetailScreen() {
               <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
                 <Text style={s.sectionEyebrow}>Notes</Text>
                 <View style={[s.card, { padding: 14 }]}>
-                  <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.mutedHi, lineHeight: 20 }}>{customer.notes}</Text>
+                  <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.mutedHi, lineHeight: 20 }}>{customer.notes}</Text>
                 </View>
               </View>
             ) : null}
@@ -375,7 +375,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.2,
   },
@@ -411,25 +411,25 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   avatarText: {
     fontSize: 28,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.orange,
   },
   name: {
     fontSize: 26,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.6,
   },
   heroSub: {
     fontSize: 13,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     marginTop: 4,
     textAlign: 'center',
   },
   editNameInput: {
     fontSize: 24,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.5,
     borderBottomWidth: 2,
@@ -454,12 +454,12 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   actionLabel: {
     fontSize: 11,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     letterSpacing: 0.3,
   },
   sectionEyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -498,18 +498,18 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   detailText: {
     flex: 1,
     fontSize: 13,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'HostGrotesk_600SemiBold',
     color: c.ink,
   },
   detailAction: {
     fontSize: 12,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.orange,
   },
   editInput: {
     flex: 1,
     fontSize: 13,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'HostGrotesk_600SemiBold',
     color: c.ink,
     paddingVertical: 2,
   },

@@ -102,16 +102,16 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   compactTitle: {
     position: 'absolute', left: 0, right: 0, textAlign: 'center',
     paddingHorizontal: 110,
-    fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2,
+    fontSize: 16, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.2,
   },
   rightSlot: { marginLeft: 'auto' },
   largeBlock: { paddingHorizontal: 20, paddingBottom: 12 },
   eyebrow: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted,
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted,
     letterSpacing: 2, textTransform: 'uppercase',
   },
   largeTitle: {
-    fontSize: 32, fontFamily: 'Manrope_800ExtraBold', color: c.ink,
+    fontSize: 32, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink,
     letterSpacing: -1, marginTop: 2,
   },
 });

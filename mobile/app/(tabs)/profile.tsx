@@ -62,18 +62,18 @@ function makeStyles(c: Colors) {
     },
     avatarText: {
       fontSize: 26,
-      fontFamily: 'Manrope_800ExtraBold',
+      fontFamily: 'HostGrotesk_800ExtraBold',
       color: c.orange,
     },
     name: {
       fontSize: 22,
-      fontFamily: 'Manrope_800ExtraBold',
+      fontFamily: 'HostGrotesk_800ExtraBold',
       color: c.ink,
       letterSpacing: -0.5,
     },
     biz: {
       fontSize: 12,
-      fontFamily: 'Manrope_500Medium',
+      fontFamily: 'HostGrotesk_500Medium',
       color: c.muted,
       marginTop: 2,
     },
@@ -87,7 +87,7 @@ function makeStyles(c: Colors) {
     },
     proBadgeText: {
       fontSize: 9.5,
-      fontFamily: 'Manrope_800ExtraBold',
+      fontFamily: 'HostGrotesk_800ExtraBold',
       color: c.orangeDeep,
       letterSpacing: 0.7,
       textTransform: 'uppercase',
@@ -112,14 +112,14 @@ function makeStyles(c: Colors) {
     },
     statVal: {
       fontSize: 20,
-      fontFamily: 'Manrope_800ExtraBold',
+      fontFamily: 'HostGrotesk_800ExtraBold',
       color: c.ink,
       letterSpacing: -0.4,
       lineHeight: 22,
     },
     statLabel: {
       fontSize: 10,
-      fontFamily: 'Manrope_800ExtraBold',
+      fontFamily: 'HostGrotesk_800ExtraBold',
       color: c.muted,
       letterSpacing: 0.6,
       textTransform: 'uppercase',
@@ -127,7 +127,7 @@ function makeStyles(c: Colors) {
     },
     groupEyebrow: {
       fontSize: 10,
-      fontFamily: 'Manrope_800ExtraBold',
+      fontFamily: 'HostGrotesk_800ExtraBold',
       color: c.muted,
       letterSpacing: 2,
       textTransform: 'uppercase',
@@ -156,12 +156,12 @@ function makeStyles(c: Colors) {
     },
     groupLabel: {
       fontSize: 14,
-      fontFamily: 'Manrope_800ExtraBold',
+      fontFamily: 'HostGrotesk_800ExtraBold',
       color: c.ink,
     },
     groupSub: {
       fontSize: 11,
-      fontFamily: 'Manrope_500Medium',
+      fontFamily: 'HostGrotesk_500Medium',
       color: c.muted,
       marginTop: 2,
     },
@@ -180,7 +180,7 @@ function makeXeroStyles(c: Colors) {
     },
     soonText: {
       fontSize: 10,
-      fontFamily: 'Manrope_800ExtraBold',
+      fontFamily: 'HostGrotesk_800ExtraBold',
       color: c.muted,
       letterSpacing: 0.3,
     },
@@ -198,7 +198,7 @@ function makeXeroStyles(c: Colors) {
     },
     actionBtnText: {
       fontSize: 12,
-      fontFamily: 'Manrope_700Bold',
+      fontFamily: 'HostGrotesk_700Bold',
       color: c.ink,
     },
   });
@@ -236,7 +236,7 @@ function SettingsGroup({ title, items }: { title: string; items: SettingItem[] }
                 <Text style={[s.groupLabel, item.danger && { color: c.red }]}>{item.label}</Text>
                 {item.badge && (
                   <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: c.orangeSoft }}>
-                    <Text style={{ fontSize: 9, fontFamily: 'Manrope_800ExtraBold', color: c.orangeDeep, letterSpacing: 0.5 }}>{item.badge}</Text>
+                    <Text style={{ fontSize: 9, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orangeDeep, letterSpacing: 0.5 }}>{item.badge}</Text>
                   </View>
                 )}
               </View>
@@ -356,8 +356,8 @@ function AppearanceModal({ visible, onClose }: { visible: boolean; onClose: () =
     <BottomSheetModal visible={visible} onClose={onClose} avoidKeyboard={false}>
       <View style={{ backgroundColor: c.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }}>
         <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: c.lineSoft, alignSelf: 'center', marginBottom: 20 }} />
-        <Text style={{ fontSize: 17, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginBottom: 4 }}>Appearance</Text>
-        <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginBottom: 8 }}>Choose how Vargen EZ looks on your device</Text>
+        <Text style={{ fontSize: 17, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, marginBottom: 4 }}>Appearance</Text>
+        <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginBottom: 8 }}>Choose how Vargen EZ looks on your device</Text>
         {APPEARANCE_OPTIONS.map((opt, i) => (
           <TouchableOpacity
             key={opt.value}
@@ -369,8 +369,8 @@ function AppearanceModal({ visible, onClose }: { visible: boolean; onClose: () =
               <opt.Icon size={18} color={mode === opt.value ? c.orange : c.muted} strokeWidth={2.1} />
             </View>
             <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink }}>{opt.label}</Text>
-              <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted }}>{opt.desc}</Text>
+              <Text style={{ fontSize: 15, fontFamily: 'HostGrotesk_700Bold', color: c.ink }}>{opt.label}</Text>
+              <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted }}>{opt.desc}</Text>
             </View>
             {mode === opt.value && <Check size={18} color={c.orange} strokeWidth={2.5} />}
           </TouchableOpacity>
@@ -503,10 +503,10 @@ export default function ProfileScreen() {
         ]} />
 
         <View style={{ paddingTop: 28, alignItems: 'center' }}>
-          <Text style={{ fontSize: 11, color: c.muted, fontFamily: 'Manrope_600SemiBold' }}>
+          <Text style={{ fontSize: 11, color: c.muted, fontFamily: 'HostGrotesk_600SemiBold' }}>
             Admin for people who'd rather be on the tools.
           </Text>
-          <Text style={{ fontSize: 10, color: c.muted, fontFamily: 'Manrope_800ExtraBold', marginTop: 6, letterSpacing: 2, textTransform: 'uppercase' }}>
+          <Text style={{ fontSize: 10, color: c.muted, fontFamily: 'HostGrotesk_800ExtraBold', marginTop: 6, letterSpacing: 2, textTransform: 'uppercase' }}>
             VARGEN · v1.0
           </Text>
         </View>

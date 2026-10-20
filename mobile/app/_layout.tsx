@@ -6,12 +6,13 @@ import { queryClient } from '@/lib/queryClient';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import {
-  Manrope_400Regular,
-  Manrope_500Medium,
-  Manrope_600SemiBold,
-  Manrope_700Bold,
-  Manrope_800ExtraBold,
-} from '@expo-google-fonts/manrope';
+  HostGrotesk_300Light,
+  HostGrotesk_400Regular,
+  HostGrotesk_500Medium,
+  HostGrotesk_600SemiBold,
+  HostGrotesk_700Bold,
+  HostGrotesk_800ExtraBold,
+} from '@expo-google-fonts/host-grotesk';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useEffect, useRef, useState, Component, type ReactNode } from 'react';
 import * as Notifications from 'expo-notifications';
@@ -150,11 +151,12 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
 // ── Root layout ───────────────────────────────────────────────────────────────
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
+    HostGrotesk_300Light,
+    HostGrotesk_400Regular,
+    HostGrotesk_500Medium,
+    HostGrotesk_600SemiBold,
+    HostGrotesk_700Bold,
+    HostGrotesk_800ExtraBold,
   });
 
   return (

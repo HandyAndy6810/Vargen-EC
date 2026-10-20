@@ -36,37 +36,37 @@ function makeStyles(c: Colors) {
 
   return StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 16 },
-    eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 },
-    title: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
+    eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 2 },
+    title: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.5, marginTop: 2 },
     addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', shadowColor: c.orange, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.33, shadowRadius: 14, elevation: 6 },
     fromQuoteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: 12, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, marginRight: 8 },
-    fromQuoteText: { fontSize: 12.5, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+    fromQuoteText: { fontSize: 12.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
     // Match the quotes tab's hero dimensions (padding 18, 38px amount) so the two
     // tabs' top tiles are the same height.
     heroCard: { borderRadius: 22, padding: 18, overflow: 'hidden', backgroundColor: c.orange, shadowColor: c.orange, shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.33, shadowRadius: 40, elevation: 10 },
-    heroEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.8)', letterSpacing: 2, textTransform: 'uppercase' },
-    heroAmt: { fontSize: 38, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -1.2, lineHeight: 42, marginTop: 4 },
+    heroEyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: 'rgba(255,255,255,0.8)', letterSpacing: 2, textTransform: 'uppercase' },
+    heroAmt: { fontSize: 38, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff', letterSpacing: -1.2, lineHeight: 42, marginTop: 4 },
     nudgeBtn: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
-    nudgeBtnText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: 0.3 },
+    nudgeBtnText: { fontSize: 12, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff', letterSpacing: 0.3 },
     searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
-    searchInput: { flex: 1, fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.ink },
+    searchInput: { flex: 1, fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.ink },
     // See quotes.tsx — without alignItems:'center' the pills stretch or squash to
     // whatever height the strip lands on, because a row aligns children to stretch.
     tabsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingVertical: 6 },
     tab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft },
     tabActive: { backgroundColor: c.orange, borderColor: c.orange },
-    tabText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: c.mutedHi },
+    tabText: { fontSize: 12, fontFamily: 'HostGrotesk_800ExtraBold', color: c.mutedHi },
     tabTextActive: { color: '#fff' },
     tabBadge: { backgroundColor: c.paperDeep, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 },
-    tabBadgeText: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted },
+    tabBadgeText: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted },
     invCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 18, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6 },
     invAvatar: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-    invAvatarText: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 0.5 },
-    invTitle: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
-    invMeta: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2 },
+    invAvatarText: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: 0.5 },
+    invTitle: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
+    invMeta: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2 },
     statusPill: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, borderWidth: 1 },
-    statusPillText: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 1.2, textTransform: 'uppercase' },
-    invAmt: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.3 },
+    statusPillText: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: 1.2, textTransform: 'uppercase' },
+    invAmt: { fontSize: 16, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.3 },
   });
 }
 
@@ -151,8 +151,8 @@ export default function InvoicesScreen() {
           <Text style={s.heroEyebrow}>Outstanding · {outstandingCount} invoice{outstandingCount === 1 ? '' : 's'}</Text>
           <Text style={s.heroAmt}>${money(outstanding)}</Text>
           <View style={{ flexDirection: 'row', gap: 14, marginTop: 14 }}>
-            <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: '#fff' }}>🔴 ${money(overdue)} overdue</Text>
-            <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: 'rgba(255,255,255,0.7)' }}>● ${money(current)} current</Text>
+            <Text style={{ fontSize: 11, fontFamily: 'HostGrotesk_700Bold', color: '#fff' }}>🔴 ${money(overdue)} overdue</Text>
+            <Text style={{ fontSize: 11, fontFamily: 'HostGrotesk_700Bold', color: 'rgba(255,255,255,0.7)' }}>● ${money(current)} current</Text>
           </View>
           {counts.overdue > 0 && (
             <TouchableOpacity style={s.nudgeBtn} onPress={() => setFilter('overdue')} activeOpacity={0.8}>
@@ -241,7 +241,7 @@ export default function InvoicesScreen() {
             onPress={onRefresh}
             style={{ backgroundColor: c.redSoft, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.red }}
           >
-            <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.red }}>
+            <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.red }}>
               Couldn't load invoices — tap to retry
             </Text>
           </TouchableOpacity>
@@ -253,10 +253,10 @@ export default function InvoicesScreen() {
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: c.paperDeep, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <Text style={{ fontSize: 28 }}>🧾</Text>
             </View>
-            <Text style={{ fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: c.ink, textAlign: 'center' }}>
+            <Text style={{ fontSize: 16, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, textAlign: 'center' }}>
               {filter !== 'all' ? `No ${filter} invoices` : 'No invoices yet'}
             </Text>
-            <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+            <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
               {filter === 'all' ? 'Convert an accepted quote to an invoice, or create a standalone invoice.' : 'Try a different filter.'}
             </Text>
             {filter === 'all' && (
@@ -265,7 +265,7 @@ export default function InvoicesScreen() {
                 activeOpacity={0.85}
                 onPress={() => router.push('/invoices/create' as any)}
               >
-                <Text style={{ fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>Create invoice</Text>
+                <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' }}>Create invoice</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -292,7 +292,7 @@ export default function InvoicesScreen() {
                 </View>
                 <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
                   <Text style={[s.invAmt, { color: amtColor }]}>${amount > 0 ? money(amount) : '—'}</Text>
-                  <Text style={{ fontSize: 14, color: c.muted, fontFamily: 'Manrope_600SemiBold', marginTop: 4 }}>›</Text>
+                  <Text style={{ fontSize: 14, color: c.muted, fontFamily: 'HostGrotesk_600SemiBold', marginTop: 4 }}>›</Text>
                 </View>
               </TouchableOpacity>
             );

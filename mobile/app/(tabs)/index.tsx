@@ -119,7 +119,7 @@ function CyclingPill({ nextJob, pipelineAmt, colors: c, weather }: { nextJob: an
       onLongPress={() => setLocked(l => !l)}
       activeOpacity={0.8}
     >
-      <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink }}>{icon}  {label}{locked ? '  🔒' : ''}</Text>
+      <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.ink }}>{icon}  {label}{locked ? '  🔒' : ''}</Text>
     </TouchableOpacity>
   );
 }
@@ -129,83 +129,83 @@ function makeStyles(c: Colors, isDark: boolean) {
   return StyleSheet.create({
     topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 0 },
     avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' },
-    avatarText: { color: c.orange, fontSize: 14, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.2 },
-    eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 2, color: c.muted, textTransform: 'uppercase', marginBottom: 2 },
-    heroGreeting: { fontSize: 42, fontFamily: 'Manrope_800ExtraBold', color: c.ink, lineHeight: 50, letterSpacing: -1.5, marginTop: 8, paddingTop: 2 },
-    heroSub: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: c.mutedHi, marginTop: 10, lineHeight: 20, maxWidth: 280 },
+    avatarText: { color: c.orange, fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.2 },
+    eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: 2, color: c.muted, textTransform: 'uppercase', marginBottom: 2 },
+    heroGreeting: { fontSize: 42, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, lineHeight: 50, letterSpacing: -1.5, marginTop: 8, paddingTop: 2 },
+    heroSub: { fontSize: 14, fontFamily: 'HostGrotesk_600SemiBold', color: c.mutedHi, marginTop: 10, lineHeight: 20, maxWidth: 280 },
     heroCard: { backgroundColor: heroBg, borderRadius: 28, padding: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.22, shadowRadius: 40, elevation: 20 },
     splitWrap: { flexDirection: 'row', height: 78, borderRadius: 22, overflow: 'hidden', marginTop: 10, shadowColor: c.orange, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 22, elevation: 10 },
     splitHalf: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
-    splitLabel: { fontSize: 15.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.3 },
+    splitLabel: { fontSize: 15.5, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff', letterSpacing: -0.3 },
     splitBadge: { position: 'absolute', left: '50%', top: '50%', width: 48, height: 48, marginLeft: -24, marginTop: -24, borderRadius: 24, backgroundColor: c.paper, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 6, elevation: 6 },
-    heroEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, textTransform: 'uppercase' },
+    heroEyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, textTransform: 'uppercase' },
     durationBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
-    durationText: { fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: 0.8 },
-    heroJobTitle: { fontSize: 26, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.6, lineHeight: 30, marginBottom: 6 },
-    heroJobAddr: { fontSize: 13, fontFamily: 'Manrope_500Medium', color: 'rgba(255,255,255,0.55)' },
+    durationText: { fontSize: 10.5, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff', letterSpacing: 0.8 },
+    heroJobTitle: { fontSize: 26, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff', letterSpacing: -0.6, lineHeight: 30, marginBottom: 6 },
+    heroJobAddr: { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: 'rgba(255,255,255,0.55)' },
     startBtn: { flex: 1, height: 52, borderRadius: 16, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', shadowColor: c.orange, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 20, elevation: 8 },
-    startBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.2 },
+    startBtnText: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff', letterSpacing: -0.2 },
     heroIconBtn: { width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
     aiRail: { backgroundColor: c.orange, borderRadius: 24, padding: 18, overflow: 'hidden', shadowColor: c.orange, shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.3, shadowRadius: 28, elevation: 10 },
     aiIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-    aiEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.75)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 },
-    aiRailText: { fontSize: 19, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.4, lineHeight: 23 },
-    aiRailSub: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: 'rgba(255,255,255,0.82)', marginTop: 3, lineHeight: 17 },
+    aiEyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: 'rgba(255,255,255,0.75)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 },
+    aiRailText: { fontSize: 19, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff', letterSpacing: -0.4, lineHeight: 23 },
+    aiRailSub: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: 'rgba(255,255,255,0.82)', marginTop: 3, lineHeight: 17 },
     micBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-    sectionTitle: { fontSize: 18, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginTop: 2, letterSpacing: -0.3 },
-    seeAll: { fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+    sectionTitle: { fontSize: 18, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, marginTop: 2, letterSpacing: -0.3 },
+    seeAll: { fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
     pipelineChip: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 14, minWidth: 108, gap: 4 },
-    pipelineNum: { fontSize: 28, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.8, lineHeight: 32 },
+    pipelineNum: { fontSize: 28, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.8, lineHeight: 32 },
     card: { backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, borderRadius: 22, overflow: 'hidden' },
     qaRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
     qaBtn: { flex: 1, borderRadius: 18, paddingVertical: 14, alignItems: 'center', gap: 8 },
     qaIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-    qaLabel: { fontSize: 11, fontFamily: 'Manrope_700Bold', textAlign: 'center' },
+    qaLabel: { fontSize: 11, fontFamily: 'HostGrotesk_700Bold', textAlign: 'center' },
     scheduleCard: { width: 148, backgroundColor: c.card, borderRadius: 20, borderWidth: 1, borderColor: c.lineSoft, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8 },
-    scheduleTime: { fontSize: 11, fontFamily: 'Manrope_700Bold', color: c.mutedHi },
-    scheduleTitle: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2, lineHeight: 17, marginBottom: 4 },
-    scheduleSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted },
+    scheduleTime: { fontSize: 11, fontFamily: 'HostGrotesk_700Bold', color: c.mutedHi },
+    scheduleTitle: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.2, lineHeight: 17, marginBottom: 4 },
+    scheduleSub: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted },
     emptyCard: { backgroundColor: c.card, borderRadius: 18, borderWidth: 1, borderColor: c.lineSoft, paddingVertical: 18, alignItems: 'center' },
-    emptyText: { fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted },
+    emptyText: { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted },
     rvCard: { flexDirection: 'row', backgroundColor: c.card, borderRadius: 22, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
     rvCol: { flex: 1, paddingVertical: 18, alignItems: 'center', gap: 6 },
-    rvAmt: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.6 },
+    rvAmt: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.6 },
     rvDot: { width: 8, height: 8, borderRadius: 4 },
-    rvLabel: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, letterSpacing: 1, textTransform: 'uppercase' },
+    rvLabel: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, letterSpacing: 1, textTransform: 'uppercase' },
     rqRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
-    rqTitle: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink, letterSpacing: -0.2 },
-    rqSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted },
-    rqAmt: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
+    rqTitle: { fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink, letterSpacing: -0.2 },
+    rqSub: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted },
+    rqAmt: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
     rqBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-    rqBadgeText: { fontSize: 10, fontFamily: 'Manrope_700Bold', textTransform: 'capitalize' },
+    rqBadgeText: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', textTransform: 'capitalize' },
     invRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
     invIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
     nudgeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.orangeSoft, borderRadius: 18, borderWidth: 1, borderColor: `${c.orange}33`, paddingHorizontal: 16, paddingVertical: 14 },
     nudgeIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-    nudgeText: { flex: 1, fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.orangeDeep, lineHeight: 18 },
+    nudgeText: { flex: 1, fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.orangeDeep, lineHeight: 18 },
     pipelineHalfGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
     pipelineHalfCell: { width: '47%', backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineSoft, padding: 10, gap: 2 },
-    pipelineHalfNum: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.5 },
-    pipelineHalfLabel: { fontSize: 9, fontFamily: 'Manrope_700Bold', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.3 },
+    pipelineHalfNum: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.5 },
+    pipelineHalfLabel: { fontSize: 9, fontFamily: 'HostGrotesk_700Bold', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.3 },
     rvHalfRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11 },
-    rvHalfLabel: { fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: c.muted },
-    rvHalfAmt: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.3 },
+    rvHalfLabel: { fontSize: 11, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted },
+    rvHalfAmt: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.3 },
     weatherCardShadow: { borderRadius: 22, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 18, elevation: 6 },
     weatherCard: { backgroundColor: c.card, borderRadius: 22, borderWidth: 1, borderColor: c.lineSoft, padding: 16, overflow: 'hidden' },
     weatherTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 },
-    weatherTemp: { fontSize: 52, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -2, lineHeight: 56 },
-    weatherDesc: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: c.mutedHi, marginTop: 2 },
-    weatherHiLo: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: c.muted },
+    weatherTemp: { fontSize: 52, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -2, lineHeight: 56 },
+    weatherDesc: { fontSize: 14, fontFamily: 'HostGrotesk_600SemiBold', color: c.mutedHi, marginTop: 2 },
+    weatherHiLo: { fontSize: 12, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted },
     weatherBigIcon: { fontSize: 56, lineHeight: 64 },
     rainWarning: { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff', borderRadius: 12, borderWidth: 1, borderColor: isDark ? 'rgba(59,130,246,0.3)' : '#bfdbfe', padding: 10, marginVertical: 8 },
-    rainWarningText: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: isDark ? '#93c5fd' : '#1d4ed8', lineHeight: 17 },
+    rainWarningText: { fontSize: 12, fontFamily: 'HostGrotesk_600SemiBold', color: isDark ? '#93c5fd' : '#1d4ed8', lineHeight: 17 },
     weatherDayCell: { alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: c.lineSoft, backgroundColor: c.paperDeep, minWidth: 58 },
     weatherDayCellActive: { backgroundColor: c.orange, borderColor: c.orange },
     weatherDayCellRainy: { borderColor: isDark ? 'rgba(59,130,246,0.4)' : '#93c5fd' },
-    weatherDayLabel: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+    weatherDayLabel: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
     weatherDayIcon: { fontSize: 20, lineHeight: 24 },
-    weatherDayTemp: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
-    weatherDayRain: { fontSize: 9, fontFamily: 'Manrope_700Bold', color: isDark ? '#93c5fd' : '#3b82f6' },
+    weatherDayTemp: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
+    weatherDayRain: { fontSize: 9, fontFamily: 'HostGrotesk_700Bold', color: isDark ? '#93c5fd' : '#3b82f6' },
   });
 }
 
@@ -637,7 +637,7 @@ export default function HomeScreen() {
               <View style={[s.card, { padding: 18, alignItems: 'center', gap: 10 }]}>
                 {weatherLocError === 'Location permission denied' ? (
                   <>
-                    <Text style={{ fontSize: 13, color: c.muted, fontFamily: 'Manrope_500Medium', textAlign: 'center' }}>
+                    <Text style={{ fontSize: 13, color: c.muted, fontFamily: 'HostGrotesk_500Medium', textAlign: 'center' }}>
                       Location access is needed for weather
                     </Text>
                     <TouchableOpacity
@@ -648,11 +648,11 @@ export default function HomeScreen() {
                       style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, backgroundColor: c.orange }}
                       activeOpacity={0.8}
                     >
-                      <Text style={{ fontSize: 12, fontFamily: 'Manrope_700Bold', color: '#fff' }}>Grant access</Text>
+                      <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_700Bold', color: '#fff' }}>Grant access</Text>
                     </TouchableOpacity>
                   </>
                 ) : (
-                  <Text style={{ fontSize: 13, color: c.muted, fontFamily: 'Manrope_500Medium' }}>
+                  <Text style={{ fontSize: 13, color: c.muted, fontFamily: 'HostGrotesk_500Medium' }}>
                     Fetching weather…
                   </Text>
                 )}
@@ -805,10 +805,10 @@ export default function HomeScreen() {
         ))}
 
         <View style={{ paddingTop: 26, alignItems: 'center' }}>
-          <Text style={{ fontSize: 11, color: c.muted, fontFamily: 'Manrope_600SemiBold', letterSpacing: 0.2 }}>
+          <Text style={{ fontSize: 11, color: c.muted, fontFamily: 'HostGrotesk_600SemiBold', letterSpacing: 0.2 }}>
             Admin for people who'd rather be on the tools.
           </Text>
-          <Text style={{ fontSize: 10, color: c.muted, fontFamily: 'Manrope_800ExtraBold', marginTop: 6, letterSpacing: 2, textTransform: 'uppercase' }}>
+          <Text style={{ fontSize: 10, color: c.muted, fontFamily: 'HostGrotesk_800ExtraBold', marginTop: 6, letterSpacing: 2, textTransform: 'uppercase' }}>
             VARGEN · v1.0
           </Text>
         </View>

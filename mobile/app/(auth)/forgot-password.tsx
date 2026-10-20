@@ -132,21 +132,21 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: 28,
   },
   heading: { marginBottom: 28 },
-  title: { fontSize: 30, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -1 },
-  sub: { fontSize: 14, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 6 },
+  title: { fontSize: 30, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -1 },
+  sub: { fontSize: 14, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 6 },
   errorBox: {
     backgroundColor: c.redSoft, borderRadius: 12, padding: 14, marginBottom: 16,
   },
-  errorText: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.red },
+  errorText: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.red },
   fieldGroup: { marginBottom: 14 },
   fieldLabel: {
-    fontSize: 11, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.mutedHi, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8,
   },
   input: {
     backgroundColor: c.card, borderRadius: 14,
     paddingHorizontal: 16, paddingVertical: 14,
-    fontSize: 14, fontFamily: 'Manrope_500Medium',
+    fontSize: 14, fontFamily: 'HostGrotesk_500Medium',
     color: c.ink, borderWidth: 1, borderColor: c.lineMid,
   },
   submitBtn: {
@@ -156,14 +156,14 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 20, elevation: 6,
   },
   submitBtnDisabled: { opacity: 0.5, shadowOpacity: 0 },
-  submitBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  submitBtnText: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
   successContainer: { alignItems: 'center', paddingTop: 40 },
   successIcon: {
     width: 80, height: 80, borderRadius: 40,
     backgroundColor: c.greenSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 22,
   },
   successSub: {
-    fontSize: 14, fontFamily: 'Manrope_500Medium',
+    fontSize: 14, fontFamily: 'HostGrotesk_500Medium',
     color: c.muted, textAlign: 'center', lineHeight: 22, marginTop: 10, marginBottom: 36, paddingHorizontal: 8,
   },
 });

@@ -237,7 +237,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   title: {
     flex: 1,
     fontSize: 20,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.4,
     textAlign: 'center',
@@ -261,7 +261,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   heroEyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: 'rgba(255,255,255,0.55)',
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -269,14 +269,14 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   heroNumber: {
     fontSize: 42,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
     letterSpacing: -1.4,
     lineHeight: 46,
   },
   heroSub: {
     fontSize: 13,
-    fontFamily: 'Manrope_600SemiBold',
+    fontFamily: 'HostGrotesk_600SemiBold',
     color: 'rgba(255,255,255,0.6)',
     marginTop: 4,
   },
@@ -294,7 +294,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.ink,
   },
   errorBanner: {
@@ -307,7 +307,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.red,
   },
   card: {
@@ -338,19 +338,19 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   avatarText: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
     letterSpacing: -0.3,
   },
   cardName: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.2,
   },
   cardSub: {
     fontSize: 12.5,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     marginTop: 2,
   },
@@ -363,7 +363,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   addrText: {
     flex: 1,
     fontSize: 11.5,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
   },
   cardActions: {
@@ -394,13 +394,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     marginBottom: 6,
   },
   emptySub: {
     fontSize: 13,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     textAlign: 'center',
     lineHeight: 19,
@@ -418,7 +418,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   emptyCtaText: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
   },
 });
