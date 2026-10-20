@@ -79,7 +79,7 @@ function TabBar({ state, navigation }: any) {
       pointerEvents="box-none"
     >
       <View
-        style={[styles.pill, { borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(26,14,6,0.10)' }]}
+        style={[styles.pill, { borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(28,29,33,0.10)' }]}
         onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
       >
         <TabBarBackground />

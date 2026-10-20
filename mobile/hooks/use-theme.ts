@@ -15,6 +15,11 @@ export interface Colors {
   mutedHi:    string;
   lineSoft:   string;
   lineMid:    string;
+  /** Rim tiles (Home): translucent fill, side/bottom edge, brighter top edge.
+   *  Separate from lineSoft, which also draws the row dividers inside cards. */
+  tile:       string;
+  tileEdge:   string;
+  tileRim:    string;
   orange:     string;
   orangeDeep: string;
   orangeSoft: string;
@@ -31,15 +36,20 @@ export interface Colors {
   blurTint:   'light' | 'dark' | 'default';
 }
 
+// Neutral greys (redesign, Oct 2026). muted's alpha is higher than before on
+// purpose: at 0.50 on the new grey, small muted text fell below 4.5:1 contrast.
 export const lightColors: Colors = {
-  paper:      '#FFFBF8',
-  paperDeep:  '#FFF0E6',
+  paper:      '#F2F2F0',
+  paperDeep:  '#E8E8E5',
   card:       '#FFFFFF',
-  ink:        '#1A0E06',
-  muted:      'rgba(26,14,6,0.50)',
-  mutedHi:    'rgba(26,14,6,0.72)',
-  lineSoft:   'rgba(26,14,6,0.08)',
-  lineMid:    'rgba(26,14,6,0.14)',
+  ink:        '#1C1D21',
+  muted:      'rgba(28,29,33,0.66)',
+  mutedHi:    'rgba(28,29,33,0.80)',
+  lineSoft:   'rgba(28,29,33,0.08)',
+  lineMid:    'rgba(28,29,33,0.14)',
+  tile:       'rgba(255,255,255,0.72)',
+  tileEdge:   'rgba(255,255,255,0.80)',
+  tileRim:    '#FFFFFF',
   orange:     '#f26a2a',
   orangeDeep: '#d94d0e',
   orangeSoft: '#ffe6d3',
@@ -57,14 +67,17 @@ export const lightColors: Colors = {
 };
 
 export const darkColors: Colors = {
-  paper:      '#0D0E11',
-  paperDeep:  '#080909',
-  card:       '#16181D',
-  ink:        '#F2F4F7',
-  muted:      'rgba(242,244,247,0.48)',
-  mutedHi:    'rgba(242,244,247,0.70)',
-  lineSoft:   'rgba(242,244,247,0.10)',
-  lineMid:    'rgba(242,244,247,0.16)',
+  paper:      '#141416',
+  paperDeep:  '#0E0E10',
+  card:       '#1C1D20',
+  ink:        '#F2F2F0',
+  muted:      'rgba(242,242,240,0.60)',
+  mutedHi:    'rgba(242,242,240,0.78)',
+  lineSoft:   'rgba(242,242,240,0.10)',
+  lineMid:    'rgba(242,242,240,0.16)',
+  tile:       'rgba(255,255,255,0.05)',
+  tileEdge:   'rgba(255,255,255,0.09)',
+  tileRim:    'rgba(255,255,255,0.16)',
   orange:     '#f26a2a',
   orangeDeep: '#d94d0e',
   orangeSoft: 'rgba(242,106,42,0.16)',
