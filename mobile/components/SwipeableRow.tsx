@@ -68,6 +68,6 @@ const sw = StyleSheet.create({
     backgroundColor: '#d23b3b', borderRadius: 16,
     alignItems: 'center', justifyContent: 'center', gap: 3,
   },
-  deleteText: { fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  deleteText: { fontSize: 10.5, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
 });
 

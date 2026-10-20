@@ -103,7 +103,7 @@ export default function ReceiptDetailScreen() {
           </TouchableOpacity>
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.muted }}>Receipt not found</Text>
+          <Text style={{ fontSize: 15, fontFamily: 'HostGrotesk_700Bold', color: c.muted }}>Receipt not found</Text>
         </View>
       </SafeAreaView>
     );
@@ -202,11 +202,11 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   eyebrow: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 2, textTransform: 'uppercase',
   },
   title: {
-    fontSize: 18, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 18, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink, letterSpacing: -0.4, marginTop: 2,
   },
   fieldCard: {
@@ -214,18 +214,18 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     borderWidth: 1, borderColor: c.lineSoft,
   },
   fieldLabel: {
-    fontSize: 11, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6,
   },
   input: {
-    fontSize: 15, fontFamily: 'Manrope_600SemiBold', color: c.ink,
+    fontSize: 15, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink,
     paddingVertical: 6,
   },
   catChip: {
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12,
     backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineMid,
   },
-  catChipText: { fontSize: 12, fontFamily: 'Manrope_700Bold', color: c.ink },
+  catChipText: { fontSize: 12, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
   saveBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     paddingTop: 12, paddingBottom: 32, paddingHorizontal: 16,
@@ -237,5 +237,5 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     shadowColor: c.orange, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35, shadowRadius: 20, elevation: 6,
   },
-  saveBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  saveBtnText: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
 });

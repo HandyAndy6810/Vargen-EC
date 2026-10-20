@@ -229,19 +229,19 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.2,
   },
   subText: {
     fontSize: 13,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     lineHeight: 19,
   },
   eyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -280,7 +280,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   widgetLabel: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
   mutedLabel: {
@@ -288,13 +288,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   widgetDesc: {
     fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     marginTop: 2,
   },
   resetText: {
     fontSize: 12,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.orange,
     textDecorationLine: 'underline',
   },
@@ -329,7 +329,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   saveBtnText: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
     letterSpacing: 0.2,
   },
@@ -344,7 +344,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   savedText: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.green,
     letterSpacing: 0.2,
   },

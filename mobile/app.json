@@ -11,12 +11,12 @@
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0D0E11"
+      "backgroundColor": "#141416"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.vargen.ec",
-      "backgroundColor": "#f7f4ee",
+      "backgroundColor": "#F2F2F0",
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Used to capture photos for jobs and invoices.",
@@ -30,7 +30,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#0D0E11"
+        "backgroundColor": "#141416"
       },
       "package": "com.vargen.ec",
       "versionCode": 1,
@@ -50,7 +50,7 @@
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png",
-      "backgroundColor": "#f7f4ee"
+      "backgroundColor": "#F2F2F0"
     },
     "plugins": [
       "expo-router",
@@ -68,11 +68,12 @@
         "expo-font",
         {
           "fonts": [
-            "./node_modules/@expo-google-fonts/manrope/400Regular/Manrope_400Regular.ttf",
-            "./node_modules/@expo-google-fonts/manrope/500Medium/Manrope_500Medium.ttf",
-            "./node_modules/@expo-google-fonts/manrope/600SemiBold/Manrope_600SemiBold.ttf",
-            "./node_modules/@expo-google-fonts/manrope/700Bold/Manrope_700Bold.ttf",
-            "./node_modules/@expo-google-fonts/manrope/800ExtraBold/Manrope_800ExtraBold.ttf"
+            "./node_modules/@expo-google-fonts/host-grotesk/300Light/HostGrotesk_300Light.ttf",
+            "./node_modules/@expo-google-fonts/host-grotesk/400Regular/HostGrotesk_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/host-grotesk/500Medium/HostGrotesk_500Medium.ttf",
+            "./node_modules/@expo-google-fonts/host-grotesk/600SemiBold/HostGrotesk_600SemiBold.ttf",
+            "./node_modules/@expo-google-fonts/host-grotesk/700Bold/HostGrotesk_700Bold.ttf",
+            "./node_modules/@expo-google-fonts/host-grotesk/800ExtraBold/HostGrotesk_800ExtraBold.ttf"
           ]
         }
       ],

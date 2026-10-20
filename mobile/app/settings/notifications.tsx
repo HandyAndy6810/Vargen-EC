@@ -22,17 +22,17 @@ function makeStyles(c: Colors) {
     header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14, paddingTop: 4 },
     backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
     titleWrap: { flex: 1 },
-    eyebrow: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
-    title: { fontSize: 20, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
+    eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
+    title: { fontSize: 20, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
     group: { paddingHorizontal: 20, paddingTop: 22 },
-    groupLabel: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
+    groupLabel: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
     card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
     row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14, gap: 12 },
     rowDivider: { borderTopWidth: 1, borderTopColor: c.lineSoft },
     iconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-    rowLabel: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink },
-    rowSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2 },
-    hint: { fontSize: 11, color: c.muted, fontFamily: 'Manrope_500Medium', marginTop: 6, paddingHorizontal: 2 },
+    rowLabel: { fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
+    rowSub: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2 },
+    hint: { fontSize: 11, color: c.muted, fontFamily: 'HostGrotesk_500Medium', marginTop: 6, paddingHorizontal: 2 },
   });
 }
 

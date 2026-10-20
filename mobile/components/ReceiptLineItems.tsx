@@ -58,13 +58,13 @@ export function ReceiptLineItems({ items, title = 'Line items' }: { items: unkno
 
 const makeStyles = (c: Colors) => StyleSheet.create({
   card: { backgroundColor: c.card, borderRadius: 18, borderWidth: 1, borderColor: c.lineSoft, paddingHorizontal: 16, paddingVertical: 14, gap: 4 },
-  label: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 },
+  label: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9, gap: 12 },
   rowBorder: { borderTopWidth: 1, borderTopColor: c.lineSoft },
-  desc: { flex: 1, fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.ink },
-  amt: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink },
-  sumLabel: { flex: 1, fontSize: 12, fontFamily: 'Manrope_700Bold', color: c.mutedHi },
-  sumAmt: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
+  desc: { flex: 1, fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.ink },
+  amt: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
+  sumLabel: { flex: 1, fontSize: 12, fontFamily: 'HostGrotesk_700Bold', color: c.mutedHi },
+  sumAmt: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
   warn: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: c.orangeSoft, borderRadius: 12, borderWidth: 1, borderColor: c.orange, padding: 10 },
-  warnText: { flex: 1, fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: c.orangeDeep, lineHeight: 17 },
+  warnText: { flex: 1, fontSize: 12, fontFamily: 'HostGrotesk_600SemiBold', color: c.orangeDeep, lineHeight: 17 },
 });

@@ -348,11 +348,11 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   eyebrow: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 2, textTransform: 'uppercase',
   },
   title: {
-    fontSize: 22, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink, letterSpacing: -0.5, marginTop: 2,
   },
   infoBanner: {
@@ -361,11 +361,11 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(242,106,42,0.35)', marginBottom: 20,
   },
   infoText: {
-    flex: 1, fontSize: 12.5, fontFamily: 'Manrope_500Medium',
+    flex: 1, fontSize: 12.5, fontFamily: 'HostGrotesk_500Medium',
     color: c.orangeDeep, lineHeight: 18,
   },
   categoryLabel: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 2, textTransform: 'uppercase',
     marginBottom: 8,
   },
@@ -378,13 +378,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     gap: 10, paddingHorizontal: 14, paddingVertical: 12,
   },
   itemDescription: {
-    fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink,
+    fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.ink,
   },
   itemMeta: {
-    fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2,
+    fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2,
   },
   itemPrice: {
-    fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink,
+    fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink,
     minWidth: 64, textAlign: 'right',
   },
   iconBtn: {
@@ -397,30 +397,30 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     borderColor: c.lineMid, padding: 16, marginBottom: 20,
   },
   formTitle: {
-    fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginBottom: 12,
+    fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, marginBottom: 12,
   },
   formActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   cancelBtn: {
     flex: 1, height: 40, borderRadius: 12, backgroundColor: c.paperDeep,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  cancelBtnText: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.mutedHi },
+  cancelBtnText: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.mutedHi },
   saveBtn: {
     flex: 2, height: 40, borderRadius: 12, backgroundColor: c.orange,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  saveBtnText: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  saveBtnText: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
   errorText: {
-    fontSize: 12, fontFamily: 'Manrope_600SemiBold',
+    fontSize: 12, fontFamily: 'HostGrotesk_600SemiBold',
     color: c.red, marginBottom: 8,
   },
   input: {
     backgroundColor: c.paperDeep, borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 10,
-    fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.ink,
+    fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink,
   },
   inputLabel: {
-    fontSize: 10, fontFamily: 'Manrope_700Bold',
+    fontSize: 10, fontFamily: 'HostGrotesk_700Bold',
     color: c.muted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4,
   },
   unitChip: {
@@ -428,19 +428,19 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     backgroundColor: c.paperDeep, alignItems: 'center', justifyContent: 'center',
   },
   unitChipActive: { backgroundColor: c.orange },
-  unitChipText: { fontSize: 12, fontFamily: 'Manrope_700Bold', color: c.mutedHi },
+  unitChipText: { fontSize: 12, fontFamily: 'HostGrotesk_700Bold', color: c.mutedHi },
   unitChipTextActive: { color: '#fff' },
   emptyState: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32 },
   emptyTitle: {
-    fontSize: 17, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginBottom: 8,
+    fontSize: 17, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted,
+    fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted,
     textAlign: 'center', lineHeight: 20, marginBottom: 24,
   },
   emptyAddBtn: {
     height: 48, paddingHorizontal: 24, borderRadius: 16,
     backgroundColor: c.orange, flexDirection: 'row', alignItems: 'center', gap: 8,
   },
-  emptyAddBtnText: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  emptyAddBtnText: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
 });

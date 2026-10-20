@@ -169,15 +169,15 @@ export default function InvoiceLineEditorSheet() {
 const makeStyles = (c: Colors) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: c.paper },
   body: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 32 },
-  title: { fontSize: 18, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginBottom: 16 },
+  title: { fontSize: 18, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, marginBottom: 16 },
   fieldLabel: {
-    fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: c.muted,
+    fontSize: 10.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted,
     letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6,
   },
   input: {
     backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineMid,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, fontFamily: 'Manrope_600SemiBold', color: c.ink,
+    fontSize: 15, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink,
   },
   row: { flexDirection: 'row', gap: 10, marginTop: 14 },
   costRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginTop: 18 },
@@ -185,9 +185,9 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     width: 22, height: 22, borderRadius: 7, borderWidth: 1.5, borderColor: c.lineMid,
     alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
-  costRowLabel: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink },
-  costRowSub: { fontSize: 11.5, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2, lineHeight: 16 },
-  hint: { fontSize: 12.5, fontFamily: 'Manrope_600SemiBold', color: c.muted, marginTop: 14 },
+  costRowLabel: { fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
+  costRowSub: { fontSize: 11.5, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2, lineHeight: 16 },
+  hint: { fontSize: 12.5, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted, marginTop: 14 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 20 },
   deleteBtn: {
     width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
@@ -197,5 +197,5 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     flex: 1, height: 52, borderRadius: 16, backgroundColor: c.orange,
     alignItems: 'center', justifyContent: 'center',
   },
-  saveText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  saveText: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
 });

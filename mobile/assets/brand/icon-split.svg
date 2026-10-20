@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- "Split": the Zap button in miniature. The background shows through the
+       bolt-shaped gap. Same bolt as components/SplitActionButton.tsx, scaled
+       ~8.83x: tips (583,0) and (441,1024), notches (265,600) and (759,424),
+       inner corners (512,600) and (512,424). Square, opaque, no rounding —
+       iOS and Android apply their own masks. -->
+  <rect width="1024" height="1024" fill="#F2F2F0"/>
+  <polygon points="0,0 583,0 265,600 512,600 441,1024 0,1024" fill="#F26A2A"/>
+  <polygon points="583,0 1024,0 1024,1024 441,1024 759,424 512,424" fill="#1C1D21"/>
+</svg>

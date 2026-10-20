@@ -27,6 +27,10 @@ import { summariseInvoices, isInvoiceOverdue, invoiceOwing, isQuoteOverdue } fro
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/dialogs';
 import { SplitActionButton } from '@/components/SplitActionButton';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
+import { mixHex } from '@shared/color';
+import { rimTile } from '@/theme/rim';
 
 const PILL_STATES = 4;
 
@@ -82,7 +86,7 @@ function AnimatedNumber({ value, prefix = '$', style }: { value: number; prefix?
   return <Text style={style}>{prefix}{fmt}</Text>;
 }
 
-function CyclingPill({ nextJob, pipelineAmt, colors: c, weather }: { nextJob: any; pipelineAmt: number; colors: Colors; weather: any }) {
+function CyclingPill({ nextJob, pipelineAmt, colors: c, isDark, weather }: { nextJob: any; pipelineAmt: number; colors: Colors; isDark: boolean; weather: any }) {
   const [idx, setIdx] = useState(0);
   const [locked, setLocked] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -97,7 +101,7 @@ function CyclingPill({ nextJob, pipelineAmt, colors: c, weather }: { nextJob: an
   const weatherLabel = weather?.current ? `${weather.current.icon} ${Math.round(weather.current.temp)}°` : '—';
   const states = [
     { icon: weather?.current?.icon || '🌤', label: weatherLabel },
-    { icon: '🕐', label: format(now, "EEE d · h:mm a") },
+    { icon: '🕐', label: format(now, "EEE d, h:mm a") },
     { icon: '📍', label: nextJob ? nextJob.title.slice(0, 22) : 'No jobs' },
     { icon: '💰', label: pipelineAmt >= 1000 ? `$${(pipelineAmt / 1000).toFixed(1)}k out` : `$${Math.round(pipelineAmt)} out` },
   ];
@@ -114,98 +118,119 @@ function CyclingPill({ nextJob, pipelineAmt, colors: c, weather }: { nextJob: an
 
   return (
     <TouchableOpacity
-      style={{ paddingVertical: 9, paddingHorizontal: 16, borderRadius: 999, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft }}
+      style={heroChip(isDark)}
       onPress={advance}
       onLongPress={() => setLocked(l => !l)}
       activeOpacity={0.8}
     >
-      <Text style={{ fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink }}>{icon}  {label}{locked ? '  🔒' : ''}</Text>
+      <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink }}>{icon}  {label}{locked ? '  🔒' : ''}</Text>
     </TouchableOpacity>
   );
 }
 
+// Translucent chips on the Home gradient (job count, cycling pill).
+function heroChip(isDark: boolean) {
+  return {
+    flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6,
+    paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.62)',
+    borderColor: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.9)',
+  };
+}
+
+// Secondary text that sits on the gradient. Never c.muted there: it fails
+// contrast on orange.
+const heroSecondary = (isDark: boolean) => (isDark ? 'rgba(255,255,255,0.84)' : 'rgba(28,29,33,0.82)');
+
+// The sharp bolt, as in the Zap button, for the job-count chip.
+const BOLT_PATH = 'M 36 0 L 6 38 L 26 38 L 20 64 L 50 26 L 30 26 Z';
+
 function makeStyles(c: Colors, isDark: boolean) {
-  const heroBg = isDark ? c.card : '#0f0e0b';
   return StyleSheet.create({
     topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 0 },
-    avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' },
-    avatarText: { color: c.orange, fontSize: 14, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.2 },
-    eyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', letterSpacing: 2, color: c.muted, textTransform: 'uppercase', marginBottom: 2 },
-    heroGreeting: { fontSize: 42, fontFamily: 'Manrope_800ExtraBold', color: c.ink, lineHeight: 50, letterSpacing: -1.5, marginTop: 8, paddingTop: 2 },
-    heroSub: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: c.mutedHi, marginTop: 10, lineHeight: 20, maxWidth: 280 },
-    heroCard: { backgroundColor: heroBg, borderRadius: 28, padding: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.22, shadowRadius: 40, elevation: 20 },
-    splitWrap: { flexDirection: 'row', height: 78, borderRadius: 22, overflow: 'hidden', marginTop: 10, shadowColor: c.orange, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 22, elevation: 10 },
-    splitHalf: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
-    splitLabel: { fontSize: 15.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.3 },
-    splitBadge: { position: 'absolute', left: '50%', top: '50%', width: 48, height: 48, marginLeft: -24, marginTop: -24, borderRadius: 24, backgroundColor: c.paper, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 6, elevation: 6 },
-    heroEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, textTransform: 'uppercase' },
+    // Fixed graphite in both modes: in dark, c.ink flips to light grey and the
+    // orange initials would lose contrast.
+    avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1C1D21', alignItems: 'center', justifyContent: 'center', ...(isDark ? { borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' } : null) },
+    avatarText: { color: c.orange, fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.2 },
+    eyebrow: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted, marginBottom: 2 },
+    // Right-aligned hero: date, light greeting line, oversized name, job chip.
+    hero: { paddingHorizontal: 20, paddingTop: 22, alignItems: 'flex-end' },
+    heroDate: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: heroSecondary(isDark), textAlign: 'right' },
+    heroLine1: { fontSize: 38, fontFamily: 'HostGrotesk_300Light', color: c.ink, letterSpacing: -0.8, lineHeight: 40, textAlign: 'right', marginTop: 10 },
+    heroName: { fontSize: 66, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -2.5, lineHeight: 64, textAlign: 'right', alignSelf: 'stretch' },
+    heroChipText: { fontSize: 14, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink },
+    heroCard: isDark
+      ? { ...rimTile(c, true, 'rgba(255,255,255,0.07)'), padding: 20 }
+      : { backgroundColor: '#1C1D21', borderRadius: 22, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.14, shadowRadius: 24, elevation: 6 },
+    heroEyebrow: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: 'rgba(255,255,255,0.6)' },
     durationBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
-    durationText: { fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: 0.8 },
-    heroJobTitle: { fontSize: 26, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.6, lineHeight: 30, marginBottom: 6 },
-    heroJobAddr: { fontSize: 13, fontFamily: 'Manrope_500Medium', color: 'rgba(255,255,255,0.55)' },
-    startBtn: { flex: 1, height: 52, borderRadius: 16, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center', shadowColor: c.orange, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 20, elevation: 8 },
-    startBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.2 },
+    durationText: { fontSize: 11, fontFamily: 'HostGrotesk_700Bold', color: '#fff' },
+    heroJobTitle: { fontSize: 26, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff', letterSpacing: -0.6, lineHeight: 30, marginBottom: 6 },
+    heroJobAddr: { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: 'rgba(255,255,255,0.55)' },
+    startBtn: { flex: 1, height: 52, borderRadius: 16, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center' },
+    startBtnText: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff', letterSpacing: -0.2 },
     heroIconBtn: { width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-    aiRail: { backgroundColor: c.orange, borderRadius: 24, padding: 18, overflow: 'hidden', shadowColor: c.orange, shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.3, shadowRadius: 28, elevation: 10 },
+    aiRail: { backgroundColor: c.orange, borderRadius: 24, padding: 18, overflow: 'hidden' },
     aiIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-    aiEyebrow: { fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: 'rgba(255,255,255,0.75)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 },
-    aiRailText: { fontSize: 19, fontFamily: 'Manrope_800ExtraBold', color: '#fff', letterSpacing: -0.4, lineHeight: 23 },
-    aiRailSub: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: 'rgba(255,255,255,0.82)', marginTop: 3, lineHeight: 17 },
+    aiRailText: { fontSize: 19, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff', letterSpacing: -0.4, lineHeight: 23 },
+    aiRailSub: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: 'rgba(255,255,255,0.82)', marginTop: 3, lineHeight: 17 },
     micBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-    sectionTitle: { fontSize: 18, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginTop: 2, letterSpacing: -0.3 },
-    seeAll: { fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+    sectionTitle: { fontSize: 18, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, marginTop: 2, letterSpacing: -0.3 },
+    seeAll: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.orange },
     pipelineChip: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 14, minWidth: 108, gap: 4 },
-    pipelineNum: { fontSize: 28, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.8, lineHeight: 32 },
-    card: { backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, borderRadius: 22, overflow: 'hidden' },
+    pipelineNum: { fontSize: 28, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.8, lineHeight: 32 },
+    card: { ...rimTile(c, isDark) },
     qaRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
-    qaBtn: { flex: 1, borderRadius: 18, paddingVertical: 14, alignItems: 'center', gap: 8 },
-    qaIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-    qaLabel: { fontSize: 11, fontFamily: 'Manrope_700Bold', textAlign: 'center' },
-    scheduleCard: { width: 148, backgroundColor: c.card, borderRadius: 20, borderWidth: 1, borderColor: c.lineSoft, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8 },
-    scheduleTime: { fontSize: 11, fontFamily: 'Manrope_700Bold', color: c.mutedHi },
-    scheduleTitle: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2, lineHeight: 17, marginBottom: 4 },
-    scheduleSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted },
-    emptyCard: { backgroundColor: c.card, borderRadius: 18, borderWidth: 1, borderColor: c.lineSoft, paddingVertical: 18, alignItems: 'center' },
-    emptyText: { fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted },
-    rvCard: { flexDirection: 'row', backgroundColor: c.card, borderRadius: 22, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
+    // Quick actions in one colour: ink square, paper icon, ink label.
+    qaBtn: { ...rimTile(c, isDark), flex: 1, paddingVertical: 14, alignItems: 'center', gap: 8 },
+    qaIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: c.ink },
+    qaLabel: { fontSize: 12, fontFamily: 'HostGrotesk_700Bold', textAlign: 'center', color: c.ink },
+    scheduleCard: { ...rimTile(c, isDark), width: 148, padding: 14 },
+    scheduleTime: { fontSize: 11, fontFamily: 'HostGrotesk_700Bold', color: c.mutedHi },
+    scheduleTitle: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.2, lineHeight: 17, marginBottom: 4 },
+    scheduleSub: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted },
+    emptyCard: { ...rimTile(c, isDark), paddingVertical: 18, alignItems: 'center' },
+    emptyText: { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted },
+    rvCard: { ...rimTile(c, isDark), flexDirection: 'row' },
     rvCol: { flex: 1, paddingVertical: 18, alignItems: 'center', gap: 6 },
-    rvAmt: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.6 },
+    rvAmt: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.6 },
     rvDot: { width: 8, height: 8, borderRadius: 4 },
-    rvLabel: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, letterSpacing: 1, textTransform: 'uppercase' },
+    rvLabel: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted },
     rqRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
-    rqTitle: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink, letterSpacing: -0.2 },
-    rqSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted },
-    rqAmt: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
+    rqTitle: { fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink, letterSpacing: -0.2 },
+    rqSub: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted },
+    rqAmt: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
     rqBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-    rqBadgeText: { fontSize: 10, fontFamily: 'Manrope_700Bold', textTransform: 'capitalize' },
+    rqBadgeText: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', textTransform: 'capitalize' },
     invRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
     invIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-    nudgeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.orangeSoft, borderRadius: 18, borderWidth: 1, borderColor: `${c.orange}33`, paddingHorizontal: 16, paddingVertical: 14 },
+    nudgeCard: { ...rimTile(c, isDark), flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
     nudgeIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-    nudgeText: { flex: 1, fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.orangeDeep, lineHeight: 18 },
+    nudgeText: { flex: 1, fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink, lineHeight: 18 },
     pipelineHalfGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-    pipelineHalfCell: { width: '47%', backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineSoft, padding: 10, gap: 2 },
-    pipelineHalfNum: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.5 },
-    pipelineHalfLabel: { fontSize: 9, fontFamily: 'Manrope_700Bold', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.3 },
+    pipelineHalfCell: { ...rimTile(c, isDark), width: '47%', padding: 10, gap: 2 },
+    pipelineHalfNum: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.5 },
+    pipelineHalfLabel: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted },
     rvHalfRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11 },
-    rvHalfLabel: { fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: c.muted },
-    rvHalfAmt: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', letterSpacing: -0.3 },
-    weatherCardShadow: { borderRadius: 22, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 18, elevation: 6 },
-    weatherCard: { backgroundColor: c.card, borderRadius: 22, borderWidth: 1, borderColor: c.lineSoft, padding: 16, overflow: 'hidden' },
+    rvHalfLabel: { fontSize: 11, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted },
+    rvHalfAmt: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.3 },
+    // The wrapper's own shadow is gone; the Rim tile carries the shadow now.
+    weatherCardShadow: { borderRadius: 22 },
+    weatherCard: { ...rimTile(c, isDark), padding: 16 },
     weatherTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 },
-    weatherTemp: { fontSize: 52, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -2, lineHeight: 56 },
-    weatherDesc: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: c.mutedHi, marginTop: 2 },
-    weatherHiLo: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: c.muted },
+    weatherTemp: { fontSize: 52, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -2, lineHeight: 56 },
+    weatherDesc: { fontSize: 14, fontFamily: 'HostGrotesk_600SemiBold', color: c.mutedHi, marginTop: 2 },
+    weatherHiLo: { fontSize: 12, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted },
     weatherBigIcon: { fontSize: 56, lineHeight: 64 },
     rainWarning: { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff', borderRadius: 12, borderWidth: 1, borderColor: isDark ? 'rgba(59,130,246,0.3)' : '#bfdbfe', padding: 10, marginVertical: 8 },
-    rainWarningText: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: isDark ? '#93c5fd' : '#1d4ed8', lineHeight: 17 },
+    rainWarningText: { fontSize: 12, fontFamily: 'HostGrotesk_600SemiBold', color: isDark ? '#93c5fd' : '#1d4ed8', lineHeight: 17 },
     weatherDayCell: { alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: c.lineSoft, backgroundColor: c.paperDeep, minWidth: 58 },
     weatherDayCellActive: { backgroundColor: c.orange, borderColor: c.orange },
     weatherDayCellRainy: { borderColor: isDark ? 'rgba(59,130,246,0.4)' : '#93c5fd' },
-    weatherDayLabel: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+    weatherDayLabel: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted },
     weatherDayIcon: { fontSize: 20, lineHeight: 24 },
-    weatherDayTemp: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
-    weatherDayRain: { fontSize: 9, fontFamily: 'Manrope_700Bold', color: isDark ? '#93c5fd' : '#3b82f6' },
+    weatherDayTemp: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
+    weatherDayRain: { fontSize: 9, fontFamily: 'HostGrotesk_700Bold', color: isDark ? '#93c5fd' : '#3b82f6' },
   });
 }
 
@@ -230,6 +255,11 @@ export default function HomeScreen() {
   const { data: weather, locError: weatherLocError, requestLocation: retryWeatherLocation } = useWeather();
   const { data: settings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
+  // orange mixed into paper: 100/60/18/0% light, 78/42/12/0% dark.
+  const heroGradient = useMemo(
+    () => (isDark ? [0.78, 0.42, 0.12, 0] : [1, 0.6, 0.18, 0]).map((t) => mixHex(c.orange, c.paper, t)) as [string, string, ...string[]],
+    [c.orange, c.paper, isDark],
+  );
   const scrollRef = useRef<ScrollView>(null);
 
   useFocusEffect(useCallback(() => {
@@ -361,20 +391,19 @@ export default function HomeScreen() {
         return (
           <View style={{ paddingHorizontal: 20 }}>
             <View style={s.heroCard}>
-              <View style={{ position: 'absolute', top: 0, right: 0, width: 140, height: 140, borderRadius: 70, backgroundColor: `${c.orange}73`, opacity: 0.45 }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.orange, shadowColor: c.orange, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 4 }} />
                   <Text style={s.heroEyebrow}>
-                    {`Up next · ${nextJob.scheduledDate ? format(new Date(nextJob.scheduledDate), 'h:mm a') : 'Soon'}`}
+                    {`Up next, ${nextJob.scheduledDate ? format(new Date(nextJob.scheduledDate), 'h:mm a') : 'Soon'}`}
                   </Text>
                 </View>
                 {nextJob?.estimatedDuration ? (
                   <View style={s.durationBadge}>
                     <Text style={s.durationText}>
                       {nextJob.estimatedDuration >= 60
-                        ? `${Math.floor(nextJob.estimatedDuration / 60)}H${nextJob.estimatedDuration % 60 ? ` ${nextJob.estimatedDuration % 60}M` : ''}`
-                        : `${nextJob.estimatedDuration}M`}
+                        ? `${Math.floor(nextJob.estimatedDuration / 60)}h${nextJob.estimatedDuration % 60 ? ` ${nextJob.estimatedDuration % 60}m` : ''}`
+                        : `${nextJob.estimatedDuration}m`}
                     </Text>
                   </View>
                 ) : null}
@@ -426,16 +455,16 @@ export default function HomeScreen() {
       case 'quickactions':
         return (
           <View style={{ paddingHorizontal: 20 }}>
-            <Text style={s.eyebrow}>Quick Actions</Text>
+            <Text style={s.eyebrow}>Quick actions</Text>
             <View style={s.qaRow}>
               {([
-                { Icon: MessageCircle, label: 'Follow Up',  color: c.orange, bg: c.orangeSoft, route: '/(tabs)/calendar?tab=outreach' },
-                { Icon: ScanLine,  label: 'Receipt',      color: c.blue,     bg: isDark ? 'rgba(31,111,235,0.15)' : c.blueSoft,    route: '/receipts/scan' },
-                { Icon: Users,     label: 'Customers',    color: c.green,  bg: c.greenSoft,  route: '/customers' },
-              ] as const).map(({ Icon, label, color, bg, route }) => (
-                <TouchableOpacity key={label} style={[s.qaBtn, { backgroundColor: bg }]} onPress={() => router.push(route as any)} activeOpacity={0.75}>
-                  <View style={[s.qaIcon, { backgroundColor: color }]}><Icon size={18} color="#fff" strokeWidth={2} /></View>
-                  <Text style={[s.qaLabel, { color }]}>{label}</Text>
+                { Icon: MessageCircle, label: 'Follow up', route: '/(tabs)/calendar?tab=outreach' },
+                { Icon: ScanLine,      label: 'Receipt',   route: '/receipts/scan' },
+                { Icon: Users,         label: 'Customers', route: '/customers' },
+              ] as const).map(({ Icon, label, route }) => (
+                <TouchableOpacity key={label} style={s.qaBtn} onPress={() => router.push(route as any)} activeOpacity={0.75}>
+                  <View style={s.qaIcon}><Icon size={18} color={c.paper} strokeWidth={2} /></View>
+                  <Text style={s.qaLabel}>{label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -447,10 +476,10 @@ export default function HomeScreen() {
           <View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginBottom: 12 }}>
               <View>
-                <Text style={s.eyebrow}>Today's Schedule</Text>
+                <Text style={s.eyebrow}>Today's schedule</Text>
                 <Text style={s.sectionTitle}>{todayJobs.length} {todayJobs.length === 1 ? 'stop' : 'stops'} today</Text>
               </View>
-              <TouchableOpacity onPress={() => router.push('/jobs/list')} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }} accessibilityRole="button" accessibilityLabel="See all jobs"><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/jobs/list')} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }} accessibilityRole="button" accessibilityLabel="See all jobs"><Text style={s.seeAll}>See all</Text></TouchableOpacity>
             </View>
             {jobsLoading ? (
               <View style={{ paddingHorizontal: 20 }}><View style={[s.emptyCard, { paddingVertical: 24 }]}><ActivityIndicator color={c.orange} /></View></View>
@@ -486,7 +515,9 @@ export default function HomeScreen() {
               ].map(item => (
                 <TouchableOpacity key={item.l} style={s.pipelineHalfCell} onPress={() => router.push(`/(tabs)/quotes?filter=${item.f}`)} activeOpacity={0.7}>
                   <Text style={[s.pipelineHalfNum, { color: item.col }]}>{item.n}</Text>
-                  <Text style={s.pipelineHalfLabel} numberOfLines={1}>{item.l}</Text>
+                  {/* 13px per the redesign; "Accepted" needs ~57px and a half-width cell
+                      has ~54px on a 375pt phone, so let it shrink a touch rather than clip. */}
+                  <Text style={s.pipelineHalfLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{item.l}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -495,10 +526,10 @@ export default function HomeScreen() {
           <View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 20, marginBottom: 12 }}>
               <View>
-                <Text style={s.eyebrow}>Quote Pipeline</Text>
-                <Text style={s.sectionTitle}>{pipelineTotal} on the go · <Text style={{ color: c.orange }}>${fmtAUD(pipelineAmt)}</Text></Text>
+                <Text style={s.eyebrow}>Quote pipeline</Text>
+                <Text style={s.sectionTitle}>{pipelineTotal} on the go, <Text style={{ color: c.orange }}>${fmtAUD(pipelineAmt)}</Text></Text>
               </View>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }} accessibilityRole="button" accessibilityLabel="See all quotes"><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }} accessibilityRole="button" accessibilityLabel="See all quotes"><Text style={s.seeAll}>See all</Text></TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
               {[
@@ -537,7 +568,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <View style={{ paddingHorizontal: 20 }}>
-            <Text style={[s.eyebrow, { marginBottom: 10 }]}>Revenue Snapshot</Text>
+            <Text style={[s.eyebrow, { marginBottom: 10 }]}>Revenue snapshot</Text>
             <View style={s.rvCard}>
               {([
                 { label: 'Paid',    amount: totalPaid,    color: c.green,  bg: c.greenSoft  },
@@ -559,10 +590,10 @@ export default function HomeScreen() {
           <View style={{ paddingHorizontal: 20 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
               <View>
-                <Text style={s.eyebrow}>Recent Quotes</Text>
+                <Text style={s.eyebrow}>Recent quotes</Text>
                 {recentQuotes.length > 0 && <Text style={s.sectionTitle}>Last {recentQuotes.length}</Text>}
               </View>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }} accessibilityRole="button" accessibilityLabel="See all quotes"><Text style={s.seeAll}>See all →</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/quotes')} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }} accessibilityRole="button" accessibilityLabel="See all quotes"><Text style={s.seeAll}>See all</Text></TouchableOpacity>
             </View>
             {recentQuotes.length === 0 ? (
               <View style={s.emptyCard}><Text style={s.emptyText}>No quotes yet — start one above</Text></View>
@@ -597,10 +628,10 @@ export default function HomeScreen() {
           <View style={{ paddingHorizontal: 20 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
               <View>
-                <Text style={s.eyebrow}>Outstanding Invoices</Text>
+                <Text style={s.eyebrow}>Outstanding invoices</Text>
                 <Text style={s.sectionTitle}>
                   {overdueInvoices.length > 0 ? <Text style={{ color: c.orange }}>{overdueInvoices.length} overdue</Text> : null}
-                  {overdueInvoices.length > 0 && pendingInvoices.length > 0 ? <Text style={{ color: c.muted }}> · </Text> : null}
+                  {overdueInvoices.length > 0 && pendingInvoices.length > 0 ? <Text style={{ color: c.muted }}>, </Text> : null}
                   {pendingInvoices.length > 0 ? <Text>{pendingInvoices.length} pending</Text> : null}
                 </Text>
               </View>
@@ -637,7 +668,7 @@ export default function HomeScreen() {
               <View style={[s.card, { padding: 18, alignItems: 'center', gap: 10 }]}>
                 {weatherLocError === 'Location permission denied' ? (
                   <>
-                    <Text style={{ fontSize: 13, color: c.muted, fontFamily: 'Manrope_500Medium', textAlign: 'center' }}>
+                    <Text style={{ fontSize: 13, color: c.muted, fontFamily: 'HostGrotesk_500Medium', textAlign: 'center' }}>
                       Location access is needed for weather
                     </Text>
                     <TouchableOpacity
@@ -648,11 +679,11 @@ export default function HomeScreen() {
                       style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, backgroundColor: c.orange }}
                       activeOpacity={0.8}
                     >
-                      <Text style={{ fontSize: 12, fontFamily: 'Manrope_700Bold', color: '#fff' }}>Grant access</Text>
+                      <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_700Bold', color: '#fff' }}>Grant access</Text>
                     </TouchableOpacity>
                   </>
                 ) : (
-                  <Text style={{ fontSize: 13, color: c.muted, fontFamily: 'Manrope_500Medium' }}>
+                  <Text style={{ fontSize: 13, color: c.muted, fontFamily: 'HostGrotesk_500Medium' }}>
                     Fetching weather…
                   </Text>
                 )}
@@ -741,7 +772,14 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: 130 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
       >
-        <View style={{ position: 'absolute', top: 0, right: -80, width: 320, height: 320, borderRadius: 160, backgroundColor: `${c.orange}18`, pointerEvents: 'none' }} />
+        {/* Full orange at the top fading to the page by 560px. It scrolls away with
+            the content, so the lists further down sit on plain paper. */}
+        <LinearGradient
+          pointerEvents="none"
+          colors={heroGradient}
+          locations={[0, 0.3036, 0.6429, 1]}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 560 }}
+        />
 
         <View style={[s.topBar, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.8}>
@@ -749,22 +787,28 @@ export default function HomeScreen() {
               <Text style={s.avatarText}>{initials}</Text>
             </View>
           </TouchableOpacity>
-          <CyclingPill nextJob={nextJob} pipelineAmt={pipelineAmt} colors={c} weather={weather} />
+          <CyclingPill nextJob={nextJob} pipelineAmt={pipelineAmt} colors={c} isDark={isDark} weather={weather} />
         </View>
 
-        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <Text style={s.eyebrow}>{dayName} · {timeStr}</Text>
-          <Text style={s.heroGreeting}>
-            {greeting.pre},{"\n"}
-            <Text style={{ color: c.orange }}>{firstName}{greeting.suf ?? '.'}</Text>
+        <View style={s.hero}>
+          <Text style={s.heroDate}>{dayName}, {timeStr}</Text>
+          <Text style={s.heroLine1}>{greeting.pre},</Text>
+          <Text style={s.heroName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+            {firstName}{greeting.suf ?? '.'}
           </Text>
-          <Text style={s.heroSub}>
-            {todayJobs.length} {todayJobs.length === 1 ? 'job' : 'jobs'} booked today.{' '}
-            <Text style={{ color: c.muted }}>Let's not touch a single form.</Text>
-          </Text>
+          <View style={[heroChip(isDark), { marginTop: 14 }]}>
+            <Svg width={12} height={14} viewBox="0 0 56 64">
+              <Path d={BOLT_PATH} fill={c.ink} />
+            </Svg>
+            <Text style={s.heroChipText}>
+              {todayJobs.length} {todayJobs.length === 1 ? 'job' : 'jobs'} booked today
+            </Text>
+          </View>
+        </View>
 
+        <View style={{ paddingHorizontal: 20 }}>
           {/* Pinned primary CTA — split New Quote / New Invoice with a lightning-bolt gap */}
-          <Text style={[s.eyebrow, { marginTop: 22 }]}>Let's start working</Text>
+          <Text style={[s.eyebrow, { marginTop: 22, color: heroSecondary(isDark) }]}>Let's start working</Text>
           <SplitActionButton
             onQuote={() => router.push('/quotes/create')}
             onInvoice={() => router.push('/invoices/create')}
@@ -805,10 +849,10 @@ export default function HomeScreen() {
         ))}
 
         <View style={{ paddingTop: 26, alignItems: 'center' }}>
-          <Text style={{ fontSize: 11, color: c.muted, fontFamily: 'Manrope_600SemiBold', letterSpacing: 0.2 }}>
+          <Text style={{ fontSize: 11, color: c.muted, fontFamily: 'HostGrotesk_600SemiBold', letterSpacing: 0.2 }}>
             Admin for people who'd rather be on the tools.
           </Text>
-          <Text style={{ fontSize: 10, color: c.muted, fontFamily: 'Manrope_800ExtraBold', marginTop: 6, letterSpacing: 2, textTransform: 'uppercase' }}>
+          <Text style={{ fontSize: 10, color: c.muted, fontFamily: 'HostGrotesk_800ExtraBold', marginTop: 6, letterSpacing: 2, textTransform: 'uppercase' }}>
             VARGEN · v1.0
           </Text>
         </View>

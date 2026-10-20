@@ -205,7 +205,7 @@ export default function JobCreateScreen() {
                 onChangeText={v => { setTitle(v); if (error) setError(null); }}
                 returnKeyType="next"
               />
-              {error ? <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 12, color: '#d23b3b', marginTop: 4 }}>{error}</Text> : null}
+              {error ? <Text style={{ fontFamily: 'HostGrotesk_600SemiBold', fontSize: 12, color: '#d23b3b', marginTop: 4 }}>{error}</Text> : null}
             </View>
 
             {/* Customer */}
@@ -217,8 +217,8 @@ export default function JobCreateScreen() {
                   activeOpacity={0.7}
                   onPress={() => { setCustomerId(null); setCustSearch(''); setShowCustList(true); }}
                 >
-                  <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 14, color: c.ink }}>{selectedCustomer.name}</Text>
-                  <Text style={{ fontFamily: 'Manrope_500Medium', fontSize: 12, color: c.muted }}>Change</Text>
+                  <Text style={{ fontFamily: 'HostGrotesk_600SemiBold', fontSize: 14, color: c.ink }}>{selectedCustomer.name}</Text>
+                  <Text style={{ fontFamily: 'HostGrotesk_500Medium', fontSize: 12, color: c.muted }}>Change</Text>
                 </TouchableOpacity>
               ) : (
                 <>
@@ -434,8 +434,8 @@ export default function JobCreateScreen() {
               )}
               ListEmptyComponent={
                 <View style={{ alignItems: 'center', paddingTop: 30, gap: 6 }}>
-                  <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink }}>Nothing to link yet</Text>
-                  <Text style={{ fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, textAlign: 'center' }}>{picker === 'quote' ? 'Your quotes will show up here.' : 'Your invoices will show up here.'}</Text>
+                  <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink }}>Nothing to link yet</Text>
+                  <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted, textAlign: 'center' }}>{picker === 'quote' ? 'Your quotes will show up here.' : 'Your invoices will show up here.'}</Text>
                 </View>
               }
             />
@@ -460,21 +460,21 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   eyebrow: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 2, textTransform: 'uppercase',
   },
   title: {
-    fontSize: 18, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 18, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink, letterSpacing: -0.4, marginTop: 2,
   },
   fieldGroup: { gap: 8 },
   fieldLabel: {
-    fontSize: 11, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase',
   },
   input: {
     backgroundColor: c.card, borderRadius: 14, paddingHorizontal: 16,
-    paddingVertical: 14, fontSize: 14, fontFamily: 'Manrope_500Medium',
+    paddingVertical: 14, fontSize: 14, fontFamily: 'HostGrotesk_500Medium',
     color: c.ink, borderWidth: 1, borderColor: c.lineMid,
   },
   custDropdown: {
@@ -490,23 +490,23 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center',
   },
-  custAvatarText: { fontSize: 12, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
-  custName: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: c.ink },
-  custSub: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 1 },
+  custAvatarText: { fontSize: 12, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
+  custName: { fontSize: 14, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink },
+  custSub: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 1 },
   linkRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineMid,
     paddingHorizontal: 14, paddingVertical: 12,
   },
   linkIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  linkTitle: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink, letterSpacing: -0.2 },
-  linkSub: { fontSize: 11.5, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2, textTransform: 'capitalize' },
+  linkTitle: { fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink, letterSpacing: -0.2 },
+  linkSub: { fontSize: 11.5, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2, textTransform: 'capitalize' },
   linkAddBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineMid,
     borderStyle: 'dashed', paddingHorizontal: 14, paddingVertical: 14,
   },
-  linkAddText: { fontSize: 13.5, fontFamily: 'Manrope_700Bold' },
+  linkAddText: { fontSize: 13.5, fontFamily: 'HostGrotesk_700Bold' },
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   modalSheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '75%',
@@ -517,13 +517,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 18, paddingBottom: 6,
   },
-  modalTitle: { fontSize: 17, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
+  modalTitle: { fontSize: 17, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.3 },
   pickRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft,
     paddingHorizontal: 14, paddingVertical: 13,
   },
-  pickAmount: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink, flexShrink: 0 },
+  pickAmount: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, flexShrink: 0 },
   dayChip: {
     width: 56, height: 64, borderRadius: 16,
     backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
@@ -531,29 +531,29 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   dayChipActive: { backgroundColor: c.ink, borderColor: c.ink },
   dayChipTop: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 0.5, textTransform: 'uppercase',
   },
-  dayChipNum: { fontSize: 20, fontFamily: 'Manrope_800ExtraBold', color: c.ink, lineHeight: 24 },
+  dayChipNum: { fontSize: 20, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, lineHeight: 24 },
   timeChip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
     backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
   },
   timeChipActive: { backgroundColor: c.orange, borderColor: c.orange },
-  timeChipText: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink },
+  timeChipText: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
   durationChip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
     backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
   },
   durationChipActive: { backgroundColor: c.ink, borderColor: c.ink },
-  durationChipText: { fontSize: 13, fontFamily: 'Manrope_700Bold', color: c.ink },
+  durationChipText: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
   saveBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: c.paper, borderTopWidth: 1, borderTopColor: c.lineMid,
     paddingTop: 14, paddingHorizontal: 20, paddingBottom: 34,
   },
   saveSummary: {
-    fontSize: 12, fontFamily: 'Manrope_600SemiBold',
+    fontSize: 12, fontFamily: 'HostGrotesk_600SemiBold',
     color: c.muted, textAlign: 'center', marginBottom: 10,
   },
   saveBtn: {
@@ -562,5 +562,5 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     shadowColor: c.orange, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35, shadowRadius: 20, elevation: 6,
   },
-  saveBtnText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  saveBtnText: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
 });

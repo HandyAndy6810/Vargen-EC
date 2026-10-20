@@ -151,10 +151,10 @@ export default function JobsListScreen() {
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: c.paperDeep, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <Text style={{ fontSize: 28 }}>{filter === 'past' ? '📦' : '🔧'}</Text>
             </View>
-            <Text style={{ fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: c.ink, textAlign: 'center' }}>
+            <Text style={{ fontSize: 16, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, textAlign: 'center' }}>
               {filter === 'today' ? 'Nothing on today' : filter === 'upcoming' ? 'No upcoming jobs' : filter === 'past' ? 'No past jobs' : 'No jobs yet'}
             </Text>
-            <Text style={{ fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+            <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
               {filter === 'past' ? 'Completed jobs will appear here.' : 'Schedule a job to see it on the calendar and get directions.'}
             </Text>
             {filter !== 'past' && (
@@ -163,7 +163,7 @@ export default function JobsListScreen() {
                 activeOpacity={0.85}
                 onPress={() => router.push('/jobs/create' as any)}
               >
-                <Text style={{ fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: '#fff' }}>Schedule a job</Text>
+                <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' }}>Schedule a job</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -248,7 +248,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   eyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -256,7 +256,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.5,
     marginTop: 2,
@@ -283,21 +283,21 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   heroEyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   heroCount: {
     fontSize: 42,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -1.4,
     lineHeight: 46,
   },
   heroMeta: {
     fontSize: 14,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.mutedHi,
   },
   timePill: {
@@ -307,7 +307,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   timePillText: {
     fontSize: 10.5,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
     letterSpacing: 0.3,
   },
@@ -331,7 +331,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   tabText: {
     fontSize: 12,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.mutedHi,
   },
   tabTextActive: {
@@ -380,13 +380,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   timeColMain: {
     fontSize: 16,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.3,
   },
   timeColSub: {
     fontSize: 11,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -394,20 +394,20 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   nextEyebrow: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: 'rgba(255,255,255,0.6)',
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   jobTitle: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: -0.3,
   },
   jobMeta: {
     fontSize: 11,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     marginTop: 2,
   },
@@ -418,7 +418,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   statusPillText: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },

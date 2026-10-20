@@ -498,21 +498,21 @@ export default function DescribeStep() {
 
 const makeStyles = (c: Colors) => StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 8 },
-  screenTitle: { fontSize: 22, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.5 },
-  lede: { fontSize: 14, fontFamily: 'Manrope_500Medium', color: c.muted, lineHeight: 20, marginBottom: 10 },
+  screenTitle: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.5 },
+  lede: { fontSize: 14, fontFamily: 'HostGrotesk_500Medium', color: c.muted, lineHeight: 20, marginBottom: 10 },
   manualBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 7, height: 46,
     paddingHorizontal: 16, borderRadius: 15, backgroundColor: c.orange,
   },
-  manualText: { fontSize: 13.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  manualText: { fontSize: 13.5, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
   suggestions: { marginTop: 18, gap: 8 },
   suggestionChip: {
     backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineMid,
     paddingHorizontal: 14, paddingVertical: 11,
   },
-  suggestionText: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: c.ink, lineHeight: 19 },
+  suggestionText: { fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink, lineHeight: 19 },
   suggestionHint: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: c.muted,
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted,
     letterSpacing: 1, textTransform: 'uppercase', marginTop: 4,
   },
   backBtn: {
@@ -523,13 +523,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     backgroundColor: c.orangeSoft, borderRadius: 18, padding: 16, marginBottom: 16,
   },
   resumeEyebrow: {
-    fontSize: 10, fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold',
     letterSpacing: 1.2, textTransform: 'uppercase',
   },
   // c.ink is the text token, so the title stays readable over the soft orange in
   // both themes (in dark, orangeSoft is a wash over the dark page).
   resumeTitle: {
-    fontSize: 15.5, fontFamily: 'Manrope_800ExtraBold', color: c.ink,
+    fontSize: 15.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink,
     lineHeight: 21, marginTop: 6,
   },
   resumeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
@@ -537,17 +537,17 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     flex: 1, height: 44, borderRadius: 14, backgroundColor: c.orange,
     alignItems: 'center', justifyContent: 'center',
   },
-  resumeBtnText: { fontSize: 13.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  resumeBtnText: { fontSize: 13.5, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
   resumeGhost: { height: 44, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
-  resumeGhostText: { fontSize: 13.5, fontFamily: 'Manrope_800ExtraBold' },
+  resumeGhostText: { fontSize: 13.5, fontFamily: 'HostGrotesk_800ExtraBold' },
   chipRow: { flexDirection: 'row', marginBottom: 10 },
   customerChip: {
     flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%',
     backgroundColor: c.orangeSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7,
   },
-  customerChipText: { fontSize: 13, fontFamily: 'Manrope_800ExtraBold', color: c.orangeDeep, flexShrink: 1 },
+  customerChipText: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orangeDeep, flexShrink: 1 },
   field: {
-    fontSize: 19, fontFamily: 'Manrope_600SemiBold', color: c.ink,
+    fontSize: 19, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink,
     lineHeight: 27, minHeight: 150, padding: 0, marginTop: 4,
   },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 },
@@ -557,18 +557,18 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   iconBtnLive: { backgroundColor: c.orange, borderColor: c.orange },
   iconBtnDisabled: { opacity: 0.4 },
-  liveHint: { fontSize: 12.5, fontFamily: 'Manrope_700Bold', color: c.orange, flex: 1 },
+  liveHint: { fontSize: 12.5, fontFamily: 'HostGrotesk_700Bold', color: c.orange, flex: 1 },
   examples: { marginTop: 26, gap: 8 },
   exampleChip: {
     backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineSoft,
     paddingHorizontal: 14, paddingVertical: 13,
   },
-  exampleText: { fontSize: 14, fontFamily: 'Manrope_500Medium', color: c.mutedHi, lineHeight: 20 },
+  exampleText: { fontSize: 14, fontFamily: 'HostGrotesk_500Medium', color: c.mutedHi, lineHeight: 20 },
   errorBanner: {
     marginTop: 16, backgroundColor: c.redSoft, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
   },
-  errorText: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.red },
+  errorText: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.red },
   footer: {
     paddingTop: 12, paddingBottom: 12, paddingHorizontal: 20,
     backgroundColor: c.paper, borderTopWidth: 1, borderTopColor: c.lineSoft,
@@ -579,7 +579,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     shadowColor: c.orange, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35, shadowRadius: 18, elevation: 8,
   },
-  generateText: { fontSize: 16.5, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  generateText: { fontSize: 16.5, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -587,24 +587,24 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     paddingHorizontal: 20, paddingTop: 10, paddingBottom: 30,
   },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.lineMid, alignSelf: 'center' },
-  sheetTitle: { fontSize: 17, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginTop: 14 },
+  sheetTitle: { fontSize: 17, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, marginTop: 14 },
   search: {
     backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineMid,
     paddingHorizontal: 14, paddingVertical: 12, marginTop: 12,
-    fontSize: 15, fontFamily: 'Manrope_600SemiBold', color: c.ink,
+    fontSize: 15, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink,
   },
   custRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   custAvatar: {
     width: 34, height: 34, borderRadius: 17, backgroundColor: c.ink,
     alignItems: 'center', justifyContent: 'center',
   },
-  custAvatarText: { fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
-  custName: { fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink },
-  custSub: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 1 },
+  custAvatarText: { fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
+  custName: { fontSize: 15, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
+  custSub: { fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 1 },
   emptyText: {
-    fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted,
+    fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted,
     paddingVertical: 18, lineHeight: 19,
   },
   skipBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-  skipText: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.muted },
+  skipText: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted },
 });

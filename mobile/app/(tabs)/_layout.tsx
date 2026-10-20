@@ -79,7 +79,7 @@ function TabBar({ state, navigation }: any) {
       pointerEvents="box-none"
     >
       <View
-        style={[styles.pill, { borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(26,14,6,0.10)' }]}
+        style={[styles.pill, { borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(28,29,33,0.10)' }]}
         onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
       >
         <TabBarBackground />
@@ -132,7 +132,7 @@ function TabBar({ state, navigation }: any) {
                   styles.tabLabel,
                   {
                     color,
-                    fontFamily: isFocused ? 'Manrope_600SemiBold' : 'Manrope_400Regular',
+                    fontFamily: isFocused ? 'HostGrotesk_600SemiBold' : 'HostGrotesk_400Regular',
                   },
                 ]}
               >

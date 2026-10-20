@@ -361,7 +361,7 @@ export default function ReviewStep() {
                     <View key={`pw-${i}`} style={s.flagRow}>
                       <Text style={[s.flagTag, { color: '#fff', backgroundColor: c.red }]}>CHECK PRICE</Text>
                       <Text style={s.flagText}>
-                        <Text style={{ fontFamily: 'Manrope_800ExtraBold' }}>{w.line.name || 'Unnamed item'}</Text>
+                        <Text style={{ fontFamily: 'HostGrotesk_800ExtraBold' }}>{w.line.name || 'Unnamed item'}</Text>
                         {' — '}{w.flag.message}
                       </Text>
                     </View>
@@ -468,17 +468,17 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     width: 44, height: 44, borderRadius: 14, backgroundColor: c.card,
     borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center',
   },
-  topTitle: { flex: 1, fontSize: 17, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.3, padding: 0 },
+  topTitle: { flex: 1, fontSize: 17, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.3, padding: 0 },
   descCard: {
     backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft,
     paddingHorizontal: 14, paddingVertical: 12,
   },
   descInput: {
-    fontSize: 14.5, fontFamily: 'Manrope_500Medium', color: c.ink,
+    fontSize: 14.5, fontFamily: 'HostGrotesk_500Medium', color: c.ink,
     lineHeight: 21, minHeight: 60, padding: 0,
   },
   sectionLabel: {
-    fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.muted,
+    fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted,
     letterSpacing: 1.6, textTransform: 'uppercase', marginTop: 22, marginBottom: 8,
   },
   group: {
@@ -487,35 +487,35 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   groupHead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 14 },
   groupIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  groupLabel: { fontSize: 15.5, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
-  groupMeta: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 2 },
-  groupSum: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
+  groupLabel: { fontSize: 15.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
+  groupMeta: { fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2 },
+  groupSum: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
   groupBody: { borderTopWidth: 1, borderTopColor: c.lineSoft, paddingHorizontal: 14 },
   lineRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: c.lineSoft,
   },
-  lineName: { fontSize: 14.5, fontFamily: 'Manrope_700Bold', color: c.ink },
-  lineMetaLabel: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 4 },
+  lineName: { fontSize: 14.5, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
+  lineMetaLabel: { fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 4 },
   addLineBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 15 },
-  addLineText: { fontSize: 13.5, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+  addLineText: { fontSize: 13.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
   roundBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     marginTop: 10, height: 46, borderRadius: 15,
     backgroundColor: c.card, borderWidth: 1, borderColor: c.orange,
   },
   roundBtnOn: { backgroundColor: c.orange, borderColor: c.orange },
-  roundText: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+  roundText: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
   fieldLabel: {
-    fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: c.muted,
+    fontSize: 10.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted,
     letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6, marginTop: 12,
   },
-  editorHint: { fontSize: 12.5, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 12, lineHeight: 18 },
+  editorHint: { fontSize: 12.5, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 12, lineHeight: 18 },
   deleteBtn: {
     width: 52, height: 52, borderRadius: 16, backgroundColor: c.redSoft,
     alignItems: 'center', justifyContent: 'center',
   },
-  lineTotal: { fontSize: 14.5, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
+  lineTotal: { fontSize: 14.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
   labourCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft,
@@ -523,35 +523,35 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   labourCell: { minWidth: 56 },
   labourLabel: {
-    fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: c.muted,
+    fontSize: 10.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted,
     letterSpacing: 1, textTransform: 'uppercase',
   },
   labourInput: {
-    fontSize: 17, fontFamily: 'Manrope_800ExtraBold', color: c.ink, padding: 0, marginTop: 3,
+    fontSize: 17, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, padding: 0, marginTop: 3,
     borderBottomWidth: 1, borderBottomColor: c.lineMid, paddingBottom: 2,
   },
-  labourTimes: { fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.muted, marginTop: 12 },
-  labourTotal: { fontSize: 17, fontFamily: 'Manrope_800ExtraBold', color: c.ink, marginTop: 3 },
+  labourTimes: { fontSize: 15, fontFamily: 'HostGrotesk_700Bold', color: c.muted, marginTop: 12 },
+  labourTotal: { fontSize: 17, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, marginTop: 3 },
   flagsHead: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 22,
     backgroundColor: c.orangeSoft, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13,
   },
-  flagsTitle: { flex: 1, fontSize: 13.5, fontFamily: 'Manrope_800ExtraBold', color: c.orangeDeep },
+  flagsTitle: { flex: 1, fontSize: 13.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orangeDeep },
   flagsBody: {
     backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineSoft,
     marginTop: 8, paddingHorizontal: 14, paddingVertical: 6,
   },
   flagRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10 },
   flagTag: {
-    fontSize: 9.5, fontFamily: 'Manrope_800ExtraBold', color: c.orangeDeep,
+    fontSize: 9.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orangeDeep,
     backgroundColor: c.orangeSoft, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3,
     letterSpacing: 0.6, overflow: 'hidden',
   },
-  flagText: { flex: 1, fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.mutedHi, lineHeight: 18 },
+  flagText: { flex: 1, fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.mutedHi, lineHeight: 18 },
   errorBanner: { marginTop: 16, backgroundColor: c.redSoft, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 },
-  errorText: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.red },
+  errorText: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.red },
   discardBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 18, marginTop: 6 },
-  discardText: { fontSize: 13.5, fontFamily: 'Manrope_700Bold', color: c.muted },
+  discardText: { fontSize: 13.5, fontFamily: 'HostGrotesk_700Bold', color: c.muted },
   footer: {
     paddingTop: 12, paddingBottom: 30, paddingHorizontal: 20, gap: 10,
     backgroundColor: c.paper, borderTopWidth: 1, borderTopColor: c.lineSoft,
@@ -562,14 +562,14 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     borderWidth: 1, borderColor: c.lineMid,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
   },
-  ghostText: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
+  ghostText: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
   sendBtn: {
     height: 58, borderRadius: 18, backgroundColor: c.orange,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     shadowColor: c.orange, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35, shadowRadius: 18, elevation: 8,
   },
-  sendText: { fontSize: 16, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  sendText: { fontSize: 16, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '88%',
@@ -578,33 +578,33 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.lineMid, alignSelf: 'center' },
   sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
-  sheetTitle: { fontSize: 18, fontFamily: 'Manrope_800ExtraBold', color: c.ink },
-  sheetSub: { fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 4 },
+  sheetTitle: { fontSize: 18, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
+  sheetSub: { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 4 },
   custRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   custAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' },
-  custAvatarText: { fontSize: 11, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
-  custName: { fontSize: 15, fontFamily: 'Manrope_700Bold', color: c.ink },
-  custSub: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.muted, marginTop: 1 },
+  custAvatarText: { fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
+  custName: { fontSize: 15, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
+  custSub: { fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 1 },
   orLabel: {
-    fontSize: 10.5, fontFamily: 'Manrope_800ExtraBold', color: c.muted,
+    fontSize: 10.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted,
     letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 16, marginBottom: 8,
   },
   gateInput: {
     backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineMid,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, fontFamily: 'Manrope_600SemiBold', color: c.ink,
+    fontSize: 15, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink,
   },
   gateConfirm: {
     height: 52, borderRadius: 16, backgroundColor: c.orange,
     alignItems: 'center', justifyContent: 'center', marginTop: 14,
   },
-  gateConfirmText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: '#fff' },
+  gateConfirmText: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
   previewBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: c.lineSoft, backgroundColor: c.paper,
   },
-  previewTitle: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
+  previewTitle: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.2 },
   previewLoading: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
@@ -614,10 +614,10 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     height: 52, borderRadius: 16, marginTop: 14,
     backgroundColor: c.orangeSoft, borderWidth: 1, borderColor: c.orange,
   },
-  gateAddText: { fontSize: 15, fontFamily: 'Manrope_800ExtraBold', color: c.orange },
+  gateAddText: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
   gateShareBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     height: 48, marginTop: 4,
   },
-  gateShareText: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.mutedHi },
+  gateShareText: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.mutedHi },
 });

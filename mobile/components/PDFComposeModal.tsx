@@ -188,14 +188,14 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   docLabel: {
     fontSize: 10,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   docTitle: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     marginTop: 1,
   },
@@ -225,7 +225,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 10,
-    fontFamily: 'Manrope_700Bold',
+    fontFamily: 'HostGrotesk_700Bold',
     color: c.muted,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -233,7 +233,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   summaryValue: {
     fontSize: 14,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
   },
   field: {
@@ -241,14 +241,14 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 11,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     letterSpacing: 0.3,
     marginBottom: 2,
   },
   fieldHint: {
     fontSize: 10,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
     marginBottom: 7,
   },
@@ -260,7 +260,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 13,
-    fontFamily: 'Manrope_500Medium',
+    fontFamily: 'HostGrotesk_500Medium',
     color: c.ink,
     minHeight: 80,
   },
@@ -283,7 +283,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   shareBtnText: {
     fontSize: 15,
-    fontFamily: 'Manrope_800ExtraBold',
+    fontFamily: 'HostGrotesk_800ExtraBold',
     color: '#fff',
   },
 });

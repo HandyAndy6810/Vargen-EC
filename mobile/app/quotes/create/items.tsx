@@ -123,7 +123,7 @@ export default function ItemsStep() {
                   onPress={() => showConfirm({ title: 'Remove item?', confirmLabel: 'Remove', destructive: true, onConfirm: d.deleteLineFromModal })}
                 >
                   <Trash2 size={16} color="#d23b3b" strokeWidth={2} />
-                  <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: '#d23b3b' }}>Remove item</Text>
+                  <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: '#d23b3b' }}>Remove item</Text>
                 </TouchableOpacity>
               )}
             </ScrollView>
@@ -139,5 +139,5 @@ const extraStyles = (c: Colors) => StyleSheet.create({
     marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     height: 50, borderRadius: 14, backgroundColor: c.orangeSoft, borderWidth: 1, borderColor: `${c.orange}55`,
   },
-  aiBtnText: { fontSize: 14, fontFamily: 'Manrope_800ExtraBold', color: c.orangeDeep },
+  aiBtnText: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orangeDeep },
 });

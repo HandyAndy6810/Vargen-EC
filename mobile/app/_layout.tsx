@@ -6,12 +6,13 @@ import { queryClient } from '@/lib/queryClient';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import {
-  Manrope_400Regular,
-  Manrope_500Medium,
-  Manrope_600SemiBold,
-  Manrope_700Bold,
-  Manrope_800ExtraBold,
-} from '@expo-google-fonts/manrope';
+  HostGrotesk_300Light,
+  HostGrotesk_400Regular,
+  HostGrotesk_500Medium,
+  HostGrotesk_600SemiBold,
+  HostGrotesk_700Bold,
+  HostGrotesk_800ExtraBold,
+} from '@expo-google-fonts/host-grotesk';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useEffect, useRef, useState, Component, type ReactNode } from 'react';
 import * as Notifications from 'expo-notifications';
@@ -53,9 +54,9 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 }
 
 const eb = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFBF8', alignItems: 'center', justifyContent: 'center', padding: 32 },
-  title:     { fontSize: 20, fontWeight: '800', color: '#1A0E06', marginBottom: 10 },
-  sub:       { fontSize: 13, color: 'rgba(26,14,6,0.55)', textAlign: 'center', marginBottom: 28 },
+  container: { flex: 1, backgroundColor: '#F2F2F0', alignItems: 'center', justifyContent: 'center', padding: 32 },
+  title:     { fontSize: 20, fontWeight: '800', color: '#1C1D21', marginBottom: 10 },
+  sub:       { fontSize: 13, color: 'rgba(28,29,33,0.66)', textAlign: 'center', marginBottom: 28 },
   btn:       { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14, backgroundColor: '#f26a2a' },
   btnText:   { fontSize: 14, fontWeight: '800', color: '#fff' },
 });
@@ -103,7 +104,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
     };
   }, []);
 
-  if (!fontsLoaded || !themeReady || !authReady) return <View style={{ flex: 1, backgroundColor: '#0D0E11' }} />;
+  if (!fontsLoaded || !themeReady || !authReady) return <View style={{ flex: 1, backgroundColor: '#141416' }} />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
@@ -150,11 +151,12 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
 // ── Root layout ───────────────────────────────────────────────────────────────
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
+    HostGrotesk_300Light,
+    HostGrotesk_400Regular,
+    HostGrotesk_500Medium,
+    HostGrotesk_600SemiBold,
+    HostGrotesk_700Bold,
+    HostGrotesk_800ExtraBold,
   });
 
   return (

@@ -104,10 +104,10 @@ export default function OnboardingScreen() {
           <View style={[s.iconBadge, { backgroundColor: '#fff1eb' }]}>
             <Zap size={28} color={c.orange} strokeWidth={2.5} />
           </View>
-          <Text style={[s.title, { color: c.ink, fontFamily: 'Manrope_800ExtraBold' }]}>
+          <Text style={[s.title, { color: c.ink, fontFamily: 'HostGrotesk_800ExtraBold' }]}>
             Welcome to Vargen EZ
           </Text>
-          <Text style={[s.subtitle, { color: c.muted, fontFamily: 'Manrope_400Regular' }]}>
+          <Text style={[s.subtitle, { color: c.muted, fontFamily: 'HostGrotesk_400Regular' }]}>
             Here's a quick tour of everything at your fingertips.
           </Text>
         </View>
@@ -125,10 +125,10 @@ export default function OnboardingScreen() {
                 <Icon size={22} color={color} strokeWidth={2} />
               </View>
               <View style={s.cardBody}>
-                <Text style={[s.cardLabel, { color: c.ink, fontFamily: 'Manrope_700Bold' }]}>
+                <Text style={[s.cardLabel, { color: c.ink, fontFamily: 'HostGrotesk_700Bold' }]}>
                   {label}
                 </Text>
-                <Text style={[s.cardDesc, { color: c.muted, fontFamily: 'Manrope_400Regular' }]}>
+                <Text style={[s.cardDesc, { color: c.muted, fontFamily: 'HostGrotesk_400Regular' }]}>
                   {description}
                 </Text>
               </View>
@@ -143,12 +143,12 @@ export default function OnboardingScreen() {
           activeOpacity={0.85}
           onPress={dismiss}
         >
-          <Text style={[s.ctaText, { fontFamily: 'Manrope_800ExtraBold' }]}>
+          <Text style={[s.ctaText, { fontFamily: 'HostGrotesk_800ExtraBold' }]}>
             Create your first quote
           </Text>
         </TouchableOpacity>
 
-        <Text style={[s.hint, { color: c.muted, fontFamily: 'Manrope_400Regular' }]}>
+        <Text style={[s.hint, { color: c.muted, fontFamily: 'HostGrotesk_400Regular' }]}>
           Tap any section above to jump straight in
         </Text>
       </ScrollView>
