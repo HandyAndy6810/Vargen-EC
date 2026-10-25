@@ -25,11 +25,13 @@
  *   npx tsx scripts/backfill-quote-items.ts --dry-run
  *   npx tsx scripts/backfill-quote-items.ts
  *
- * Reads APP_DATABASE_URL (falling back to DATABASE_URL) — check which database
- * that is before running. It prints the host it connected to and refuses to write
+ * Uses the same database rule as the server (server/lib/database-url.ts): with
+ * no flag that's APP_DATABASE_URL, which is PRODUCTION on Replit; prefix with
+ * VARGEN_DB_TARGET=dev to run against the dev branch. Check before running. It prints the host it connected to and refuses to write
  * without --confirm.
  */
 import { db, pool } from '../server/db';
+import { resolveDatabaseUrl, describeDatabase } from '../server/lib/database-url';
 import { quotes, quoteItems } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 import { quoteItemRowsFromContent, quoteItemRowsTotal } from '../shared/quote-items';
@@ -41,11 +43,7 @@ const CONFIRMED = process.argv.includes('--confirm');
 const money = (n: number) => `$${n.toFixed(2)}`;
 
 async function main() {
-  const conn = process.env.APP_DATABASE_URL || process.env.DATABASE_URL || '';
-  let host = '(unparseable)';
-  try { host = new URL(conn).hostname; } catch { /* leave it */ }
-
-  console.log(`database: ${host}`);
+  console.log(`database: ${describeDatabase(resolveDatabaseUrl())}`);
   console.log(`mode:     ${DRY_RUN ? 'DRY RUN — nothing will be written' : 'WRITE'}`);
 
   if (!DRY_RUN && !CONFIRMED) {

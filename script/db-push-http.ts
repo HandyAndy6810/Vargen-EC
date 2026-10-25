@@ -1,18 +1,19 @@
-// Pushes schema to Neon via HTTP API (works when TCP port 5432/6543 is blocked)
+// Pushes schema to Neon via HTTP API (works when TCP port 5432/6543 is blocked).
+// Run with tsx (it imports the TypeScript resolver).
 import { neon } from "@neondatabase/serverless";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { resolveDatabaseUrl, describeDatabase } from "../server/lib/database-url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// APP_DATABASE_URL first — Replit injects a DATABASE_URL of its own, and pushing
-// the schema to the wrong database is a bad way to find that out.
-const DATABASE_URL = process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
-if (!DATABASE_URL) {
-  console.error("DATABASE_URL is not set");
-  process.exit(1);
-}
+// The same database rule as the server: see server/lib/database-url.ts. With no
+// flag that is APP_DATABASE_URL, which is PRODUCTION on Replit.
+//   VARGEN_DB_TARGET=dev npx tsx script/db-push-http.ts
+const database = resolveDatabaseUrl();
+console.log(`database: ${describeDatabase(database)}`);
+const DATABASE_URL = database.url;
 
 const migrationFile = join(__dirname, "../migrations/0000_noisy_sway.sql");
 const sql_content = readFileSync(migrationFile, "utf-8");

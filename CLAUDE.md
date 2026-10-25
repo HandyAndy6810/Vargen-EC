@@ -14,6 +14,9 @@ cd mobile && eas build --profile preview --platform ios
 - `server/` — Express.js backend (runs on Replit)
 - `shared/` — Shared types (use `mobile-types.ts` and `mobile-routes.ts` for mobile — no drizzle imports)
 
+## Databases
+Claude Code sessions must push the schema with `npm run db:push` (the Neon dev branch) and never `npm run db:push:prod` (production, for the deploy build only). See DEPLOYING.md → Databases.
+
 ## Key URLs
 - Backend: set in `mobile/.env` as `EXPO_PUBLIC_API_URL`
 - EAS project ID: `481ac436-4f04-451b-8cf6-48aaaf94e24b`

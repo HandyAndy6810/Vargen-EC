@@ -9,7 +9,7 @@ wondering why a fix "didn't work" when it never left the repo.
 | You changed | What it needs |
 |---|---|
 | `server/`, `drizzle.config.ts` | **Republish** on Replit |
-| `shared/schema.ts` | **Republish** — it runs `db:push` |
+| `shared/schema.ts` | **Republish** — its build runs `db:push:prod` |
 | `shared/` anything else | **Republish** *and* one of the two below — both sides import it |
 | `mobile/app`, `hooks`, `lib`, `components` | **OTA update** |
 | `mobile/package.json` (a new package) | **Build** |
@@ -30,13 +30,34 @@ git pull --no-edit origin main
 then press **Republish** and wait for it. Confirm in the deployment log:
 
 ```
-[startup] database: ep-lingering-mountain-...neon.tech/neondb (from APP_DATABASE_URL)
-[startup] sessions: ep-lingering-mountain-...neon.tech/neondb (from APP_DATABASE_URL)
+[startup] database: ep-lingering-mountain-...neon.tech/neondb (from APP_DATABASE_URL, target default)
+[startup] sessions: ep-lingering-mountain-...neon.tech/neondb (from APP_DATABASE_URL, target default)
 [express] startup complete — routes ready
 ```
 
 Both lines matter. If `sessions:` is missing, the deployment is running old code.
 A republish signs everyone out, because the session store is restarted.
+
+## Databases
+
+On Replit the workspace and the deployment share their secrets, so
+`APP_DATABASE_URL` is **production** in both. Anything run by hand in the
+workspace therefore goes to the Neon **dev branch** instead, through
+`DEV_DATABASE_URL`, and refuses to start if that's missing. It never falls back
+to production. The rule lives in `server/lib/database-url.ts`.
+
+| Command | Database |
+|---|---|
+| `npm run dev` (the Run button), its push and its server | dev (`DEV_DATABASE_URL`) |
+| `npm run db:push` | dev (`DEV_DATABASE_URL`) |
+| `scripts/post-merge.sh` (after a merge in the workspace) | dev (`DEV_DATABASE_URL`) |
+| `npm run build` (the deployment build) → `db:push:prod` | production (`APP_DATABASE_URL`) |
+| The deployed server (`npm run start`) | production (`APP_DATABASE_URL`) |
+| One-off scripts (`npx tsx scripts/...`) with no flag | production (`APP_DATABASE_URL`) — prefix `VARGEN_DB_TARGET=dev` for dev |
+
+`db:push:prod` is only for the deployment build. Don't type it: Republish
+migrates production for you. The workspace log says which database it used:
+`[startup] database: ep-green-union-... (from DEV_DATABASE_URL, target dev)`.
 
 ## OTA update (JavaScript only)
 

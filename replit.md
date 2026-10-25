@@ -82,7 +82,7 @@ The home page uses a reorderable blade system. Blades can be toggled and reposit
 ### Build Process
 - **Development**: `npm run dev` runs tsx with Vite dev server middleware
 - **Production**: `npm run build` runs Vite for client bundle + esbuild for server bundle into `dist/`
-- **Database**: `npm run db:push` pushes schema changes directly to PostgreSQL
+- **Database**: `npm run db:push` pushes schema changes to the Neon dev branch (`DEV_DATABASE_URL`); the deploy build runs `db:push:prod` against production. See DEPLOYING.md → Databases
 
 ## External Dependencies
 
