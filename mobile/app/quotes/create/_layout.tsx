@@ -1,12 +1,18 @@
 import { Stack } from 'expo-router';
 import { QuoteDraftProvider } from '@/hooks/use-quote-draft';
+import { useTheme } from '@/hooks/use-theme';
 
 // The provider wraps the whole flow so all steps share one in-progress quote,
 // and it's torn down when the flow is left.
 export default function QuoteCreateLayout() {
+  // The sheet container behind every screen in this stack. Without it React
+  // Navigation falls back to its own light theme (rgb(242,242,242)), which showed
+  // as a light block under the dark formSheet sheets wherever their content
+  // stopped short — under the home indicator, or with the keyboard open.
+  const { colors } = useTheme();
   return (
     <QuoteDraftProvider>
-      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: colors.paper } }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="describe" />
         <Stack.Screen name="clarify" />
