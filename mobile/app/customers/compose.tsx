@@ -430,7 +430,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   aiBtn: {
     height: 50,
     borderRadius: 16,
-    backgroundColor: c.ink,
+    backgroundColor: c.fillStrong,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -439,7 +439,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   aiBtnText: {
     fontSize: 14,
     fontFamily: 'HostGrotesk_800ExtraBold',
-    color: '#fff',
+    color: c.paper,
   },
   composerWrap: {
     backgroundColor: c.card,

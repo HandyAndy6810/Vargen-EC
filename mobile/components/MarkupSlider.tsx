@@ -71,7 +71,7 @@ export function MarkupSlider({
   // Keep in step when the committed value changes from elsewhere (restore, seed),
   // but never yank the thumb out from under an active drag.
   useEffect(() => {
-    if (!dragging.current) setLive(clamp(markupPct));
+    if (!dragging.current) setLiveNow(clamp(markupPct));
   }, [markupPct]);
 
   const setWidth = (w: number) => {
@@ -109,9 +109,26 @@ export function MarkupSlider({
   };
 
   // Read inside the gesture handlers, which are created once and would otherwise
-  // close over the first render's value.
+  // close over the first render's value. Written at the same moment as the state
+  // (setLiveNow), not on render: release often lands before the last move has
+  // rendered, and a ref updated on render would then commit a stale value.
   const liveRef = useRef(live);
-  liveRef.current = live;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const setLiveNow = (v: number) => {
+    liveRef.current = v;
+    setLive(v);
+  };
+  // Commit the exact number the readout shows, straight from the handler. This
+  // used to run inside a setLive updater — a side effect React may defer or
+  // replay — and was how the slider could read one markup while the quote (and
+  // Edit line item) used another.
+  const commit = () => {
+    dragging.current = false;
+    const v = Math.round(liveRef.current);
+    setLiveNow(v);
+    onChangeRef.current(v);
+  };
   const lastStep = useRef(Math.round(clamp(markupPct) / 5));
 
   const responder = useRef(
@@ -130,7 +147,7 @@ export function MarkupSlider({
         // value to the finger's exact position first.
         const thumbCentre = trackX.current + ratioOf(liveRef.current) * usableW() + THUMB / 2;
         if (Math.abs(e.nativeEvent.pageX - thumbCentre) > THUMB) {
-          setLive(pctFromX(e.nativeEvent.pageX));
+          setLiveNow(pctFromX(e.nativeEvent.pageX));
         }
       },
       onPanResponderMove: (e: GestureResponderEvent, g: PanResponderGestureState) => {
@@ -143,16 +160,10 @@ export function MarkupSlider({
           lastStep.current = step;
           hapticTick();
         }
-        setLive(next);
+        setLiveNow(next);
       },
-      onPanResponderRelease: () => {
-        dragging.current = false;
-        setLive(prev => { onChange(Math.round(prev)); return prev; });
-      },
-      onPanResponderTerminate: () => {
-        dragging.current = false;
-        setLive(prev => { onChange(Math.round(prev)); return prev; });
-      },
+      onPanResponderRelease: commit,
+      onPanResponderTerminate: commit,
     })
   ).current;
 

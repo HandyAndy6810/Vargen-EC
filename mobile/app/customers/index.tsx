@@ -129,7 +129,6 @@ export default function CustomersScreen() {
     <View>
       {/* Hero stat card */}
       <View style={s.heroCard}>
-        <View style={s.heroGlow} />
         <Text style={s.heroEyebrow}>Your book</Text>
         <Text style={s.heroNumber}>{customers.length}</Text>
         <Text style={s.heroSub}>
@@ -243,21 +242,14 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     textAlign: 'center',
   },
   heroCard: {
-    backgroundColor: c.ink,
+    backgroundColor: c.heroFill,
     borderRadius: 22,
+    borderWidth: 1,
+    borderColor: c.heroEdge,
     padding: 22,
     marginTop: 4,
     marginBottom: 16,
     overflow: 'hidden',
-  },
-  heroGlow: {
-    position: 'absolute',
-    top: -30,
-    right: -30,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: `${c.orange}55`,
   },
   heroEyebrow: {
     fontSize: 10,

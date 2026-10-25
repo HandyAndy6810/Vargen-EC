@@ -399,7 +399,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: c.ink,
+    backgroundColor: c.heroFill,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: c.orange,

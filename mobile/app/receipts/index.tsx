@@ -126,7 +126,6 @@ export default function ReceiptsScreen() {
     <View>
       {/* Summary card */}
       <View style={s.summaryCard}>
-        <View style={s.summaryGlow} />
         <Text style={s.summaryEyebrow}>Total Spend</Text>
         <Text style={s.summaryAmount}>${totalSpend.toFixed(2)}</Text>
         <Text style={s.summaryCount}>{receipts.length} receipt{receipts.length !== 1 ? 's' : ''} tracked</Text>
@@ -227,21 +226,14 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     elevation: 6,
   },
   summaryCard: {
-    backgroundColor: c.ink,
+    backgroundColor: c.heroFill,
     borderRadius: 22,
+    borderWidth: 1,
+    borderColor: c.heroEdge,
     padding: 22,
     marginTop: 4,
     marginBottom: 20,
     overflow: 'hidden',
-  },
-  summaryGlow: {
-    position: 'absolute',
-    top: -30,
-    right: -30,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: `${c.orange}55`,
   },
   summaryEyebrow: {
     fontSize: 10,

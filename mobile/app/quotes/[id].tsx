@@ -758,7 +758,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: c.ink,
+    backgroundColor: c.heroFill,
     alignItems: 'center',
     justifyContent: 'center',
   },

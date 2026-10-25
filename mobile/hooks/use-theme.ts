@@ -20,6 +20,17 @@ export interface Colors {
   tile:       string;
   tileEdge:   string;
   tileRim:    string;
+  /** Dark cards that carry white text (invoice, customers and receipts headers).
+   *  Graphite in both modes: c.ink flips to near-white in dark mode, which put
+   *  white text on a white card. */
+  heroFill:   string;
+  /** 1px edge for heroFill cards: invisible in light, a hairline in dark where
+   *  the graphite card sits close to the page (1.23:1). */
+  heroEdge:   string;
+  /** Small filled chips, avatars and buttons whose text is c.paper. In dark mode
+   *  a lighter grey than the cards but clearly darker than body text, so a filled
+   *  tile never matches the text colour (#141416 on it is 7.39:1). */
+  fillStrong: string;
   orange:     string;
   orangeDeep: string;
   orangeSoft: string;
@@ -50,6 +61,9 @@ export const lightColors: Colors = {
   tile:       'rgba(255,255,255,0.72)',
   tileEdge:   'rgba(255,255,255,0.80)',
   tileRim:    '#FFFFFF',
+  heroFill:   '#1C1D21',
+  heroEdge:   '#1C1D21',
+  fillStrong: '#1C1D21',
   orange:     '#f26a2a',
   orangeDeep: '#d94d0e',
   orangeSoft: '#ffe6d3',
@@ -78,6 +92,9 @@ export const darkColors: Colors = {
   tile:       'rgba(255,255,255,0.05)',
   tileEdge:   'rgba(255,255,255,0.09)',
   tileRim:    'rgba(255,255,255,0.16)',
+  heroFill:   '#26272B',
+  heroEdge:   'rgba(255,255,255,0.09)',
+  fillStrong: '#A3A4A8',
   orange:     '#f26a2a',
   orangeDeep: '#d94d0e',
   orangeSoft: 'rgba(242,106,42,0.16)',

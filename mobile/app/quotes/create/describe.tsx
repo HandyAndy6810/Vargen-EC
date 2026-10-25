@@ -595,7 +595,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   custRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   custAvatar: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: c.ink,
+    width: 34, height: 34, borderRadius: 17, backgroundColor: c.heroFill,
     alignItems: 'center', justifyContent: 'center',
   },
   custAvatarText: { fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },

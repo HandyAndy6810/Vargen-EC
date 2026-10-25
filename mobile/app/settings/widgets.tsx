@@ -12,27 +12,11 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronUp, ChevronDown } from 'lucide-react-native';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
+import { HOME_WIDGETS, resolveWidgetLayout, serializeWidgetLayout, type WidgetEntry } from '@shared/home-widgets';
 
+const META = new Map(HOME_WIDGETS.map((w) => [w.id, w]));
+const defaultLayout = () => resolveWidgetLayout(null);
 
-type WidgetMeta = {
-  id: string;
-  label: string;
-  description: string;
-};
-
-const WIDGET_META: WidgetMeta[] = [
-  { id: 'upnext',       label: 'Up Next',           description: 'Your next scheduled job, front and centre' },
-  { id: 'quickactions', label: 'Quick Actions',     description: 'Follow up, add a receipt, customers' },
-  { id: 'schedule',     label: 'Today\'s Schedule', description: 'Jobs on today and upcoming' },
-  { id: 'outstanding',  label: 'Outstanding',       description: 'Unpaid & overdue invoice totals' },
-  { id: 'weather',      label: 'Weather',           description: '7-day forecast + rain warnings' },
-  { id: 'recentquotes', label: 'Recent Quotes',     description: 'Last 5 quotes with status' },
-  { id: 'pipeline',     label: 'Pipeline',          description: 'Quote funnel counts' },
-  { id: 'revenue',      label: 'Revenue',           description: 'Paid invoice total' },
-  { id: 'nudge',        label: 'AI Nudge',          description: 'Smart suggestions based on your data' },
-];
-
-const DEFAULT_ORDER = WIDGET_META.map(w => w.id);
 
 export default function WidgetsScreen() {
   const { colors: c } = useTheme();
@@ -42,22 +26,11 @@ export default function WidgetsScreen() {
 
   const [saved, setSaved] = useState(false);
 
-  // Parse saved order from settings.bladeOrder
-  const initialOrder: string[] = useMemo(() => {
-    try {
-      const raw = settings?.bladeOrder;
-      const parsed = raw ? JSON.parse(raw) : [];
-      if (parsed.length > 0 && WIDGET_META.some(w => parsed.includes(w.id) || parsed.includes(`-${w.id}`))) {
-        // Ensure all widgets are present (add missing ones at end)
-        const existing = new Set(parsed.map((id: string) => id.replace(/^-/, '')));
-        const missing = DEFAULT_ORDER.filter(id => !existing.has(id));
-        return [...parsed, ...missing];
-      }
-    } catch {}
-    return DEFAULT_ORDER;
-  }, [settings?.bladeOrder]);
+  // The same reading of settings.bladeOrder as Home: one entry per real widget,
+  // so the arrows only ever swap rows you can see.
+  const initialOrder = useMemo(() => resolveWidgetLayout(settings?.bladeOrder), [settings?.bladeOrder]);
 
-  const [order, setOrder] = useState<string[]>(initialOrder);
+  const [order, setOrder] = useState<WidgetEntry[]>(initialOrder);
   const loadedBladeOrder = useRef<string | null>(null);
 
   // Sync order when settings first loads or bladeOrder changes (useState ignores updates to initial value)
@@ -68,9 +41,6 @@ export default function WidgetsScreen() {
       setOrder(initialOrder);
     }
   }, [settings?.bladeOrder, initialOrder]);
-
-  const isVisible = (id: string) => !order.find(entry => entry === `-${id}`);
-  const idOf = (entry: string) => entry.replace(/^-/, '');
 
   const moveUp = (index: number) => {
     if (index === 0) return;
@@ -89,16 +59,15 @@ export default function WidgetsScreen() {
   };
 
   const toggleVisible = (index: number) => {
-    const entry = order[index];
     const next = [...order];
-    next[index] = entry.startsWith('-') ? entry.slice(1) : `-${entry}`;
+    next[index] = { ...next[index], visible: !next[index].visible };
     setOrder(next);
     setSaved(false);
   };
 
   const handleSave = () => {
     updateSettings.mutate(
-      { bladeOrder: JSON.stringify(order) },
+      { bladeOrder: serializeWidgetLayout(order) },
       {
         onSuccess: () => setSaved(true),
       }
@@ -106,7 +75,7 @@ export default function WidgetsScreen() {
   };
 
   const handleReset = () => {
-    setOrder(DEFAULT_ORDER);
+    setOrder(defaultLayout());
     setSaved(false);
   };
 
@@ -129,11 +98,9 @@ export default function WidgetsScreen() {
         <View style={{ paddingHorizontal: 20 }}>
           <Text style={s.eyebrow}>Widget Order</Text>
           <View style={s.list}>
-            {order.map((entry, index) => {
-              const id = idOf(entry);
-              const meta = WIDGET_META.find(w => w.id === id);
+            {order.map(({ id, visible }, index) => {
+              const meta = META.get(id);
               if (!meta) return null;
-              const visible = !entry.startsWith('-');
               return (
                 <View
                   key={id}

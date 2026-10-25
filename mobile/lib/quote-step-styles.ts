@@ -7,10 +7,9 @@ import type { Colors } from '@/hooks/use-theme';
  * look is unchanged; the step chrome (header, progress rail, pinned footer)
  * lives in QuoteStepScaffold.
  */
-// isDark keeps the dark "hero"/total surfaces dark in both themes — c.ink is a
-// text token that goes near-white in dark mode, so using it as a background there
-// produced white-on-white cards. Defaults to light behaviour for callers that
-// don't render those cards.
+// The dark "hero"/total surfaces use c.heroFill, never c.ink: c.ink is a text
+// token that goes near-white in dark mode, which produced white-on-white cards.
+// isDark is no longer read here; kept so existing callers don't change.
 export const makeQuoteStyles = (c: Colors, isDark = false) => StyleSheet.create({
   sectionEyebrow: {
     fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted,
@@ -44,11 +43,7 @@ export const makeQuoteStyles = (c: Colors, isDark = false) => StyleSheet.create(
   addLineBtnText: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orangeDeep },
 
   // Totals hero
-  totalHero: { backgroundColor: isDark ? c.card : c.ink, borderRadius: 20, padding: 20, overflow: 'hidden', marginBottom: 20 },
-  totalHeroGlow: {
-    position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70,
-    backgroundColor: `${c.orange}88`, opacity: 0.35,
-  },
+  totalHero: { backgroundColor: c.heroFill, borderWidth: 1, borderColor: c.heroEdge, borderRadius: 20, padding: 20, overflow: 'hidden', marginBottom: 20 },
   totalEyebrow: {
     fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: 'rgba(255,255,255,0.55)',
     letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4,
@@ -74,7 +69,7 @@ export const makeQuoteStyles = (c: Colors, isDark = false) => StyleSheet.create(
   modalTextArea: { padding: 16, fontSize: 16, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink, minHeight: 100 },
   modalInput: { padding: 16, fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
   modalTotalCard: {
-    marginTop: 24, backgroundColor: isDark ? c.card : c.ink, borderRadius: 18, padding: 20,
+    marginTop: 24, backgroundColor: c.heroFill, borderWidth: 1, borderColor: c.heroEdge, borderRadius: 18, padding: 20,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', overflow: 'hidden',
   },
   modalTotalLabel: {

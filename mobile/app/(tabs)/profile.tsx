@@ -51,7 +51,7 @@ function makeStyles(c: Colors) {
       width: 72,
       height: 72,
       borderRadius: 36,
-      backgroundColor: c.ink,
+      backgroundColor: c.heroFill,
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: c.orange,

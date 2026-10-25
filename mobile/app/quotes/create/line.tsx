@@ -46,7 +46,9 @@ export default function LineEditorSheet() {
   const onSave = () => {
     if (!canSave) return;
     hapticPress();
-    d.upsertLine(editIndex, line);
+    // Saving is the tradie checking the figure, so the AI's "needs price" flag
+    // clears and the item leaves Check before sending.
+    d.upsertLine(editIndex, { ...line, needsPrice: false });
     router.back();
   };
 

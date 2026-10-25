@@ -181,7 +181,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   avatar: {
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: c.heroFill, alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { fontSize: 26, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
   fieldGroup: { gap: 8 },

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -78,7 +78,7 @@ export default function QuoteStylingScreen() {
     const doc = buildDocumentWith(id, sample, settings ?? {});
     // Thumbnails are scaled to the card; the full preview is fitted to the screen
     // width, which a raw A4 page is about twice as wide as.
-    return scale ? thumbnailHtml(doc, scale) : fitToWidthHtml(doc);
+    return scale ? thumbnailHtml(doc, scale) : fitToWidthHtml(doc, Dimensions.get('window').width);
   };
 
   if (isLoading) {

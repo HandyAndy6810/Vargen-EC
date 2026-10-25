@@ -340,7 +340,7 @@ export default function CalendarScreen() {
                 return (
                   <View key={i} style={{ backgroundColor: c.card, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: c.lineSoft }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' }}>
+                      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.heroFill, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange }}>{initials}</Text>
                       </View>
                       <View style={{ flex: 1 }}>

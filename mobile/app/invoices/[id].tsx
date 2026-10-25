@@ -252,8 +252,9 @@ export default function InvoiceDetailScreen() {
     ? `$${parseFloat(invoice?.paidAmount || '0').toFixed(0)} received`
     : 'Awaiting payment';
 
-  // Hero card colour: orange if overdue, dark otherwise
-  const heroBg = isOverdue ? c.orangeDeep : c.ink;
+  // Hero card colour: orange if overdue, graphite otherwise (c.ink is a text
+  // token and turns near-white in dark mode).
+  const heroBg = isOverdue ? c.orangeDeep : c.heroFill;
 
   return (
     <>
@@ -286,8 +287,7 @@ export default function InvoiceDetailScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
 
           {/* Amount due hero */}
-          <View style={[s.heroCard, { backgroundColor: heroBg }]}>
-            <View style={s.heroGlow} />
+          <View style={[s.heroCard, { backgroundColor: heroBg, borderColor: isOverdue ? heroBg : c.heroEdge }]}>
             <Text style={s.heroEyebrow}>{isPaid ? 'Amount paid' : 'Amount due'}</Text>
             {/* A deposit or balance invoice bills part of a job, so say so on the
                 figure itself — otherwise it is indistinguishable from a full one. */}
@@ -616,19 +616,10 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   heroCard: {
     borderRadius: 22,
+    borderWidth: 1,
     padding: 20,
     position: 'relative',
     overflow: 'hidden',
-  },
-  heroGlow: {
-    position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: `${c.orange}88`,
-    opacity: 0.35,
   },
   heroEyebrow: {
     fontSize: 10,

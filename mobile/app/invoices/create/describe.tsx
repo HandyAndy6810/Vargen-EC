@@ -183,7 +183,6 @@ export default function InvoiceDescribeStep() {
               accessibilityRole="button"
               accessibilityLabel="Build this invoice from a quote"
             >
-              <View style={s.quoteGlow} />
               <View style={s.quoteIcon}><FileText size={20} color="#fff" strokeWidth={2.2} /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={s.quoteTitle}>Choose from a quote</Text>
@@ -335,16 +334,11 @@ const makeStyles = (c: Colors, isDark: boolean) => StyleSheet.create({
     width: 44, height: 44, borderRadius: 14, backgroundColor: c.card,
     borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center',
   },
-  // c.ink is a text token (near-white in dark), so the dark hero look has to be
-  // asked for explicitly rather than borrowed from it.
+  // c.ink is a text token (near-white in dark), so the graphite card uses heroFill.
   quoteCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: isDark ? c.card : c.ink, borderRadius: 22, padding: 18,
+    backgroundColor: c.heroFill, borderWidth: 1, borderColor: c.heroEdge, borderRadius: 22, padding: 18,
     overflow: 'hidden', marginTop: 4,
-  },
-  quoteGlow: {
-    position: 'absolute', top: -50, right: -50, width: 160, height: 160,
-    borderRadius: 80, backgroundColor: `${c.orange}88`, opacity: 0.45,
   },
   quoteIcon: {
     width: 44, height: 44, borderRadius: 14, backgroundColor: c.orange,

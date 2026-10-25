@@ -93,8 +93,8 @@ export default function CustomerMessagesScreen() {
           <View style={[s.channelPill, { backgroundColor: ch.bg }]}>
             <Text style={[s.channelPillText, { color: ch.color }]}>{ch.label}</Text>
           </View>
-          <Text style={[s.bubbleText, isOut && { color: '#fff' }]}>{item.body}</Text>
-          <Text style={[s.bubbleTime, isOut && { color: 'rgba(255,255,255,0.6)' }]}>
+          <Text style={[s.bubbleText, isOut && { color: c.paper }]}>{item.body}</Text>
+          <Text style={[s.bubbleTime, isOut && { color: c.paper, opacity: 0.6 }]}>
             {msgDateLabel(item.createdAt)} · {isOut ? 'You' : name}
           </Text>
         </TouchableOpacity>
@@ -158,11 +158,11 @@ export default function CustomerMessagesScreen() {
               {(['note', 'sms', 'email'] as Channel[]).map(ch => (
                 <TouchableOpacity
                   key={ch}
-                  style={[s.channelBtn, channel === ch && { backgroundColor: c.ink }]}
+                  style={[s.channelBtn, channel === ch && { backgroundColor: c.fillStrong }]}
                   onPress={() => { if (Platform.OS !== 'web') Haptics.selectionAsync(); setChannel(ch); }}
                   activeOpacity={0.75}
                 >
-                  <Text style={[s.channelBtnText, channel === ch && { color: '#fff' }]}>
+                  <Text style={[s.channelBtnText, channel === ch && { color: c.paper }]}>
                     {CHANNEL_META[ch].label}
                   </Text>
                 </TouchableOpacity>
@@ -234,7 +234,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   msgRowOut: { alignItems: 'flex-end' },
   msgRowIn:  { alignItems: 'flex-start' },
   bubble:    { maxWidth: '80%', borderRadius: 18, padding: 12, gap: 4 },
-  bubbleOut: { backgroundColor: c.ink, borderBottomRightRadius: 4 },
+  bubbleOut: { backgroundColor: c.fillStrong, borderBottomRightRadius: 4 },
   bubbleIn:  { backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid, borderBottomLeftRadius: 4 },
   channelPill: { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   channelPillText: { fontSize: 9, fontFamily: 'HostGrotesk_700Bold', textTransform: 'uppercase', letterSpacing: 0.5 },

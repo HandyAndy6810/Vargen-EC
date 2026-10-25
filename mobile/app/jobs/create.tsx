@@ -325,7 +325,7 @@ export default function JobCreateScreen() {
                       <Text style={[s.dayChipTop, active && { color: 'rgba(255,255,255,0.7)' }]}>
                         {i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : format(d, 'EEE')}
                       </Text>
-                      <Text style={[s.dayChipNum, active && { color: '#fff' }]}>{format(d, 'd')}</Text>
+                      <Text style={[s.dayChipNum, active && { color: c.paper }]}>{format(d, 'd')}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -343,7 +343,7 @@ export default function JobCreateScreen() {
                   return (
                     <TouchableOpacity key={t} onPress={() => setTimeSlot(t)} activeOpacity={0.7}
                       style={[s.timeChip, active && s.timeChipActive]}>
-                      <Text style={[s.timeChipText, active && { color: '#fff' }]}>{label}</Text>
+                      <Text style={[s.timeChipText, active && { color: c.paper }]}>{label}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -359,7 +359,7 @@ export default function JobCreateScreen() {
                   return (
                     <TouchableOpacity key={d.val} onPress={() => setDuration(d.val)} activeOpacity={0.7}
                       style={[s.durationChip, active && s.durationChipActive]}>
-                      <Text style={[s.durationChipText, active && { color: '#fff' }]}>{d.label}</Text>
+                      <Text style={[s.durationChipText, active && { color: c.paper }]}>{d.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -488,7 +488,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   custAvatar: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: c.heroFill, alignItems: 'center', justifyContent: 'center',
   },
   custAvatarText: { fontSize: 12, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
   custName: { fontSize: 14, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink },
@@ -529,7 +529,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
     alignItems: 'center', justifyContent: 'center', gap: 2,
   },
-  dayChipActive: { backgroundColor: c.ink, borderColor: c.ink },
+  dayChipActive: { backgroundColor: c.fillStrong, borderColor: c.fillStrong },
   dayChipTop: {
     fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 0.5, textTransform: 'uppercase',
@@ -545,7 +545,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
     backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
   },
-  durationChipActive: { backgroundColor: c.ink, borderColor: c.ink },
+  durationChipActive: { backgroundColor: c.fillStrong, borderColor: c.fillStrong },
   durationChipText: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
   saveBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

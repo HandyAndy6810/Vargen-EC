@@ -63,7 +63,6 @@ export default function ItemsStep() {
         </View>
 
         <View style={[s.totalHero, { marginTop: 4 }]}>
-          <View style={s.totalHeroGlow} />
           <Text style={s.totalEyebrow}>Quote total</Text>
           <Text style={s.totalAmt}>${d.total.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
           <Text style={s.totalSub}>${d.subtotal.toFixed(2)} + ${d.gst.toFixed(2)} GST</Text>
