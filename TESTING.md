@@ -212,7 +212,7 @@ manually instead".
 ## 12. Settings
 
 - [ ] Profile shows only: Business profile, Quotes & invoices, Quote style,
-      Receipts & expenses, AI quoting, Price book, Follow-up reminders,
+      Receipts & expenses, AI quoting, Follow-up reminders,
       Integrations, Appearance, Home widgets, Sign out
 - [ ] Business profile: name read-only; business fields, ABN and bank save and persist
 - [ ] A BSB that isn't 6 digits is refused

@@ -24,7 +24,7 @@ import { useInvoices } from '@/hooks/use-invoices';
 import { isThisMonth } from 'date-fns';
 import {
   Receipt, Sparkles, Palette, Bell, Sun, Moon, Smartphone, LogOut,
-  ChevronRight, Pencil, Link, RefreshCw, Unlink, CheckCircle, BookOpen, Users, Building2,
+  ChevronRight, Pencil, Link, RefreshCw, Unlink, CheckCircle, Users, Building2,
   LayoutGrid, Check, ScanLine, CreditCard,
 } from 'lucide-react-native';
 
@@ -484,7 +484,6 @@ export default function ProfileScreen() {
 
         <SettingsGroup title="Pricing" items={[
           { icon: Sparkles, label: 'AI quoting', sub: 'Trade, labour rate, markup, call-out fee', onPress: () => router.push('/settings/ai-quoting' as any) },
-          { icon: BookOpen, label: 'Price book', sub: 'Your material prices for AI quotes',      onPress: () => router.push('/price-book' as any) },
         ]} />
 
         <SettingsGroup title="Follow-ups" items={[

@@ -4,7 +4,7 @@
  * The model has no source of truth for what anything costs — it reproduces
  * plausible-looking numbers from training data that is global, dated, and not
  * Australian trade supply. That is how a 5L bucket of paint came back at $20 when
- * it is nearer $150. The tradie's own price book is the real fix; this is what
+ * it is nearer $150. Real supplier pricing is the proper fix; this is what
  * catches the absurd cases in the meantime, and it works on day one with no data.
  *
  * DESIGN RULE, and the important one: these are ABSURDITY bands, not price guidance.
