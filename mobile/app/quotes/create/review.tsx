@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView,
-  ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Animated, PanResponder,
+  ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Animated, PanResponder, Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -20,6 +20,7 @@ import { SwipeableRow } from '@/components/SwipeableRow';
 import { useSettings } from '@/hooks/use-settings';
 import { MarkupSlider } from '@/components/MarkupSlider';
 import { buildQuotePDF } from '@/lib/quote-pdf';
+import { fitToWidthHtml } from '@/lib/pdf-templates';
 import { showConfirm, showAlert } from '@/lib/dialogs';
 import { hapticSelect } from '@/lib/haptics';
 import { animateNextLayout } from '@/lib/layout-animation';
@@ -109,7 +110,8 @@ export default function ReviewStep() {
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const previewPDF = () => {
     try {
-      setPreviewHtml(buildQuotePDF(d.quotePayload(), settings));
+      // Fitted to the screen for the preview only; sharing builds its own PDF.
+      setPreviewHtml(fitToWidthHtml(buildQuotePDF(d.quotePayload(), settings), Dimensions.get('window').width));
     } catch (e: any) {
       showAlert('Could not build the preview', String(e?.message || 'Try again.'));
     }

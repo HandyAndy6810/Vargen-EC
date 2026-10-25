@@ -115,15 +115,26 @@ export function thumbnailHtml(html: string, scale: number): string {
  * lets the browser scale the whole sheet to fit, and leaves pinch-to-zoom working
  * for reading the small print.
  *
+ * Pass the WebView's width (the screen width for a full-screen preview); only
+ * the preview is rewritten, never the HTML that gets shared as the PDF.
+ *
  * Done by rewriting the viewport rather than scaling with a transform: a transform
  * does not change layout size, so a multi-page document would have been clipped at
  * whatever height one page happened to be.
  */
-export function fitToWidthHtml(html: string): string {
-  return html.replace(
-    /<meta name="viewport"[^>]*>/,
-    `<meta name="viewport" content="width=${Math.round(A4_PX.width)}, initial-scale=1, user-scalable=yes">`,
-  );
+export function fitToWidthHtml(html: string, screenWidth?: number): string {
+  const pageW = Math.round(A4_PX.width);
+  // iOS (WKWebView) takes initial-scale literally: at 1 it shows the 794px page
+  // 1:1, wider than the phone, and won't zoom out past it (scalesPageToFit is
+  // Android-only). So with the screen width known, start at exactly the scale
+  // that fits the sheet, allow no smaller, and leave room to pinch in.
+  const content = screenWidth && screenWidth > 0
+    ? (() => {
+        const fit = Math.min(1, screenWidth / pageW).toFixed(4);
+        return `width=${pageW}, initial-scale=${fit}, minimum-scale=${fit}, maximum-scale=4, user-scalable=yes`;
+      })()
+    : `width=${pageW}, initial-scale=1, user-scalable=yes`;
+  return html.replace(/<meta name="viewport"[^>]*>/, `<meta name="viewport" content="${content}">`);
 }
 
 /**
