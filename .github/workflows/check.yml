@@ -41,6 +41,28 @@ jobs:
       # The money maths. Pure functions, so these run in about a second and need
       # no device, no database and no network.
       - run: npm test
+      # Which database each push reaches (server/lib/database-url.ts). Dummy URLs
+      # on a closed port, so nothing real is touched. `db:push` (what a person
+      # types, and what the Run button and post-merge run) must refuse without
+      # DEV_DATABASE_URL rather than fall back to production; `db:push:prod` (the
+      # deploy build's) must still use APP_DATABASE_URL.
+      - name: Workspace pushes never reach production
+        env:
+          APP_DATABASE_URL: postgresql://ci:ci@127.0.0.1:1/prod
+        run: |
+          set +e
+          out=$(npm run db:push 2>&1); code=$?
+          echo "$out" | tail -5
+          if [ $code -eq 0 ] || ! echo "$out" | grep -q "refusing to fall back to production"; then
+            echo "::error::npm run db:push without DEV_DATABASE_URL did not refuse."
+            exit 1
+          fi
+          out=$(DEV_DATABASE_URL=postgresql://ci:ci@127.0.0.1:1/dev npm run db:push 2>&1)
+          echo "$out" | grep "database:"
+          echo "$out" | grep -q "127.0.0.1/dev (from DEV_DATABASE_URL, target dev)" || { echo "::error::db:push did not use DEV_DATABASE_URL."; exit 1; }
+          out=$(DEV_DATABASE_URL=postgresql://ci:ci@127.0.0.1:1/dev npm run db:push:prod 2>&1)
+          echo "$out" | grep "database:"
+          echo "$out" | grep -q "127.0.0.1/prod (from APP_DATABASE_URL, target default)" || { echo "::error::db:push:prod did not use APP_DATABASE_URL."; exit 1; }
 
   mobile:
     name: Mobile app

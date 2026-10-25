@@ -5,6 +5,7 @@ import connectPg from "connect-pg-simple";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { authStorage } from "./storage";
+import { resolveDatabaseUrl, describeDatabase } from "../../lib/database-url";
 import { sendPasswordResetEmail } from "../../lib/email";
 
 const authRateLimit = rateLimit({
@@ -18,7 +19,7 @@ const authRateLimit = rateLimit({
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
-  // Same precedence as server/db.ts, and it matters.
+  // The same resolver as server/db.ts, and it matters.
   //
   // Replit injects its own DATABASE_URL at runtime, so reading it directly sent
   // every login session to REPLIT's database while all the app's data lives in
@@ -26,20 +27,14 @@ export function getSession() {
   // database we had otherwise stopped using, and which had already been frozen
   // once for billing. Had it been deleted, every tradie would have been signed
   // out with no clue why.
-  const conString = process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
+  const database = resolveDatabaseUrl();
   const sessionStore = new pgStore({
-    conString,
+    conString: database.url,
     createTableIfMissing: true,
     ttl: sessionTtl,
     tableName: "sessions",
   });
-  try {
-    const u = new URL(conString!);
-    const source = process.env.APP_DATABASE_URL ? "APP_DATABASE_URL" : "DATABASE_URL";
-    console.log(`[startup] sessions: ${u.hostname}${u.pathname} (from ${source})`);
-  } catch {
-    console.log("[startup] sessions: connection string could not be parsed");
-  }
+  console.log(`[startup] sessions: ${describeDatabase(database)}`);
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,

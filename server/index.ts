@@ -3,13 +3,16 @@ import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { resolveDatabaseUrl } from "./lib/database-url";
 
 // ── Environment validation ──────────────────────────────────────────────
 const REQUIRED_ENV_VARS = ["SESSION_SECRET"];
 const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
-// Either name is acceptable — see server/db.ts for why APP_DATABASE_URL exists.
-if (!process.env.APP_DATABASE_URL && !process.env.DATABASE_URL) {
-  missing.push("APP_DATABASE_URL or DATABASE_URL");
+// See server/lib/database-url.ts for which variable applies and why.
+try {
+  resolveDatabaseUrl();
+} catch (err) {
+  missing.push((err as Error).message);
 }
 if (missing.length > 0) {
   console.error(`[startup] Missing required environment variables: ${missing.join(", ")}`);
