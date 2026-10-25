@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView,
-  ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Animated, PanResponder, Dimensions,
+  ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Animated, PanResponder, Dimensions, Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -10,7 +10,7 @@ import * as Sharing from 'expo-sharing';
 import { WebView } from 'react-native-webview';
 import { format } from 'date-fns';
 import {
-  ChevronLeft, ChevronDown, Send, FileText, Trash2,
+  ChevronLeft, ChevronDown, ChevronRight, Send, FileText, Trash2,
   Lock, Unlock, AlertTriangle, User, X, Wrench, Package, Plus, ArrowUp, Share2,
 } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
@@ -135,6 +135,32 @@ export default function ReviewStep() {
         d.forgetSavedDraft();
         try { router.dismissAll(); } catch {}
         router.replace('/(tabs)/quotes');
+      },
+    });
+  };
+
+  const openLine = (l: LineItem) => {
+    const i = idxOf(l);
+    if (i < 0) return;
+    hapticSelect();
+    router.push(`/quotes/create/line?index=${i}` as any);
+  };
+
+  // An assumption is the AI saying what it took for granted. Keeping it leaves it
+  // on the quote; removing it drops it from what gets sent.
+  const reviewAssumption = (i: number) => {
+    const text = d.assumptions[i];
+    if (text == null) return;
+    hapticSelect();
+    showConfirm({
+      title: 'Keep this assumption?',
+      message: text,
+      cancelLabel: 'Keep',
+      confirmLabel: 'Remove',
+      destructive: true,
+      onConfirm: () => {
+        animateNextLayout();
+        d.setAssumptions(prev => prev.filter((_, j) => j !== i));
       },
     });
   };
@@ -359,26 +385,50 @@ export default function ReviewStep() {
               </TouchableOpacity>
               {flagsOpen ? (
                 <View style={s.flagsBody}>
+                  {/* Every row is tappable: an item opens its line editor (saving
+                      there clears it from this list), an assumption asks Keep or
+                      Remove. The count above is derived, so it drops as they clear. */}
                   {priceWarnings.map((w, i) => (
-                    <View key={`pw-${i}`} style={s.flagRow}>
+                    <Pressable
+                      key={`pw-${i}`}
+                      style={({ pressed }) => [s.flagRow, pressed && s.flagRowPressed]}
+                      onPress={() => openLine(w.line)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Check the price of ${w.line.name || 'this item'}`}
+                    >
                       <Text style={[s.flagTag, { color: '#fff', backgroundColor: c.red }]}>CHECK PRICE</Text>
                       <Text style={s.flagText}>
                         <Text style={{ fontFamily: 'HostGrotesk_800ExtraBold' }}>{w.line.name || 'Unnamed item'}</Text>
                         {' — '}{w.flag.message}
                       </Text>
-                    </View>
+                      <ChevronRight size={16} color={c.muted} strokeWidth={2.2} style={s.flagChevron} />
+                    </Pressable>
                   ))}
                   {needsPrice.map((l, i) => (
-                    <View key={`np-${i}`} style={s.flagRow}>
+                    <Pressable
+                      key={`np-${i}`}
+                      style={({ pressed }) => [s.flagRow, pressed && s.flagRowPressed]}
+                      onPress={() => openLine(l)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Set the price of ${l.name || 'this item'}`}
+                    >
                       <Text style={s.flagTag}>NEEDS PRICE</Text>
                       <Text style={s.flagText}>{l.name || 'Unnamed item'} — not in your price book, check the figure.</Text>
-                    </View>
+                      <ChevronRight size={16} color={c.muted} strokeWidth={2.2} style={s.flagChevron} />
+                    </Pressable>
                   ))}
                   {d.assumptions.map((a, i) => (
-                    <View key={`as-${i}`} style={s.flagRow}>
+                    <Pressable
+                      key={`as-${i}`}
+                      style={({ pressed }) => [s.flagRow, pressed && s.flagRowPressed]}
+                      onPress={() => reviewAssumption(i)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Keep or remove this assumption"
+                    >
                       <Text style={[s.flagTag, { color: c.mutedHi, backgroundColor: c.paperDeep }]}>ASSUMED</Text>
                       <Text style={s.flagText}>{a}</Text>
-                    </View>
+                      <ChevronRight size={16} color={c.muted} strokeWidth={2.2} style={s.flagChevron} />
+                    </Pressable>
                   ))}
                 </View>
               ) : null}
@@ -543,7 +593,9 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.lineSoft,
     marginTop: 8, paddingHorizontal: 14, paddingVertical: 6,
   },
-  flagRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10 },
+  flagRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10, marginHorizontal: -14, paddingHorizontal: 14 },
+  flagRowPressed: { backgroundColor: c.paperDeep },
+  flagChevron: { marginTop: 1 },
   flagTag: {
     fontSize: 9.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orangeDeep,
     backgroundColor: c.orangeSoft, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3,
