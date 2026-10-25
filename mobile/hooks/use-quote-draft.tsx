@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, Share } from 'react-native';
 import { router } from 'expo-router';
 import { useEntryId, useEntryText } from '@/hooks/use-entry-params';
@@ -390,8 +390,13 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const [aiBusy, setAiBusy] = useState(false);
 
   // Start the job-level markup at the tradie's default. Only once, and never over a
-  // markup already restored from a saved quote.
+  // markup already restored from a saved quote or chosen on the slider — Settings
+  // can arrive after the tradie has already moved it.
   const seededMarkup = useRef(false);
+  const chooseMarkup = useCallback((pct: number) => {
+    seededMarkup.current = true;
+    setMarkupPct(pct);
+  }, []);
   useEffect(() => {
     if (seededMarkup.current || isEditing) return;
     const m = settings?.markupPercent;
@@ -681,7 +686,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     customer, setCustomer, customerId, setCustomerId, selectedCustomer,
     jobTitle, setJobTitle, summary, setSummary, schedDate, setSchedDate, expiryDate, setExpiryDate, notes, setNotes,
     lines, setLines,
-    markupPct, setMarkupPct, assumptions, setAssumptions, toggleLineLock,
+    markupPct, setMarkupPct: chooseMarkup, assumptions, setAssumptions, toggleLineLock,
     roundUp, setRoundUp, upsertLine, removeLine,
     questions, finishClarify, startManual, quotePayload, shareAnyway,
     restorable, restoreDraft, forgetSavedDraft,

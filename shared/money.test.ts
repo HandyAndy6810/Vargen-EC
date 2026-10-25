@@ -301,4 +301,24 @@ describe('regressions', () => {
     assert.equal(t.subtotal, 1440);
     assert.equal(t.uncostedLines, 1);
   });
+
+  test('Edit line item and the totals use one markup: 73% vs 16% on the same quote', () => {
+    // Device testing found the line editor saying "with your 73% markup" while the
+    // slider read 16%. The editor's "Charged at $X each" is unitSell(line, markup)
+    // and the slider's figures are totalsFor(lines, markup): with ONE markup value
+    // passed to both they agree by construction, for every kind of line. (The
+    // drift itself was the slider committing a stale value; see MarkupSlider.)
+    const lines = [
+      { qty: '3', cost: '40' },                                       // marked up
+      { qty: '2', cost: '25', noMarkup: true },                       // at cost
+      { qty: '1', cost: '90', markupLocked: true, lockedPrice: '150' }, // locked
+      { qty: '4', price: '12.5' },                                    // no cost
+    ];
+    for (const markupPct of [0, 16, 30, 73]) {
+      const fromEditor = round2(lines.reduce((sum, l) => sum + num(l.qty) * unitSell(l, markupPct), 0));
+      assert.equal(totalsFor(lines, { markupPct, gstRate: 0.1, roundUp: false }).subtotal, fromEditor, `at ${markupPct}%`);
+    }
+    // And the two numbers in the report really are different quotes.
+    assert.notEqual(unitSell({ cost: '40' }, 16), unitSell({ cost: '40' }, 73));
+  });
 });
