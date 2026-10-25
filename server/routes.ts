@@ -217,32 +217,6 @@ try {
   openai = null as any;
 }
 
-// ── "Needs price" verification ──────────────────────────────────────────────
-// The price book is injected into the prompt wholesale and matched by the model
-// itself — there is no retrieval step that can return "no match". So after the
-// model answers we re-check each material against the book deterministically and
-// flag anything we can't tie to a real entry, rather than letting an invented
-// price through silently.
-function normaliseDesc(s: unknown): string {
-  return String(s || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function matchesPriceBook(description: unknown, book: { description: string }[]): boolean {
-  const d = normaliseDesc(description);
-  if (!d) return false;
-  return book.some((entry) => {
-    const bd = normaliseDesc(entry.description);
-    if (!bd) return false;
-    if (d.includes(bd) || bd.includes(d)) return true;
-    // Otherwise require most of the price-book entry's significant words to appear,
-    // so "25mm copper elbow" still matches "copper elbow 25mm x4".
-    const words = bd.split(" ").filter((w) => w.length > 2);
-    if (!words.length) return false;
-    const hits = words.filter((w) => d.includes(w)).length;
-    return hits / words.length >= 0.7;
-  });
-}
-
 // Rate limiters
 const aiRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
@@ -1180,20 +1154,6 @@ CRITICAL RULES — follow these exactly:
         // Non-critical — continue without past quote context
       }
 
-      // Inject user's personal price book
-      try {
-        const priceBookItems = await storage.getPriceBook(req.userId);
-        if (priceBookItems.length > 0) {
-          const priceBookContext = `\n\nTHIS TRADESPERSON'S OWN PRICE BOOK — These are their real negotiated prices with their supplier. Use these EXACT prices when the item matches. Do not substitute a different price from the reference data.\n${priceBookItems.map(item =>
-            `• ${item.description} — $${item.price} / ${item.unit}${item.supplier ? ` (${item.supplier})` : ''}${item.category ? ` [${item.category}]` : ''}`
-          ).join('\n')}`;
-          messages.push({ role: "system", content: priceBookContext });
-        }
-      } catch (err) {
-        console.error("Failed to load price book for AI context:", err);
-        // Non-critical — continue without price book context
-      }
-
       const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
 
       userContent.push({
@@ -1269,19 +1229,8 @@ CRITICAL RULES — follow these exactly:
           assumption: typeof q.assumption === "string" ? q.assumption : "",
         }));
 
-      // Normalise the cost basis and flag unverifiable materials.
+      // Normalise the cost basis and note prices that look wrong.
       if (Array.isArray(parsed.items)) {
-        let book: { description: string }[] = [];
-        try {
-          book = (await storage.getPriceBook(req.userId)) as any[];
-        } catch (err) {
-          console.error("Failed to load price book for Needs-price check:", err);
-        }
-        // With an empty price book there is nothing to verify against, so flagging
-        // every line would just paint a new user's first quote red. Only check once
-        // they actually have entries.
-        const canVerify = Array.isArray(book) && book.length > 0;
-
         parsed.items = parsed.items.map((item: any) => {
           const price = Number(item.unitPrice) || 0;
 
@@ -1309,10 +1258,6 @@ CRITICAL RULES — follow these exactly:
           );
           const useRate = category === "labour" && hourly && labourRateNum;
           const unitPrice = useRate ? labourRateNum : price;
-          const needsPrice = canVerify && category === "material"
-            ? !matchesPriceBook(item.description, book)
-            : false;
-
           // Catches a figure that is wrong by an order of magnitude — the $20 five
           // litre tin of paint. Deliberately crude: it only ever adds a note.
           const flag = checkLinePrice({ description: item.description, unitPrice: price, unit: item.unit });
@@ -1323,7 +1268,6 @@ CRITICAL RULES — follow these exactly:
             unitPrice,
             unitCost: useRate ? labourRateNum : unitCost,
             costUnknown: useRate ? false : !costKnown,
-            needsPrice,
             priceNote: flag?.message,
           };
         });
@@ -2324,59 +2268,16 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
     }
   });
 
-  // ─── Price Book ───
-
-  app.get("/api/price-book", requireAuth, async (req: any, res) => {
-    try {
-      const items = await storage.getPriceBook(req.userId);
-      res.json(items);
-    } catch (err) {
-      res.status(500).json({ message: "Failed to fetch price book" });
-    }
+  // ─── Price Book (removed) ───
+  // The price book is gone. Builds without the OTA update still load it, so GET
+  // answers an empty list without touching the database (an error would break
+  // that screen), and writes get 410 Gone. A plain 404 isn't possible here: in
+  // production unmatched paths fall through to index.html with a 200.
+  app.get("/api/price-book", requireAuth, (_req, res) => {
+    res.json([]);
   });
-
-  app.post("/api/price-book", requireAuth, async (req: any, res) => {
-    try {
-      const { description, unit, price, supplier, category } = req.body;
-      if (!description || price == null) return res.status(400).json({ message: "description and price are required" });
-      const item = await storage.createPriceBookItem({
-        userId: req.userId,
-        description: String(description),
-        unit: unit || "each",
-        price: String(price),
-        supplier: supplier || null,
-        category: category || null,
-      });
-      res.status(201).json(item);
-    } catch (err) {
-      res.status(500).json({ message: "Failed to create price book item" });
-    }
-  });
-
-  app.patch("/api/price-book/:id", requireAuth, async (req: any, res) => {
-    try {
-      const id = Number(req.params.id);
-      const { description, unit, price, supplier, category } = req.body;
-      const updates: Record<string, any> = {};
-      if (description !== undefined) updates.description = String(description);
-      if (unit !== undefined) updates.unit = unit;
-      if (price !== undefined) updates.price = String(price);
-      if (supplier !== undefined) updates.supplier = supplier;
-      if (category !== undefined) updates.category = category;
-      const item = await storage.updatePriceBookItem(id, req.userId, updates);
-      res.json(item);
-    } catch (err) {
-      res.status(500).json({ message: "Failed to update price book item" });
-    }
-  });
-
-  app.delete("/api/price-book/:id", requireAuth, async (req: any, res) => {
-    try {
-      await storage.deletePriceBookItem(Number(req.params.id), req.userId);
-      res.status(204).end();
-    } catch (err) {
-      res.status(500).json({ message: "Failed to delete price book item" });
-    }
+  app.all(["/api/price-book", "/api/price-book/:id"], requireAuth, (_req, res) => {
+    res.status(410).json({ message: "The price book has been removed. Update the app to the latest version." });
   });
 
   // ─── Frequent Job Types ───

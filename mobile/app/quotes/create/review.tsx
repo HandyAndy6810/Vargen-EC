@@ -53,10 +53,8 @@ export default function ReviewStep() {
 
   const labour = d.lines.filter(l => l.category === 'labour');
   const materials = d.lines.filter(l => l.category !== 'labour');
-  const needsPrice = d.lines.filter(l => l.needsPrice);
-  // Lines whose figure looks wrong by an order of magnitude. Listed first and in red
-  // because, unlike "needs price", this is the AI having probably got it wrong rather
-  // than simply not being able to confirm it.
+  // Lines whose figure looks wrong by an order of magnitude, listed in red: this is
+  // the AI having probably got it wrong.
   //
   // Recomputed from the CURRENT lines rather than read from the note the server sent
   // back, so the warning disappears the moment the tradie corrects the figure. A
@@ -69,7 +67,7 @@ export default function ReviewStep() {
       .filter((x): x is { line: LineItem; flag: NonNullable<ReturnType<typeof checkLinePrice>> } => !!x.flag),
     [d.lines],
   );
-  const hasFlags = needsPrice.length > 0 || priceWarnings.length > 0 || d.assumptions.length > 0;
+  const hasFlags = priceWarnings.length > 0 || d.assumptions.length > 0;
 
   const labourHours = labour.reduce((n, l) => n + (parseFloat(l.qty) || 0), 0);
   const labourRate = labour.length
@@ -182,7 +180,6 @@ export default function ReviewStep() {
             <Text style={s.lineMetaLabel}>
               {l.qty || '1'} {l.unit || 'ea'} · cost {money(parseFloat(l.cost || '0') || 0)}
               {l.noMarkup ? '  ·  At cost' : ''}
-              {l.needsPrice ? '  ·  Needs price' : ''}
             </Text>
           </View>
           <View style={{ alignItems: 'flex-end', gap: 6 }}>
@@ -374,7 +371,7 @@ export default function ReviewStep() {
               >
                 <AlertTriangle size={16} color={c.orangeDeep} strokeWidth={2.4} />
                 <Text style={s.flagsTitle}>
-                  Check before sending · {priceWarnings.length + needsPrice.length + d.assumptions.length}
+                  Check before sending · {priceWarnings.length + d.assumptions.length}
                 </Text>
                 <ChevronDown
                   size={16}
@@ -385,9 +382,10 @@ export default function ReviewStep() {
               </TouchableOpacity>
               {flagsOpen ? (
                 <View style={s.flagsBody}>
-                  {/* Every row is tappable: an item opens its line editor (saving
-                      there clears it from this list), an assumption asks Keep or
-                      Remove. The count above is derived, so it drops as they clear. */}
+                  {/* Every row is tappable: a price warning opens its line editor
+                      (it clears once the figure is fixed, as it's re-checked from
+                      the current lines), an assumption asks Keep or Remove. The
+                      count above is derived, so it drops as they clear. */}
                   {priceWarnings.map((w, i) => (
                     <Pressable
                       key={`pw-${i}`}
@@ -401,19 +399,6 @@ export default function ReviewStep() {
                         <Text style={{ fontFamily: 'HostGrotesk_800ExtraBold' }}>{w.line.name || 'Unnamed item'}</Text>
                         {' — '}{w.flag.message}
                       </Text>
-                      <ChevronRight size={16} color={c.muted} strokeWidth={2.2} style={s.flagChevron} />
-                    </Pressable>
-                  ))}
-                  {needsPrice.map((l, i) => (
-                    <Pressable
-                      key={`np-${i}`}
-                      style={({ pressed }) => [s.flagRow, pressed && s.flagRowPressed]}
-                      onPress={() => openLine(l)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Set the price of ${l.name || 'this item'}`}
-                    >
-                      <Text style={s.flagTag}>NEEDS PRICE</Text>
-                      <Text style={s.flagText}>{l.name || 'Unnamed item'} — not in your price book, check the figure.</Text>
                       <ChevronRight size={16} color={c.muted} strokeWidth={2.2} style={s.flagChevron} />
                     </Pressable>
                   ))}

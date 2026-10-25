@@ -38,7 +38,6 @@ export type LineItem = {
   lockedPrice?: string;
   /** Charged at cost — a permit, tip fee or council charge passed straight through. */
   noMarkup?: boolean;
-  needsPrice?: boolean;
   /**
    * A sanity warning from shared/price-sanity.ts — set when the AI's figure is out
    * by an order of magnitude (the $20 five litre tin of paint). A whole sentence,
@@ -243,7 +242,8 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
         markupLocked: !!it.markupLocked,
         lockedPrice: it.lockedPrice != null ? String(it.lockedPrice) : undefined,
         noMarkup: !!it.noMarkup,
-        needsPrice: !!it.needsPrice,
+        // Older quotes can carry needsPrice from the removed price book; it isn't
+        // read, so it drops here and stops on the next save.
       })));
     }
     setPopulated(true);
@@ -306,7 +306,6 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
         markupLocked: !!l.markupLocked,
         lockedPrice: l.lockedPrice ? parseFloat(l.lockedPrice) : undefined,
         noMarkup: !!l.noMarkup,
-        needsPrice: !!l.needsPrice,
       }));
       mergedContent.subtotal = subtotal;
       mergedContent.gstAmount = gst;
@@ -506,7 +505,6 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       // covers it honestly.
       cost: !it.costUnknown && it.unitCost != null ? String(it.unitCost) : undefined,
       category: String(it.category || '').toLowerCase() === 'labour' ? 'labour' : 'material',
-      needsPrice: !!it.needsPrice,
       priceNote: typeof it.priceNote === 'string' ? it.priceNote : undefined,
     }));
   };
