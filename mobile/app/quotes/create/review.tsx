@@ -581,7 +581,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   sheetTitle: { fontSize: 18, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
   sheetSub: { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 4 },
   custRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
-  custAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' },
+  custAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.heroFill, alignItems: 'center', justifyContent: 'center' },
   custAvatarText: { fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange },
   custName: { fontSize: 15, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
   custSub: { fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 1 },

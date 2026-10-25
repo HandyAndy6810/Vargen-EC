@@ -152,7 +152,7 @@ export default function ReceiptDetailScreen() {
                   activeOpacity={0.7}
                   accessibilityRole="button"
                   accessibilityLabel={`Category ${cat}`}
-                  style={[s.catChip, category === cat && { backgroundColor: c.ink, borderColor: c.ink }]}
+                  style={[s.catChip, category === cat && { backgroundColor: c.fillStrong, borderColor: c.fillStrong }]}
                 >
                   <Text style={[s.catChipText, category === cat && { color: c.paper }]}>{cat}</Text>
                 </TouchableOpacity>

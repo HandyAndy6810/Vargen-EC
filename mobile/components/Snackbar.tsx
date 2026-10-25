@@ -49,7 +49,7 @@ export function Snackbar() {
     >
       <View
         style={{
-          backgroundColor: destructive ? c.red : c.ink,
+          backgroundColor: destructive ? c.red : c.fillStrong,
           borderRadius: 16,
           paddingHorizontal: 16,
           paddingVertical: 12,

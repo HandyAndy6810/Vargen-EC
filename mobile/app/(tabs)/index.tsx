@@ -183,7 +183,7 @@ function makeStyles(c: Colors, isDark: boolean) {
     qaRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
     // Quick actions in one colour: ink square, paper icon, ink label.
     qaBtn: { ...rimTile(c, isDark), flex: 1, paddingVertical: 14, alignItems: 'center', gap: 8 },
-    qaIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: c.ink },
+    qaIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: c.fillStrong },
     qaLabel: { fontSize: 12, fontFamily: 'HostGrotesk_700Bold', textAlign: 'center', color: c.ink },
     scheduleCard: { ...rimTile(c, isDark), width: 148, padding: 14 },
     scheduleTime: { fontSize: 11, fontFamily: 'HostGrotesk_700Bold', color: c.mutedHi },

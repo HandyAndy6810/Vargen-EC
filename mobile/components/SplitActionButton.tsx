@@ -48,7 +48,7 @@ export function SplitActionButton({
             contrasts: near-black in light mode, near-white in dark mode. c.ink
             already flips that way with the theme; text uses c.paper to match. */}
         <Path
-          fill={c.ink}
+          fill={c.fillStrong}
           d="M 1008,-14 L 3000,-14 L 3000,102 L 992,102 L 1028,34 L 1000,34 Z"
         />
       </Svg>

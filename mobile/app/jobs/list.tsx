@@ -181,7 +181,6 @@ export default function JobsListScreen() {
                 activeOpacity={0.7}
               >
                 <View style={[s.jobCard, isNext && s.jobCardNext]}>
-                  {isNext && <View style={s.jobCardGlow} />}
 
                   <View style={[s.timeCol, { borderRightColor: isNext ? 'rgba(255,255,255,0.12)' : c.lineSoft }]}>
                     {timeStr ? (
@@ -326,7 +325,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     borderColor: c.lineSoft,
   },
   tabActive: {
-    backgroundColor: c.ink,
+    backgroundColor: c.fillStrong,
     borderColor: c.ink,
   },
   tabText: {
@@ -335,7 +334,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     color: c.mutedHi,
   },
   tabTextActive: {
-    color: '#fff',
+    color: c.paper,
   },
   jobCard: {
     backgroundColor: c.card,
@@ -353,23 +352,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     elevation: 1,
   },
   jobCardNext: {
-    backgroundColor: c.ink,
-    borderColor: 'transparent',
+    backgroundColor: c.heroFill,
+    borderColor: c.heroEdge,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.15,
     shadowRadius: 28,
     elevation: 8,
-  },
-  jobCardGlow: {
-    position: 'absolute',
-    top: -30,
-    right: -30,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: `${c.orange}88`,
-    opacity: 0.4,
   },
   timeCol: {
     width: 56,
