@@ -29,6 +29,7 @@ import { showAlert } from '@/lib/dialogs';
 import { SplitActionButton } from '@/components/SplitActionButton';
 import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { mixHex } from '@shared/color';
+import { resolveWidgetLayout, widgetRows } from '@shared/home-widgets';
 import { rimTile } from '@/theme/rim';
 
 // Home hero gradient: stop positions within its 560px, and the solid band drawn
@@ -338,56 +339,19 @@ export default function HomeScreen() {
     return 'Tap the AI rail above to quote a new job in seconds.';
   }, [overdueInvoices, invoiceSummary, pipeline, todayJobs]);
 
-  const bladeOrderIds = useMemo<string[] | null>(() => {
-    try {
-      const raw = settings?.bladeOrder;
-      if (!raw) return null;
-      const arr = JSON.parse(raw) as string[];
-      return Array.isArray(arr) && arr.length > 0 ? arr : null;
-    } catch { return null; }
-  }, [settings?.bladeOrder]);
-
-  type WDef = { id: string; score: number; fullWidth: boolean };
-  const baseWidgets: WDef[] = [
-    { id: 'upnext',       score: nextJob ? 88 : 0,                  fullWidth: true  },
-    { id: 'outstanding',  score: (overdueInvoices.length + pendingInvoices.length) > 0 ? 90 + overdueInvoices.length * 5 : 0, fullWidth: false },
-    { id: 'schedule',     score: todayJobs.length > 0 ? 80 : 20,   fullWidth: true  },
-    { id: 'quickactions', score: 70,                                 fullWidth: true  },
-    { id: 'weather',      score: weather ? 55 : 0,                  fullWidth: true  },
-    { id: 'recentquotes', score: 45 + pipeline.accepted * 15 + pipeline.sent * 8, fullWidth: true },
-    { id: 'pipeline',     score: 40 + (pipeline.sent + pipeline.accepted) * 5, fullWidth: false },
-    { id: 'revenue',      score: 35,                                 fullWidth: false },
-    { id: 'nudge',        score: 30,                                 fullWidth: false },
-  ];
-
-  let widgetDefs: WDef[];
-  if (bladeOrderIds) {
-    const byId = Object.fromEntries(baseWidgets.map(w => [w.id, w]));
-    const ordered = bladeOrderIds
-      .filter(entry => !entry.startsWith('-'))
-      .map(id => byId[id])
-      .filter((w): w is WDef => !!w);
-    // include any newer widgets (e.g. up-next) not present in a previously-saved order
-    const known = new Set(ordered.map(w => w.id));
-    const missing = baseWidgets.filter(w => w.score > 0 && !known.has(w.id));
-    widgetDefs = [...ordered, ...missing];
-  } else {
-    widgetDefs = baseWidgets.filter(w => w.score > 0).sort((a, b) => b.score - a.score);
-  }
-
-  const rows: WDef[][] = [];
-  let wi = 0;
-  while (wi < widgetDefs.length) {
-    const w = widgetDefs[wi];
-    const isFull = w.fullWidth || w.score >= 80;
-    if (isFull) { rows.push([w]); wi++; }
-    else if (wi === widgetDefs.length - 1) { rows.push([w]); wi++; }
-    else {
-      const nxt = widgetDefs[wi + 1];
-      if (!nxt.fullWidth && nxt.score < 80) { rows.push([w, nxt]); wi += 2; }
-      else { rows.push([w]); wi++; }
-    }
-  }
+  // Home draws exactly the saved layout (the same reading Customise Widgets
+  // uses), in that order: hidden widgets are left out, and a widget with nothing
+  // to show today is skipped without moving the others.
+  const hasContent: Record<string, boolean> = {
+    upnext: !!nextJob,
+    outstanding: overdueInvoices.length + pendingInvoices.length > 0,
+    weather: !!weather,
+  };
+  const rows = widgetRows(
+    resolveWidgetLayout(settings?.bladeOrder)
+      .filter((e) => e.visible && hasContent[e.id] !== false)
+      .map((e) => e.id),
+  );
 
   const renderWidget = (id: string, half: boolean) => {
     switch (id) {
@@ -852,16 +816,16 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {rows.map((row, rowIdx) => (
+        {rows.map((row) => (
           <View
-            key={row.map(w => w.id).join('-')}
+            key={row.join('-')}
             style={row.length === 2
               ? { flexDirection: 'row', paddingHorizontal: 20, gap: 10, paddingTop: 18 }
               : { paddingTop: 18 }}
           >
-            {row.map(w => (
-              <View key={w.id} style={row.length === 2 ? { flex: 1 } : {}}>
-                {renderWidget(w.id, row.length === 2)}
+            {row.map(id => (
+              <View key={id} style={row.length === 2 ? { flex: 1 } : {}}>
+                {renderWidget(id, row.length === 2)}
               </View>
             ))}
           </View>
