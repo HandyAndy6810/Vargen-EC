@@ -15,5 +15,9 @@ mobile/node_modules
 mobile/.expo
 mobile/dist
 mobile/.env
+# The Expo app is mobile/. A root app.json or eas.json makes `eas` treat the repo
+# root as an app and fail with a misleading "expo package was not found" error.
+/app.json
+/eas.json
 # DotSlash / RN DevTools cache — read-only dirs break EAS tarball cleanup
 .cache
