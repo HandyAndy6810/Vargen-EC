@@ -69,6 +69,13 @@ cd mobile
 npm run update:preview -- -m "what changed"
 ```
 
+`eas` commands must be run from `mobile/`, never the repo root. From the Replit shell:
+
+```bash
+cd ~/workspace/mobile
+eas update --branch preview --message "<what changed>"
+```
+
 The app picks it up on its next cold start. `update:production` does the same for
 the App Store build.
 
