@@ -189,8 +189,13 @@ export const userSettings = pgTable("user_settings", {
   email: text("email").default(""),
   address: text("address").default(""),
   tradeType: text("trade_type").default("General"),
+  /** The charge-out rate: what the customer pays per hour. Not marked up unless markupLabour. */
   labourRate: integer("labour_rate").default(85),
   markupPercent: integer("markup_percent").default(15),
+  /** Apply the markup to labour too (cost-plus across the whole job). Off: materials only. */
+  markupLabour: boolean("markup_labour").default(false),
+  /** What an hour costs the tradie, $/hr. Optional; only feeds profit on labour lines. */
+  labourCostRate: integer("labour_cost_rate"),
   callOutFee: integer("call_out_fee").default(80),
   callOutFeeEnabled: boolean("call_out_fee_enabled").default(false),
   includeGST: boolean("include_gst").default(true),

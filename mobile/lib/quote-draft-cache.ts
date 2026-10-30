@@ -25,6 +25,8 @@ export type CachedQuoteDraft = {
   notes: string;
   lines: LineItem[];
   markupPct: number;
+  /** Whether the markup applies to labour. Missing on drafts cached before it existed. */
+  markupLabour?: boolean;
   assumptions: string[];
   roundUp: boolean;
 };

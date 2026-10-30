@@ -43,6 +43,8 @@ export default function AiQuotingScreen() {
     tradeType: 'General',
     labourRate: '85',
     markupPercent: '15',
+    labourCostRate: '',
+    markupLabour: false,
     callOutFee: '80',
     callOutFeeEnabled: false,
   });
@@ -53,6 +55,8 @@ export default function AiQuotingScreen() {
         tradeType: settings.tradeType || 'General',
         labourRate: String(settings.labourRate ?? 85),
         markupPercent: String(settings.markupPercent ?? 15),
+        labourCostRate: settings.labourCostRate != null ? String(settings.labourCostRate) : '',
+        markupLabour: settings.markupLabour ?? false,
         callOutFee: String(settings.callOutFee ?? 80),
         callOutFeeEnabled: settings.callOutFeeEnabled ?? false,
       });
@@ -65,6 +69,7 @@ export default function AiQuotingScreen() {
     update.mutate({
       tradeType: next.tradeType,
       callOutFeeEnabled: next.callOutFeeEnabled,
+      markupLabour: next.markupLabour,
     }, { onError: () => showAlert('Error', 'Could not save.') });
   };
 
@@ -74,6 +79,9 @@ export default function AiQuotingScreen() {
         tradeType: form.tradeType,
         labourRate: parseInt(form.labourRate, 10) || 85,
         markupPercent: parseInt(form.markupPercent, 10) || 15,
+        // Blank means "not set": labour lines then report no cost.
+        labourCostRate: parseInt(form.labourCostRate, 10) > 0 ? parseInt(form.labourCostRate, 10) : null,
+        markupLabour: form.markupLabour,
         callOutFee: parseInt(form.callOutFee, 10) || 80,
         callOutFeeEnabled: form.callOutFeeEnabled,
       });
@@ -148,8 +156,10 @@ export default function AiQuotingScreen() {
           <Text style={s.groupLabel}>Default pricing</Text>
           <View style={s.card}>
             {[
-              { key: 'labourRate',    label: 'Labour rate',  sub: 'Per hour charged to customer', suffix: '$/hr' },
-              { key: 'markupPercent', label: 'Material markup', sub: 'Added on top of material cost', suffix: '%' },
+              { key: 'labourRate',     label: 'Charge out rate ($/hr)', sub: "What the customer pays per hour. Markup isn't added on top.", suffix: '$/hr' },
+              { key: 'labourCostRate', label: 'What an hour costs you (optional)', sub: 'Only used to show your profit on labour', suffix: '$/hr' },
+              { key: 'markupPercent',  label: form.markupLabour ? 'Markup' : 'Materials markup',
+                sub: form.markupLabour ? 'Added on top of material and labour cost' : 'Added on top of material cost', suffix: '%' },
             ].map((field, i) => (
               <View key={field.key} style={[s.row, i > 0 && s.rowDivider]}>
                 <View style={{ flex: 1 }}>
@@ -163,11 +173,25 @@ export default function AiQuotingScreen() {
                     onChangeText={(v) => setForm(f => ({ ...f, [field.key]: v }))}
                     keyboardType="numeric"
                     maxLength={5}
+                    placeholder={field.key === 'labourCostRate' ? '—' : undefined}
+                    placeholderTextColor={c.muted}
                   />
                   <Text style={{ fontSize: 12, color: c.muted, fontFamily: 'HostGrotesk_600SemiBold' }}>{field.suffix}</Text>
                 </View>
               </View>
             ))}
+            <View style={[s.row, s.rowDivider]}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.rowLabel}>Mark up labour too</Text>
+                <Text style={s.rowSub}>For cost-plus pricing across the whole job. Off: your charge out rate is what the customer pays.</Text>
+              </View>
+              <Switch
+                value={form.markupLabour}
+                onValueChange={(v) => autoSave({ markupLabour: v })}
+                trackColor={{ false: c.lineSoft, true: c.orange }}
+                thumbColor="#fff"
+              />
+            </View>
             <View style={[s.row, s.rowDivider]}>
               <View style={{ flex: 1 }}>
                 <Text style={s.rowLabel}>Call-out fee</Text>

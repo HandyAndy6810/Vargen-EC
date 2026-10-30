@@ -5,6 +5,7 @@ import { Trash2, Check } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useQuoteDraft, unitSell, type LineItem } from '@/hooks/use-quote-draft';
 import { hapticPress } from '@/lib/haptics';
+import { useSettings } from '@/hooks/use-settings';
 
 const money = (n: number) =>
   `$${n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -25,6 +26,7 @@ export default function LineEditorSheet() {
   const d = useQuoteDraft();
   const { index, category } = useLocalSearchParams<{ index?: string; category?: string }>();
 
+  const { data: settings } = useSettings();
   const isNew = index === 'new' || index == null;
   const editIndex = isNew ? null : Number(index);
 
@@ -33,14 +35,23 @@ export default function LineEditorSheet() {
     // A new line inherits the group it was added from, so "Add labour" gives hours
     // rather than a material priced by the each.
     const isLabour = category === 'labour';
+    // Labour starts at the tradie's own rates: the charge-out rate as its price and
+    // "What an hour costs you" as its cost. Marked-up labour (cost-plus) starts empty
+    // as before; its cost is what the slider marks up.
+    const chargeOut = isLabour && !d.markupLabour;
     return {
-      name: '', qty: '1', price: '', cost: '',
+      name: '', qty: '1',
+      price: chargeOut && settings?.labourRate ? String(settings.labourRate) : '',
+      cost: chargeOut && settings?.labourCostRate ? String(settings.labourCostRate) : '',
       unit: isLabour ? 'hr' : 'ea',
       category: isLabour ? 'labour' : 'material',
     };
   });
 
   const set = (patch: Partial<LineItem>) => setLine(prev => ({ ...prev, ...patch }));
+  // Labour with markupLabour off sells at its own price, the charge-out rate, so
+  // that is the figure edited here; what it costs is optional and only feeds profit.
+  const chargeOut = line.category === 'labour' && !d.markupLabour;
   const canSave = !!line.name.trim();
 
   const onSave = () => {
@@ -100,17 +111,31 @@ export default function LineEditorSheet() {
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.fieldLabel}>Your cost</Text>
+            <Text style={s.fieldLabel}>{chargeOut ? 'Charge out' : 'Your cost'}</Text>
             <TextInput
               style={s.input}
-              value={line.cost ?? ''}
-              onChangeText={v => set({ cost: v })}
+              value={(chargeOut ? line.price : line.cost) ?? ''}
+              onChangeText={v => set(chargeOut ? { price: v } : { cost: v })}
               keyboardType="decimal-pad"
               placeholder="0"
               placeholderTextColor={c.muted}
             />
           </View>
         </View>
+
+        {chargeOut ? (
+          <>
+            <Text style={s.fieldLabel}>What it costs you (optional)</Text>
+            <TextInput
+              style={s.input}
+              value={line.cost ?? ''}
+              onChangeText={v => set({ cost: v })}
+              keyboardType="decimal-pad"
+              placeholder="Only used to show your profit"
+              placeholderTextColor={c.muted}
+            />
+          </>
+        ) : null}
 
         {/* Some lines are a pass-through, not a sale: a permit, a tip fee, a council
             charge. Marking one up is how a tradie ends up explaining an invoice.
@@ -135,8 +160,10 @@ export default function LineEditorSheet() {
 
         <Text style={s.hint}>
           {line.noMarkup
-            ? `Charged at ${money(unitSell(line, d.markupPct))} each — your cost, no markup.`
-            : `Charged at ${money(unitSell(line, d.markupPct))} each with your ${Math.round(d.markupPct)}% markup.`}
+            ? `Charged at ${money(unitSell(line, d.markupPct, d.markupLabour))} each — your cost, no markup.`
+            : chargeOut
+            ? `Charged at ${money(unitSell(line, d.markupPct, d.markupLabour))} each — your charge out rate, no markup.`
+            : `Charged at ${money(unitSell(line, d.markupPct, d.markupLabour))} each with your ${Math.round(d.markupPct)}% markup.`}
         </Text>
 
         <View style={s.actions}>

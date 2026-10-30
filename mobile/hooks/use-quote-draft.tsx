@@ -13,7 +13,7 @@ import { useQuote } from '@/hooks/use-quotes';
 import { useCustomers } from '@/hooks/use-customers';
 import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
-import { unitSell, totalsFor, gstRateFor } from '@shared/money';
+import { unitSell, totalsFor, gstRateFor, savedMarkupLabour } from '@shared/money';
 // Re-exported because five screens already import it from here. The implementation
 // lives in shared/money.ts and is used by the server too, so a quote and the invoice
 // raised from it can never price the same line differently.
@@ -91,6 +91,12 @@ type QuoteDraft = {
   closeLineEdit: () => void;
   // markup engine
   markupPct: number; setMarkupPct: (v: number) => void;
+  /**
+   * Whether the markup also applies to labour on THIS quote. New drafts follow
+   * Settings; a saved quote keeps what it was priced with (true for quotes saved
+   * before the setting existed), so its figures never move on reopening.
+   */
+  markupLabour: boolean;
   assumptions: string[]; setAssumptions: React.Dispatch<React.SetStateAction<string[]>>;
   toggleLineLock: (i: number) => void;
   /** Rounds the customer-facing total up to a whole dollar. */
@@ -186,6 +192,10 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineItem[]>(DEFAULT_LINES);
   const [markupPct, setMarkupPct] = useState(30);
+  // null until a saved quote or cached draft says otherwise; until then it follows
+  // Settings, which may arrive after the draft opens.
+  const [markupLabourFixed, setMarkupLabourFixed] = useState<boolean | null>(null);
+  const markupLabour = markupLabourFixed ?? !!settings?.markupLabour;
   const [assumptions, setAssumptions] = useState<string[]>([]);
   const [roundUp, setRoundUp] = useState(false);
   const [questions, setQuestions] = useState<ClarifyQuestion[]>([]);
@@ -228,6 +238,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     setExpiryDate(c.expiryDate || format(addDays(new Date(), 30), 'd MMM yyyy'));
     setNotes(c.notes || '');
     if (typeof (c as any).markupPct === 'number') setMarkupPct((c as any).markupPct);
+    setMarkupLabourFixed(savedMarkupLabour(c));
     if (Array.isArray((c as any).assumptions)) setAssumptions((c as any).assumptions);
     if (typeof (c as any).roundUp === 'boolean') setRoundUp((c as any).roundUp);
     // items FIRST. Both records describe the same lines, but items carries the
@@ -259,7 +270,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
         const { markupLocked, lockedPrice, ...rest } = l;
         return { ...rest, markupLocked: false, lockedPrice: undefined };
       }
-      const frozen = unitSell(l, markupPct);
+      const frozen = unitSell(l, markupPct, markupLabour);
       return { ...l, markupLocked: true, lockedPrice: String(frozen), price: String(frozen) };
     }));
   };
@@ -274,7 +285,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
 
   // Every figure on Review, from shared/money.ts — the same code the server bills
   // from, and the thing shared/money.test.ts holds to a contract.
-  const { subtotal, gst, total, totalCost, profit } = totalsFor(lines, { markupPct, gstRate, roundUp });
+  const { subtotal, gst, total, totalCost, profit } = totalsFor(lines, { markupPct, markupLabour, gstRate, roundUp });
 
   const saveMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent') => {
@@ -286,12 +297,12 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       // ones. Quote 25 read $4,840 on its own screen and priced an invoice at
       // $5,655.10 off the stale copy. Writing the computed price back means the two
       // cannot drift apart again.
-      const pricedLines = lines.map(l => ({ ...l, price: String(unitSell(l, markupPct)) }));
+      const pricedLines = lines.map(l => ({ ...l, price: String(unitSell(l, markupPct, markupLabour)) }));
       const mergedContent: any = {
         ...originalContent,
         customerName: customer, jobTitle, summary, schedDate, expiryDate, notes,
         lines: pricedLines,
-        markupPct, assumptions, roundUp,
+        markupPct, markupLabour, assumptions, roundUp,
       };
       // Persist the full line shape — cost/category/lock state were previously
       // dropped here, which left the markup engine with nothing to recompute from
@@ -300,7 +311,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
         description: l.name,
         quantity: parseFloat(l.qty) || 1,
         unit: l.unit || 'ea',
-        unitPrice: unitSell(l, markupPct),
+        unitPrice: unitSell(l, markupPct, markupLabour),
         unitCost: parseFloat(l.cost || '0') || 0,
         category: l.category || 'material',
         markupLocked: !!l.markupLocked,
@@ -426,13 +437,13 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     const t = setTimeout(() => {
       saveQuoteDraft({
         customer, customerId, jobTitle, summary, schedDate, expiryDate, notes,
-        lines, markupPct, assumptions, roundUp,
+        lines, markupPct, markupLabour, assumptions, roundUp,
       });
     }, 800);
     return () => clearTimeout(t);
   }, [
     isEditing, hydrated, customer, customerId, jobTitle, summary, schedDate,
-    expiryDate, notes, lines, markupPct, assumptions, roundUp,
+    expiryDate, notes, lines, markupPct, markupLabour, assumptions, roundUp,
   ]);
 
   const restoreDraft = (): CachedQuoteDraft | null => {
@@ -447,6 +458,8 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     setNotes(r.notes || '');
     setLines(r.lines?.length ? r.lines : DEFAULT_LINES);
     if (typeof r.markupPct === 'number') setMarkupPct(r.markupPct);
+    // A draft cached before the setting existed was priced with labour marked up.
+    setMarkupLabourFixed(savedMarkupLabour(r));
     setAssumptions(Array.isArray(r.assumptions) ? r.assumptions : []);
     setRoundUp(!!r.roundUp);
     // The restored markup is the tradie's own choice — don't let the settings
@@ -476,6 +489,8 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
           tradeType: settings?.tradeType || undefined,
           labourRate: typeof settings?.labourRate === 'number' ? settings.labourRate : undefined,
           markupPercent: typeof settings?.markupPercent === 'number' ? settings.markupPercent : undefined,
+          markupLabour,
+          labourCostRate: typeof settings?.labourCostRate === 'number' ? settings.labourCostRate : undefined,
           callOutFee: settings?.callOutFeeEnabled && typeof settings?.callOutFee === 'number' ? settings.callOutFee : undefined,
           includeGST,
         }),
@@ -604,12 +619,12 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     customerEmail: selectedCustomer?.email || undefined,
     customerAddress: selectedCustomer?.address || undefined,
     items: lines
-      .filter(l => l.name.trim() || unitSell(l, markupPct) > 0)
+      .filter(l => l.name.trim() || unitSell(l, markupPct, markupLabour) > 0)
       .map(l => ({
         description: l.name || 'Item',
         quantity: parseFloat(l.qty) || 1,
         unit: l.unit || undefined,
-        unitPrice: unitSell(l, markupPct),
+        unitPrice: unitSell(l, markupPct, markupLabour),
       })),
     notes: notes || undefined,
     subtotal, gstAmount: gst, totalAmount: total, includeGST,
@@ -684,7 +699,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     customer, setCustomer, customerId, setCustomerId, selectedCustomer,
     jobTitle, setJobTitle, summary, setSummary, schedDate, setSchedDate, expiryDate, setExpiryDate, notes, setNotes,
     lines, setLines,
-    markupPct, setMarkupPct: chooseMarkup, assumptions, setAssumptions, toggleLineLock,
+    markupPct, setMarkupPct: chooseMarkup, markupLabour, assumptions, setAssumptions, toggleLineLock,
     roundUp, setRoundUp, upsertLine, removeLine,
     questions, finishClarify, startManual, quotePayload, shareAnyway,
     restorable, restoreDraft, forgetSavedDraft,

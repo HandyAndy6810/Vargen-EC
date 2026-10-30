@@ -49,6 +49,7 @@ const realQuote = {
     totalAmount: 4840,
     includeGST: true,
     markupPct: 15,
+    markupLabour: false,
     roundUp: false,
     assumptions: ['Floor area is 60 sqm'],
     lines: [{ name: 'Floorboards', qty: '60', price: '63.25', cost: '55' }],
@@ -89,7 +90,7 @@ const keys = allKeys(JSON.parse(JSON.stringify({ ...view, content: JSON.parse(vi
 
 describe('nothing private escapes', () => {
   for (const leak of [
-    'unitCost', 'cost', 'markupPct', 'markupLocked', 'lockedPrice', 'lines',
+    'unitCost', 'cost', 'markupPct', 'markupLabour', 'markupLocked', 'lockedPrice', 'lines',
     'userId', 'shareToken', 'followUpSchedule', 'sentAt', 'jobId', 'needsPrice',
     'category', 'assumptions', 'roundUp', 'notes_internal',
   ]) {
