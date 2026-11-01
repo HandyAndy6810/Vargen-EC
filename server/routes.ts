@@ -8,6 +8,7 @@ import { num, round2, totalsFor, gstRateFor } from "../shared/money";
 import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
 import { labourLineCost } from "./lib/labour-cost";
+import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
 import { buildPortalView } from "./lib/portal-view";
 import { extractJsonObject, receiptTotal, providerRejectedField, isRateLimited } from "./lib/ai-json";
 import { imageDataUri } from "./lib/image-type";
@@ -643,6 +644,20 @@ function verifiedQuoteBody(body: any): any {
  * rows could not be rewritten; the tradie's work is safe in content either way,
  * and the backfill script can repair the rows later.
  */
+/**
+ * Tie the AI generations behind a quote to it (see storage.linkAiGenerations).
+ * Never throws: the quote saved either way.
+ */
+async function linkGenerations(userId: string, generationId: unknown, quoteId: number): Promise<void> {
+  const id = cleanGenerationId(generationId);
+  if (id == null) return;
+  try {
+    await storage.linkAiGenerations(userId, id, quoteId);
+  } catch (err) {
+    console.error(`[quote ${quoteId}] could not link AI generation ${id}:`, err);
+  }
+}
+
 async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> {
   try {
     const rows = quoteItemRowsFromContent(content);
@@ -662,6 +677,16 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
       const input = api.quotes.create.input.parse(verifiedQuoteBody(req.body));
       const quote = await storage.createQuote({ ...input, userId: req.userId });
       await syncQuoteItems(quote.id, (input as any).content);
+      await linkGenerations(req.userId, req.body?.generationId, quote.id);
+      // A new quote sent straight from Review is created as "sent" in one go, so
+      // the PATCH handler's first-sent branch never runs for it.
+      if (quote.status === "sent" && quote.content) {
+        try {
+          await storage.snapshotSentGeneration(req.userId, quote.id, quote.content);
+        } catch (err) {
+          console.error(`[quote ${quote.id}] could not snapshot the sent quote for its AI generation:`, err);
+        }
+      }
       res.status(201).json(quote);
     } catch (err) {
       res.status(400).json({ message: "Validation error" });
@@ -726,6 +751,15 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
       // Before the response, and before the Xero hook below — that builds its
       // line items from these rows, so it must not read the previous set.
       await syncQuoteItems(quoteId, (input as any).content);
+      await linkGenerations(req.userId, req.body?.generationId, quoteId);
+      // First time sent: keep what went to the customer beside what the AI said.
+      if ((input as any).sentAt && quote?.content) {
+        try {
+          await storage.snapshotSentGeneration(req.userId, quoteId, quote.content);
+        } catch (err) {
+          console.error(`[quote ${quoteId}] could not snapshot the sent quote for its AI generation:`, err);
+        }
+      }
       res.json(quote);
 
       // Auto-create Xero invoice when a quote is first accepted
@@ -1287,6 +1321,18 @@ CRITICAL RULES — follow these exactly:
           };
         });
       }
+
+      // Keep the generation exactly as the phone receives it: the correction record
+      // compares it with what the tradie finally sends. A failed write never costs
+      // the quote; the response just goes without a generationId.
+      const generationId = await captureGeneration(() => storage.createAiGeneration({
+        userId: req.userId,
+        draftKey: cleanDraftKey(req.body?.draftKey),
+        input: generationInput(req.body),
+        response: JSON.stringify(parsed),
+        model: AI_MODEL,
+      }));
+      if (generationId != null) parsed.generationId = generationId;
 
       res.json(parsed);
     } catch (error: any) {

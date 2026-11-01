@@ -21,6 +21,7 @@ import { useCustomers, useCustomer } from '@/hooks/use-customers';
 import { useInvoices, useInvoice } from '@/hooks/use-invoices';
 import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
+import { newDraftKey } from '@/lib/draft-key';
 import type { SheetAction } from '@/components/ActionSheetModal';
 
 const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
@@ -168,6 +169,9 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   // Follows Settings until a source quote or cached draft fixes it.
   const [markupLabourFixed, setMarkupLabourFixed] = useState<boolean | null>(null);
   const markupLabour = markupLabourFixed ?? !!settings?.markupLabour;
+  // Groups this draft's AI generations on the server. An invoice isn't a quote, so
+  // its generations stay unlinked (ai_generations has only a quote_id).
+  const draftKey = useRef(newDraftKey());
   const [roundUp, setRoundUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
@@ -465,6 +469,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
       saveQuoteDraft({
         customer, customerId, jobTitle, summary, schedDate: '',
         expiryDate: '', notes, lines, markupPct, markupLabour, assumptions: [], roundUp,
+        draftKey: draftKey.current,
         quoteId: sourceQuoteId || undefined,
         dueDateISO: dueDate.toISOString(),
         paymentTermsDays,
@@ -487,6 +492,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     setLines(r.lines?.length ? r.lines : DEFAULT_LINES);
     if (typeof r.markupPct === 'number') setMarkupPct(r.markupPct);
     setMarkupLabourFixed(savedMarkupLabour(r));
+    if (r.draftKey) draftKey.current = r.draftKey;
     setRoundUp(!!r.roundUp);
     if (r.quoteId) { setSourceQuoteId(r.quoteId); setFromQuote(true); }
     if (r.dueDateISO) setDueDate(new Date(r.dueDateISO));
@@ -633,6 +639,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
           labourCostRate: typeof settings?.labourCostRate === 'number' ? settings.labourCostRate : undefined,
           callOutFee: settings?.callOutFeeEnabled && typeof settings?.callOutFee === 'number' ? settings.callOutFee : undefined,
           includeGST,
+          draftKey: draftKey.current,
         }),
       });
       if (!res.ok) {
