@@ -3,6 +3,16 @@ import { api, buildUrl } from "@shared/mobile-routes";
 import { type InsertJob } from "@shared/mobile-types";
 import { useToast } from "@/lib/toast";
 import { apiRequest } from "@/lib/api";
+import { fromListCache } from "@/lib/from-list-cache";
+
+// Dates are revived on READ (select), not in the fetch: the cached copy then stays
+// plain JSON, so a job restored from the phone's offline copy (lib/query-persist.ts)
+// looks exactly like a freshly fetched one.
+const reviveJob = (job: any) => job && ({
+  ...job,
+  scheduledDate: job.scheduledDate ? new Date(job.scheduledDate) : null,
+  createdAt: job.createdAt ? new Date(job.createdAt) : null,
+});
 
 export function useJobs() {
   return useQuery({
@@ -10,13 +20,9 @@ export function useJobs() {
     queryFn: async () => {
       const res = await apiRequest("GET", api.jobs.list.path);
       if (!res.ok) throw new Error("Failed to fetch jobs");
-      const data = await res.json();
-      return data.map((job: any) => ({
-        ...job,
-        scheduledDate: job.scheduledDate ? new Date(job.scheduledDate) : null,
-        createdAt: job.createdAt ? new Date(job.createdAt) : null,
-      }));
+      return res.json() as Promise<any[]>;
     },
+    select: (data: any[]) => data.map(reviveJob),
   });
 }
 
@@ -28,13 +34,10 @@ export function useJob(id: number) {
       const res = await apiRequest("GET", url);
       if (res.status === 404) return null;
       if (!res.ok) throw new Error("Failed to fetch job");
-      const data = await res.json();
-      return {
-        ...data,
-        scheduledDate: data.scheduledDate ? new Date(data.scheduledDate) : null,
-        createdAt: data.createdAt ? new Date(data.createdAt) : null,
-      };
+      return res.json();
     },
+    select: reviveJob,
+    ...fromListCache<any>(api.jobs.list.path, id),
     enabled: !!id,
   });
 }

@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { initConnectivity, markOffline, markOnline } from "./connectivity";
 
 // In development the Metro host is reused; for physical devices and all
 // production builds, EXPO_PUBLIC_API_URL must be set in .env / EAS env.
@@ -19,6 +20,7 @@ function getBaseUrl(): string {
 }
 
 export const API_BASE_URL = getBaseUrl();
+initConnectivity(API_BASE_URL);
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
@@ -52,6 +54,8 @@ export async function apiRequest(
       body: data ? JSON.stringify(data) : undefined,
       signal: controller.signal,
     });
+    // Any answer from the server means we're connected, whatever its status.
+    markOnline();
     if (
       res.status === 401 &&
       !handlingSessionExpiry &&
@@ -67,8 +71,13 @@ export async function apiRequest(
       try {
         const { clearCachedUser } = await import("./auth-cache");
         const { queryClient } = await import("./queryClient");
+        const { clearPersistedCache } = await import("./query-persist");
         const { router } = await import("expo-router");
         await clearCachedUser();
+        // The phone's offline copy belonged to that session; the next sign-in may
+        // be someone else. (Unsynced outbox quotes are kept: the same tradie
+        // signing back in still needs them to go.)
+        await clearPersistedCache();
         queryClient.setQueryData(["/api/auth/user"], null);
         router.replace("/(auth)/login" as any);
       } finally {
@@ -77,6 +86,7 @@ export async function apiRequest(
     }
     return res;
   } catch (err: any) {
+    markOffline();
     if (err?.name === "AbortError") {
       throw new Error("Request timed out — check your connection and try again.");
     }

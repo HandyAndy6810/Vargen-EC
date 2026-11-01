@@ -97,10 +97,10 @@ export default function InvoicesScreen() {
     setRefreshing(false);
   }, []);
 
-  // Treat errors as empty data so the screen is usable even without a server session
+  // Kept on screen when a refresh fails: offline, that's the phone's saved copy.
   const sorted = useMemo(
-    () => [...((isError ? [] : (invoices as any[])) || [])].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
-    [invoices, isError]
+    () => [...((invoices as any[]) || [])].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
+    [invoices]
   );
 
   const filtered = useMemo(() => {
@@ -242,7 +242,7 @@ export default function InvoicesScreen() {
             style={{ backgroundColor: c.redSoft, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.red }}
           >
             <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.red }}>
-              Couldn't load invoices — tap to retry
+              {invoices ? 'Showing the copy saved on this phone — tap to refresh' : "Couldn't load invoices — tap to retry"}
             </Text>
           </TouchableOpacity>
             ) : null}

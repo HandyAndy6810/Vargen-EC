@@ -15,6 +15,7 @@ import {
 } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useQuoteDraft, unitSell, type LineItem } from '@/hooks/use-quote-draft';
+import { useIsOnline } from '@/lib/connectivity';
 import { checkLinePrice } from '@shared/price-sanity';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { useSettings } from '@/hooks/use-settings';
@@ -80,6 +81,9 @@ export default function ReviewStep() {
   const labourTotal = labour.reduce((n, l) => n + (parseFloat(l.qty) || 0) * unitSell(l, d.markupPct, d.markupLabour), 0);
 
   const idxOf = (line: LineItem) => d.lines.indexOf(line);
+  // Sending needs the server; a draft can still be saved offline (it waits in the
+  // outbox on the phone and syncs when the connection returns).
+  const online = useIsOnline();
 
   /** The rate goes on every labour line: its price (charge-out), or its cost when labour is marked up. */
   const applyLabourRate = (raw: string) => {
@@ -448,9 +452,16 @@ export default function ReviewStep() {
               {d.saving ? <ActivityIndicator size="small" color={c.ink} /> : <Text style={s.ghostText}>Save draft</Text>}
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={s.sendBtn} activeOpacity={0.85} onPress={onSend} disabled={d.saving}>
+          <TouchableOpacity
+            style={[s.sendBtn, !online && { opacity: 0.45 }]}
+            activeOpacity={0.85}
+            onPress={onSend}
+            disabled={d.saving || !online}
+            accessibilityRole="button"
+            accessibilityLabel={online ? 'Send to customer' : 'Send to customer: needs a connection'}
+          >
             <Send size={17} color="#fff" strokeWidth={2.2} />
-            <Text style={s.sendText}>Send to customer</Text>
+            <Text style={s.sendText}>{online ? 'Send to customer' : 'Needs a connection'}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

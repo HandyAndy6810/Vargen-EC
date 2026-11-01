@@ -1,6 +1,7 @@
 import '../global.css';
 import { Stack } from 'expo-router';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { queryClient } from '@/lib/queryClient';
 import { StatusBar } from 'expo-status-bar';
@@ -13,13 +14,15 @@ import {
   HostGrotesk_700Bold,
   HostGrotesk_800ExtraBold,
 } from '@expo-google-fonts/host-grotesk';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, AppState } from 'react-native';
 import { useEffect, useRef, useState, Component, type ReactNode } from 'react';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { ThemeProvider, useTheme } from '@/hooks/use-theme';
 import { loadCachedUser } from '@/lib/auth-cache';
 import { Snackbar } from '@/components/Snackbar';
+import { persistOptions } from '@/lib/query-persist';
+import { syncOutbox } from '@/lib/quote-outbox';
 
 // ── Push notification handler config ────────────────────────────────────────
 Notifications.setNotificationHandler({
@@ -84,6 +87,19 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
       .finally(() => setAuthReady(true));
   }, []);
 
+  // Quotes saved offline go up whenever there's a chance they can: the app coming
+  // back to the foreground and the connection returning. (Also once the offline
+  // copy has been restored, below.)
+  useEffect(() => {
+    const appSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') syncOutbox();
+    });
+    const onlineUnsub = onlineManager.subscribe((online) => {
+      if (online) syncOutbox();
+    });
+    return () => { appSub.remove(); onlineUnsub(); };
+  }, []);
+
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
@@ -108,7 +124,13 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
-      <QueryClientProvider client={queryClient}>
+      {/* The tradie's quotes, customers, jobs and invoices are restored from the
+          phone first (lib/query-persist.ts), so they open with no signal. */}
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={persistOptions}
+        onSuccess={() => { syncOutbox(); }}
+      >
         <ThemedStatusBar />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper } }}>
           <Stack.Screen name="(auth)" />
@@ -117,6 +139,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="jobs/[id]" />
           <Stack.Screen name="jobs/complete" />
           <Stack.Screen name="quotes/[id]" />
+          <Stack.Screen name="quotes/unsynced/[clientId]" />
           <Stack.Screen name="quotes/create" />
           <Stack.Screen name="invoices/[id]" />
           <Stack.Screen name="invoices/create" />
@@ -142,7 +165,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
         </Stack>
         <Snackbar />
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </GestureHandlerRootView>
   );
 }

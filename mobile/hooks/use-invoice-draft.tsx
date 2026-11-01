@@ -22,6 +22,7 @@ import { useInvoices, useInvoice } from '@/hooks/use-invoices';
 import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
 import { newDraftKey } from '@/lib/draft-key';
+import { withAiConnection } from '@/lib/ai-offline';
 import type { SheetAction } from '@/components/ActionSheetModal';
 
 const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
@@ -625,7 +626,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     setAiBusy(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/quotes/generate`, {
+      const res = await withAiConnection(() => fetch(`${API_BASE_URL}/api/quotes/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -641,7 +642,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
           includeGST,
           draftKey: draftKey.current,
         }),
-      });
+      }));
       if (!res.ok) {
         const body = await res.json().catch(() => ({} as any));
         throw new Error(res.status === 401 ? 'Please sign in to use AI.' : (body?.message || 'AI could not build the invoice — try again.'));

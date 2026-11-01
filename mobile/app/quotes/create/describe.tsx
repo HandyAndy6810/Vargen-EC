@@ -12,6 +12,8 @@ import { ChevronLeft, Mic, Square, User, X, PencilLine } from 'lucide-react-nati
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { BottomSheetModal } from '@/components/BottomSheetModal';
 import { useQuoteDraft } from '@/hooks/use-quote-draft';
+import { useIsOnline } from '@/lib/connectivity';
+import { AI_OFFLINE_MESSAGE } from '@/lib/ai-offline';
 import { useSettings } from '@/hooks/use-settings';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useCustomers } from '@/hooks/use-customers';
@@ -182,7 +184,8 @@ export default function DescribeStep() {
   useAudioRecorderState(recorder);
 
   const ex = examplesFor(settings?.tradeType);
-  const canGenerate = !!text.trim() && !d.aiBusy && !listening && !transcribing;
+  const online = useIsOnline();
+  const canGenerate = online && !!text.trim() && !d.aiBusy && !listening && !transcribing;
 
   // ── Mic: record here, append the transcript into the same field ────────────
   const startListening = async () => {
@@ -440,6 +443,7 @@ export default function DescribeStep() {
 
         {/* Pinned primary */}
         <View style={s.footer}>
+          {online ? null : <Text style={s.offlineNote}>{AI_OFFLINE_MESSAGE}</Text>}
           <TouchableOpacity
             style={[s.generateBtn, !canGenerate && { opacity: 0.45 }]}
             activeOpacity={0.85}
@@ -500,6 +504,10 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 8 },
   screenTitle: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.5 },
   lede: { fontSize: 14, fontFamily: 'HostGrotesk_500Medium', color: c.muted, lineHeight: 20, marginBottom: 10 },
+  offlineNote: {
+    fontSize: 12.5, fontFamily: 'HostGrotesk_600SemiBold', color: c.orangeDeep,
+    textAlign: 'center', marginBottom: 8, lineHeight: 17,
+  },
   manualBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 7, height: 46,
     paddingHorizontal: 16, borderRadius: 15, backgroundColor: c.orange,

@@ -675,7 +675,20 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
         if (bad) return res.status(404).json({ message: "Not found" });
       }
       const input = api.quotes.create.input.parse(verifiedQuoteBody(req.body));
-      const quote = await storage.createQuote({ ...input, userId: req.userId });
+      // A clientId (from the phone's offline outbox, or any new-quote save) makes
+      // the create safe to retry: the same clientId returns the quote it already
+      // made, with 200 instead of 201, and nothing else runs a second time.
+      const clientId = typeof req.body?.clientId === "string" && req.body.clientId.trim()
+        ? req.body.clientId.trim().slice(0, 100) : null;
+      delete (input as any).clientId;
+      let quote;
+      if (clientId) {
+        const once = await storage.createQuoteOnce({ ...input, userId: req.userId }, clientId);
+        if (!once.created) return res.status(200).json(once.quote);
+        quote = once.quote;
+      } else {
+        quote = await storage.createQuote({ ...input, userId: req.userId });
+      }
       await syncQuoteItems(quote.id, (input as any).content);
       await linkGenerations(req.userId, req.body?.generationId, quote.id);
       // A new quote sent straight from Review is created as "sent" in one go, so
@@ -712,6 +725,7 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
         if (bad) return res.status(404).json({ message: "Not found" });
       }
       const input = api.quotes.update.input.parse(verifiedQuoteBody(req.body));
+      delete (input as any).clientId; // set once, on create
       const prevQuote = await storage.getQuote(quoteId, req.userId);
 
       // Validate status transition

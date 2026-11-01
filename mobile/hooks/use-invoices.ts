@@ -3,6 +3,7 @@ import { api, buildUrl } from '@shared/mobile-routes';
 import { type Invoice } from '@shared/mobile-types';
 import { useToast } from '@/lib/toast';
 import { apiRequest, extractError } from '@/lib/api';
+import { fromListCache } from "@/lib/from-list-cache";
 
 export function useInvoices() {
   return useQuery({
@@ -25,6 +26,7 @@ export function useInvoice(id: number) {
       if (!res.ok) throw new Error(await extractError(res));
       return res.json() as Promise<Invoice>;
     },
+    ...fromListCache<Invoice>(api.invoices.list.path, id),
     enabled: !!id,
   });
 }

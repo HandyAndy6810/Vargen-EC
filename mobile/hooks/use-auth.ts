@@ -4,6 +4,9 @@ import type { User } from "@shared/mobile-types";
 import { apiRequest } from "@/lib/api";
 import { loadCachedUser, saveCachedUser, clearCachedUser } from "@/lib/auth-cache";
 import { clearQuoteDraft } from "@/lib/quote-draft-cache";
+import { isNetworkError } from "@/lib/connectivity";
+import { clearPersistedCache } from "@/lib/query-persist";
+import { clearOutbox } from "@/lib/quote-outbox";
 
 async function fetchUser(): Promise<User | null> {
   // Read cache first so we can fall back if the network is down
@@ -27,14 +30,8 @@ async function fetchUser(): Promise<User | null> {
     await saveCachedUser(user);
     return user;
   } catch (err: any) {
-    const msg = (err?.message ?? '').toLowerCase();
-    const isNetworkError =
-      msg.includes('network error') ||
-      msg.includes('timed out') ||
-      msg.includes('aborted');
-
     // Server sleeping / offline — keep user in app on cached session
-    if (isNetworkError && cached) return cached;
+    if (isNetworkError(err) && cached) return cached;
     throw err;
   }
 }
@@ -43,6 +40,10 @@ async function logoutRequest(): Promise<void> {
   await apiRequest("POST", "/api/logout").catch(() => {});
   await clearCachedUser();
   await clearUnfinishedDrafts();
+  // The offline copy of the account's data, and any quotes still waiting to sync:
+  // nothing of this account stays on the phone.
+  await clearPersistedCache();
+  await clearOutbox();
 }
 
 /**

@@ -22,6 +22,7 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { isQuoteOverdue } from '@shared/invoice-figures';
 import { LargeTitleHeader, LARGE_TITLE_COLLAPSE } from '@/components/LargeTitleHeader';
 import { hapticSelect } from '@/lib/haptics';
+import { UnsyncedQuotes } from '@/components/UnsyncedQuotes';
 
 
 function fmtAUD(n: number): string {
@@ -120,8 +121,9 @@ export default function QuotesScreen() {
     setRefreshing(false);
   }, []);
 
-  // Treat errors as empty data so the screen is usable even without a server session
-  const allQuotes = (isError ? [] : (quotes || [])) as QuoteWithJoins[];
+  // Keep whatever we have on screen when a refresh fails: offline, that's the copy
+  // kept on the phone (lib/query-persist.ts), and it beats an empty list.
+  const allQuotes = (quotes || []) as QuoteWithJoins[];
   const sorted = useMemo(
     () => [...allQuotes]
       .map((q) => {
@@ -257,6 +259,7 @@ export default function QuotesScreen() {
         ListHeaderComponent={(
           <View style={{ marginHorizontal: -20, marginBottom: 4 }}>
             {listTop}
+            <UnsyncedQuotes />
             {isError && !refreshing ? (
           <TouchableOpacity
             onPress={onRefresh}
@@ -264,7 +267,7 @@ export default function QuotesScreen() {
             style={{ backgroundColor: c.redSoft, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: c.red, marginBottom: 4 }}
           >
             <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.red }}>
-              Couldn't load quotes — tap to retry
+              {quotes ? 'Showing the copy saved on this phone — tap to refresh' : "Couldn't load quotes — tap to retry"}
             </Text>
           </TouchableOpacity>
             ) : null}
