@@ -62,7 +62,10 @@ export async function apiRequest(
       !path.startsWith("/api/auth") &&
       !path.startsWith("/api/login") &&
       !path.startsWith("/api/register") &&
-      !path.startsWith("/api/dev-login")
+      !path.startsWith("/api/dev-login") &&
+      // A wrong password when deleting the account is a 401 too, but the session
+      // is fine: the screen shows the error rather than signing the user out.
+      !path.startsWith("/api/account")
     ) {
       // Session expired mid-app: clear the cached user and bounce to login
       // once, instead of every screen erroring forever.

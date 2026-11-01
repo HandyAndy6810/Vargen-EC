@@ -27,6 +27,7 @@ import {
   Receipt, Sparkles, Palette, Bell, Sun, Moon, Smartphone, LogOut,
   ChevronRight, Pencil, Link, RefreshCw, Unlink, CheckCircle, Users, Building2,
   LayoutGrid, Check, ScanLine, CreditCard,
+  Trash2,
 } from 'lucide-react-native';
 
 // ── Style factory ─────────────────────────────────────────────────────────────
@@ -506,6 +507,7 @@ export default function ProfileScreen() {
 
         <SettingsGroup title="Account" items={[
           { icon: LogOut, label: 'Sign out', danger: true, onPress: handleLogout },
+          { icon: Trash2, label: 'Delete account', sub: 'Permanently delete your account and data', danger: true, onPress: () => router.push('/settings/delete-account' as any) },
         ]} />
 
         <View style={{ paddingTop: 28, alignItems: 'center' }}>

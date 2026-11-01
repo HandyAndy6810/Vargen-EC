@@ -38,10 +38,17 @@ async function fetchUser(): Promise<User | null> {
 
 async function logoutRequest(): Promise<void> {
   await apiRequest("POST", "/api/logout").catch(() => {});
+  await clearLocalAccountData();
+}
+
+/**
+ * Everything of the signed-in account kept on the phone: the cached user, drafts,
+ * the offline copy of their data and any quotes still waiting to sync. Used by sign
+ * out and by account deletion, so both leave the phone equally clean.
+ */
+export async function clearLocalAccountData(): Promise<void> {
   await clearCachedUser();
   await clearUnfinishedDrafts();
-  // The offline copy of the account's data, and any quotes still waiting to sync:
-  // nothing of this account stays on the phone.
   await clearPersistedCache();
   await clearOutbox();
 }

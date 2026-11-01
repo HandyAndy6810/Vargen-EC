@@ -17,7 +17,8 @@ import { z } from "zod";
 import OpenAI, { toFile } from "openai";
 
 // Integration imports
-import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+import { setupAuth, registerAuthRoutes, authStorage } from "./replit_integrations/auth";
+import bcrypt from "bcryptjs";
 import { registerImageRoutes } from "./replit_integrations/image";
 import multer from "multer";
 import fs from "fs";
@@ -226,6 +227,16 @@ const aiRateLimit = rateLimit({
   max: 20,                   // 20 AI generations per user per hour
   keyGenerator: (req: any) => (req.session as any)?.localUserId || ipKeyGenerator(req),
   message: { message: "Too many requests. Please wait before generating another quote." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Deleting an account checks a password, so it's limited like a login, per account.
+const deleteAccountRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req: any) => (req.session as any)?.localUserId || ipKeyGenerator(req),
+  message: { message: "Too many attempts. Please try again in 15 minutes." },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -1357,6 +1368,35 @@ CRITICAL RULES — follow these exactly:
           ? "The attached image couldn't be read — try a clearer photo or remove it and describe the job instead."
           : (msg || "Failed to generate quote"),
       });
+    }
+  });
+
+  // Delete my account (App Store guideline 5.1.1(v)). Everything the user owns goes,
+  // in one transaction (storage.deleteAccount), then every session they have. The
+  // current password is required, checked the way /api/login checks it: a wrong
+  // one deletes nothing.
+  app.delete("/api/account", requireAuth, deleteAccountRateLimit, async (req: any, res) => {
+    try {
+      const password = typeof req.body?.password === "string" ? req.body.password : "";
+      if (!password) return res.status(400).json({ message: "Enter your password to delete your account." });
+      const user = await authStorage.getUser(req.userId);
+      if (!user) return res.status(404).json({ message: "Account not found" });
+      if (!user.password) {
+        // Only possible for an account made before passwords (e.g. web sign-in).
+        return res.status(400).json({ message: "This account has no password. Use Forgot password to set one, then delete it." });
+      }
+      if (!(await bcrypt.compare(password, user.password))) {
+        return res.status(401).json({ message: "That password isn't right." });
+      }
+      await storage.deleteAccount(req.userId);
+      // The session row is already gone; drop the cookie and the in-memory session.
+      req.session.destroy(() => {
+        res.clearCookie("connect.sid");
+        res.json({ ok: true });
+      });
+    } catch (err) {
+      console.error("[account] delete failed:", err);
+      res.status(500).json({ message: "Couldn't delete the account. Nothing was removed; please try again." });
     }
   });
 

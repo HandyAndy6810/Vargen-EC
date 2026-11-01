@@ -153,6 +153,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="settings/sms-templates" />
           <Stack.Screen name="settings/subscription" />
           <Stack.Screen name="settings/widgets" />
+          <Stack.Screen name="settings/delete-account" />
           <Stack.Screen name="customers/index" />
           <Stack.Screen name="customers/[id]" />
           <Stack.Screen name="customers/new" />
