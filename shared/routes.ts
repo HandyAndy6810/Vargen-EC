@@ -14,6 +14,9 @@ export const errorSchemas = {
   }),
 };
 
+/** A quote as the API returns it: the row plus, once it has a share token, the customer's link. */
+type QuoteResponse = typeof quotes.$inferSelect & { portalUrl?: string };
+
 export const api = {
   customers: {
     list: {
@@ -117,7 +120,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/quotes',
       responses: {
-        200: z.array(z.custom<typeof quotes.$inferSelect>()),
+        200: z.array(z.custom<QuoteResponse>()),
       },
     },
     create: {
@@ -125,7 +128,7 @@ export const api = {
       path: '/api/quotes',
       input: insertQuoteSchema,
       responses: {
-        201: z.custom<typeof quotes.$inferSelect>(),
+        201: z.custom<QuoteResponse>(),
         400: errorSchemas.validation,
       },
     },
@@ -134,7 +137,7 @@ export const api = {
       path: '/api/quotes/:id',
       input: insertQuoteSchema.partial(),
       responses: {
-        200: z.custom<typeof quotes.$inferSelect>(),
+        200: z.custom<QuoteResponse>(),
         404: errorSchemas.notFound,
       },
     },
@@ -237,7 +240,7 @@ export const api = {
       path: '/api/follow-ups/due',
       responses: {
         200: z.array(z.object({
-          quote: z.custom<typeof quotes.$inferSelect>(),
+          quote: z.custom<QuoteResponse>(),
           dueIndex: z.number(),
           dayNumber: z.number(),
         })),

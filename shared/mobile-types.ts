@@ -68,6 +68,8 @@ export interface Quote {
   sentAt: string | null;
   createdAt: string | null;
   customerName?: string | null;
+  /** The customer's link, built by the server once the quote has a share token. Never build it on the phone. */
+  portalUrl?: string;
 }
 
 export interface QuoteItem {

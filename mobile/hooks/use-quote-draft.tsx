@@ -1,5 +1,5 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Linking, Share } from 'react-native';
+import { Linking, Share, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { useEntryId, useEntryText } from '@/hooks/use-entry-params';
 import { useMutation } from '@tanstack/react-query';
@@ -20,6 +20,7 @@ import { isNetworkError } from '@/lib/connectivity';
 import { withAiConnection } from '@/lib/ai-offline';
 import { addToOutbox } from '@/lib/quote-outbox';
 import { toast } from '@/lib/toast';
+import { quoteMessage, quoteEmailUrl, quoteSmsUrl } from '@shared/quote-message';
 // Re-exported because five screens already import it from here. The implementation
 // lives in shared/money.ts and is used by the server too, so a quote and the invoice
 // raised from it can never price the same line differently.
@@ -350,7 +351,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   };
 
   const saveMutation = useMutation({
-    mutationFn: async (status: 'draft' | 'sent'): Promise<{ offline?: boolean }> => {
+    mutationFn: async (status: 'draft' | 'sent'): Promise<{ offline?: boolean; quote?: { id: number; portalUrl?: string } }> => {
       const body = buildQuoteBody(status);
       let res: Response;
       try {
@@ -376,7 +377,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       // rejected outright by the integer column, so "0.5 hr cleanup" disappeared
       // from the rows while staying in content, and nothing said so. The server
       // rebuilds them from content.items in one transaction on save.
-      return saved;
+      return { quote: saved };
     },
     onSuccess: (result) => {
       hapticSuccess();
@@ -428,22 +429,43 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     }
     if (validateForm()) setShowSendSheet(true);
   };
-  const sendViaChannel = (open: () => void) => saveMutation.mutate('sent', { onSuccess: open });
+  /**
+   * Save as sent, then hand the customer their link. Every channel waits for the
+   * saved quote's portalUrl (built by the server): the link to view, accept or
+   * decline the quote is the whole point of sending it. With no link the message
+   * isn't sent at all, rather than going out empty.
+   */
+  const sendViaChannel = (open: (portalUrl: string) => void) =>
+    saveMutation.mutate('sent', {
+      onSuccess: (result) => {
+        const url = result?.quote?.portalUrl;
+        if (!url) {
+          showAlert('Could not get the quote link', "The quote is saved as sent, but its link didn't come back. Open it from your quotes list and use Share link to send it.");
+          return;
+        }
+        open(url);
+      },
+    });
+  const message = (portalUrl: string) => ({
+    customerName: customer, businessName: settings?.businessName, jobTitle,
+    total, includeGST, portalUrl,
+  });
   const sendActions: SheetAction[] = [
     selectedCustomer?.email ? {
       label: 'Email customer',
-      onPress: () => sendViaChannel(() =>
-        Linking.openURL(`mailto:${selectedCustomer.email}?subject=Your quote&body=Hi ${customer || 'there'},\n\nPlease find your quote attached.\n\nTotal: $${total.toFixed(2)}${includeGST ? ' inc. GST' : ''}\n\nThanks`)
-      ),
+      onPress: () => sendViaChannel(url => Linking.openURL(quoteEmailUrl(selectedCustomer.email, message(url)))),
     } : null,
     selectedCustomer?.phone ? {
       label: 'Send SMS',
-      onPress: () => sendViaChannel(() => Linking.openURL(`sms:${selectedCustomer.phone}`)),
+      onPress: () => sendViaChannel(url => Linking.openURL(quoteSmsUrl(selectedCustomer.phone, message(url), Platform.OS))),
     } : null,
     {
       label: 'Share link',
-      onPress: () => sendViaChannel(() => Share.share({ message: `Quote — $${total.toFixed(2)}${includeGST ? ' (inc. GST)' : ''}` })),
+      onPress: () => sendViaChannel(url => Share.share({ message: quoteMessage(message(url)) })),
     },
+    // The PDF as an extra, e.g. for someone who wants a file. It doesn't replace
+    // the link: only the link lets the customer accept.
+    { label: 'Share PDF', onPress: () => { shareAnyway(); } },
   ].filter(Boolean) as SheetAction[];
 
   // ── AI generation ──────────────────────────────────────────────────────────

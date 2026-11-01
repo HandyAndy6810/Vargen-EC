@@ -9,6 +9,7 @@ import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
 import { labourLineCost } from "./lib/labour-cost";
 import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
+import { firstSendFields, publicBaseUrl, withPortalUrl } from "./lib/quote-send";
 import { buildPortalView } from "./lib/portal-view";
 import { extractJsonObject, receiptTotal, providerRejectedField, isRateLimited } from "./lib/ai-json";
 import { imageDataUri } from "./lib/image-type";
@@ -568,7 +569,8 @@ export async function registerRoutes(
   // Quotes
   app.get(api.quotes.list.path, requireAuth, async (req: any, res) => {
     const quotes = await storage.getQuotesWithCustomer(req.userId);
-    res.json(quotes);
+    const base = publicBaseUrl(process.env, req);
+    res.json(quotes.map((q) => withPortalUrl(q, base)));
   });
 
 /**
@@ -675,6 +677,14 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
         if (bad) return res.status(404).json({ message: "Not found" });
       }
       const input = api.quotes.create.input.parse(verifiedQuoteBody(req.body));
+      // The customer's link is the server's to issue, never the client's.
+      delete (input as any).shareToken;
+      // Created already sent (the normal path from Review): the same first-send
+      // fields a PATCH to "sent" gets — link, sent date, follow-ups.
+      if (input.status === "sent") {
+        Object.assign(input, firstSendFields(null, await storage.getUserSettings(req.userId)));
+      }
+      const base = publicBaseUrl(process.env, req);
       // A clientId (from the phone's offline outbox, or any new-quote save) makes
       // the create safe to retry: the same clientId returns the quote it already
       // made, with 200 instead of 201, and nothing else runs a second time.
@@ -684,7 +694,7 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
       let quote;
       if (clientId) {
         const once = await storage.createQuoteOnce({ ...input, userId: req.userId }, clientId);
-        if (!once.created) return res.status(200).json(once.quote);
+        if (!once.created) return res.status(200).json(withPortalUrl(once.quote, base));
         quote = once.quote;
       } else {
         quote = await storage.createQuote({ ...input, userId: req.userId });
@@ -700,7 +710,7 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
           console.error(`[quote ${quote.id}] could not snapshot the sent quote for its AI generation:`, err);
         }
       }
-      res.status(201).json(quote);
+      res.status(201).json(withPortalUrl(quote, base));
     } catch (err) {
       res.status(400).json({ message: "Validation error" });
     }
@@ -738,27 +748,12 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
         }
       }
 
-      // Auto-generate shareToken, sentAt and followUpSchedule when status → "sent"
-      if (input.status === "sent") {
-        const existing = await storage.getQuote(quoteId, req.userId);
-        if (existing && !existing.shareToken) {
-          (input as any).shareToken = crypto.randomUUID();
-        }
-        // Record the first time the quote is sent
-        if (existing && !(existing as any).sentAt) {
-          (input as any).sentAt = new Date();
-        }
-        // Auto-populate follow-up schedule from user settings
-        if (existing && !existing.followUpSchedule) {
-          try {
-            const settings = await storage.getUserSettings(req.userId);
-            if (settings?.followUpEnabled) {
-              const days = JSON.parse(settings.followUpDays || "[3,7,14]");
-              const schedule = days.map((day: number) => ({ day, status: "pending" }));
-              (input as any).followUpSchedule = JSON.stringify(schedule);
-            }
-          } catch { /* non-critical */ }
-        }
+      delete (input as any).shareToken; // the server's to issue
+
+      // First send: link, sent date and follow-ups, filling only what's missing.
+      // The same helper as a quote created already sent (see the create route).
+      if (input.status === "sent" && prevQuote) {
+        Object.assign(input, firstSendFields(prevQuote, await storage.getUserSettings(req.userId)));
       }
 
       const quote = await storage.updateQuote(quoteId, input, req.userId);
@@ -774,7 +769,7 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
           console.error(`[quote ${quoteId}] could not snapshot the sent quote for its AI generation:`, err);
         }
       }
-      res.json(quote);
+      res.json(withPortalUrl(quote, publicBaseUrl(process.env, req)));
 
       // Auto-create Xero invoice when a quote is first accepted
       const justAccepted = input.status === "accepted" && prevQuote?.status !== "accepted";
@@ -834,7 +829,7 @@ function reconcileQuoteContent(quote: any): any {
   app.get("/api/quotes/:id", requireAuth, async (req: any, res) => {
     const quote = await storage.getQuote(Number(req.params.id), req.userId);
     if (!quote) return res.status(404).json({ message: "Quote not found" });
-    res.json(reconcileQuoteContent(quote));
+    res.json(withPortalUrl(reconcileQuoteContent(quote), publicBaseUrl(process.env, req)));
   });
 
   // Quote Items
