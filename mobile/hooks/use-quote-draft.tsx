@@ -15,6 +15,11 @@ import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
 import { unitSell, totalsFor, gstRateFor, savedMarkupLabour } from '@shared/money';
 import { newDraftKey } from '@/lib/draft-key';
+import { onlineManager } from '@tanstack/react-query';
+import { isNetworkError } from '@/lib/connectivity';
+import { withAiConnection } from '@/lib/ai-offline';
+import { addToOutbox } from '@/lib/quote-outbox';
+import { toast } from '@/lib/toast';
 // Re-exported because five screens already import it from here. The implementation
 // lives in shared/money.ts and is used by the server too, so a quote and the invoice
 // raised from it can never price the same line differently.
@@ -202,6 +207,9 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   // server can link them to the quote. Both ride along in the device draft cache.
   const draftKey = useRef(newDraftKey());
   const [generationId, setGenerationId] = useState<number | undefined>(undefined);
+  // Identifies this new quote to the server: a save that is retried, or sent later
+  // from the offline outbox, returns the quote already made instead of a second.
+  const clientId = useRef(newDraftKey());
   const [assumptions, setAssumptions] = useState<string[]>([]);
   const [roundUp, setRoundUp] = useState(false);
   const [questions, setQuestions] = useState<ClarifyQuestion[]>([]);
@@ -293,51 +301,72 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   // from, and the thing shared/money.test.ts holds to a contract.
   const { subtotal, gst, total, totalCost, profit } = totalsFor(lines, { markupPct, markupLabour, gstRate, roundUp });
 
+  /**
+   * The exact body of a quote save. The one place it's built: an online save and
+   * the offline outbox (lib/quote-outbox.ts) both send this, so the two can't drift.
+   */
+  const buildQuoteBody = (status: 'draft' | 'sent') => {
+    const originalContent: any = isEditing ? parseQuoteContent((editQuote as any)?.content) : {};
+    // A quote used to save two records of itself that could disagree. Once a line
+    // has a cost, its sell price comes from cost x markup and `price` was never
+    // written back — so after pulling the markup slider down, `items` and
+    // totalAmount held the new figures while `lines` still held the AI's original
+    // ones. Quote 25 read $4,840 on its own screen and priced an invoice at
+    // $5,655.10 off the stale copy. Writing the computed price back means the two
+    // cannot drift apart again.
+    const pricedLines = lines.map(l => ({ ...l, price: String(unitSell(l, markupPct, markupLabour)) }));
+    const mergedContent: any = {
+      ...originalContent,
+      customerName: customer, jobTitle, summary, schedDate, expiryDate, notes,
+      lines: pricedLines,
+      markupPct, markupLabour, assumptions, roundUp,
+    };
+    // Persist the full line shape — cost/category/lock state were previously
+    // dropped here, which left the markup engine with nothing to recompute from
+    // when a saved quote was reopened.
+    mergedContent.items = lines.map(l => ({
+      description: l.name,
+      quantity: parseFloat(l.qty) || 1,
+      unit: l.unit || 'ea',
+      unitPrice: unitSell(l, markupPct, markupLabour),
+      unitCost: parseFloat(l.cost || '0') || 0,
+      category: l.category || 'material',
+      markupLocked: !!l.markupLocked,
+      lockedPrice: l.lockedPrice ? parseFloat(l.lockedPrice) : undefined,
+      noMarkup: !!l.noMarkup,
+    }));
+    mergedContent.subtotal = subtotal;
+    mergedContent.gstAmount = gst;
+    mergedContent.totalAmount = total;
+    return {
+      totalAmount: String(total),
+      status,
+      generationId,
+      customerId: customerId ?? undefined,
+      jobTitle: jobTitle.trim() || undefined,
+      content: JSON.stringify(mergedContent),
+      ...(isEditing ? {} : { clientId: clientId.current }),
+    };
+  };
+
   const saveMutation = useMutation({
-    mutationFn: async (status: 'draft' | 'sent') => {
-      const originalContent: any = isEditing ? parseQuoteContent((editQuote as any)?.content) : {};
-      // A quote used to save two records of itself that could disagree. Once a line
-      // has a cost, its sell price comes from cost x markup and `price` was never
-      // written back — so after pulling the markup slider down, `items` and
-      // totalAmount held the new figures while `lines` still held the AI's original
-      // ones. Quote 25 read $4,840 on its own screen and priced an invoice at
-      // $5,655.10 off the stale copy. Writing the computed price back means the two
-      // cannot drift apart again.
-      const pricedLines = lines.map(l => ({ ...l, price: String(unitSell(l, markupPct, markupLabour)) }));
-      const mergedContent: any = {
-        ...originalContent,
-        customerName: customer, jobTitle, summary, schedDate, expiryDate, notes,
-        lines: pricedLines,
-        markupPct, markupLabour, assumptions, roundUp,
-      };
-      // Persist the full line shape — cost/category/lock state were previously
-      // dropped here, which left the markup engine with nothing to recompute from
-      // when a saved quote was reopened.
-      mergedContent.items = lines.map(l => ({
-        description: l.name,
-        quantity: parseFloat(l.qty) || 1,
-        unit: l.unit || 'ea',
-        unitPrice: unitSell(l, markupPct, markupLabour),
-        unitCost: parseFloat(l.cost || '0') || 0,
-        category: l.category || 'material',
-        markupLocked: !!l.markupLocked,
-        lockedPrice: l.lockedPrice ? parseFloat(l.lockedPrice) : undefined,
-        noMarkup: !!l.noMarkup,
-      }));
-      mergedContent.subtotal = subtotal;
-      mergedContent.gstAmount = gst;
-      mergedContent.totalAmount = total;
-      const body = {
-        totalAmount: String(total),
-        status,
-        generationId,
-        customerId: customerId ?? undefined,
-        jobTitle: jobTitle.trim() || undefined,
-        content: JSON.stringify(mergedContent),
-      };
-      const res = isEditing
-        ? await apiRequest('PATCH', `/api/quotes/${editId}`, body)
-        : await apiRequest('POST', '/api/quotes', body);
+    mutationFn: async (status: 'draft' | 'sent'): Promise<{ offline?: boolean }> => {
+      const body = buildQuoteBody(status);
+      let res: Response;
+      try {
+        res = isEditing
+          ? await apiRequest('PATCH', `/api/quotes/${editId}`, body)
+          : await apiRequest('POST', '/api/quotes', body);
+      } catch (err) {
+        // No connection, and a NEW quote kept as a draft: save it on the phone and
+        // let the outbox send it when the connection returns. Editing a saved quote
+        // offline (conflicts) and sending (needs the server) stay online only.
+        if (isNetworkError(err) && !isEditing && status === 'draft') {
+          await addToOutbox(clientId.current, body);
+          return { offline: true };
+        }
+        throw err;
+      }
       if (!res.ok) throw new Error('Failed to save quote');
       const saved = await res.json();
 
@@ -349,9 +378,13 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       // rebuilds them from content.items in one transaction on save.
       return saved;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       hapticSuccess();
-      // It's on the server now — the device copy would only come back as a ghost.
+      if (result?.offline) {
+        toast({ title: 'Saved on this phone', description: "No connection. It'll sync as soon as you're back online." });
+      }
+      // It's on the server (or in the outbox) now — the draft copy would only come
+      // back as a ghost.
       clearQuoteDraft();
       queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
       // Leave the whole flow cleanly — clear the create sub-stack, then land on
@@ -359,16 +392,24 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       try { router.dismissAll(); } catch {}
       router.replace('/(tabs)/quotes');
     },
-    onError: () => {
+    onError: (err, status) => {
       hapticError();
+      if (status === 'sent' && isNetworkError(err)) {
+        showAlert('Needs a connection', "Sending needs a connection. Save it as a draft for now and send it once you're back online.");
+        return;
+      }
       showAlert('Could not save', 'Check your connection and try again.');
     },
   });
 
   const validateForm = (): boolean => {
     if (!jobTitle.trim()) { setError('Job title is required'); return false; }
-    if (lines.every(l => !l.price || parseFloat(l.price) <= 0)) { setError('Add at least one line item with a price'); return false; }
-    if (lines.some(l => parseFloat(l.price) > 0 && !l.name.trim())) { setError('All priced line items need a description'); return false; }
+    // The SELL price, not the typed one: a line priced from its cost (cost x
+    // markup) has no typed price, so checking `price` rejected every manual quote
+    // built from costs with "Add at least one line item with a price".
+    const sell = (l: LineItem) => unitSell(l, markupPct, markupLabour);
+    if (lines.every(l => !(sell(l) > 0))) { setError('Add at least one line item with a price'); return false; }
+    if (lines.some(l => sell(l) > 0 && !l.name.trim())) { setError('All priced line items need a description'); return false; }
     setError(null);
     return true;
   };
@@ -380,7 +421,13 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       lines.some(l => l.name.trim() || l.qty !== '1' || l.price.trim()));
 
   const [showSendSheet, setShowSendSheet] = useState(false);
-  const handleSendPress = () => { if (validateForm()) setShowSendSheet(true); };
+  const handleSendPress = () => {
+    if (!onlineManager.isOnline()) {
+      showAlert('Needs a connection', "Sending needs a connection. Save it as a draft for now and send it once you're back online.");
+      return;
+    }
+    if (validateForm()) setShowSendSheet(true);
+  };
   const sendViaChannel = (open: () => void) => saveMutation.mutate('sent', { onSuccess: open });
   const sendActions: SheetAction[] = [
     selectedCustomer?.email ? {
@@ -445,7 +492,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       saveQuoteDraft({
         customer, customerId, jobTitle, summary, schedDate, expiryDate, notes,
         lines, markupPct, markupLabour, assumptions, roundUp,
-        draftKey: draftKey.current, generationId,
+        draftKey: draftKey.current, generationId, clientId: clientId.current,
       });
     }, 800);
     return () => clearTimeout(t);
@@ -470,6 +517,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     setMarkupLabourFixed(savedMarkupLabour(r));
     if (r.draftKey) draftKey.current = r.draftKey;
     if (r.generationId) setGenerationId(r.generationId);
+    if (r.clientId) clientId.current = r.clientId;
     setAssumptions(Array.isArray(r.assumptions) ? r.assumptions : []);
     setRoundUp(!!r.roundUp);
     // The restored markup is the tradie's own choice — don't let the settings
@@ -491,7 +539,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60_000);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/quotes/generate`, {
+      const res = await withAiConnection(() => fetch(`${API_BASE_URL}/api/quotes/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -509,7 +557,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
           draftKey: draftKey.current,
           clarifyAnswers,
         }),
-      });
+      }));
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(

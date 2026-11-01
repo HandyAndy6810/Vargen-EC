@@ -14,6 +14,7 @@ import { useState, useMemo } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
+import { outboxCount } from '@/lib/quote-outbox';
 import { useTheme, type Colors, type ThemeMode } from '@/hooks/use-theme';
 import { BottomSheetModal } from '@/components/BottomSheetModal';
 import { useXeroStatus, useXeroDisconnect, useXeroSyncAll } from '@/hooks/use-xero';
@@ -416,10 +417,16 @@ export default function ProfileScreen() {
   const appearanceSub = mode === 'system' ? 'System default' : mode === 'light' ? 'Light' : 'Dark';
 
   const handleLogout = () => {
+    // Signing out wipes everything kept on this phone, including quotes saved
+    // offline that haven't reached the server yet. Say so before they're lost.
+    const unsynced = outboxCount();
+    const message = unsynced > 0
+      ? `${unsynced} quote${unsynced === 1 ? ' is' : 's are'} saved on this phone but not synced yet. Signing out deletes ${unsynced === 1 ? 'it' : 'them'}. Connect and sync first to keep ${unsynced === 1 ? 'it' : 'them'}.`
+      : 'Are you sure you want to sign out?';
     if (Platform.OS === 'web') {
-      if (window.confirm('Sign out of Vargen EZ?')) logout?.();
+      if (window.confirm(unsynced > 0 ? message : 'Sign out of Vargen EZ?')) logout?.();
     } else {
-      Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+      Alert.alert('Sign out', message, [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Sign out', style: 'destructive', onPress: () => logout?.() },
       ]);

@@ -38,6 +38,8 @@ export interface IStorage {
   updateQuote(id: number, quote: Partial<InsertQuote>, userId?: string): Promise<Quote>;
   getQuoteByShareToken(token: string): Promise<Quote | undefined>;
   deleteQuote(id: number, userId: string): Promise<void>;
+  /** Create, unless this user already has a quote with this clientId: then return that one. */
+  createQuoteOnce(quote: InsertQuote, clientId: string): Promise<{ quote: Quote; created: boolean }>;
 
   // AI generations (the correction record)
   createAiGeneration(row: InsertAiGeneration): Promise<AiGeneration>;
@@ -256,6 +258,22 @@ export class DatabaseStorage implements IStorage {
   async createQuote(quote: InsertQuote): Promise<Quote> {
     const [newQuote] = await db.insert(quotes).values(quote).returning();
     return newQuote;
+  }
+
+  async createQuoteOnce(quote: InsertQuote, clientId: string): Promise<{ quote: Quote; created: boolean }> {
+    // The advisory lock (held until the transaction ends) serialises creates for
+    // the same user + clientId, so two retries racing each other still produce one
+    // quote. It's keyed by a hash; a rare collision only makes an unrelated save
+    // wait a moment, never merge.
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${quote.userId}:${clientId}`}))`);
+      const [existing] = await tx.select().from(quotes)
+        .where(and(eq(quotes.userId, quote.userId as string), eq(quotes.clientId, clientId)))
+        .limit(1);
+      if (existing) return { quote: existing, created: false };
+      const [created] = await tx.insert(quotes).values({ ...quote, clientId }).returning();
+      return { quote: created, created: true };
+    });
   }
 
   async updateQuote(id: number, quote: Partial<InsertQuote>, userId?: string): Promise<Quote> {

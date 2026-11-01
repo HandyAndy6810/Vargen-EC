@@ -152,7 +152,7 @@ export default function CustomersScreen() {
 
       {isError && !refreshing && (
         <TouchableOpacity onPress={onRefresh} activeOpacity={0.7} style={s.errorBanner}>
-          <Text style={s.errorText}>Couldn't load customers — tap to retry</Text>
+          <Text style={s.errorText}>{data ? 'Showing the copy saved on this phone — tap to refresh' : "Couldn't load customers — tap to retry"}</Text>
         </TouchableOpacity>
       )}
     </View>

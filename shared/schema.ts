@@ -68,10 +68,18 @@ export const quotes = pgTable("quotes", {
   jobTitle: text("job_title"),
   followUpSchedule: text("follow_up_schedule"), // JSON: [{ day, status, sentAt? }]
   sentAt: timestamp("sent_at"), // set when status first changes to "sent"
+  /**
+   * Set by the phone on a new quote (offline outbox or online). Creating a quote
+   * with a clientId the user already has returns that quote instead of a second
+   * one, so a retried save can never duplicate. A plain index plus a locked
+   * lookup (storage.createQuoteOnce), not a unique constraint.
+   */
+  clientId: text("client_id"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (t) => ({
   quotes_user_id_idx: index("quotes_user_id_idx").on(t.userId),
   quotes_share_token_idx: index("quotes_share_token_idx").on(t.shareToken),
+  quotes_user_client_id_idx: index("quotes_user_client_id_idx").on(t.userId, t.clientId),
 }));
 
 export const quoteItems = pgTable("quote_items", {

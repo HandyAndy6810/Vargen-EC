@@ -33,6 +33,8 @@ export type CachedQuoteDraft = {
   draftKey?: string;
   /** The latest AI generation, sent on save so the server can link it to the quote. */
   generationId?: number;
+  /** Identifies this new quote to the server, so a retried or offline save can't duplicate it. */
+  clientId?: string;
 };
 
 const KEY_BY_KIND: Record<DraftKind, string> = {
