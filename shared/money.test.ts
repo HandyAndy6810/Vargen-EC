@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  round2, num, unitSell, lineTotal, lineCost, gstRateFor, totalsFor,
+  round2, num, unitSell, lineTotal, lineCost, gstRateFor, totalsFor, savedMarkupLabour,
   invoiceSplitTotal, remainingAfter, isFullyInvoiced, splitGst,
 } from './money';
 
@@ -320,5 +320,106 @@ describe('regressions', () => {
     }
     // And the two numbers in the report really are different quotes.
     assert.notEqual(unitSell({ cost: '40' }, 16), unitSell({ cost: '40' }, 73));
+  });
+});
+
+describe('labour is a charge-out rate', () => {
+  // A $150/hr charge-out rate, with what an hour costs the tradie ($60) recorded.
+  const labour = { qty: '2', price: '150', cost: '60', category: 'labour' };
+  const material = { qty: '1', cost: '100', category: 'material' };
+
+  test('labour with a cost and markupLabour off sells at its own price', () => {
+    assert.equal(unitSell(labour, 80), 150);
+    assert.equal(unitSell(labour, 80, false), 150);
+    assert.equal(lineTotal(labour, 80), 300);
+  });
+
+  test('the same line with markupLabour on is marked up, as before', () => {
+    assert.equal(unitSell(labour, 80, true), 108); // 60 x 1.8
+    // A legacy AI line held the rate as its cost too: that is the $270/hr bug.
+    assert.equal(unitSell({ qty: '1', price: '150', cost: '150', category: 'labour' }, 80, true), 270);
+  });
+
+  test('a material line still takes the markup either way', () => {
+    assert.equal(unitSell(material, 80), 180);
+    assert.equal(unitSell(material, 80, true), 180);
+  });
+
+  test('a locked labour line keeps its locked price', () => {
+    const locked = { ...labour, markupLocked: true, lockedPrice: '200' };
+    assert.equal(unitSell(locked, 80), 200);
+    assert.equal(unitSell(locked, 80, true), 200);
+  });
+
+  test('an at-cost labour line stays at cost', () => {
+    const atCost = { ...labour, noMarkup: true };
+    assert.equal(unitSell(atCost, 80), 60);
+    assert.equal(unitSell(atCost, 80, true), 60);
+  });
+
+  test('labour with no cost: its price, and counted as uncosted', () => {
+    const uncosted = { qty: '2', price: '150', category: 'labour' };
+    assert.equal(unitSell(uncosted, 80), 150);
+    assert.equal(totalsFor([uncosted], { markupPct: 80, gstRate: 0 }).uncostedLines, 1);
+  });
+
+  test('the brief: $150 rate, 80% markup, 2 hr labour is $300 off and $540 on', () => {
+    // As the AI now builds the line: price = charge-out rate; with no "what an hour
+    // costs you" set, no cost. With markupLabour on, the old rule marks up the rate.
+    const aiLabour = { qty: '2', price: '150', cost: '150', category: 'labour' };
+    const lines = [aiLabour, material];
+    const off = totalsFor(lines, { markupPct: 80, gstRate: 0 });
+    assert.equal(off.subtotal, 300 + 180);
+    const on = totalsFor(lines, { markupPct: 80, gstRate: 0, markupLabour: true });
+    assert.equal(on.subtotal, 540 + 180);
+  });
+
+  test('profit counts what an hour costs the tradie', () => {
+    const t = totalsFor([labour, material], { markupPct: 80, gstRate: 0 });
+    assert.equal(t.subtotal, 480);
+    assert.equal(t.totalCost, 220); // 2 x 60 + 100
+    assert.equal(t.profit, 260);
+  });
+});
+
+describe('savedMarkupLabour', () => {
+  test('a quote saved before the setting existed reads as true', () => {
+    assert.equal(savedMarkupLabour({ markupPct: 80 }), true);
+    assert.equal(savedMarkupLabour(null), true);
+    assert.equal(savedMarkupLabour(undefined), true);
+  });
+  test('a saved value is used as is', () => {
+    assert.equal(savedMarkupLabour({ markupLabour: false }), false);
+    assert.equal(savedMarkupLabour({ markupLabour: true }), true);
+  });
+
+  test('a legacy quote reopens with the same total', () => {
+    // Quote #27's shape: content saved with no markupLabour, labour at the $150 rate
+    // held as its cost, marked up 80% to $270/hr. Reopening it re-derives every
+    // figure from these lines, so it must use the rule it was saved under.
+    const content = {
+      markupPct: 80,
+      roundUp: false,
+      items: [
+        { quantity: 2, unitPrice: 270, unitCost: 150, category: 'labour' },
+        { quantity: 1, unitPrice: 180, unitCost: 100, category: 'material' },
+      ],
+      totalAmount: 792, // (540 + 180) x 1.1
+    };
+    const lines = content.items.map(it => ({
+      qty: String(it.quantity), price: String(it.unitPrice), cost: String(it.unitCost), category: it.category,
+    }));
+    const reopened = totalsFor(lines, {
+      markupPct: content.markupPct, gstRate: 0.1, roundUp: content.roundUp,
+      markupLabour: savedMarkupLabour(content),
+    });
+    assert.equal(reopened.total, content.totalAmount);
+    // And it keeps behaving as it did when moved: under the rule it was saved with,
+    // labour follows the slider from its cost. Read under the new default instead,
+    // labour would sit frozen at the old marked-up $270 whatever the slider said.
+    const at50 = (markupLabour: boolean) =>
+      totalsFor(lines, { markupPct: 50, gstRate: 0, markupLabour }).subtotal;
+    assert.equal(at50(savedMarkupLabour(content)), 2 * 225 + 150);
+    assert.equal(at50(false), 2 * 270 + 150);
   });
 });

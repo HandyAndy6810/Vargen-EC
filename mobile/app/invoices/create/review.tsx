@@ -88,7 +88,7 @@ export default function InvoiceReviewStep() {
 
   const renderLine = (l: LineItem) => {
     const i = idxOf(l);
-    const sell = unitSell(l, d.markupPct);
+    const sell = unitSell(l, d.markupPct, d.markupLabour);
     return (
       <SwipeableRow key={`${i}-${l.name}`} bg={c.card} onDelete={() => d.removeLine(i)}>
         <TouchableOpacity
@@ -128,7 +128,7 @@ export default function InvoiceReviewStep() {
     items: LineItem[],
   ) => {
     const open = openGroups[key];
-    const groupTotal = items.reduce((sum, l) => sum + (parseFloat(l.qty) || 0) * unitSell(l, d.markupPct), 0);
+    const groupTotal = items.reduce((sum, l) => sum + (parseFloat(l.qty) || 0) * unitSell(l, d.markupPct, d.markupLabour), 0);
     return (
       <View style={s.group}>
         <TouchableOpacity
@@ -210,6 +210,7 @@ export default function InvoiceReviewStep() {
             <MarkupSlider
               lines={d.lines}
               markupPct={d.markupPct}
+              markupLabour={d.markupLabour}
               onChange={d.setMarkupPct}
               roundUp={d.roundUp}
               gstRate={d.gstRate}

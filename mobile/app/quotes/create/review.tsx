@@ -63,24 +63,29 @@ export default function ReviewStep() {
   // price otherwise — that is the number the AI actually chose.
   const priceWarnings = useMemo(
     () => d.lines
-      .map(l => ({ line: l, flag: checkLinePrice({ description: l.name, unitPrice: unitSell(l, 0), unit: l.unit }) }))
+      .map(l => ({ line: l, flag: checkLinePrice({ description: l.name, unitPrice: unitSell(l, 0, d.markupLabour), unit: l.unit }) }))
       .filter((x): x is { line: LineItem; flag: NonNullable<ReturnType<typeof checkLinePrice>> } => !!x.flag),
     [d.lines],
   );
   const hasFlags = priceWarnings.length > 0 || d.assumptions.length > 0;
 
   const labourHours = labour.reduce((n, l) => n + (parseFloat(l.qty) || 0), 0);
+  // With markupLabour off the panel shows and sets the CHARGE-OUT rate (the labour
+  // lines' price, what the customer pays per hour). With it on, labour is cost-plus
+  // as before: the panel sets the lines' cost and the slider marks it up.
+  const rateField: 'price' | 'cost' = d.markupLabour ? 'cost' : 'price';
   const labourRate = labour.length
-    ? (parseFloat(labour[0].cost || '0') || 0)
+    ? (parseFloat(labour[0][rateField] || '0') || 0)
     : (typeof settings?.labourRate === 'number' ? settings.labourRate : 0);
+  const labourTotal = labour.reduce((n, l) => n + (parseFloat(l.qty) || 0) * unitSell(l, d.markupPct, d.markupLabour), 0);
 
   const idxOf = (line: LineItem) => d.lines.indexOf(line);
 
-  /** Rate applies to every labour line's cost — price then follows the markup. */
+  /** The rate goes on every labour line: its price (charge-out), or its cost when labour is marked up. */
   const applyLabourRate = (raw: string) => {
     const rate = parseFloat(raw);
     d.setLines(prev => prev.map(l =>
-      l.category === 'labour' ? { ...l, cost: Number.isFinite(rate) ? String(rate) : '' } : l
+      l.category === 'labour' ? { ...l, [rateField]: Number.isFinite(rate) ? String(rate) : '' } : l
     ));
   };
 
@@ -165,7 +170,7 @@ export default function ReviewStep() {
 
   const renderLine = (l: LineItem) => {
     const i = idxOf(l);
-    const sell = unitSell(l, d.markupPct);
+    const sell = unitSell(l, d.markupPct, d.markupLabour);
     return (
       <SwipeableRow key={`${i}-${l.name}`} bg={c.card} onDelete={() => d.removeLine(i)}>
         <TouchableOpacity
@@ -207,7 +212,7 @@ export default function ReviewStep() {
     items: LineItem[],
   ) => {
     const open = openGroups[key];
-    const sum = items.reduce((n, l) => n + (parseFloat(l.qty) || 0) * unitSell(l, d.markupPct), 0);
+    const sum = items.reduce((n, l) => n + (parseFloat(l.qty) || 0) * unitSell(l, d.markupPct, d.markupLabour), 0);
     return (
       <View style={s.group}>
         <TouchableOpacity
@@ -285,6 +290,7 @@ export default function ReviewStep() {
           <MarkupSlider
             lines={d.lines}
             markupPct={d.markupPct}
+            markupLabour={d.markupLabour}
             onChange={d.setMarkupPct}
             roundUp={d.roundUp}
             gstRate={d.gstRate}
@@ -339,8 +345,9 @@ export default function ReviewStep() {
                 </View>
                 <Text style={s.labourTimes}>×</Text>
                 <View style={s.labourCell}>
-                  <Text style={s.labourLabel}>Your rate</Text>
+                  <Text style={s.labourLabel}>{d.markupLabour ? 'Your rate' : 'Charge out'}</Text>
                   <TextInput
+                    key={rateField}
                     style={s.labourInput}
                     defaultValue={String(labourRate)}
                     onEndEditing={e => applyLabourRate(e.nativeEvent.text)}
@@ -348,8 +355,8 @@ export default function ReviewStep() {
                   />
                 </View>
                 <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                  <Text style={s.labourLabel}>Labour cost</Text>
-                  <Text style={s.labourTotal}>{money(labourHours * labourRate)}</Text>
+                  <Text style={s.labourLabel}>Labour</Text>
+                  <Text style={s.labourTotal}>{money(labourTotal)}</Text>
                 </View>
               </View>
             </>

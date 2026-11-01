@@ -9,8 +9,13 @@ export type UserSettings = {
   address: string;
   logoUrl: string;
   tradeType: string;
+  /** The charge-out rate: what the customer pays per hour. */
   labourRate: number;
   markupPercent: number;
+  /** Mark up labour too (cost-plus). Off: the markup is on materials only. */
+  markupLabour?: boolean;
+  /** What an hour costs the tradie, $/hr. Optional; only feeds profit. */
+  labourCostRate?: number | null;
   callOutFee: number;
   callOutFeeEnabled: boolean;
   includeGST: boolean;

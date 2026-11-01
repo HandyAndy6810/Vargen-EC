@@ -7,6 +7,7 @@ import { isValidISODate, toISODate } from "../shared/mobile-types";
 import { num, round2, totalsFor, gstRateFor } from "../shared/money";
 import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
+import { labourLineCost } from "./lib/labour-cost";
 import { buildPortalView } from "./lib/portal-view";
 import { extractJsonObject, receiptTotal, providerRejectedField, isRateLimited } from "./lib/ai-json";
 import { imageDataUri } from "./lib/image-type";
@@ -526,7 +527,10 @@ export async function registerRoutes(
       const actualHours = completion.actualHours != null ? Number(completion.actualHours) : null;
 
       const settings = await storage.getUserSettings(req.userId);
-      const labourRate = settings?.labourRate ? Number(settings.labourRate) : 0;
+      // What an hour of labour cost the tradie: "What an hour costs you" when set.
+      // The charge-out rate is the fallback, as before, though it understates profit.
+      const labourRate = settings?.labourCostRate ? Number(settings.labourCostRate)
+        : settings?.labourRate ? Number(settings.labourRate) : 0;
 
       const jobReceipts = await storage.getReceiptsByJobId(id, req.userId);
       const actualMaterialCost = jobReceipts.reduce((sum, r) => sum + (parseFloat(r.totalAmount) || 0), 0);
@@ -972,7 +976,7 @@ Do not invent details. If unsure of a field, use an empty string.`;
     // generation failed — losing the real provider error behind a bare 500.
     let sentImage = false;
     try {
-      const { description, imageBase64, customerName, tradeType, labourRate, markupPercent, callOutFee, includeGST, targetPrice } = req.body;
+      const { description, imageBase64, customerName, tradeType, labourRate, markupPercent, callOutFee, includeGST, targetPrice, markupLabour, labourCostRate } = req.body;
 
       if (!description || typeof description !== "string") {
         return res.status(400).json({ message: "Job description is required" });
@@ -982,6 +986,13 @@ Do not invent details. If unsure of a field, use an empty string.`;
 
       const labourRateNum = typeof labourRate === "number" && labourRate > 0 ? labourRate : null;
       const markupNum = typeof markupPercent === "number" ? markupPercent : 0;
+      // labourRate is the CHARGE-OUT rate: what the customer pays per hour. Only
+      // with "Mark up labour too" on does the markup apply to labour as well.
+      // Builds from before the setting send neither field; they get materials-only
+      // wording and labour lines with no cost (see below), which their money code
+      // prices at the rate rather than marking it up.
+      const markupLabourOn = markupLabour === true;
+      const labourCostNum = typeof labourCostRate === "number" && labourCostRate > 0 ? labourCostRate : null;
       // The app sent the fee whether or not its switch was on, and the fee has a
       // default of $80 — so every AI quote got a call-out line the tradie had
       // switched off. The saved switch is authoritative, which also covers builds
@@ -991,8 +1002,10 @@ Do not invent details. If unsure of a field, use an empty string.`;
       const gstEnabled = includeGST === true;
 
       let pricingInstructions = "";
-      if (labourRateNum) {
+      if (labourRateNum && markupLabourOn) {
         pricingInstructions += `\n- Use a labour rate of $${labourRateNum}/hour for all labour items`;
+      } else if (labourRateNum) {
+        pricingInstructions += `\n- Charge all labour at the charge-out rate of $${labourRateNum}/hour. That is exactly what the customer pays per hour: do NOT mark up labour. The markup applies to materials only`;
       }
       if (markupNum > 0) {
         pricingInstructions += `\n- Apply a ${markupNum}% markup on all material costs (include the markup in the unit prices, do NOT show it as a separate line item)`;
@@ -1033,7 +1046,7 @@ Do not invent details. If unsure of a field, use an empty string.`;
 
       const businessProfile = [
         tradeType && tradeType !== "general" ? `Trade: ${tradeType}` : null,
-        labourRateNum ? `Labour rate: $${labourRateNum}/hr` : null,
+        labourRateNum ? `Charge out rate: $${labourRateNum}/hr` : null,
         callOutNum > 0 ? `Callout fee: $${callOutNum}` : null,
         gstEnabled ? `GST: 10% included in totals` : `GST: all prices GST-exclusive`,
         markupNum > 0 ? `Materials markup: ${markupNum}%` : null,
@@ -1258,6 +1271,8 @@ CRITICAL RULES — follow these exactly:
           );
           const useRate = category === "labour" && hourly && labourRateNum;
           const unitPrice = useRate ? labourRateNum : price;
+          // The price is the charge-out rate; see labourLineCost for the cost.
+          const labourCost = labourLineCost({ rate: labourRateNum, markupLabour: markupLabourOn, costRate: labourCostNum });
           // Catches a figure that is wrong by an order of magnitude — the $20 five
           // litre tin of paint. Deliberately crude: it only ever adds a note.
           const flag = checkLinePrice({ description: item.description, unitPrice: price, unit: item.unit });
@@ -1266,8 +1281,8 @@ CRITICAL RULES — follow these exactly:
             ...item,
             category,
             unitPrice,
-            unitCost: useRate ? labourRateNum : unitCost,
-            costUnknown: useRate ? false : !costKnown,
+            unitCost: useRate ? (labourCost ?? 0) : unitCost,
+            costUnknown: useRate ? labourCost == null : !costKnown,
             priceNote: flag?.message,
           };
         });

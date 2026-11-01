@@ -12,7 +12,7 @@ import { hapticSuccess, hapticError, hapticPress, hapticWarn } from '@/lib/hapti
 import { loadQuoteDraft, saveQuoteDraft, clearQuoteDraft, type CachedQuoteDraft } from '@/lib/quote-draft-cache';
 import { type LineItem } from '@/hooks/use-quote-draft';
 import {
-  round2, unitSell, lineTotal, totalsFor, gstRateFor, invoiceSplitTotal, splitGst,
+  round2, unitSell, lineTotal, totalsFor, gstRateFor, invoiceSplitTotal, splitGst, savedMarkupLabour,
   remainingAfter as remainingAfterSplit,
 } from '@shared/money';
 import { useQuote } from '@/hooks/use-quotes';
@@ -83,6 +83,8 @@ type InvoiceDraft = {
 
   // markup engine (hidden in the UI once built from a quote)
   markupPct: number; setMarkupPct: (v: number) => void;
+  /** Whether the markup also applies to labour; see use-quote-draft. */
+  markupLabour: boolean;
   toggleLineLock: (i: number) => void;
   roundUp: boolean; setRoundUp: (v: boolean) => void;
   upsertLine: (index: number | null, line: LineItem) => void;
@@ -163,6 +165,9 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineItem[]>(DEFAULT_LINES);
   const [markupPct, setMarkupPct] = useState(30);
+  // Follows Settings until a source quote or cached draft fixes it.
+  const [markupLabourFixed, setMarkupLabourFixed] = useState<boolean | null>(null);
+  const markupLabour = markupLabourFixed ?? !!settings?.markupLabour;
   const [roundUp, setRoundUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
@@ -277,6 +282,9 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     if (content.customerName) setCustomer(content.customerName);
     if (quote.customerId) setCustomerId(quote.customerId);
     if (typeof (content as any).markupPct === 'number') setMarkupPct((content as any).markupPct);
+    // The quote's own rule (true for quotes saved before the setting existed). Its
+    // lines come across locked anyway; this keeps any added line consistent.
+    setMarkupLabourFixed(savedMarkupLabour(content));
     setQuoteTotal(Number(quote.totalAmount) || 0);
     setSourceQuoteId(Number(quote.id) || 0);
     setFromQuote(true);
@@ -364,7 +372,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   // The whole job first, then the slice THIS invoice bills. Both come from
   // shared/money.ts, which is also what the server bills from — so a deposit can no
   // longer show one figure here and save as another.
-  const jobTotals = totalsFor(lines, { markupPct, gstRate, roundUp });
+  const jobTotals = totalsFor(lines, { markupPct, markupLabour, gstRate, roundUp });
   const fullTotal = jobTotals.total;
   const depositFixed = parseFloat(depositAmount) || 0;
 
@@ -385,7 +393,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     const key = (l: LineItem) => l.name.trim().toLowerCase();
     const quotedBy = new Map<string, number>();
     quotedLines.forEach(l => {
-      quotedBy.set(key(l), (quotedBy.get(key(l)) || 0) + (parseFloat(l.qty) || 0) * unitSell(l, markupPct));
+      quotedBy.set(key(l), (quotedBy.get(key(l)) || 0) + (parseFloat(l.qty) || 0) * unitSell(l, markupPct, markupLabour));
     });
     const rows: VarianceRow[] = [];
     const seen = new Set<string>();
@@ -393,7 +401,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
       const k = key(l);
       if (!k) return;
       seen.add(k);
-      const invoiced = lineTotal(l, markupPct);
+      const invoiced = lineTotal(l, markupPct, markupLabour);
       const quoted = round2(quotedBy.get(k) || 0);
       if (round2(invoiced - quoted) !== 0) {
         rows.push({ label: l.name.trim(), quoted, invoiced, delta: round2(invoiced - quoted) });
@@ -403,11 +411,11 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     quotedLines.forEach(l => {
       const k = key(l);
       if (!k || seen.has(k)) return;
-      const quoted = lineTotal(l, markupPct);
+      const quoted = lineTotal(l, markupPct, markupLabour);
       rows.push({ label: l.name.trim(), quoted, invoiced: 0, delta: round2(-quoted) });
     });
     return rows;
-  }, [fromQuote, quotedLines, lines, markupPct]);
+  }, [fromQuote, quotedLines, lines, markupPct, markupLabour]);
   const varianceTotal = useMemo(() => round2(variance.reduce((s, r) => s + r.delta, 0)), [variance]);
 
   // ── Line editing ───────────────────────────────────────────────────────────
@@ -419,7 +427,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
         const { markupLocked, lockedPrice, ...rest } = l;
         return { ...rest, markupLocked: false, lockedPrice: undefined };
       }
-      const frozen = unitSell(l, markupPct);
+      const frozen = unitSell(l, markupPct, markupLabour);
       return { ...l, markupLocked: true, lockedPrice: String(frozen), price: String(frozen) };
     }));
   };
@@ -456,7 +464,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     const t = setTimeout(() => {
       saveQuoteDraft({
         customer, customerId, jobTitle, summary, schedDate: '',
-        expiryDate: '', notes, lines, markupPct, assumptions: [], roundUp,
+        expiryDate: '', notes, lines, markupPct, markupLabour, assumptions: [], roundUp,
         quoteId: sourceQuoteId || undefined,
         dueDateISO: dueDate.toISOString(),
         paymentTermsDays,
@@ -465,7 +473,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [
     isEditing, hydrated, customer, customerId, jobTitle, summary, notes, lines,
-    markupPct, roundUp, sourceQuoteId, dueDate, paymentTermsDays,
+    markupPct, markupLabour, roundUp, sourceQuoteId, dueDate, paymentTermsDays,
   ]);
 
   const restoreDraft = (): CachedQuoteDraft | null => {
@@ -478,6 +486,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     setNotes(r.notes || '');
     setLines(r.lines?.length ? r.lines : DEFAULT_LINES);
     if (typeof r.markupPct === 'number') setMarkupPct(r.markupPct);
+    setMarkupLabourFixed(savedMarkupLabour(r));
     setRoundUp(!!r.roundUp);
     if (r.quoteId) { setSourceQuoteId(r.quoteId); setFromQuote(true); }
     if (r.dueDateISO) setDueDate(new Date(r.dueDateISO));
@@ -501,12 +510,12 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     customerEmail: selectedCustomer?.email || undefined,
     customerAddress: selectedCustomer?.address || undefined,
     items: lines
-      .filter(l => l.name.trim() || unitSell(l, markupPct) > 0)
+      .filter(l => l.name.trim() || unitSell(l, markupPct, markupLabour) > 0)
       .map(l => ({
         description: l.name || 'Item',
         quantity: parseFloat(l.qty) || 1,
         unit: l.unit || undefined,
-        unitPrice: unitSell(l, markupPct),
+        unitPrice: unitSell(l, markupPct, markupLabour),
       })),
     notes: notes || undefined,
     subtotal, gstAmount: gst, totalAmount: total, includeGST,
@@ -527,7 +536,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
   // ── Save ───────────────────────────────────────────────────────────────────
   const validate = (): boolean => {
     if (!jobTitle.trim()) { setError('Give the invoice a job title'); return false; }
-    if (!lines.some(l => l.name.trim() && unitSell(l, markupPct) > 0)) {
+    if (!lines.some(l => l.name.trim() && unitSell(l, markupPct, markupLabour) > 0)) {
       setError('Add at least one line item with a price');
       return false;
     }
@@ -543,12 +552,12 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
         customerId: customerId ?? undefined,
         customerName: customer.trim() || undefined,
         items: lines
-          .filter(l => l.name.trim() && unitSell(l, markupPct) > 0)
+          .filter(l => l.name.trim() && unitSell(l, markupPct, markupLabour) > 0)
           .map(l => ({
             description: l.name.trim(),
             quantity: parseFloat(l.qty) || 1,
             unit: l.unit || 'each',
-            unitPrice: unitSell(l, markupPct),
+            unitPrice: unitSell(l, markupPct, markupLabour),
           })),
         notes: [jobTitle.trim() ? `Job: ${jobTitle.trim()}` : '', summary.trim(), notes.trim()]
           .filter(Boolean).join('\n') || undefined,
@@ -620,6 +629,8 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
           tradeType: settings?.tradeType || undefined,
           labourRate: typeof settings?.labourRate === 'number' ? settings.labourRate : undefined,
           markupPercent: typeof settings?.markupPercent === 'number' ? settings.markupPercent : undefined,
+          markupLabour,
+          labourCostRate: typeof settings?.labourCostRate === 'number' ? settings.labourCostRate : undefined,
           callOutFee: settings?.callOutFeeEnabled && typeof settings?.callOutFee === 'number' ? settings.callOutFee : undefined,
           includeGST,
         }),
@@ -662,7 +673,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     jobTitle, setJobTitle, summary, setSummary, notes, setNotes,
     lines, setLines, filteredCustomers,
     paymentTermsDays, setPaymentTermsDays, dueDate, setDueDate, dueDateLabel,
-    markupPct, setMarkupPct, toggleLineLock, roundUp, setRoundUp,
+    markupPct, setMarkupPct, markupLabour, toggleLineLock, roundUp, setRoundUp,
     upsertLine, removeLine, startManual,
     restorable, restoreDraft, forgetSavedDraft,
     subtotal, gst, total, totalCost, profit, jobTotal, remainingAfter, includeGST, gstRate,

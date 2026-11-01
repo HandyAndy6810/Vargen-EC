@@ -82,38 +82,49 @@ export type MoneyLine = {
    * what the item actually cost still flows through to what the customer pays.
    */
   noMarkup?: boolean;
+  /** Labour sells at its charge-out price unless markupLabour is on; see unitSell. */
+  category?: string;
 };
 
 /**
  * What the customer pays per unit.
  *
- * Four cases, in order:
+ * Five cases, in order:
  *  - locked → the price it held when it was pinned, whatever the slider does since
  *  - at cost → exactly what it cost, no markup, but still tracking the cost
+ *  - labour, with markupLabour off → its own price: the tradie's charge-out rate
+ *    is what the customer pays per hour, not a cost to mark up. Its cost (what an
+ *    hour costs the tradie) only feeds profit.
  *  - has a cost → cost plus markup
  *  - no cost → its own typed price, unmoved by the slider
  *
  * Locked is checked before at-cost because pinning names an exact figure, which is
  * a stronger instruction than "follow the cost".
  *
+ * markupLabour on is the old rule, for a tradie who prices cost-plus across the
+ * whole job, and for every quote saved before the setting existed (the drafts read
+ * a missing content.markupLabour as true, so those totals never move). Labour
+ * charged at the rate AND marked up is how a $150/hr tradie at 80% billed $270/hr.
+ *
  * The last case is why "Total cost" can sit below the sum of the lines: such a line
  * adds to what the customer pays and nothing to cost, so it reads as pure profit.
  * That is correct arithmetic on incomplete data, and the Review screen says so.
  */
-export function unitSell(line: MoneyLine, markupPct: number): number {
+export function unitSell(line: MoneyLine, markupPct: number, markupLabour = false): number {
   if (line.markupLocked) {
     const locked = num(line.lockedPrice);
     return locked > 0 ? locked : num(line.price);
   }
   const cost = num(line.cost);
   if (line.noMarkup) return cost > 0 ? round2(cost) : num(line.price);
+  if (line.category === 'labour' && !markupLabour) return num(line.price);
   if (cost > 0) return round2(cost * (1 + num(markupPct) / 100));
   return num(line.price);
 }
 
 /** Quantity times unit sell. The figure that belongs in a line's Amount column. */
-export function lineTotal(line: MoneyLine, markupPct: number): number {
-  return round2(num(line.qty) * unitSell(line, markupPct));
+export function lineTotal(line: MoneyLine, markupPct: number, markupLabour = false): number {
+  return round2(num(line.qty) * unitSell(line, markupPct, markupLabour));
 }
 
 /** What the line cost the tradie, before any markup. */
@@ -143,6 +154,8 @@ export type Totals = {
 
 export type TotalsOptions = {
   markupPct?: number;
+  /** Whether the markup also applies to labour lines. Off by default; see unitSell. */
+  markupLabour?: boolean;
   /** Use gstRateFor(settings.includeGST) rather than hardcoding. */
   gstRate?: number;
   /** Land the customer-facing total on a whole dollar. */
@@ -158,10 +171,11 @@ export type TotalsOptions = {
  */
 export function totalsFor(lines: MoneyLine[], opts: TotalsOptions = {}): Totals {
   const markupPct = num(opts.markupPct);
+  const markupLabour = !!opts.markupLabour;
   const gstRate = opts.gstRate === undefined ? 0.1 : num(opts.gstRate);
   const list = Array.isArray(lines) ? lines : [];
 
-  const rawSubtotal = round2(list.reduce((s, l) => s + num(l.qty) * unitSell(l, markupPct), 0));
+  const rawSubtotal = round2(list.reduce((s, l) => s + num(l.qty) * unitSell(l, markupPct, markupLabour), 0));
   const rawTotal = round2(rawSubtotal * (1 + gstRate));
 
   const total = opts.roundUp ? Math.ceil(rawTotal) : rawTotal;
@@ -171,10 +185,23 @@ export function totalsFor(lines: MoneyLine[], opts: TotalsOptions = {}): Totals 
   const totalCost = round2(list.reduce((s, l) => s + num(l.qty) * num(l.cost), 0));
 
   const uncostedLines = list.filter(
-    l => !(num(l.cost) > 0) && num(l.qty) * unitSell(l, 0) > 0
+    l => !(num(l.cost) > 0) && num(l.qty) * unitSell(l, 0, markupLabour) > 0
   ).length;
 
   return { subtotal, gst, total, totalCost, profit: round2(subtotal - totalCost), uncostedLines };
+}
+
+/**
+ * Whether a saved quote's markup applies to labour. Quotes saved before the
+ * setting existed have no markupLabour in their content and were priced with labour
+ * marked up, so a missing value reads as true: reopened, its total and the way its
+ * labour follows the markup slider stay exactly as they were. (Under the new rule a
+ * legacy labour line would sit frozen at its old marked-up price.) New drafts take
+ * the value from settings.
+ */
+export function savedMarkupLabour(content: unknown): boolean {
+  const v = (content && typeof content === 'object') ? (content as { markupLabour?: unknown }).markupLabour : undefined;
+  return typeof v === 'boolean' ? v : true;
 }
 
 export type InvoiceType = 'full' | 'deposit' | 'balance';

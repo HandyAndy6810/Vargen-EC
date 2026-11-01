@@ -35,6 +35,7 @@ const money = (n: number) =>
 export function MarkupSlider({
   lines,
   markupPct,
+  markupLabour = false,
   onChange,
   roundUp = false,
   gstRate = 0.1,
@@ -42,6 +43,8 @@ export function MarkupSlider({
 }: {
   lines: LineItem[];
   markupPct: number;
+  /** Off (the default): the slider marks up materials only and labour sells at its charge-out rate. */
+  markupLabour?: boolean;
   onChange: (pct: number) => void;
   /** Lands the customer-facing total on a whole dollar. */
   roundUp?: boolean;
@@ -176,7 +179,7 @@ export function MarkupSlider({
   // cost adds to what the customer pays and nothing to cost, so it reads as pure
   // profit. Every quote written before the cost engine is made entirely of those.
   const { subtotal, total: grand, totalCost, profit, uncostedLines: uncosted } =
-    totalsFor(lines, { markupPct: live, gstRate, roundUp });
+    totalsFor(lines, { markupPct: live, markupLabour, gstRate, roundUp });
   const trueMargin = subtotal > 0 ? ((subtotal - totalCost) / subtotal) * 100 : 0;
 
   const ratio = ratioOf(live);
@@ -233,7 +236,7 @@ export function MarkupSlider({
       </View>
 
       <View style={s.footRow}>
-        <Text style={s.footLabel}>Markup %</Text>
+        <Text style={s.footLabel}>{markupLabour ? 'Markup %' : 'Materials markup %'}</Text>
         <Text style={s.footMargin}>{trueMargin.toFixed(1)}% true margin</Text>
       </View>
     </View>
