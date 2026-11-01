@@ -35,6 +35,8 @@ const realQuote = {
   totalAmount: '4840',
   createdAt: '2026-09-12T08:55:41.623Z',
   shareToken: 'a-secret-token',
+  // What the tradie's API now adds to a quote; the portal must never echo it back.
+  portalUrl: 'https://vargen.example/portal/a-secret-token',
   xeroInvoiceId: 'xero-123',
   xeroInvoiceNumber: 'INV-9',
   followUpSchedule: '[{"day":3,"status":"pending"}]',
@@ -91,7 +93,7 @@ const keys = allKeys(JSON.parse(JSON.stringify({ ...view, content: JSON.parse(vi
 describe('nothing private escapes', () => {
   for (const leak of [
     'unitCost', 'cost', 'markupPct', 'markupLabour', 'markupLocked', 'lockedPrice', 'lines',
-    'userId', 'shareToken', 'followUpSchedule', 'sentAt', 'jobId', 'needsPrice',
+    'userId', 'shareToken', 'portalUrl', 'followUpSchedule', 'sentAt', 'jobId', 'needsPrice',
     'category', 'assumptions', 'roundUp', 'notes_internal',
   ]) {
     test(`no "${leak}" anywhere in the response`, () => {

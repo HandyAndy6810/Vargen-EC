@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Share,
+  Platform,
 } from 'react-native';
 import { parseQuoteContent, toMoney } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
@@ -27,6 +28,9 @@ import * as Linking from 'expo-linking';
 import PDFComposeModal from '@/components/PDFComposeModal';
 import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
 import { showAlert, showConfirm } from '@/lib/dialogs';
+import { copyText } from '@/lib/clipboard';
+import { toast } from '@/lib/toast';
+import { quoteMessage, quoteSmsUrl } from '@shared/quote-message';
 
 
 const statusPillFor = (c: Colors): Record<string, { bg: string; fg: string; bd: string; label: string }> => ({
@@ -186,8 +190,22 @@ export default function QuoteDetailScreen() {
   const alreadyInvoiced = status === 'invoiced' || (invoicedTotal > 0.01 && remainingToInvoice <= 0.01);
   const terminalStatus = isTerminalStatus(status);
 
+  // The customer's link (the portal), from the server once the quote has been sent.
+  // Resending a quote is just sharing this again.
+  const portalUrl: string | undefined = quote?.portalUrl;
+  const linkMessage = portalUrl ? quoteMessage({
+    customerName: content.customerName, businessName: settings?.businessName,
+    jobTitle: content.jobTitle || quote?.jobTitle, total: totalAmount,
+    includeGST: gst > 0, portalUrl,
+  }) : '';
+
   const statusActions: SheetAction[] = [
-    status !== 'sent'     ? { label: 'Mark as Sent',     onPress: () => updateQuote.mutate({ id: quoteId, status: 'sent' } as any) } : null,
+    status !== 'sent'     ? {
+      label: 'Mark as Sent',
+      onPress: () => updateQuote.mutate({ id: quoteId, status: 'sent' } as any, {
+        onSuccess: () => toast({ title: 'Marked as sent', description: 'Use Share link or Copy link (under ⋯) to send the customer their quote.' }),
+      }),
+    } : null,
     status !== 'accepted' ? { label: 'Mark as Accepted', onPress: () => updateQuote.mutate({ id: quoteId, status: 'accepted' } as any) } : null,
     status !== 'declined' ? { label: 'Mark as Declined', onPress: () => updateQuote.mutate({ id: quoteId, status: 'declined' } as any) } : null,
     status !== 'draft'    ? { label: 'Revert to Draft',  onPress: () => updateQuote.mutate({ id: quoteId, status: 'draft' } as any) } : null,
@@ -207,11 +225,20 @@ export default function QuoteDetailScreen() {
     } : null,
     status !== 'invoiced' ? { label: 'Change status', onPress: () => setSheetMode('status') } : null,
     { label: 'Duplicate quote', onPress: () => duplicateQuote.mutate() },
-    {
-      label: 'Share quote',
-      onPress: () => Share.share({ message: `Quote ${num} — $${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2 })} inc. GST` }),
-    },
-    customerPhone ? { label: 'SMS customer', onPress: () => Linking.openURL(`sms:${customerPhone}`) } : null,
+    // Only once there's a link to send: a message without it gives the customer
+    // nothing to open. A draft gets its link when it's sent (Mark as Sent).
+    portalUrl ? { label: 'Share link', onPress: () => Share.share({ message: linkMessage }) } : null,
+    portalUrl ? {
+      label: 'Copy link',
+      onPress: () => { copyText(portalUrl); toast({ title: 'Link copied', description: 'Paste it into a message to the customer.' }); },
+    } : null,
+    customerPhone ? {
+      label: 'SMS customer',
+      onPress: () => Linking.openURL(portalUrl ? quoteSmsUrl(customerPhone, {
+        customerName: content.customerName, businessName: settings?.businessName,
+        jobTitle: content.jobTitle || quote?.jobTitle, total: totalAmount, includeGST: gst > 0, portalUrl,
+      }, Platform.OS) : `sms:${customerPhone}`),
+    } : null,
     customerPhone ? { label: 'Call customer', onPress: () => Linking.openURL(`tel:${customerPhone}`) } : null,
   ].filter(Boolean) as SheetAction[];
 
