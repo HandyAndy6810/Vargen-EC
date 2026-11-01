@@ -1,7 +1,7 @@
 import { db } from "./db";
 import {
   customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
-  invoices, portalFeedback, jobTemplates, receipts, customerMessages,
+  invoices, portalFeedback, jobTemplates, receipts, customerMessages, aiGenerations,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem,
@@ -11,8 +11,9 @@ import {
   type JobTemplate, type InsertJobTemplate,
   type Receipt, type InsertReceipt,
   type CustomerMessage, type InsertCustomerMessage,
+  type AiGeneration, type InsertAiGeneration,
 } from "../shared/schema";
-import { eq, desc, and, sql, getTableColumns } from "drizzle-orm";
+import { eq, desc, and, or, sql, getTableColumns } from "drizzle-orm";
 
 export interface IStorage {
   // Customers (userId-scoped)
@@ -37,6 +38,13 @@ export interface IStorage {
   updateQuote(id: number, quote: Partial<InsertQuote>, userId?: string): Promise<Quote>;
   getQuoteByShareToken(token: string): Promise<Quote | undefined>;
   deleteQuote(id: number, userId: string): Promise<void>;
+
+  // AI generations (the correction record)
+  createAiGeneration(row: InsertAiGeneration): Promise<AiGeneration>;
+  /** Link a generation, and every other one from the same draft, to a quote. Owner-scoped. */
+  linkAiGenerations(userId: string, generationId: number, quoteId: number): Promise<number>;
+  /** Store what was sent on the quote's most recent generation, the first time only. */
+  snapshotSentGeneration(userId: string, quoteId: number, content: string): Promise<void>;
 
   // Quote Items
   getQuoteItems(quoteId: number): Promise<QuoteItem[]>;
@@ -278,8 +286,47 @@ export class DatabaseStorage implements IStorage {
       await tx.update(jobs).set({ quoteId: null }).where(and(eq(jobs.quoteId, id), eq(jobs.userId, userId)));
       await tx.delete(portalFeedback).where(eq(portalFeedback.quoteId, id));
       await tx.delete(quoteItems).where(eq(quoteItems.quoteId, id));
+      // The AI's record of this quote is the tradie's data too: it goes with it.
+      await tx.delete(aiGenerations).where(and(eq(aiGenerations.quoteId, id), eq(aiGenerations.userId, userId)));
       await tx.delete(quotes).where(and(eq(quotes.id, id), eq(quotes.userId, userId)));
     });
+  }
+
+  // ── AI generations ────────────────────────────────────────────────────
+  async createAiGeneration(row: InsertAiGeneration): Promise<AiGeneration> {
+    const [created] = await db.insert(aiGenerations).values(row).returning();
+    return created;
+  }
+
+  async linkAiGenerations(userId: string, generationId: number, quoteId: number): Promise<number> {
+    // Both the generation and the quote must belong to this user; a body naming
+    // someone else's generation (or quote) links nothing.
+    const [gen] = await db.select({ id: aiGenerations.id, draftKey: aiGenerations.draftKey })
+      .from(aiGenerations)
+      .where(and(eq(aiGenerations.id, generationId), eq(aiGenerations.userId, userId)));
+    if (!gen) return 0;
+    const [owned] = await db.select({ id: quotes.id }).from(quotes)
+      .where(and(eq(quotes.id, quoteId), eq(quotes.userId, userId)));
+    if (!owned) return 0;
+    // The first generation and its clarify reruns share a draft key: link them all.
+    const which = gen.draftKey
+      ? or(eq(aiGenerations.id, gen.id), eq(aiGenerations.draftKey, gen.draftKey))
+      : eq(aiGenerations.id, gen.id);
+    const linked = await db.update(aiGenerations).set({ quoteId })
+      .where(and(eq(aiGenerations.userId, userId), which))
+      .returning({ id: aiGenerations.id });
+    return linked.length;
+  }
+
+  async snapshotSentGeneration(userId: string, quoteId: number, content: string): Promise<void> {
+    const [latest] = await db.select({ id: aiGenerations.id, sentAt: aiGenerations.sentAt })
+      .from(aiGenerations)
+      .where(and(eq(aiGenerations.quoteId, quoteId), eq(aiGenerations.userId, userId)))
+      .orderBy(desc(aiGenerations.createdAt), desc(aiGenerations.id))
+      .limit(1);
+    if (!latest || latest.sentAt) return;
+    await db.update(aiGenerations).set({ sentSnapshot: content, sentAt: new Date() })
+      .where(eq(aiGenerations.id, latest.id));
   }
 
   // ── Quote Items ───────────────────────────────────────────────────────

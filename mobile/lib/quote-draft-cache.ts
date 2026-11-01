@@ -29,6 +29,10 @@ export type CachedQuoteDraft = {
   markupLabour?: boolean;
   assumptions: string[];
   roundUp: boolean;
+  /** Groups this draft's AI generations on the server. Missing on older drafts. */
+  draftKey?: string;
+  /** The latest AI generation, sent on save so the server can link it to the quote. */
+  generationId?: number;
 };
 
 const KEY_BY_KIND: Record<DraftKind, string> = {

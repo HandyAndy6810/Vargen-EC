@@ -14,6 +14,7 @@ import { useCustomers } from '@/hooks/use-customers';
 import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
 import { unitSell, totalsFor, gstRateFor, savedMarkupLabour } from '@shared/money';
+import { newDraftKey } from '@/lib/draft-key';
 // Re-exported because five screens already import it from here. The implementation
 // lives in shared/money.ts and is used by the server too, so a quote and the invoice
 // raised from it can never price the same line differently.
@@ -196,6 +197,11 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   // Settings, which may arrive after the draft opens.
   const [markupLabourFixed, setMarkupLabourFixed] = useState<boolean | null>(null);
   const markupLabour = markupLabourFixed ?? !!settings?.markupLabour;
+  // The server keeps every AI generation (ai_generations). The draft key groups this
+  // draft's generations; the latest generation id goes up with the save so the
+  // server can link them to the quote. Both ride along in the device draft cache.
+  const draftKey = useRef(newDraftKey());
+  const [generationId, setGenerationId] = useState<number | undefined>(undefined);
   const [assumptions, setAssumptions] = useState<string[]>([]);
   const [roundUp, setRoundUp] = useState(false);
   const [questions, setQuestions] = useState<ClarifyQuestion[]>([]);
@@ -324,6 +330,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       const body = {
         totalAmount: String(total),
         status,
+        generationId,
         customerId: customerId ?? undefined,
         jobTitle: jobTitle.trim() || undefined,
         content: JSON.stringify(mergedContent),
@@ -438,12 +445,13 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       saveQuoteDraft({
         customer, customerId, jobTitle, summary, schedDate, expiryDate, notes,
         lines, markupPct, markupLabour, assumptions, roundUp,
+        draftKey: draftKey.current, generationId,
       });
     }, 800);
     return () => clearTimeout(t);
   }, [
     isEditing, hydrated, customer, customerId, jobTitle, summary, schedDate,
-    expiryDate, notes, lines, markupPct, markupLabour, assumptions, roundUp,
+    expiryDate, notes, lines, markupPct, markupLabour, assumptions, roundUp, generationId,
   ]);
 
   const restoreDraft = (): CachedQuoteDraft | null => {
@@ -460,6 +468,8 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     if (typeof r.markupPct === 'number') setMarkupPct(r.markupPct);
     // A draft cached before the setting existed was priced with labour marked up.
     setMarkupLabourFixed(savedMarkupLabour(r));
+    if (r.draftKey) draftKey.current = r.draftKey;
+    if (r.generationId) setGenerationId(r.generationId);
     setAssumptions(Array.isArray(r.assumptions) ? r.assumptions : []);
     setRoundUp(!!r.roundUp);
     // The restored markup is the tradie's own choice — don't let the settings
@@ -474,7 +484,10 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     clearQuoteDraft();
   };
 
-  const callAi = async (description: string): Promise<any> => {
+  const callAi = async (
+    description: string,
+    clarifyAnswers?: { q: string; a: string }[],
+  ): Promise<any> => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60_000);
     try {
@@ -493,6 +506,8 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
           labourCostRate: typeof settings?.labourCostRate === 'number' ? settings.labourCostRate : undefined,
           callOutFee: settings?.callOutFeeEnabled && typeof settings?.callOutFee === 'number' ? settings.callOutFee : undefined,
           includeGST,
+          draftKey: draftKey.current,
+          clarifyAnswers,
         }),
       });
       if (!res.ok) {
@@ -502,7 +517,9 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
             : (body?.message || 'AI could not build the quote — try again.')
         );
       }
-      return res.json();
+      const data = await res.json();
+      if (typeof data?.generationId === 'number') setGenerationId(data.generationId);
+      return data;
     } finally {
       clearTimeout(timeout);
     }
@@ -585,7 +602,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     setAiBusy(true);
     setError(null);
     try {
-      const data = await callAi(refined);
+      const data = await callAi(refined, answered.map(x => ({ q: x.q.q, a: String(x.a) })));
       applyAi(data, refined);
       lastDescription.current = refined;
     } catch (e: any) {

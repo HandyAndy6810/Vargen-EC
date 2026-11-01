@@ -294,6 +294,35 @@ export const insertReceiptSchema = createInsertSchema(receipts).omit({ id: true,
 export type Receipt = typeof receipts.$inferSelect;
 export type InsertReceipt = z.infer<typeof insertReceiptSchema>;
 
+/**
+ * Every AI quote generation, exactly as the tradie received it, and what they
+ * finally sent. The pair (response vs sentSnapshot) is the correction record:
+ * where the AI was wrong and how the tradie fixed it. Written by
+ * /api/quotes/generate; never blocks quoting if the write fails.
+ */
+export const aiGenerations = pgTable("ai_generations", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  quoteId: integer("quote_id").references(() => quotes.id),
+  /** One per draft on the phone: groups a first generation with its clarify reruns. */
+  draftKey: text("draft_key"),
+  /** JSON of what was asked: description, rates, markup, GST, clarify answers. Never images. */
+  input: text("input").notNull(),
+  /** JSON of the response as returned to the phone, after server normalisation. */
+  response: text("response").notNull(),
+  model: text("model"),
+  /** The quote's content when it was first sent. */
+  sentSnapshot: text("sent_snapshot"),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (t) => ({
+  ai_generations_user_id_idx: index("ai_generations_user_id_idx").on(t.userId),
+  ai_generations_quote_id_idx: index("ai_generations_quote_id_idx").on(t.quoteId),
+}));
+
+export type AiGeneration = typeof aiGenerations.$inferSelect;
+export type InsertAiGeneration = typeof aiGenerations.$inferInsert;
+
 // Schemas
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const insertJobSchema = createInsertSchema(jobs)
