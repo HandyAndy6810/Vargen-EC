@@ -267,22 +267,6 @@ export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ 
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 
-// Deprecated: no longer read or written by the app (price book removed, see PR #141).
-// Drop by hand in Neon after a snapshot, then delete this definition.
-export const priceBook = pgTable("price_book", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  description: text("description").notNull(),
-  unit: text("unit").notNull().default("each"),
-  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
-  supplier: text("supplier"),
-  category: text("category"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (t) => ({
-  price_book_user_id_idx: index("price_book_user_id_idx").on(t.userId),
-}));
-
 export const receipts = pgTable("receipts", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),

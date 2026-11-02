@@ -11,7 +11,7 @@ let base = '';
 before(async () => {
   const app = express();
   app.get('/api/real', (_req, res) => res.json({ ok: true }));
-  app.get('/api/price-book', (_req, res) => res.json([]));
+  app.get('/api/settings', (_req, res) => res.json([]));
   registerApiNotFound(app);
   app.use('*', (_req, res) => res.type('html').send('<!doctype html><div id="root"></div>'));
   await new Promise<void>((resolve) => { server = app.listen(0, resolve); });
@@ -34,7 +34,7 @@ describe('unknown /api routes', () => {
   });
   test('real API routes still answer', async () => {
     assert.deepEqual(await (await fetch(`${base}/api/real`)).json(), { ok: true });
-    assert.deepEqual(await (await fetch(`${base}/api/price-book`)).json(), []);
+    assert.deepEqual(await (await fetch(`${base}/api/settings`)).json(), []);
   });
   test('the web app still serves /, /portal/abc and other pages', async () => {
     for (const path of ['/', '/portal/abc', '/invoices/3/preview', '/apiary']) {

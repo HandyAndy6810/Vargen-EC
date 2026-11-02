@@ -15,7 +15,7 @@ import { db, pool } from '../db';
 import { storage } from '../storage';
 import {
   users, sessions, customers, jobs, quotes, quoteItems, invoices, portalFeedback,
-  customerMessages, receipts, jobTemplates, xeroTokens, userSettings, priceBook, aiGenerations,
+  customerMessages, receipts, jobTemplates, xeroTokens, userSettings, aiGenerations,
 } from '../../shared/schema';
 
 const stamp = Date.now();
@@ -35,7 +35,6 @@ async function seedUser(tag: string): Promise<string> {
   await db.insert(jobTemplates).values({ userId: u.id, label: 'Template' });
   await db.insert(xeroTokens).values({ userId: u.id, accessToken: 'a', refreshToken: 'r', tenantId: 't', expiresAt: new Date() } as any);
   await db.insert(userSettings).values({ userId: u.id, businessName: `Biz ${tag}` });
-  await db.insert(priceBook).values({ userId: u.id, description: 'Elbow', price: '5' });
   await db.insert(aiGenerations).values({ userId: u.id, quoteId: q.id, input: '{}', response: '{}' });
   await db.insert(sessions).values({ sid: `sid-${tag}-${stamp}`, sess: { localUserId: u.id, cookie: {} }, expire: new Date(Date.now() + 3600_000) });
   return u.id;
@@ -59,7 +58,6 @@ async function counts(userId: string): Promise<Record<string, number>> {
     job_templates: await n(db.select({ n: sql<number>`count(*)` }).from(jobTemplates).where(eq(jobTemplates.userId, userId))),
     xero_tokens: await n(db.select({ n: sql<number>`count(*)` }).from(xeroTokens).where(eq(xeroTokens.userId, userId))),
     user_settings: await n(db.select({ n: sql<number>`count(*)` }).from(userSettings).where(eq(userSettings.userId, userId))),
-    price_book: await n(db.select({ n: sql<number>`count(*)` }).from(priceBook).where(eq(priceBook.userId, userId))),
     ai_generations: await n(db.select({ n: sql<number>`count(*)` }).from(aiGenerations).where(eq(aiGenerations.userId, userId))),
   };
 }

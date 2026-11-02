@@ -2378,18 +2378,6 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
     }
   });
 
-  // ─── Price Book (removed) ───
-  // The price book is gone. Builds without the OTA update still load it, so GET
-  // answers an empty list without touching the database (an error would break
-  // that screen), and writes get 410 Gone. A plain 404 isn't possible here: in
-  // production unmatched paths fall through to index.html with a 200.
-  app.get("/api/price-book", requireAuth, (_req, res) => {
-    res.json([]);
-  });
-  app.all(["/api/price-book", "/api/price-book/:id"], requireAuth, (_req, res) => {
-    res.status(410).json({ message: "The price book has been removed. Update the app to the latest version." });
-  });
-
   // ─── Frequent Job Types ───
 
   app.get("/api/templates/frequent", requireAuth, async (req: any, res) => {
