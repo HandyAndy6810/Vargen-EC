@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
+import { registerApiNotFound } from "./lib/api-not-found";
 import { createServer } from "http";
 import { resolveDatabaseUrl } from "./lib/database-url";
 
@@ -147,6 +148,10 @@ httpServer.listen(
 
 (async () => {
   await registerRoutes(httpServer, app);
+  // After every real route (all registered inside registerRoutes, synchronously),
+  // before the web app's catch-all below: an unknown /api path is a JSON 404, not
+  // index.html with a 200.
+  registerApiNotFound(app);
 
   // Generic error handler — never expose stack traces to clients
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
