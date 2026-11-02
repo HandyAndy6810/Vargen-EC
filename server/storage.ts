@@ -2,6 +2,7 @@ import { db } from "./db";
 import {
   customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
   invoices, portalFeedback, jobTemplates, receipts, customerMessages, aiGenerations,
+  priceBook, sessions, users,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem,
@@ -13,7 +14,7 @@ import {
   type CustomerMessage, type InsertCustomerMessage,
   type AiGeneration, type InsertAiGeneration,
 } from "../shared/schema";
-import { eq, desc, and, or, sql, getTableColumns } from "drizzle-orm";
+import { eq, desc, and, or, sql, inArray, getTableColumns } from "drizzle-orm";
 
 export interface IStorage {
   // Customers (userId-scoped)
@@ -40,6 +41,9 @@ export interface IStorage {
   deleteQuote(id: number, userId: string): Promise<void>;
   /** Create, unless this user already has a quote with this clientId: then return that one. */
   createQuoteOnce(quote: InsertQuote, clientId: string): Promise<{ quote: Quote; created: boolean }>;
+
+  /** Delete the account and every row belonging to it, in one transaction. */
+  deleteAccount(userId: string): Promise<void>;
 
   // AI generations (the correction record)
   createAiGeneration(row: InsertAiGeneration): Promise<AiGeneration>;
@@ -307,6 +311,50 @@ export class DatabaseStorage implements IStorage {
       // The AI's record of this quote is the tradie's data too: it goes with it.
       await tx.delete(aiGenerations).where(and(eq(aiGenerations.quoteId, id), eq(aiGenerations.userId, userId)));
       await tx.delete(quotes).where(and(eq(quotes.id, id), eq(quotes.userId, userId)));
+    });
+  }
+
+  // ── Account deletion ──────────────────────────────────────────────────
+  /**
+   * Everything the user owns, then the user. One transaction: it all goes, or (on
+   * any error) nothing does. Ordered by the foreign keys in shared/schema.ts:
+   * children before parents, and the quotes ⇄ jobs ⇄ invoices links cleared
+   * first because jobs point at quotes and invoices while quotes point at jobs.
+   *
+   * Not here, because nothing in them belongs to a user: conversations and
+   * messages (the chat integration's tables have no owner column).
+   */
+  async deleteAccount(userId: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      const myQuotes = tx.select({ id: quotes.id }).from(quotes).where(eq(quotes.userId, userId));
+
+      // Break the cycles first.
+      await tx.update(jobs).set({ quoteId: null, invoiceId: null }).where(eq(jobs.userId, userId));
+      await tx.update(quotes).set({ jobId: null }).where(eq(quotes.userId, userId));
+
+      // Rows that hang off the user's quotes.
+      await tx.delete(aiGenerations).where(eq(aiGenerations.userId, userId));
+      await tx.delete(quoteItems).where(inArray(quoteItems.quoteId, myQuotes));
+      await tx.delete(portalFeedback).where(inArray(portalFeedback.quoteId, myQuotes));
+
+      // The documents, then what they point at.
+      await tx.delete(invoices).where(eq(invoices.userId, userId));
+      await tx.delete(jobs).where(eq(jobs.userId, userId));
+      await tx.delete(quotes).where(eq(quotes.userId, userId));
+      await tx.delete(customerMessages).where(eq(customerMessages.userId, userId));
+      await tx.delete(receipts).where(eq(receipts.userId, userId));
+      await tx.delete(customers).where(eq(customers.userId, userId));
+
+      // Account-level rows.
+      await tx.delete(jobTemplates).where(eq(jobTemplates.userId, userId));
+      await tx.delete(xeroTokens).where(eq(xeroTokens.userId, userId));
+      await tx.delete(userSettings).where(eq(userSettings.userId, userId));
+      // Deprecated table, still in the database until it's dropped by hand.
+      await tx.delete(priceBook).where(eq(priceBook.userId, userId));
+
+      // Every signed-in session (the user id lives inside the session JSON), then the user.
+      await tx.delete(sessions).where(sql`${sessions.sess} ->> 'localUserId' = ${userId}`);
+      await tx.delete(users).where(eq(users.id, userId));
     });
   }
 
