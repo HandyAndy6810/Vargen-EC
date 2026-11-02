@@ -2,7 +2,7 @@ import { db } from "./db";
 import {
   customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
   invoices, portalFeedback, jobTemplates, receipts, customerMessages, aiGenerations,
-  priceBook, sessions, users,
+  sessions, users,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem,
@@ -349,8 +349,6 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(jobTemplates).where(eq(jobTemplates.userId, userId));
       await tx.delete(xeroTokens).where(eq(xeroTokens.userId, userId));
       await tx.delete(userSettings).where(eq(userSettings.userId, userId));
-      // Deprecated table, still in the database until it's dropped by hand.
-      await tx.delete(priceBook).where(eq(priceBook.userId, userId));
 
       // Every signed-in session (the user id lives inside the session JSON), then the user.
       await tx.delete(sessions).where(sql`${sessions.sess} ->> 'localUserId' = ${userId}`);
