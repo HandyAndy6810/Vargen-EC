@@ -22,6 +22,7 @@ import Portal from "@/pages/Portal";
 import Invoices from "@/pages/Invoices";
 import InvoiceDetail from "@/pages/InvoiceDetail";
 import InvoicePreview from "@/pages/InvoicePreview";
+import InvoiceShared from "@/pages/InvoiceShared";
 import ResetPassword from "@/pages/ResetPassword";
 
 function Router() {
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/quotes/:id/preview" component={QuotePreview} />
       <Route path="/portal/:token" component={Portal} />
       <Route path="/invoices/:id/preview" component={InvoicePreview} />
+      <Route path="/invoice/:token" component={InvoiceShared} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route>
         {() => (

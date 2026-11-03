@@ -38,6 +38,10 @@ export interface IStorage {
   createQuote(quote: InsertQuote): Promise<Quote>;
   updateQuote(id: number, quote: Partial<InsertQuote>, userId?: string): Promise<Quote>;
   getQuoteByShareToken(token: string): Promise<Quote | undefined>;
+  /** Public: the invoice behind a customer's link. No owner filter, by design. */
+  getInvoiceByShareToken(token: string): Promise<Invoice | undefined>;
+  /** The invoice's share token, creating one if it has none. Owner-scoped. */
+  ensureInvoiceShareToken(id: number, userId: string): Promise<Invoice | undefined>;
   deleteQuote(id: number, userId: string): Promise<void>;
   /** Create, unless this user already has a quote with this clientId: then return that one. */
   createQuoteOnce(quote: InsertQuote, clientId: string): Promise<{ quote: Quote; created: boolean }>;
@@ -465,6 +469,19 @@ export class DatabaseStorage implements IStorage {
       await tx.update(jobs).set({ invoiceId: null }).where(and(eq(jobs.invoiceId, id), eq(jobs.userId, userId)));
       await tx.delete(invoices).where(and(eq(invoices.id, id), eq(invoices.userId, userId)));
     });
+  }
+
+  async getInvoiceByShareToken(token: string): Promise<Invoice | undefined> {
+    const [invoice] = await db.select().from(invoices).where(eq(invoices.shareToken, token));
+    return invoice;
+  }
+
+  async ensureInvoiceShareToken(id: number, userId: string): Promise<Invoice | undefined> {
+    // Only fills a missing token (the WHERE), so a link already sent keeps working.
+    await db.update(invoices).set({ shareToken: crypto.randomUUID() })
+      .where(and(eq(invoices.id, id), eq(invoices.userId, userId), sql`${invoices.shareToken} is null`));
+    const [invoice] = await db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.userId, userId)));
+    return invoice;
   }
 
   async getInvoice(id: number, userId?: string): Promise<Invoice | undefined> {

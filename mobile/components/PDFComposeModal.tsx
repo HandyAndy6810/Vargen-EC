@@ -25,6 +25,8 @@ interface Props {
   totalAmount: number;
   initialNotes?: string;
   isPending?: boolean;
+  /** Once the sheet has fully gone: when to open the share sheet (see BottomSheetModal). */
+  onClosed?: () => void;
 }
 
 export default function PDFComposeModal({
@@ -38,6 +40,7 @@ export default function PDFComposeModal({
   totalAmount,
   initialNotes = '',
   isPending = false,
+  onClosed,
 }: Props) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -60,7 +63,7 @@ export default function PDFComposeModal({
   const amt = totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <BottomSheetModal visible={visible} onClose={onClose}>
+    <BottomSheetModal visible={visible} onClose={onClose} onClosed={onClosed}>
       <View style={s.sheet}>
             {/* Handle */}
             <View style={s.handle} />
