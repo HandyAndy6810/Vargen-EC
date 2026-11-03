@@ -311,7 +311,7 @@ export default function QuoteDetailScreen() {
           <Text style={s.eyebrow}>{num}</Text>
           <Text style={s.title} numberOfLines={1}>{title}</Text>
         </View>
-        <TouchableOpacity style={s.iconBtn} activeOpacity={0.7} onPress={handleMore}>
+        <TouchableOpacity style={s.iconBtn} activeOpacity={0.7} onPress={handleMore} accessibilityRole="button" accessibilityLabel="More actions">
           <MoreHorizontal size={18} color={c.ink} strokeWidth={2} />
         </TouchableOpacity>
       </View>

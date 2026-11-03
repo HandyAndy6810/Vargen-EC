@@ -31,6 +31,7 @@ export function BottomSheetModal({
   dim = 0.45,
   /** Lift the sheet clear of the keyboard. Only needed when it holds an input. */
   avoidKeyboard = true,
+  onClosed,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -38,15 +39,32 @@ export function BottomSheetModal({
   sheetStyle?: StyleProp<ViewStyle>;
   dim?: number;
   avoidKeyboard?: boolean;
+  /**
+   * Called once the sheet has fully gone, native modal included. Anything that
+   * presents something of its own (a share sheet, an alert, another modal) must
+   * wait for this: on iOS it would otherwise be presented ON the closing modal and
+   * be torn down with it, a share sheet that "shows for 2 seconds".
+   */
+  onClosed?: () => void;
 }) {
   // Kept mounted until the closing animation finishes — unmounting on `visible`
   // alone would cut the exit off and make the sheet vanish rather than leave.
   const [mounted, setMounted] = useState(visible);
+  // Whether a close is waiting to be reported through onClosed.
+  const closing = useRef(false);
+  const onClosedRef = useRef(onClosed);
+  onClosedRef.current = onClosed;
+  const reportClosed = () => {
+    if (!closing.current) return;
+    closing.current = false;
+    onClosedRef.current?.();
+  };
   const [sheetH, setSheetH] = useState(0);
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
+      closing.current = false;
       setMounted(true);
       Animated.timing(anim, {
         toValue: 1,
@@ -63,12 +81,24 @@ export function BottomSheetModal({
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }).start(({ finished }) => {
-        if (finished) setMounted(false);
+        if (!finished) return;
+        closing.current = true;
+        setMounted(false);
       });
     }
   }, [visible, anim]);
 
-  if (!mounted) return null;
+  // The native modal is gone: on iOS when it reports onDismiss (below), with a
+  // short safety net in case that never arrives; on Android as soon as it's
+  // unmounted, where nothing is presented on top of it.
+  useEffect(() => {
+    if (mounted || !closing.current) return;
+    if (Platform.OS !== 'ios') { reportClosed(); return; }
+    const t = setTimeout(reportClosed, 600);
+    return () => clearTimeout(t);
+  }, [mounted]);
+
+  if (!mounted && !closing.current) return null;
 
   const sheet = (
     <Animated.View
@@ -89,7 +119,14 @@ export function BottomSheetModal({
   );
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <Modal
+      visible={mounted}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      onDismiss={Platform.OS === 'ios' ? reportClosed : undefined}
+      statusBarTranslucent
+    >
       <Animated.View
         style={[
           StyleSheet.absoluteFill,

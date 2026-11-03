@@ -245,6 +245,29 @@ The ones that bite real users:
 
 ---
 
+## 14. Regression checks — 3 Nov 2026 test run
+
+Each line is a launch blocker from Andrew's 66-test run on 3 Nov 2026, under the
+same test ID, with what fixed it. Re-check these on every build.
+
+### Sending a quote (Group A)
+
+- [ ] **s1** New quote with a customer attached on Describe → Review → **Send to
+      customer** opens the **"Send this quote"** menu (Email customer, Send SMS,
+      Share link, Share PDF). It did nothing: the menu was never rendered on Review.
+- [ ] **s2** New quote with no customer → Send → "Who's this going to?" → pick an
+      existing customer → **"How do you want to send it?"** lists the channels in the
+      same sheet. Same again via **Add someone new** → Create and send: Email/SMS
+      are offered straight away for the new customer.
+- [ ] **s3** Email customer opens the mail app addressed to the customer, with the
+      total and a **link** (`…/portal/…`). Open the link: the portal shows the quote
+      with Accept / Decline.
+- [ ] **s4** Send SMS opens Messages to the customer's number with the message and
+      **link already filled in** (iPhone and Android).
+- [ ] **s5** Share link (from Send, and from a sent quote's ⋯ menu) — the share
+      sheet **stays open** until you pick an app or cancel. Check an old quote
+      (sent before 2 Nov) and a new one. It used to vanish after a moment.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what
