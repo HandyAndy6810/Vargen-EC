@@ -20,6 +20,7 @@ import { checkLinePrice } from '@shared/price-sanity';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { useSettings } from '@/hooks/use-settings';
 import { MarkupSlider } from '@/components/MarkupSlider';
+import { ActionSheetModal } from '@/components/ActionSheetModal';
 import { buildQuotePDF } from '@/lib/quote-pdf';
 import { fitToWidthHtml } from '@/lib/pdf-templates';
 import { showConfirm, showAlert } from '@/lib/dialogs';
@@ -513,6 +514,14 @@ export default function ReviewStep() {
         </View>
       </Modal>
 
+      {/* The send menu. It was dropped in a10e3e5 ("Quote flow: Describe → Review"),
+          which left Send setting showSendSheet with nothing on screen to show it. */}
+      <ActionSheetModal
+        visible={d.showSendSheet}
+        onClose={() => d.setShowSendSheet(false)}
+        title="Send this quote"
+        actions={d.sendActions}
+      />
     </SafeAreaView>
   );
 }

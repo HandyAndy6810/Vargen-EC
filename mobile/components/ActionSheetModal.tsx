@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { BottomSheetModal } from '@/components/BottomSheetModal';
 
@@ -27,8 +27,17 @@ export function ActionSheetModal({
 }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
+  // The chosen action runs once the sheet has fully gone (onClosed), not on a
+  // timer: a share sheet or alert opened while this modal was still closing was
+  // presented on it and dismissed with it a moment later.
+  const pending = useRef<null | (() => void)>(null);
+  const runPending = () => {
+    const run = pending.current;
+    pending.current = null;
+    run?.();
+  };
   return (
-    <BottomSheetModal visible={visible} onClose={onClose}>
+    <BottomSheetModal visible={visible} onClose={onClose} onClosed={runPending}>
       <View style={s.sheet}>
         <View style={s.handle} />
         {title ? <Text style={s.title}>{title}</Text> : null}
@@ -40,9 +49,8 @@ export function ActionSheetModal({
             accessibilityRole="button"
             accessibilityLabel={a.label}
             onPress={() => {
+              pending.current = a.onPress;
               onClose();
-              // Let the modal dismiss before the action runs (some actions open other modals/alerts)
-              setTimeout(a.onPress, 50);
             }}
           >
             {a.icon}

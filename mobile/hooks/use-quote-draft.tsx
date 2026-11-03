@@ -140,6 +140,8 @@ type QuoteDraft = {
   hasWork: () => boolean;
   showSendSheet: boolean; setShowSendSheet: (v: boolean) => void;
   handleSendPress: () => void;
+  /** The checks Send makes (online, the quote is complete). True when it can go. */
+  prepareSend: () => boolean;
   sendActions: SheetAction[];
   // AI assist inside the manual flow
   aiBusy: boolean;
@@ -350,6 +352,12 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     };
   };
 
+  /** Leave the create flow cleanly: clear its sub-stack and land on the quotes list. */
+  const leaveFlow = () => {
+    try { router.dismissAll(); } catch {}
+    router.replace('/(tabs)/quotes');
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (status: 'draft' | 'sent'): Promise<{ offline?: boolean; quote?: { id: number; portalUrl?: string } }> => {
       const body = buildQuoteBody(status);
@@ -379,7 +387,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       // rebuilds them from content.items in one transaction on save.
       return { quote: saved };
     },
-    onSuccess: (result) => {
+    onSuccess: (result, status) => {
       hapticSuccess();
       if (result?.offline) {
         toast({ title: 'Saved on this phone', description: "No connection. It'll sync as soon as you're back online." });
@@ -388,10 +396,9 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       // back as a ghost.
       clearQuoteDraft();
       queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-      // Leave the whole flow cleanly — clear the create sub-stack, then land on
-      // the quotes list rather than an intermediate step.
-      try { router.dismissAll(); } catch {}
-      router.replace('/(tabs)/quotes');
+      // A send leaves the flow only after the channel has opened (sendViaChannel):
+      // navigating away here tore down the share sheet or mail composer it opened.
+      if (status !== 'sent') leaveFlow();
     },
     onError: (err, status) => {
       hapticError();
@@ -422,30 +429,43 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       lines.some(l => l.name.trim() || l.qty !== '1' || l.price.trim()));
 
   const [showSendSheet, setShowSendSheet] = useState(false);
-  const handleSendPress = () => {
+  const prepareSend = () => {
     if (!onlineManager.isOnline()) {
       showAlert('Needs a connection', "Sending needs a connection. Save it as a draft for now and send it once you're back online.");
-      return;
+      return false;
     }
-    if (validateForm()) setShowSendSheet(true);
+    return validateForm();
   };
+  const handleSendPress = () => { if (prepareSend()) setShowSendSheet(true); };
   /**
    * Save as sent, then hand the customer their link. Every channel waits for the
    * saved quote's portalUrl (built by the server): the link to view, accept or
    * decline the quote is the whole point of sending it. With no link the message
    * isn't sent at all, rather than going out empty.
    */
-  const sendViaChannel = (open: (portalUrl: string) => void) =>
-    saveMutation.mutate('sent', {
-      onSuccess: (result) => {
-        const url = result?.quote?.portalUrl;
-        if (!url) {
-          showAlert('Could not get the quote link', "The quote is saved as sent, but its link didn't come back. Open it from your quotes list and use Share link to send it.");
-          return;
-        }
-        open(url);
-      },
-    });
+  const sendViaChannel = async (open: (portalUrl: string) => Promise<unknown> | void) => {
+    let result: Awaited<ReturnType<typeof saveMutation.mutateAsync>>;
+    try {
+      result = await saveMutation.mutateAsync('sent');
+    } catch {
+      return; // onError has already told the tradie why
+    }
+    const url = result?.quote?.portalUrl;
+    if (!url) {
+      leaveFlow();
+      toast({ title: 'Could not get the quote link', description: 'The quote is saved as sent. Open it from your quotes list and use Share link to send it.', variant: 'destructive' });
+      return;
+    }
+    try {
+      // Awaited: Share.share resolves once its sheet is closed, openURL once the
+      // mail or messages app has taken over. Only then is it safe to leave.
+      await open(url);
+    } catch (e: any) {
+      toast({ title: "Couldn't open that", description: 'The quote is sent. Use Share link from the quote to send it another way.', variant: 'destructive' });
+    } finally {
+      leaveFlow();
+    }
+  };
   const message = (portalUrl: string) => ({
     customerName: customer, businessName: settings?.businessName, jobTitle,
     total, includeGST, portalUrl,
@@ -794,7 +814,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     editLineIdx, editLineDraft, setEditLineDraft, openLineEdit, saveLineEdit, deleteLineFromModal, addLine, closeLineEdit,
     subtotal, gst, total, totalCost, profit, includeGST, gstRate,
     error, setError, saving: saveMutation.isPending, save, hasWork,
-    showSendSheet, setShowSendSheet, handleSendPress, sendActions,
+    showSendSheet, setShowSendSheet, handleSendPress, prepareSend, sendActions,
     aiBusy, generateItemsWithAI, generateFromDescription,
   };
 

@@ -26,13 +26,18 @@ export default function SendGateSheet() {
   const [newName, setNewName] = useState('');
   const [newContact, setNewContact] = useState('');
   const [creating, setCreating] = useState(false);
+  // Once there's a customer, the channels are offered right here in this sheet.
+  // Closing it and opening a second menu from Review in the same moment was how
+  // Send "did nothing": iOS won't present a modal while a sheet is still closing.
+  const [choosingChannel, setChoosingChannel] = useState(false);
+
+  const toChannels = () => { if (d.prepareSend()) setChoosingChannel(true); };
 
   const pick = (cust: any) => {
     hapticPress();
     d.setCustomerId(cust.id);
     d.setCustomer(cust.name);
-    router.back();
-    d.handleSendPress();
+    toChannels();
   };
 
   /**
@@ -53,22 +58,52 @@ export default function SendGateSheet() {
       });
       if (res.ok) {
         const created = await res.json();
+        // Into the cached list straight away, so Email/SMS (which need the
+        // customer's address or number) are offered without waiting for a refetch.
+        queryClient.setQueryData(['/api/customers'], (old: any) =>
+          Array.isArray(old) ? [created, ...old.filter((x: any) => x?.id !== created?.id)] : [created]);
         d.setCustomerId(created?.id ?? null);
         queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
       }
       // Even if the record couldn't be created, keep the name so the quote can still
       // go out — the contact can be tidied up afterwards.
       d.setCustomer(name);
-      router.back();
-      d.handleSendPress();
+      toChannels();
     } catch {
       d.setCustomer(name);
-      router.back();
-      d.handleSendPress();
+      toChannels();
     } finally {
       setCreating(false);
     }
   };
+
+  if (choosingChannel) {
+    return (
+      <View style={s.wrap}>
+        <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+          <Text style={s.title}>How do you want to send it?</Text>
+          <Text style={s.sub}>To {d.customer || 'your customer'}. Each way sends them a link to view and accept the quote.</Text>
+          {d.saving ? <ActivityIndicator color={c.orange} style={{ marginVertical: 12 }} /> : null}
+          {d.sendActions.map((a) => (
+            <TouchableOpacity
+              key={a.label}
+              style={s.channel}
+              activeOpacity={0.75}
+              disabled={d.saving}
+              onPress={() => { hapticPress(); a.onPress(); }}
+              accessibilityRole="button"
+              accessibilityLabel={a.label}
+            >
+              <Text style={s.channelText}>{a.label}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity style={s.ghost} activeOpacity={0.7} onPress={() => setChoosingChannel(false)} disabled={d.saving}>
+            <Text style={s.ghostText}>Choose a different customer</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <View style={s.wrap}>
@@ -109,7 +144,7 @@ export default function SendGateSheet() {
             <TouchableOpacity
               style={s.ghost}
               activeOpacity={0.7}
-              onPress={() => { router.back(); d.shareAnyway(); }}
+              onPress={() => { d.shareAnyway(); }}
               accessibilityRole="button"
               accessibilityLabel="Share the quote another way"
             >
@@ -192,4 +227,9 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     height: 48, marginTop: 4,
   },
   ghostText: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.mutedHi },
+  channel: {
+    height: 52, borderRadius: 16, marginTop: 10, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid,
+  },
+  channelText: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
 });
