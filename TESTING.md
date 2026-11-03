@@ -296,6 +296,16 @@ same test ID, with what fixed it. Re-check these on every build.
 - [ ] **q6** Turn **Mark up labour too** on (it saves itself). The **first** quote
       after: the same 2 hr labour line is **$540**. Off again: $300.
 
+### Forgot password (Group D)
+
+- [ ] **su7** Login → Forgot password → enter your email → "Check your email". The
+      email arrives (check spam). Its **Reset Password** link opens a page on the
+      phone; set a new password → "Password updated"; the app signs in with the
+      **new** password, not the old one; the same link doesn't work twice. An
+      unknown email gets the same "Check your email" screen.
+- [ ] **su7 server** After a Republish, the deploy log shows
+      `[email] sending through Resend as …`, not `RESEND_API_KEY is not set`.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what

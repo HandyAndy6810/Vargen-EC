@@ -13,6 +13,14 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || "noreply@vargen.app";
 
+// Without a key every email (password resets, invoice emails) is only logged, and
+// the person waiting for it gets nothing. Say so at startup, in the deploy log.
+if (!RESEND_API_KEY && process.env.NODE_ENV === "production") {
+  console.warn("[email] RESEND_API_KEY is not set: password reset and customer emails are NOT being sent, only logged.");
+} else if (RESEND_API_KEY) {
+  console.log(`[email] sending through Resend as ${EMAIL_FROM}${process.env.EMAIL_FROM ? "" : " (EMAIL_FROM not set: default)"}`);
+}
+
 async function sendViaResend(to: string, subject: string, html: string): Promise<void> {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
