@@ -284,6 +284,18 @@ same test ID, with what fixed it. Re-check these on every build.
       the sender domain verified in Resend, ⋯ → Edit invoice → Send by any channel
       sends no second email; Resend (if used) delivers with the `/invoice/` link.
 
+### Settings reach the next quote (Group C)
+
+- [ ] **st4** Settings → AI quoting: switch Call-out fee on, type **120**, Save. The
+      next AI quote has **exactly one "Call-out fee" line at $120**. Switch it off,
+      Save: the next quote has none. Tapping the call-out amount: the field
+      **scrolls into view above the keyboard the first time** (iPhone and Android).
+- [ ] **q5** AI quoting: type Charge out rate **150** and markup **80**, flip a switch,
+      then Save. The fields keep 150/80 (they used to snap back), and the **first**
+      quote after: a 2 hr labour line is **$300**, materials get 80%.
+- [ ] **q6** Turn **Mark up labour too** on (it saves itself). The **first** quote
+      after: the same 2 hr labour line is **$540**. Off again: $300.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what
