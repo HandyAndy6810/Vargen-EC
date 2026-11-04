@@ -66,6 +66,11 @@ export function useUpdateSettings() {
       if (!res.ok) throw new Error('Failed to save settings');
       return res.json();
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
+    // The saved row straight into the cache, so the very next screen (a new quote)
+    // reads the new values; the refetch then just confirms them.
+    onSuccess: (saved) => {
+      if (saved && typeof saved === 'object') qc.setQueryData(QK, saved);
+      return qc.invalidateQueries({ queryKey: QK });
+    },
   });
 }

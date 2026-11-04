@@ -256,6 +256,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     setNotes(c.notes || '');
     if (typeof (c as any).markupPct === 'number') setMarkupPct((c as any).markupPct);
     setMarkupLabourFixed(savedMarkupLabour(c));
+    ownMarkup.current = true;
     if (Array.isArray((c as any).assumptions)) setAssumptions((c as any).assumptions);
     if (typeof (c as any).roundUp === 'boolean') setRoundUp((c as any).roundUp);
     // items FIRST. Both records describe the same lines, but items carries the
@@ -499,10 +500,30 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   // markup already restored from a saved quote or chosen on the slider — Settings
   // can arrive after the tradie has already moved it.
   const seededMarkup = useRef(false);
+  // The tradie's own markup for THIS quote (slider, restored draft, saved quote):
+  // an AI result never overrides it. Otherwise the AI result's `pricing` wins.
+  const ownMarkup = useRef(false);
   const chooseMarkup = useCallback((pct: number) => {
     seededMarkup.current = true;
+    ownMarkup.current = true;
     setMarkupPct(pct);
   }, []);
+
+  /**
+   * Price with what the server priced with. It reads the SAVED settings, while this
+   * draft's copy of settings can be a change behind, which is why a settings change
+   * used to apply only "on the second attempt" (q5, q6). The lines just generated
+   * were costed under data.pricing.markupLabour, so the draft must use it too.
+   */
+  const adoptPricing = (data: any) => {
+    const p = data?.pricing;
+    if (!p) return; // a server from before this change
+    if (typeof p.markupLabour === 'boolean') setMarkupLabourFixed(p.markupLabour);
+    if (!ownMarkup.current && typeof p.markupPercent === 'number') {
+      setMarkupPct(p.markupPercent);
+      seededMarkup.current = true;
+    }
+  };
   useEffect(() => {
     if (seededMarkup.current || isEditing) return;
     const m = settings?.markupPercent;
@@ -557,6 +578,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     if (typeof r.markupPct === 'number') setMarkupPct(r.markupPct);
     // A draft cached before the setting existed was priced with labour marked up.
     setMarkupLabourFixed(savedMarkupLabour(r));
+    ownMarkup.current = true;
     if (r.draftKey) draftKey.current = r.draftKey;
     if (r.generationId) setGenerationId(r.generationId);
     if (r.clientId) clientId.current = r.clientId;
@@ -633,6 +655,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
 
   const applyAi = (data: any, description: string) => {
     const newLines = linesFromAi(data);
+    if (newLines.length) adoptPricing(data);
     if (!newLines.length) throw new Error("AI didn't return any line items.");
     setLines(newLines);
     if (data.jobTitle) setJobTitle(String(data.jobTitle));
@@ -767,6 +790,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       const desc = [jobTitle.trim(), notes.trim()].filter(Boolean).join(' — ');
       const data = await callAi(desc);
       const newLines = linesFromAi(data);
+      if (newLines.length) adoptPricing(data);
       if (!newLines.length) throw new Error("AI didn't return any line items.");
       setLines(newLines);
     } catch (e: any) {

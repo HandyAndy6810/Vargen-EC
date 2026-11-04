@@ -717,6 +717,12 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
         cost: it.unitCost != null ? String(it.unitCost) : undefined,
         category: String(it.category || '').toLowerCase() === 'labour' ? 'labour' : 'material',
       })));
+      // Price with what the server priced with (the SAVED settings): these lines
+      // were costed under it. This draft otherwise started at a fixed 30% markup.
+      if (data?.pricing) {
+        if (typeof data.pricing.markupLabour === 'boolean') setMarkupLabourFixed(data.pricing.markupLabour);
+        if (typeof data.pricing.markupPercent === 'number') setMarkupPct(data.pricing.markupPercent);
+      }
       if (data.jobTitle) setJobTitle(String(data.jobTitle));
       if (data.summary) setSummary(String(data.summary));
       else if (description.trim()) setSummary(description.trim());

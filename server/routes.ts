@@ -8,6 +8,7 @@ import { num, round2, totalsFor, gstRateFor } from "../shared/money";
 import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
 import { labourLineCost } from "./lib/labour-cost";
+import { resolvePricingInputs, enforceCallOut } from "./lib/pricing-inputs";
 import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
 import { firstSendFields, publicBaseUrl, withPortalUrl } from "./lib/quote-send";
 import { buildInvoiceView, withInvoiceUrl } from "./lib/invoice-view";
@@ -1031,7 +1032,7 @@ Do not invent details. If unsure of a field, use an empty string.`;
     // generation failed — losing the real provider error behind a bare 500.
     let sentImage = false;
     try {
-      const { description, imageBase64, customerName, tradeType, labourRate, markupPercent, callOutFee, includeGST, targetPrice, markupLabour, labourCostRate } = req.body;
+      const { description, imageBase64, customerName, targetPrice } = req.body;
 
       if (!description || typeof description !== "string") {
         return res.status(400).json({ message: "Job description is required" });
@@ -1039,22 +1040,20 @@ Do not invent details. If unsure of a field, use an empty string.`;
 
       const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
 
-      const labourRateNum = typeof labourRate === "number" && labourRate > 0 ? labourRate : null;
-      const markupNum = typeof markupPercent === "number" ? markupPercent : 0;
+      // Priced with the SAVED settings (server/lib/pricing-inputs.ts): the app's
+      // cached copy could be a change behind, which is why a settings change only
+      // applied "on the second attempt". The request body is only a fallback for
+      // an account with no settings row. What was used goes back as `pricing`.
+      const pricing = resolvePricingInputs(await storage.getUserSettings(req.userId), req.body);
+      const tradeType = pricing.tradeType;
       // labourRate is the CHARGE-OUT rate: what the customer pays per hour. Only
       // with "Mark up labour too" on does the markup apply to labour as well.
-      // Builds from before the setting send neither field; they get materials-only
-      // wording and labour lines with no cost (see below), which their money code
-      // prices at the rate rather than marking it up.
-      const markupLabourOn = markupLabour === true;
-      const labourCostNum = typeof labourCostRate === "number" && labourCostRate > 0 ? labourCostRate : null;
-      // The app sent the fee whether or not its switch was on, and the fee has a
-      // default of $80 — so every AI quote got a call-out line the tradie had
-      // switched off. The saved switch is authoritative, which also covers builds
-      // already on phones that still send the fee unconditionally.
-      const callOutSettings = await storage.getUserSettings(req.userId);
-      const callOutNum = callOutSettings?.callOutFeeEnabled && typeof callOutFee === "number" && callOutFee > 0 ? callOutFee : 0;
-      const gstEnabled = includeGST === true;
+      const labourRateNum = pricing.labourRate;
+      const markupNum = pricing.markupPercent;
+      const markupLabourOn = pricing.markupLabour;
+      const labourCostNum = pricing.labourCostRate;
+      const callOutNum = pricing.callOutFee;
+      const gstEnabled = pricing.includeGST;
 
       let pricingInstructions = "";
       if (labourRateNum && markupLabourOn) {
@@ -1341,7 +1340,15 @@ CRITICAL RULES — follow these exactly:
             priceNote: flag?.message,
           };
         });
+        // The saved call-out fee, exactly once, whatever the model did with it.
+        parsed.items = enforceCallOut(parsed.items, callOutNum);
       }
+      // What this quote was priced with, so the phone prices with the same values
+      // rather than its own (possibly older) copy of settings.
+      parsed.pricing = {
+        labourRate: labourRateNum, markupPercent: markupNum, markupLabour: markupLabourOn,
+        labourCostRate: labourCostNum, callOutFee: callOutNum, includeGST: gstEnabled,
+      };
 
       // Keep the generation exactly as the phone receives it: the correction record
       // compares it with what the tradie finally sends. A failed write never costs

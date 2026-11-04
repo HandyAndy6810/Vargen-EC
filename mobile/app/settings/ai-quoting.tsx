@@ -1,5 +1,5 @@
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Switch, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Switch, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '@/lib/dialogs';
@@ -49,8 +49,14 @@ export default function AiQuotingScreen() {
     callOutFeeEnabled: false,
   });
 
+  // Seeded from the server ONCE. This used to re-seed on every settings refetch,
+  // and flipping a switch saves (autoSave) and so refetches: anything typed but not
+  // yet saved, the charge-out rate or markup, snapped back before Save was pressed
+  // (q5). Hence "it only applies on the second attempt".
+  const seeded = useRef(false);
   useEffect(() => {
-    if (settings) {
+    if (settings && !seeded.current) {
+      seeded.current = true;
       setForm({
         tradeType: settings.tradeType || 'General',
         labourRate: String(settings.labourRate ?? 85),
@@ -63,10 +69,33 @@ export default function AiQuotingScreen() {
     }
   }, [settings]);
 
+  /** The typed fields, as the settings API takes them. */
+  const numbersOf = (f: typeof form) => ({
+    labourRate: parseInt(f.labourRate, 10) || 85,
+    markupPercent: Number.isFinite(parseInt(f.markupPercent, 10)) ? parseInt(f.markupPercent, 10) : 15,
+    // Blank means "not set": labour lines then report no cost.
+    labourCostRate: parseInt(f.labourCostRate, 10) > 0 ? parseInt(f.labourCostRate, 10) : null,
+    callOutFee: parseInt(f.callOutFee, 10) || 80,
+  });
+
+  // The call-out fee is the lowest input on the screen: once the keyboard is up,
+  // scroll it into view (st4: the keyboard covered it on the first try).
+  const scrollRef = useRef<ScrollView>(null);
+  const lowInputFocused = useRef(false);
+  useEffect(() => {
+    const sub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => {
+      if (lowInputFocused.current) requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+    });
+    return () => sub.remove();
+  }, []);
+
   const autoSave = (patch: Partial<typeof form>) => {
     const next = { ...form, ...patch };
     setForm(next);
+    // Everything on screen goes with the switch, typed numbers included, so a
+    // switch never saves an older version of the rest.
     update.mutate({
+      ...numbersOf(next),
       tradeType: next.tradeType,
       callOutFeeEnabled: next.callOutFeeEnabled,
       markupLabour: next.markupLabour,
@@ -76,13 +105,9 @@ export default function AiQuotingScreen() {
   const handleSave = async () => {
     try {
       await update.mutateAsync({
+        ...numbersOf(form),
         tradeType: form.tradeType,
-        labourRate: parseInt(form.labourRate, 10) || 85,
-        markupPercent: parseInt(form.markupPercent, 10) || 15,
-        // Blank means "not set": labour lines then report no cost.
-        labourCostRate: parseInt(form.labourCostRate, 10) > 0 ? parseInt(form.labourCostRate, 10) : null,
         markupLabour: form.markupLabour,
-        callOutFee: parseInt(form.callOutFee, 10) || 80,
         callOutFeeEnabled: form.callOutFeeEnabled,
       });
       router.back();
@@ -111,12 +136,13 @@ export default function AiQuotingScreen() {
           <Text style={s.eyebrow}>Pricing</Text>
           <Text style={s.title}>AI quoting</Text>
         </View>
-        <TouchableOpacity style={s.saveBtn} onPress={handleSave} activeOpacity={0.7} disabled={update.isPending}>
+        <TouchableOpacity style={s.saveBtn} onPress={handleSave} activeOpacity={0.7} disabled={update.isPending} accessibilityRole="button" accessibilityLabel="Save AI quoting settings">
           {update.isPending ? <ActivityIndicator size="small" color="#fff" /> : <Save size={18} color="#fff" strokeWidth={2.2} />}
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 130 }}>
         <View style={s.banner}>
           <Info size={16} color={c.orange} strokeWidth={2.1} style={{ marginTop: 1 }} />
           <Text style={s.bannerText}>
@@ -175,6 +201,7 @@ export default function AiQuotingScreen() {
                     maxLength={5}
                     placeholder={field.key === 'labourCostRate' ? '—' : undefined}
                     placeholderTextColor={c.muted}
+                    accessibilityLabel={field.label}
                   />
                   <Text style={{ fontSize: 12, color: c.muted, fontFamily: 'HostGrotesk_600SemiBold' }}>{field.suffix}</Text>
                 </View>
@@ -186,6 +213,7 @@ export default function AiQuotingScreen() {
                 <Text style={s.rowSub}>For cost-plus pricing across the whole job. Off: your charge out rate is what the customer pays.</Text>
               </View>
               <Switch
+                accessibilityLabel="Mark up labour too"
                 value={form.markupLabour}
                 onValueChange={(v) => autoSave({ markupLabour: v })}
                 trackColor={{ false: c.lineSoft, true: c.orange }}
@@ -206,11 +234,15 @@ export default function AiQuotingScreen() {
                       onChangeText={(v) => setForm(f => ({ ...f, callOutFee: v }))}
                       keyboardType="numeric"
                       maxLength={5}
+                      accessibilityLabel="Call-out fee amount"
+                      onFocus={() => { lowInputFocused.current = true; }}
+                      onBlur={() => { lowInputFocused.current = false; }}
                     />
                     <Text style={{ fontSize: 12, color: c.muted, fontFamily: 'HostGrotesk_600SemiBold' }}>$</Text>
                   </View>
                 )}
                 <Switch
+                  accessibilityLabel="Charge a call-out fee"
                   value={form.callOutFeeEnabled}
                   onValueChange={(v) => autoSave({ callOutFeeEnabled: v })}
                   trackColor={{ false: c.lineSoft, true: c.orange }}
@@ -228,6 +260,7 @@ export default function AiQuotingScreen() {
           <Text style={s.hint}>Tap Save to apply pricing changes to future AI quotes. GST is set in Quotes & invoices.</Text>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
