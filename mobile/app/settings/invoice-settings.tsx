@@ -1,23 +1,18 @@
-import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import { View, Text, TouchableOpacity, Switch, StyleSheet, ActivityIndicator, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '@/lib/dialogs';
-import { ChevronLeft } from 'lucide-react-native';
+import { ScreenGradient, GradientHeader, useGradientScroll, heroSecondary, wellFill } from '@/components/Rim';
+import { rimTile } from '@/theme/rim';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 
-function makeStyles(c: Colors) {
+function makeStyles(c: Colors, isDark: boolean) {
   return StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14, paddingTop: 4 },
-    backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
-    titleWrap: { flex: 1 },
-    eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
-    title: { fontSize: 20, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
     group: { paddingHorizontal: 20, paddingTop: 22 },
-    groupLabel: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
-    card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
+    groupLabel: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: heroSecondary(isDark), marginBottom: 8, marginLeft: 2 },
+    card: { ...rimTile(c, isDark), overflow: 'hidden' },
     row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14 },
-    rowDivider: { borderTopWidth: 1, borderTopColor: c.lineSoft },
+    rowDivider: { borderTopWidth: StyleSheet.hairlineWidth * 2, borderTopColor: c.lineSoft },
     rowLabel: { fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink, flex: 1 },
     rowSub: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2 },
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingBottom: 14 },
@@ -29,8 +24,9 @@ function makeStyles(c: Colors) {
 
 const TERM_DAYS = [7, 14, 21, 30];
 export default function InvoiceSettingsScreen() {
-  const { colors: c } = useTheme();
-  const s = makeStyles(c);
+  const { colors: c, isDark } = useTheme();
+  const { scrollY, scrollProps } = useGradientScroll();
+  const s = makeStyles(c, isDark);
   const { data: settings, isLoading } = useSettings();
   const update = useUpdateSettings();
 
@@ -54,18 +50,11 @@ export default function InvoiceSettingsScreen() {
   const gst = settings?.includeGST ?? true;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-      <View style={s.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" style={s.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
-        </TouchableOpacity>
-        <View style={s.titleWrap}>
-          <Text style={s.eyebrow}>Business</Text>
-          <Text style={s.title}>Quotes & invoices</Text>
-        </View>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
+      <ScreenGradient intensity="soft" scrollY={scrollY} />
+      <GradientHeader eyebrow="Business" title="Quotes & invoices" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+      <Animated.ScrollView {...scrollProps} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
         {/* Payment terms */}
         <View style={s.group}>
           <Text style={s.groupLabel}>Payment</Text>
@@ -82,7 +71,7 @@ export default function InvoiceSettingsScreen() {
                 return (
                   <TouchableOpacity
                     key={d}
-                    style={[s.chip, { backgroundColor: active ? c.orange : c.paperDeep, borderColor: active ? c.orange : c.lineSoft }]}
+                    style={[s.chip, { backgroundColor: active ? c.orange : wellFill(isDark), borderColor: active ? c.orange : c.lineSoft }]}
                     onPress={() => save({ paymentTermsDays: d })}
                     activeOpacity={0.7}
                   >
@@ -109,7 +98,7 @@ export default function InvoiceSettingsScreen() {
         <Text style={[s.hint, { paddingHorizontal: 22 }]}>
           Logo and bank details live in Business profile; colours, fonts and layout in Quote style.
         </Text>
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }

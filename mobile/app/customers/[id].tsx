@@ -2,6 +2,7 @@ import {
   View,
   Text,
   ScrollView,
+  Pressable,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -11,9 +12,11 @@ import {
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useState, useMemo } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenGradient, GlassButton, RimCard, heroSecondary } from '@/components/Rim';
+import { rimTile } from '@/theme/rim';
 import { showAlert, showConfirm } from '@/lib/dialogs';
-import { ChevronLeft, Phone, MessageSquare, Mail, MapPin, FileText, Pencil, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Phone, MessageSquare, Mail, MapPin, FileText, Pencil, Trash2, History } from 'lucide-react-native';
 import { useCustomer, useUpdateCustomer, useDeleteCustomer } from '@/hooks/use-customers';
 import { CustomerHistory } from '@/components/CustomerHistory';
 
@@ -48,8 +51,9 @@ function openMaps(address: string) {
 }
 
 export default function CustomerDetailScreen() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: customer, isLoading, isError, refetch } = useCustomer(Number(id));
   const { mutate: updateCustomer, isPending: isSaving } = useUpdateCustomer();
@@ -139,50 +143,59 @@ export default function CustomerDetailScreen() {
 
   const avatarLabel = initials(isEditing ? (editName || customer.name) : customer.name);
 
+  // Company and customer type arrive with the customer details work; shown
+  // whenever they're there.
+  const extra = customer as typeof customer & { companyName?: string | null; customerType?: string | null };
+  const subLine = [extra.companyName, extra.customerType ? TYPE_LABEL[extra.customerType] ?? extra.customerType : null]
+    .filter(Boolean).join(' · ');
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 60 }}>
+        <ScreenGradient intensity="soft" id="customerGradient" />
 
         {/* Header */}
-        <View style={s.header}>
+        <View style={[s.header, { paddingTop: insets.top + 6 }]}>
           {isEditing ? (
-            <TouchableOpacity
+            <Pressable
+              accessibilityRole="button"
               onPress={() => setIsEditing(false)}
-              style={[s.navBtn, { width: 'auto', paddingHorizontal: 14 }]}
+              style={({ pressed }) => [s.textBtn, pressed && { opacity: 0.7 }]}
             >
-              <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.muted }}>Cancel</Text>
-            </TouchableOpacity>
+              <Text style={s.textBtnLabel}>Cancel</Text>
+            </Pressable>
           ) : (
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={s.navBtn}>
-              <ChevronLeft size={18} color={c.ink} strokeWidth={2.1} />
-            </TouchableOpacity>
+            <GlassButton label="Go back" onPress={() => router.back()}>
+              <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
+            </GlassButton>
           )}
-          <Text style={s.headerTitle}>{isEditing ? 'Edit customer' : 'Customer'}</Text>
+          <View style={{ flex: 1 }} />
           {isEditing ? (
-            <TouchableOpacity
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Save customer"
               onPress={handleSaveEdit}
               disabled={isSaving || !editName.trim()}
-              style={[s.navBtn, { width: 'auto', paddingHorizontal: 14, backgroundColor: c.orange, borderColor: c.orange }]}
+              style={({ pressed }) => [s.textBtn, { backgroundColor: c.orange, borderColor: c.orange }, (pressed || !editName.trim()) && { opacity: 0.75 }]}
             >
               {isSaving
                 ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: '#fff' }}>Save</Text>}
-            </TouchableOpacity>
+                : <Text style={[s.textBtnLabel, { color: '#fff' }]}>Save</Text>}
+            </Pressable>
           ) : (
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity onPress={startEditing} style={s.navBtn}>
-                <Pencil size={15} color={c.ink} strokeWidth={2} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleDelete} style={s.navBtn}>
-                <Trash2 size={15} color={c.orange} strokeWidth={2} />
-              </TouchableOpacity>
+              <GlassButton label="Edit customer" onPress={startEditing}>
+                <Pencil size={17} color={c.ink} strokeWidth={2.1} />
+              </GlassButton>
+              <GlassButton label="Delete customer" onPress={handleDelete}>
+                <Trash2 size={17} color={c.red} strokeWidth={2.1} />
+              </GlassButton>
             </View>
           )}
         </View>
 
         {/* Hero */}
         <View style={s.hero}>
-          <View style={s.heroGlow} />
           <View style={s.avatarWrap}>
             <Text style={s.avatarText}>{avatarLabel}</Text>
           </View>
@@ -195,15 +208,16 @@ export default function CustomerDetailScreen() {
               placeholderTextColor={c.muted}
               autoCapitalize="words"
               autoFocus
-              textAlign="center"
+              accessibilityLabel="Customer name"
             />
           ) : (
-            <>
-              <Text style={s.name}>{customer.name}</Text>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.name} numberOfLines={2}>{customer.name}</Text>
+              {subLine ? <Text style={s.heroSub} numberOfLines={1}>{subLine}</Text> : null}
               {customer.address ? (
                 <Text style={s.heroSub} numberOfLines={2}>{customer.address}</Text>
               ) : null}
-            </>
+            </View>
           )}
         </View>
 
@@ -213,7 +227,7 @@ export default function CustomerDetailScreen() {
             <Text style={s.sectionEyebrow}>Contact details</Text>
             <View style={s.card}>
               <View style={s.editRow}>
-                <View style={s.detailIcon}><Phone size={15} color={c.orange} strokeWidth={2} /></View>
+                <View style={s.detailIcon}><Phone size={15} color={c.ink} strokeWidth={2} /></View>
                 <TextInput
                   style={s.editInput}
                   value={editPhone}
@@ -223,8 +237,8 @@ export default function CustomerDetailScreen() {
                   keyboardType="phone-pad"
                 />
               </View>
-              <View style={[s.editRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
-                <View style={s.detailIcon}><Mail size={15} color={c.blue} strokeWidth={2} /></View>
+              <View style={[s.editRow, s.divider]}>
+                <View style={s.detailIcon}><Mail size={15} color={c.ink} strokeWidth={2} /></View>
                 <TextInput
                   style={s.editInput}
                   value={editEmail}
@@ -235,8 +249,8 @@ export default function CustomerDetailScreen() {
                   autoCapitalize="none"
                 />
               </View>
-              <View style={[s.editRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
-                <View style={s.detailIcon}><MapPin size={15} color={c.muted} strokeWidth={2} /></View>
+              <View style={[s.editRow, s.divider]}>
+                <View style={s.detailIcon}><MapPin size={15} color={c.ink} strokeWidth={2} /></View>
                 <TextInput
                   style={s.editInput}
                   value={editAddress}
@@ -264,41 +278,24 @@ export default function CustomerDetailScreen() {
           <>
             {/* Quick actions */}
             <View style={s.actionsRow}>
-              {customer.phone ? (
-                <TouchableOpacity style={[s.actionBtn, { backgroundColor: c.greenSoft }]} onPress={() => openCall(customer.phone!)}>
-                  <Phone size={20} color={c.green} strokeWidth={2} />
-                  <Text style={[s.actionLabel, { color: c.green }]}>Call</Text>
-                </TouchableOpacity>
-              ) : null}
-              {(customer.phone || customer.email) ? (
-                <TouchableOpacity
-                  style={[s.actionBtn, { backgroundColor: c.orangeSoft }]}
-                  onPress={() => router.push(`/customers/compose?customerId=${id}&customerName=${encodeURIComponent(customer.name)}&customerPhone=${encodeURIComponent(customer.phone ?? '')}&customerEmail=${encodeURIComponent(customer.email ?? '')}` as any)}
-                >
-                  <MessageSquare size={20} color={c.orange} strokeWidth={2} />
-                  <Text style={[s.actionLabel, { color: c.orange }]}>Message</Text>
-                </TouchableOpacity>
-              ) : null}
-              {customer.email ? (
-                <TouchableOpacity style={[s.actionBtn, { backgroundColor: c.blueSoft }]} onPress={() => openEmail(customer.email!)}>
-                  <Mail size={20} color={c.blue} strokeWidth={2} />
-                  <Text style={[s.actionLabel, { color: c.blue }]}>Email</Text>
-                </TouchableOpacity>
-              ) : null}
-              <TouchableOpacity
-                style={[s.actionBtn, { backgroundColor: c.paperDeep }]}
-                onPress={() => router.push(`/quotes/create?customerName=${encodeURIComponent(customer.name)}&customerId=${customer.id}` as any)}
-              >
-                <FileText size={20} color={c.ink} strokeWidth={2} />
-                <Text style={[s.actionLabel, { color: c.ink }]}>Quote</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.actionBtn, { backgroundColor: '#f3e8ff' }]}
-                onPress={() => router.push(`/customers/messages?id=${id}` as any)}
-              >
-                <MessageSquare size={20} color="#7c3aed" strokeWidth={2} />
-                <Text style={[s.actionLabel, { color: '#7c3aed' }]}>Log</Text>
-              </TouchableOpacity>
+              {[
+                customer.phone ? { key: 'call', Icon: Phone, label: 'Call', onPress: () => openCall(customer.phone!) } : null,
+                (customer.phone || customer.email) ? {
+                  key: 'msg', Icon: MessageSquare, label: 'Message',
+                  onPress: () => router.push(`/customers/compose?customerId=${id}&customerName=${encodeURIComponent(customer.name)}&customerPhone=${encodeURIComponent(customer.phone ?? '')}&customerEmail=${encodeURIComponent(customer.email ?? '')}` as any),
+                } : null,
+                customer.email ? { key: 'email', Icon: Mail, label: 'Email', onPress: () => openEmail(customer.email!) } : null,
+                { key: 'quote', Icon: FileText, label: 'Quote', onPress: () => router.push(`/quotes/create?customerName=${encodeURIComponent(customer.name)}&customerId=${customer.id}` as any) },
+                { key: 'log', Icon: History, label: 'Log', onPress: () => router.push(`/customers/messages?id=${id}` as any) },
+              ].filter(Boolean).map((a) => {
+                const { key, Icon, label, onPress } = a!;
+                return (
+                  <RimCard key={key} padding="none" onPress={onPress} accessibilityLabel={label} style={s.actionBtn}>
+                    <View style={s.actionIcon}><Icon size={18} color={c.paper} strokeWidth={2.1} /></View>
+                    <Text style={s.actionLabel}>{label}</Text>
+                  </RimCard>
+                );
+              })}
             </View>
 
             {/* Contact details */}
@@ -307,23 +304,23 @@ export default function CustomerDetailScreen() {
               <View style={s.card}>
                 {customer.phone ? (
                   <TouchableOpacity style={s.detailRow} onPress={() => openCall(customer.phone!)}>
-                    <View style={s.detailIcon}><Phone size={15} color={c.orange} strokeWidth={2} /></View>
+                    <View style={s.detailIcon}><Phone size={15} color={c.ink} strokeWidth={2} /></View>
                     <Text style={s.detailText}>{customer.phone}</Text>
                     <Text style={s.detailAction}>Call</Text>
                   </TouchableOpacity>
                 ) : null}
                 {customer.email ? (
-                  <TouchableOpacity style={[s.detailRow, { borderTopWidth: customer.phone ? 1 : 0, borderTopColor: c.lineSoft }]} onPress={() => openEmail(customer.email!)}>
-                    <View style={s.detailIcon}><Mail size={15} color={c.blue} strokeWidth={2} /></View>
+                  <TouchableOpacity style={[s.detailRow, { borderTopWidth: customer.phone ? StyleSheet.hairlineWidth * 2 : 0, borderTopColor: c.lineSoft }]} onPress={() => openEmail(customer.email!)}>
+                    <View style={s.detailIcon}><Mail size={15} color={c.ink} strokeWidth={2} /></View>
                     <Text style={s.detailText}>{customer.email}</Text>
-                    <Text style={[s.detailAction, { color: c.blue }]}>Email</Text>
+                    <Text style={s.detailAction}>Email</Text>
                   </TouchableOpacity>
                 ) : null}
                 {customer.address ? (
-                  <TouchableOpacity style={[s.detailRow, { borderTopWidth: (customer.phone || customer.email) ? 1 : 0, borderTopColor: c.lineSoft }]} onPress={() => openMaps(customer.address!)}>
-                    <View style={s.detailIcon}><MapPin size={15} color={c.muted} strokeWidth={2} /></View>
+                  <TouchableOpacity style={[s.detailRow, { borderTopWidth: (customer.phone || customer.email) ? StyleSheet.hairlineWidth * 2 : 0, borderTopColor: c.lineSoft }]} onPress={() => openMaps(customer.address!)}>
+                    <View style={s.detailIcon}><MapPin size={15} color={c.ink} strokeWidth={2} /></View>
                     <Text style={[s.detailText, { flex: 1 }]}>{customer.address}</Text>
-                    <Text style={[s.detailAction, { color: c.muted }]}>Maps</Text>
+                    <Text style={s.detailAction}>Maps</Text>
                   </TouchableOpacity>
                 ) : null}
                 {!customer.phone && !customer.email && !customer.address ? (
@@ -352,165 +349,47 @@ export default function CustomerDetailScreen() {
   );
 }
 
-const makeStyles = (c: Colors) => StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 8,
-    gap: 12,
+const TYPE_LABEL: Record<string, string> = {
+  residential: 'Residential', commercial: 'Commercial', real_estate: 'Real estate', strata: 'Strata', builder: 'Builder',
+};
+
+const makeStyles = (c: Colors, isDark: boolean) => StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 8, gap: 8 },
+  textBtn: {
+    height: 40, minWidth: 64, paddingHorizontal: 16, borderRadius: 14, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.62)',
+    borderColor: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.9)',
   },
-  navBtn: {
-    height: 40,
-    minWidth: 40,
-    borderRadius: 12,
-    backgroundColor: c.card,
-    borderWidth: 1,
-    borderColor: c.lineSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 15,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: c.ink,
-    letterSpacing: -0.2,
-  },
-  hero: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 24,
-    alignItems: 'center',
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  heroGlow: {
-    position: 'absolute',
-    top: -60,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: `${c.orange}20`,
-  },
+  textBtnLabel: { fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 22 },
+  // Graphite with orange initials in both modes, as on Home and Profile.
   avatarWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: c.heroFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: c.orange,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 8,
-    marginBottom: 14,
+    width: 64, height: 64, borderRadius: 32, backgroundColor: '#1C1D21',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    ...(isDark ? { borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' } : null),
   },
-  avatarText: {
-    fontSize: 28,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: c.orange,
-  },
-  name: {
-    fontSize: 26,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: c.ink,
-    letterSpacing: -0.6,
-  },
-  heroSub: {
-    fontSize: 13,
-    fontFamily: 'HostGrotesk_500Medium',
-    color: c.muted,
-    marginTop: 4,
-    textAlign: 'center',
-  },
+  avatarText: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange, letterSpacing: -0.3 },
+  name: { fontSize: 28, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.9, lineHeight: 32 },
+  heroSub: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: heroSecondary(isDark), marginTop: 3 },
   editNameInput: {
-    fontSize: 24,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: c.ink,
-    letterSpacing: -0.5,
-    borderBottomWidth: 2,
-    borderBottomColor: c.orange,
-    paddingBottom: 4,
-    paddingHorizontal: 8,
-    minWidth: 200,
-    textAlign: 'center',
+    flex: 1, fontSize: 24, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.5,
+    borderBottomWidth: 2, borderBottomColor: c.orange, paddingBottom: 4,
   },
-  actionsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  actionBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    borderRadius: 16,
-  },
-  actionLabel: {
-    fontSize: 11,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    letterSpacing: 0.3,
-  },
-  sectionEyebrow: {
-    fontSize: 10,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: c.muted,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  card: {
-    backgroundColor: c.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: c.lineSoft,
-    overflow: 'hidden',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  editRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
+  actionsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 8 },
+  actionBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12 },
+  actionIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: c.fillStrong, alignItems: 'center', justifyContent: 'center' },
+  actionLabel: { fontSize: 12, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
+  sectionEyebrow: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.mutedHi, marginBottom: 8, marginLeft: 2 },
+  card: { ...rimTile(c, isDark), overflow: 'hidden' },
+  divider: { borderTopWidth: StyleSheet.hairlineWidth * 2, borderTopColor: c.lineSoft },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, minHeight: 56 },
+  editRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   detailIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: c.paperDeep,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(28,29,33,0.06)',
   },
-  detailText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'HostGrotesk_600SemiBold',
-    color: c.ink,
-  },
-  detailAction: {
-    fontSize: 12,
-    fontFamily: 'HostGrotesk_700Bold',
-    color: c.orange,
-  },
-  editInput: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'HostGrotesk_600SemiBold',
-    color: c.ink,
-    paddingVertical: 2,
-  },
+  detailText: { flex: 1, fontSize: 14, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink },
+  detailAction: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.orangeDeep },
+  editInput: { flex: 1, fontSize: 15, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink, paddingVertical: 2 },
 });

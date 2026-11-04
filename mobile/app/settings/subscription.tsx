@@ -1,7 +1,8 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
-import { router } from 'expo-router';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, Zap, CheckCircle, ExternalLink } from 'lucide-react-native';
+import { ChevronRight, Zap, CheckCircle, ExternalLink } from 'lucide-react-native';
+import { ScreenGradient, GradientHeader, useGradientScroll, heroSecondary } from '@/components/Rim';
+import { rimTile } from '@/theme/rim';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { addMonths, format } from 'date-fns';
 
@@ -14,16 +15,11 @@ const PRO_FEATURES = [
   'Priority support',
 ];
 
-function makeStyles(c: Colors) {
+function makeStyles(c: Colors, isDark: boolean) {
   return StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14, paddingTop: 4 },
-    backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
-    titleWrap: { flex: 1 },
-    eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
-    title: { fontSize: 20, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
     group: { paddingHorizontal: 20, paddingTop: 22 },
-    groupLabel: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
-    card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
+    groupLabel: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: heroSecondary(isDark), marginBottom: 8, marginLeft: 2 },
+    card: { ...rimTile(c, isDark), overflow: 'hidden' },
     planCard: { backgroundColor: '#141310', borderRadius: 16, padding: 20, marginHorizontal: 20, marginTop: 22, borderWidth: 1, borderColor: 'rgba(242,106,42,0.35)' },
     planBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
     planBadgeText: { fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange, letterSpacing: 1.5, textTransform: 'uppercase' },
@@ -41,8 +37,9 @@ function makeStyles(c: Colors) {
 }
 
 export default function SubscriptionScreen() {
-  const { colors: c } = useTheme();
-  const s = makeStyles(c);
+  const { colors: c, isDark } = useTheme();
+  const { scrollY, scrollProps } = useGradientScroll();
+  const s = makeStyles(c, isDark);
   const nextRenewal = format(addMonths(new Date(), 1), 'd MMM yyyy');
 
   const handleManageBilling = () => {
@@ -52,18 +49,11 @@ export default function SubscriptionScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-      <View style={s.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" style={s.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
-        </TouchableOpacity>
-        <View style={s.titleWrap}>
-          <Text style={s.eyebrow}>Account</Text>
-          <Text style={s.title}>Subscription</Text>
-        </View>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
+      <ScreenGradient intensity="soft" scrollY={scrollY} />
+      <GradientHeader eyebrow="Account" title="Subscription" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+      <Animated.ScrollView {...scrollProps} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
         {/* Plan card */}
         <View style={s.planCard}>
           <View style={s.planBadge}>
@@ -105,7 +95,7 @@ export default function SubscriptionScreen() {
           </View>
           <Text style={s.hint}>Billing is managed via the web portal at vargen.app.</Text>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }

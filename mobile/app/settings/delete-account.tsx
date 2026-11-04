@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, AlertTriangle } from 'lucide-react-native';
+import { AlertTriangle } from 'lucide-react-native';
+import { ScreenGradient, GradientHeader, useGradientScroll } from '@/components/Rim';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { apiRequest, extractError } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
@@ -17,8 +18,9 @@ import { hapticError, hapticWarn } from '@/lib/haptics';
  * (DELETE /api/account). On success the phone is wiped the same way as signing out.
  */
 export default function DeleteAccountScreen() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const { scrollY, scrollProps } = useGradientScroll();
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,16 +66,12 @@ export default function DeleteAccountScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['bottom']}>
+      <ScreenGradient intensity="soft" scrollY={scrollY} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-            <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
-          </TouchableOpacity>
-          <Text style={s.title}>Delete account</Text>
-        </View>
+        <GradientHeader eyebrow="Account" title="Delete account" />
 
-        <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
+        <Animated.ScrollView {...scrollProps} contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
           <View style={s.warn}>
             <AlertTriangle size={18} color={c.red} strokeWidth={2.4} />
             <Text style={s.warnText}>
@@ -111,25 +109,19 @@ export default function DeleteAccountScreen() {
           >
             {busy ? <ActivityIndicator color="#fff" /> : <Text style={s.deleteText}>Delete my account</Text>}
           </TouchableOpacity>
-        </ScrollView>
+        </Animated.ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const makeStyles = (c: Colors) => StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 10, paddingTop: 4 },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  title: { fontSize: 20, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
+const makeStyles = (c: Colors, isDark: boolean) => StyleSheet.create({
   warn: { flexDirection: 'row', gap: 10, backgroundColor: c.redSoft, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.red },
   warnText: { flex: 1, fontSize: 13.5, fontFamily: 'HostGrotesk_600SemiBold', color: c.red, lineHeight: 19 },
   body: { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.mutedHi, lineHeight: 19 },
-  label: { fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
+  label: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.mutedHi },
   input: {
-    backgroundColor: c.card, borderRadius: 12, borderWidth: 1, borderColor: c.lineMid,
+    backgroundColor: c.tile, borderWidth: 1, borderColor: c.tileEdge, borderTopColor: c.tileRim, borderRadius: 14,
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink,
   },
   error: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.red },

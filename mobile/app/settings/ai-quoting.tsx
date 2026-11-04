@@ -1,32 +1,29 @@
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Switch, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Switch, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Keyboard, Animated } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '@/lib/dialogs';
-import { ChevronLeft, Save, Info } from 'lucide-react-native';
+import { Save, Info } from 'lucide-react-native';
+import { ScreenGradient, GradientHeader, useGradientScroll, heroSecondary, wellFill } from '@/components/Rim';
+import { rimTile } from '@/theme/rim';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 import { TRADE_LABELS, tradeLabel } from '@shared/trades';
 
-function makeStyles(c: Colors) {
+function makeStyles(c: Colors, isDark: boolean) {
   return StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14, paddingTop: 4 },
-    backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
-    titleWrap: { flex: 1 },
-    eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
-    title: { fontSize: 20, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
-    saveBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center' },
+    saveBtn: { width: 40, height: 40, borderRadius: 14, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center' },
     group: { paddingHorizontal: 20, paddingTop: 22 },
-    groupLabel: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
-    card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
+    groupLabel: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: heroSecondary(isDark), marginBottom: 8, marginLeft: 2 },
+    card: { ...rimTile(c, isDark), overflow: 'hidden' },
     row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14, gap: 12 },
-    rowDivider: { borderTopWidth: 1, borderTopColor: c.lineSoft },
+    rowDivider: { borderTopWidth: StyleSheet.hairlineWidth * 2, borderTopColor: c.lineSoft },
     rowLabel: { fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink, flex: 1 },
     rowSub: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2 },
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingBottom: 14 },
     chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
     chipLabel: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold' },
-    numericInput: { fontSize: 15, fontFamily: 'HostGrotesk_700Bold', color: c.ink, backgroundColor: c.paperDeep, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, minWidth: 72, textAlign: 'right' },
+    numericInput: { fontSize: 15, fontFamily: 'HostGrotesk_700Bold', color: c.ink, backgroundColor: wellFill(isDark), borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, minWidth: 72, textAlign: 'right' },
     banner: { flexDirection: 'row', gap: 10, backgroundColor: c.orangeSoft, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: `${c.orange}33`, marginHorizontal: 20, marginTop: 22 },
     bannerText: { flex: 1, fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.orangeDeep, lineHeight: 18 },
     hint: { fontSize: 11, color: c.muted, fontFamily: 'HostGrotesk_500Medium', marginTop: 6, paddingHorizontal: 2 },
@@ -34,8 +31,9 @@ function makeStyles(c: Colors) {
 }
 
 export default function AiQuotingScreen() {
-  const { colors: c } = useTheme();
-  const s = makeStyles(c);
+  const { colors: c, isDark } = useTheme();
+  const { scrollY, scrollProps } = useGradientScroll();
+  const s = makeStyles(c, isDark);
   const { data: settings, isLoading } = useSettings();
   const update = useUpdateSettings();
 
@@ -127,22 +125,16 @@ export default function AiQuotingScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-      <View style={s.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" style={s.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
-        </TouchableOpacity>
-        <View style={s.titleWrap}>
-          <Text style={s.eyebrow}>Pricing</Text>
-          <Text style={s.title}>AI quoting</Text>
-        </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
+      <ScreenGradient intensity="soft" scrollY={scrollY} />
+      <GradientHeader eyebrow="Pricing" title="AI quoting" right={<>
         <TouchableOpacity style={s.saveBtn} onPress={handleSave} activeOpacity={0.7} disabled={update.isPending} accessibilityRole="button" accessibilityLabel="Save AI quoting settings">
           {update.isPending ? <ActivityIndicator size="small" color="#fff" /> : <Save size={18} color="#fff" strokeWidth={2.2} />}
         </TouchableOpacity>
-      </View>
+      </>} />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 130 }}>
+      <Animated.ScrollView {...scrollProps} ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 130 }}>
         <View style={s.banner}>
           <Info size={16} color={c.orange} strokeWidth={2.1} style={{ marginTop: 1 }} />
           <Text style={s.bannerText}>
@@ -165,7 +157,7 @@ export default function AiQuotingScreen() {
                 return (
                   <TouchableOpacity
                     key={t}
-                    style={[s.chip, { backgroundColor: active ? c.orange : c.paperDeep, borderColor: active ? c.orange : c.lineSoft }]}
+                    style={[s.chip, { backgroundColor: active ? c.orange : wellFill(isDark), borderColor: active ? c.orange : c.lineSoft }]}
                     onPress={() => autoSave({ tradeType: t })}
                     activeOpacity={0.7}
                   >
@@ -259,7 +251,7 @@ export default function AiQuotingScreen() {
         <View style={s.group}>
           <Text style={s.hint}>Tap Save to apply pricing changes to future AI quotes. GST is set in Quotes & invoices.</Text>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

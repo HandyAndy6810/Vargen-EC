@@ -1,16 +1,17 @@
 import {
   View,
   Text,
-  ScrollView,
+  Animated,
   TouchableOpacity,
   StyleSheet,
   Switch,
 } from 'react-native';
+import { ScreenGradient, GradientHeader, useGradientScroll, heroSecondary, wellFill } from '@/components/Rim';
+import { rimTile } from '@/theme/rim';
 import { useTheme, type Colors } from '@/hooks/use-theme';
-import { router } from 'expo-router';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { ChevronUp, ChevronDown } from 'lucide-react-native';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 import { HOME_WIDGETS, resolveWidgetLayout, serializeWidgetLayout, type WidgetEntry } from '@shared/home-widgets';
 
@@ -19,8 +20,9 @@ const defaultLayout = () => resolveWidgetLayout(null);
 
 
 export default function WidgetsScreen() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const { scrollY, scrollProps } = useGradientScroll();
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
   const { data: settings } = useSettings();
   const updateSettings = useUpdateSettings();
 
@@ -80,23 +82,17 @@ export default function WidgetsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={s.navBtn} activeOpacity={0.7}>
-          <ChevronLeft size={18} color={c.ink} strokeWidth={2.1} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Customise Widgets</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
+      <ScreenGradient intensity="soft" scrollY={scrollY} />
+      <GradientHeader eyebrow="Preferences" title="Home widgets" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
+      <Animated.ScrollView {...scrollProps} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
         <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 }}>
           <Text style={s.subText}>Reorder and show/hide widgets on your home screen. Changes take effect immediately after saving.</Text>
         </View>
 
         <View style={{ paddingHorizontal: 20 }}>
-          <Text style={s.eyebrow}>Widget Order</Text>
+          <Text style={s.eyebrow}>Widget order</Text>
           <View style={s.list}>
             {order.map(({ id, visible }, index) => {
               const meta = META.get(id);
@@ -104,7 +100,7 @@ export default function WidgetsScreen() {
               return (
                 <View
                   key={id}
-                  style={[s.row, index > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }, !visible && s.rowHidden]}
+                  style={[s.row, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth * 2, borderTopColor: c.lineSoft }, !visible && s.rowHidden]}
                 >
                   {/* Reorder buttons */}
                   <View style={s.reorderCol}>
@@ -150,7 +146,7 @@ export default function WidgetsScreen() {
         <TouchableOpacity onPress={handleReset} style={{ alignItems: 'center', paddingTop: 18 }} activeOpacity={0.7}>
           <Text style={s.resetText}>Reset to default order</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Bottom bar */}
       <View style={s.bottomBar}>
@@ -173,52 +169,22 @@ export default function WidgetsScreen() {
   );
 }
 
-const makeStyles = (c: Colors) => StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 12,
-    gap: 12,
-  },
-  navBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: c.card,
-    borderWidth: 1,
-    borderColor: c.lineSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 15,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: c.ink,
-    letterSpacing: -0.2,
-  },
+const makeStyles = (c: Colors, isDark: boolean) => StyleSheet.create({
   subText: {
     fontSize: 13,
     fontFamily: 'HostGrotesk_500Medium',
-    color: c.muted,
+    color: heroSecondary(isDark),
     lineHeight: 19,
   },
   eyebrow: {
-    fontSize: 10,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: c.muted,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    fontFamily: 'HostGrotesk_600SemiBold',
+    color: heroSecondary(isDark),
     marginBottom: 8,
+    marginLeft: 2,
   },
   list: {
-    backgroundColor: c.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: c.lineSoft,
+    ...rimTile(c, isDark),
     overflow: 'hidden',
   },
   row: {
@@ -238,7 +204,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 7,
-    backgroundColor: c.paperDeep,
+    backgroundColor: wellFill(isDark),
     alignItems: 'center',
     justifyContent: 'center',
   },

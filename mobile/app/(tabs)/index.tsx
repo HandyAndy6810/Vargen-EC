@@ -27,15 +27,10 @@ import { summariseInvoices, isInvoiceOverdue, invoiceOwing, isQuoteOverdue } fro
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/dialogs';
 import { SplitActionButton } from '@/components/SplitActionButton';
-import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
-import { mixHex } from '@shared/color';
+import Svg, { Path } from 'react-native-svg';
+import { ScreenGradient, heroSecondary } from '@/components/Rim';
 import { resolveWidgetLayout, widgetRows } from '@shared/home-widgets';
 import { rimTile } from '@/theme/rim';
-
-// Home hero gradient: stop positions within its 560px, and the solid band drawn
-// above the top edge for the iOS pull-down bounce.
-const HERO_STOPS = [0, 0.3036, 0.6429, 1];
-const HERO_BLEED = 400;
 
 const PILL_STATES = 4;
 
@@ -143,9 +138,6 @@ function heroChip(isDark: boolean) {
   };
 }
 
-// Secondary text that sits on the gradient. Never c.muted there: it fails
-// contrast on orange.
-const heroSecondary = (isDark: boolean) => (isDark ? 'rgba(255,255,255,0.84)' : 'rgba(28,29,33,0.82)');
 
 // The sharp bolt, as in the Zap button, for the job-count chip.
 const BOLT_PATH = 'M 36 0 L 6 38 L 26 38 L 20 64 L 50 26 L 30 26 Z';
@@ -260,12 +252,6 @@ export default function HomeScreen() {
   const { data: weather, locError: weatherLocError, requestLocation: retryWeatherLocation } = useWeather();
   const { data: settings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
-  // orange mixed into paper: 100/60/18/0% light, 78/42/12/0% dark.
-  // The last stop is exactly c.paper, so the gradient ends in the page colour.
-  const heroGradient = useMemo(
-    () => (isDark ? [0.78, 0.42, 0.12, 0] : [1, 0.6, 0.18, 0]).map((t) => mixHex(c.orange, c.paper, t)),
-    [c.orange, c.paper, isDark],
-  );
   const scrollRef = useRef<ScrollView>(null);
 
   useFocusEffect(useCallback(() => {
@@ -742,27 +728,8 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
       >
         {/* Full orange at the top fading to the page by 560px. It scrolls away with
-            the content, so the lists further down sit on plain paper. Drawn with
-            react-native-svg (pure JS over a module already in the build): the
-            installed expo-linear-gradient is the SDK 53 native module, the likely
-            reason it drew nothing on device, and replacing it would need a Build. The solid band above y=0
-            covers the pull-to-refresh bounce, so no paper shows above the orange. */}
-        <Svg
-          pointerEvents="none"
-          width="100%"
-          height={HERO_BLEED + 560}
-          style={{ position: 'absolute', top: -HERO_BLEED, left: 0, right: 0 }}
-        >
-          <Defs>
-            <LinearGradient id="homeHero" x1="0" y1="0" x2="0" y2="1">
-              {heroGradient.map((col, i) => (
-                <Stop key={i} offset={HERO_STOPS[i]} stopColor={col} stopOpacity={1} />
-              ))}
-            </LinearGradient>
-          </Defs>
-          <Rect x={0} y={0} width="100%" height={HERO_BLEED} fill={heroGradient[0]} />
-          <Rect x={0} y={HERO_BLEED} width="100%" height={560} fill="url(#homeHero)" />
-        </Svg>
+            the content, so the lists further down sit on plain paper. */}
+        <ScreenGradient intensity="hero" id="homeHero" />
 
         <View style={[s.topBar, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.8}>

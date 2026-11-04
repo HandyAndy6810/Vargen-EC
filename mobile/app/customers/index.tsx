@@ -1,7 +1,8 @@
 import {
   View,
   Text,
-  FlatList,
+  Animated,
+  Pressable,
   TouchableOpacity,
   TextInput,
   StyleSheet,
@@ -10,10 +11,12 @@ import {
   Linking,
 } from 'react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { ScreenGradient, GradientHeader, GlassButton, RimCard, useGradientScroll } from '@/components/Rim';
+import { rimTile } from '@/theme/rim';
 import { router } from 'expo-router';
 import { useState, useMemo, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Search, Plus, Phone, MessageSquare, MapPin, Users } from 'lucide-react-native';
+import { Search, Plus, Phone, MessageSquare, MapPin, Users } from 'lucide-react-native';
 import { useCustomers } from '@/hooks/use-customers';
 import type { Customer } from '@shared/mobile-types';
 
@@ -39,55 +42,63 @@ function openText(phone: string) {
 }
 
 function CustomerCard({ item, onPress }: { item: Customer; onPress: () => void }) {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
   const hasPhone = !!item.phone;
+  // Company arrives with the customer details work; shown whenever it's there.
+  const company = (item as Customer & { companyName?: string | null }).companyName;
   return (
-    <View style={s.card}>
-      <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={s.cardMain}>
+    <RimCard padding="none" style={s.card}>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${item.name}`}
+        style={({ pressed }) => [s.cardMain, pressed && { opacity: 0.7 }]}
+      >
         <View style={[s.avatar, { backgroundColor: avatarColor(item.name) }]}>
           <Text style={s.avatarText}>{initials(item.name)}</Text>
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.cardName} numberOfLines={1}>{item.name}</Text>
           <Text style={s.cardSub} numberOfLines={1}>
-            {item.phone || item.email || 'No contact info'}
+            {company || item.phone || item.email || 'No contact details yet'}
           </Text>
           {item.address ? (
             <View style={s.addrRow}>
-              <MapPin size={11} color={c.muted} strokeWidth={2} />
+              <MapPin size={12} color={c.muted} strokeWidth={2} />
               <Text style={s.addrText} numberOfLines={1}>{item.address}</Text>
             </View>
           ) : null}
         </View>
-      </TouchableOpacity>
+      </Pressable>
       <View style={s.cardActions}>
-        <TouchableOpacity
-          style={[s.actionBtn, { backgroundColor: c.greenSoft }, !hasPhone && { opacity: 0.35 }]}
+        <Pressable
+          style={({ pressed }) => [s.actionBtn, !hasPhone && { opacity: 0.35 }, pressed && { opacity: 0.6 }]}
           disabled={!hasPhone}
           onPress={() => item.phone && openCall(item.phone)}
           accessibilityRole="button"
           accessibilityLabel={`Call ${item.name}`}
         >
-          <Phone size={16} color={c.green} strokeWidth={2.2} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.actionBtn, { backgroundColor: c.blueSoft }, !hasPhone && { opacity: 0.35 }]}
+          <Phone size={17} color={c.ink} strokeWidth={2.1} />
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [s.actionBtn, !hasPhone && { opacity: 0.35 }, pressed && { opacity: 0.6 }]}
           disabled={!hasPhone}
           onPress={() => item.phone && openText(item.phone)}
           accessibilityRole="button"
           accessibilityLabel={`Text ${item.name}`}
         >
-          <MessageSquare size={16} color={c.blue} strokeWidth={2.2} />
-        </TouchableOpacity>
+          <MessageSquare size={17} color={c.ink} strokeWidth={2.1} />
+        </Pressable>
       </View>
-    </View>
+    </RimCard>
   );
 }
 
 export default function CustomersScreen() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
+  const { scrollY, scrollProps } = useGradientScroll();
   const { data, isLoading, isError, refetch } = useCustomers();
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -106,7 +117,9 @@ export default function CustomersScreen() {
     return sorted.filter(c =>
       c.name.toLowerCase().includes(q) ||
       c.email?.toLowerCase().includes(q) ||
-      c.phone?.includes(q)
+      c.phone?.includes(q) ||
+      c.address?.toLowerCase().includes(q) ||
+      (c as Customer & { companyName?: string | null }).companyName?.toLowerCase().includes(q)
     );
   }, [sorted, search]);
 
@@ -127,22 +140,13 @@ export default function CustomersScreen() {
 
   const ListHeader = (
     <View>
-      {/* Hero stat card */}
-      <View style={s.heroCard}>
-        <Text style={s.heroEyebrow}>Your book</Text>
-        <Text style={s.heroNumber}>{customers.length}</Text>
-        <Text style={s.heroSub}>
-          {customers.length === 1 ? 'customer' : 'customers'}
-          {newThisMonth > 0 ? `  ·  ${newThisMonth} new this month` : ''}
-        </Text>
-      </View>
-
       {/* Search */}
       <View style={s.searchWrap}>
         <Search size={15} color={c.muted} strokeWidth={2} style={{ marginRight: 8 }} />
         <TextInput
           style={s.searchInput}
-          placeholder="Search customers…"
+          placeholder="Search name, company, phone or address"
+          accessibilityLabel="Search customers"
           placeholderTextColor={c.muted}
           value={search}
           onChangeText={setSearch}
@@ -159,29 +163,27 @@ export default function CustomersScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={s.navBtn}>
-          <ChevronLeft size={18} color={c.ink} strokeWidth={2.1} />
-        </TouchableOpacity>
-        <Text style={s.title}>Customers</Text>
-        <TouchableOpacity
-          style={[s.navBtn, { backgroundColor: c.orange, borderColor: c.orange }]}
-          onPress={() => router.push('/customers/new' as any)}
-          accessibilityRole="button"
-          accessibilityLabel="Add customer"
-        >
-          <Plus size={18} color="#fff" strokeWidth={2.1} />
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
+      <ScreenGradient intensity="soft" scrollY={scrollY} />
+      <GradientHeader
+        eyebrow={customers.length
+          ? `${customers.length} ${customers.length === 1 ? 'customer' : 'customers'}${newThisMonth > 0 ? ` · ${newThisMonth} new this month` : ''}`
+          : 'Your book'}
+        title="Customers"
+        right={
+          <GlassButton filled label="Add customer" onPress={() => router.push('/customers/new' as any)}>
+            <Plus size={19} color="#fff" strokeWidth={2.3} />
+          </GlassButton>
+        }
+      />
 
       {isLoading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={c.orange} />
         </View>
       ) : (
-        <FlatList
+        <Animated.FlatList
+          {...scrollProps}
           data={filtered}
           keyExtractor={item => String(item.id)}
           ListHeaderComponent={ListHeader}
@@ -192,21 +194,29 @@ export default function CustomersScreen() {
             <CustomerCard item={item} onPress={() => router.push(`/customers/${item.id}` as any)} />
           )}
           ListEmptyComponent={
-            <View style={s.empty}>
-              <View style={s.emptyIcon}><Users size={30} color={c.orange} strokeWidth={1.6} /></View>
+            <RimCard padding="lg" style={s.empty}>
+              <View style={s.emptyIcon}>
+                {search ? <Search size={26} color={c.orange} strokeWidth={2} /> : <Users size={28} color={c.orange} strokeWidth={1.8} />}
+              </View>
               <Text style={s.emptyTitle}>
-                {search ? 'No matches' : 'No customers yet'}
+                {search ? `Nobody matches “${search.trim()}”` : 'Your customer book is empty'}
               </Text>
               <Text style={s.emptySub}>
-                {search ? 'Try a different name or number.' : 'Add your first customer to start quoting and invoicing.'}
+                {search
+                  ? 'Try part of a name, a company, a phone number or a street.'
+                  : 'Add the people you work for once, and they’re ready for every quote, invoice and job. Customers you add while quoting land here too.'}
               </Text>
-              {!search && !isError && (
-                <TouchableOpacity style={s.emptyCta} onPress={() => router.push('/customers/new' as any)} activeOpacity={0.85}>
+              {!isError && (
+                <Pressable
+                  style={({ pressed }) => [s.emptyCta, pressed && { opacity: 0.85 }]}
+                  onPress={() => router.push('/customers/new' as any)}
+                  accessibilityRole="button"
+                >
                   <Plus size={16} color="#fff" strokeWidth={2.4} />
-                  <Text style={s.emptyCtaText}>Add your first customer</Text>
-                </TouchableOpacity>
+                  <Text style={s.emptyCtaText}>{search ? 'Add a new customer' : 'Add your first customer'}</Text>
+                </Pressable>
               )}
-            </View>
+            </RimCard>
           }
         />
       )}
@@ -214,78 +224,20 @@ export default function CustomersScreen() {
   );
 }
 
-const makeStyles = (c: Colors) => StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 14,
-    gap: 12,
-  },
-  navBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: c.card,
-    borderWidth: 1,
-    borderColor: c.lineSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    flex: 1,
-    fontSize: 20,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: c.ink,
-    letterSpacing: -0.4,
-    textAlign: 'center',
-  },
-  heroCard: {
-    backgroundColor: c.heroFill,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: c.heroEdge,
-    padding: 22,
-    marginTop: 4,
-    marginBottom: 16,
-    overflow: 'hidden',
-  },
-  heroEyebrow: {
-    fontSize: 10,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: 'rgba(255,255,255,0.55)',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  heroNumber: {
-    fontSize: 42,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: '#fff',
-    letterSpacing: -1.4,
-    lineHeight: 46,
-  },
-  heroSub: {
-    fontSize: 13,
-    fontFamily: 'HostGrotesk_600SemiBold',
-    color: 'rgba(255,255,255,0.6)',
-    marginTop: 4,
-  },
+const makeStyles = (c: Colors, isDark: boolean) => StyleSheet.create({
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 2,
     marginBottom: 14,
     paddingHorizontal: 14,
-    height: 46,
-    backgroundColor: c.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: c.lineMid,
+    height: 48,
+    ...rimTile(c, isDark),
+    borderRadius: 16,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'HostGrotesk_500Medium',
     color: c.ink,
   },
@@ -305,13 +257,10 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: c.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: c.lineSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    gap: 10,
+    paddingLeft: 14,
+    paddingRight: 10,
+    paddingVertical: 12,
+    gap: 8,
   },
   cardMain: {
     flex: 1,
@@ -323,7 +272,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   avatar: {
     width: 46,
     height: 46,
-    borderRadius: 15,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -335,15 +284,15 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     letterSpacing: -0.3,
   },
   cardName: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   cardSub: {
-    fontSize: 12.5,
-    fontFamily: 'HostGrotesk_500Medium',
-    color: c.muted,
+    fontSize: 13,
+    fontFamily: 'HostGrotesk_600SemiBold',
+    color: c.mutedHi,
     marginTop: 2,
   },
   addrRow: {
@@ -354,50 +303,53 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   addrText: {
     flex: 1,
-    fontSize: 11.5,
+    fontSize: 12,
     fontFamily: 'HostGrotesk_500Medium',
     color: c.muted,
   },
   cardActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     flexShrink: 0,
   },
+  // Call and Text: 44pt targets, quiet glass so the row reads as one tile.
   actionBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(28,29,33,0.06)',
   },
   empty: {
     alignItems: 'center',
-    paddingVertical: 44,
-    paddingHorizontal: 24,
+    marginTop: 8,
   },
   emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: c.orangeSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   emptyTitle: {
     fontSize: 18,
     fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.ink,
     marginBottom: 6,
+    textAlign: 'center',
+    letterSpacing: -0.3,
   },
   emptySub: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontFamily: 'HostGrotesk_500Medium',
-    color: c.muted,
+    color: c.mutedHi,
     textAlign: 'center',
-    lineHeight: 19,
-    marginBottom: 20,
-    maxWidth: 260,
+    lineHeight: 20,
+    marginBottom: 18,
+    maxWidth: 290,
   },
   emptyCta: {
     flexDirection: 'row',

@@ -1,9 +1,11 @@
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Switch, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Switch, StyleSheet, ActivityIndicator, Alert, Animated } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert } from '@/lib/dialogs';
-import { ChevronLeft, Save } from 'lucide-react-native';
+import { Save } from 'lucide-react-native';
+import { ScreenGradient, GradientHeader, useGradientScroll, heroSecondary, wellFill } from '@/components/Rim';
+import { rimTile } from '@/theme/rim';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 
@@ -31,29 +33,25 @@ const DEFAULT_HOURS: Hours = {
   sun: { on: false, start: '08:00', end: '12:00' },
 };
 
-function makeStyles(c: Colors) {
+function makeStyles(c: Colors, isDark: boolean) {
   return StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14, paddingTop: 4 },
-    backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
-    titleWrap: { flex: 1 },
-    eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
-    title: { fontSize: 20, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
-    saveBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center' },
+    saveBtn: { width: 40, height: 40, borderRadius: 14, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center' },
     group: { paddingHorizontal: 20, paddingTop: 22 },
-    groupLabel: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
-    card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
+    groupLabel: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: heroSecondary(isDark), marginBottom: 8, marginLeft: 2 },
+    card: { ...rimTile(c, isDark), overflow: 'hidden' },
     row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, gap: 12 },
-    rowDivider: { borderTopWidth: 1, borderTopColor: c.lineSoft },
+    rowDivider: { borderTopWidth: StyleSheet.hairlineWidth * 2, borderTopColor: c.lineSoft },
     dayLabel: { fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.ink, flex: 1 },
-    timeInput: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink, backgroundColor: c.paperDeep, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, width: 60, textAlign: 'center' },
+    timeInput: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink, backgroundColor: wellFill(isDark), borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, width: 60, textAlign: 'center' },
     timeSep: { fontSize: 13, color: c.muted, fontFamily: 'HostGrotesk_500Medium' },
     hint: { fontSize: 11, color: c.muted, fontFamily: 'HostGrotesk_500Medium', marginTop: 6, paddingHorizontal: 2 },
   });
 }
 
 export default function WorkingHoursScreen() {
-  const { colors: c } = useTheme();
-  const s = makeStyles(c);
+  const { colors: c, isDark } = useTheme();
+  const { scrollY, scrollProps } = useGradientScroll();
+  const s = makeStyles(c, isDark);
   const { data: settings, isLoading } = useSettings();
   const update = useUpdateSettings();
   const [hours, setHours] = useState<Hours>(DEFAULT_HOURS);
@@ -97,21 +95,15 @@ export default function WorkingHoursScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-      <View style={s.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" style={s.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
-        </TouchableOpacity>
-        <View style={s.titleWrap}>
-          <Text style={s.eyebrow}>Business</Text>
-          <Text style={s.title}>Working Hours</Text>
-        </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
+      <ScreenGradient intensity="soft" scrollY={scrollY} />
+      <GradientHeader eyebrow="Business" title="Working Hours" right={<>
         <TouchableOpacity style={s.saveBtn} onPress={handleSave} activeOpacity={0.7} disabled={update.isPending}>
           {update.isPending ? <ActivityIndicator size="small" color="#fff" /> : <Save size={18} color="#fff" strokeWidth={2.2} />}
         </TouchableOpacity>
-      </View>
+      </>} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+      <Animated.ScrollView {...scrollProps} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
         <View style={s.group}>
           <Text style={s.groupLabel}>Schedule</Text>
           <View style={s.card}>
@@ -152,7 +144,7 @@ export default function WorkingHoursScreen() {
           </View>
           <Text style={s.hint}>Used to show availability on customer-facing booking portals.</Text>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }

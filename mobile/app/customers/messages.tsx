@@ -12,8 +12,9 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useState, useRef, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenGradient, GradientHeader, GlassButton } from '@/components/Rim';
 import { showAlert, showConfirm } from '@/lib/dialogs';
-import { ChevronLeft, Send, Phone, MessageSquare, FileText, Trash2 } from 'lucide-react-native';
+import { Send, Phone, MessageSquare, FileText, Trash2 } from 'lucide-react-native';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useCustomer } from '@/hooks/use-customers';
 import { useCustomerMessages, useSendMessage, useDeleteMessage } from '@/hooks/use-messages';
@@ -103,35 +104,29 @@ export default function CustomerMessagesScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
+      {/* Fixed behind the header: the log scrolls to its newest entry, so the
+          gradient stays put rather than following the list. */}
+      <ScreenGradient intensity="soft" />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
-        {/* Header */}
-        <View style={s.header}>
-          <TouchableOpacity
-            onPress={() => {
-              if (Platform.OS === 'web' && window.history.length <= 1) {
-                router.replace(`/customers/${customerId}` as any);
-              } else {
-                router.back();
-              }
-            }}
-            style={s.backBtn}
-            activeOpacity={0.7}
-          >
-            <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={s.eyebrow}>Contact log</Text>
-            <Text style={s.title} numberOfLines={1}>{name}</Text>
-          </View>
-          {customer?.phone && (
-            <TouchableOpacity style={s.iconBtn} activeOpacity={0.7} onPress={() => {
+        <GradientHeader
+          eyebrow="Contact log"
+          title={name}
+          onBack={() => {
+            if (Platform.OS === 'web' && window.history.length <= 1) {
+              router.replace(`/customers/${customerId}` as any);
+            } else {
+              router.back();
+            }
+          }}
+          right={customer?.phone ? (
+            <GlassButton label={`Call ${name}`} onPress={() => {
               import('react-native').then(({ Linking }) => Linking.openURL(`tel:${customer.phone}`));
             }}>
               <Phone size={18} color={c.ink} strokeWidth={2} />
-            </TouchableOpacity>
-          )}
-        </View>
+            </GlassButton>
+          ) : undefined}
+        />
 
         {/* Message list */}
         <FlatList
@@ -211,22 +206,6 @@ export default function CustomerMessagesScreen() {
 }
 
 const makeStyles = (c: Colors) => StyleSheet.create({
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 20, paddingBottom: 8,
-  },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  iconBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  title:   { fontSize: 17, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 10 },
   emptyTitle: { fontSize: 16, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
   emptySub:   { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.muted, textAlign: 'center', maxWidth: 260, lineHeight: 19 },
@@ -235,13 +214,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   msgRowIn:  { alignItems: 'flex-start' },
   bubble:    { maxWidth: '80%', borderRadius: 18, padding: 12, gap: 4 },
   bubbleOut: { backgroundColor: c.fillStrong, borderBottomRightRadius: 4 },
-  bubbleIn:  { backgroundColor: c.card, borderWidth: 1, borderColor: c.lineMid, borderBottomLeftRadius: 4 },
+  bubbleIn:  { backgroundColor: c.tile, borderWidth: 1, borderColor: c.tileEdge, borderTopColor: c.tileRim, borderBottomLeftRadius: 4 },
   channelPill: { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   channelPillText: { fontSize: 9, fontFamily: 'HostGrotesk_700Bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   bubbleText: { fontSize: 14, fontFamily: 'HostGrotesk_500Medium', color: c.ink, lineHeight: 20 },
   bubbleTime: { fontSize: 10, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2 },
   composer: {
-    borderTopWidth: 1, borderTopColor: c.lineSoft,
+    borderTopWidth: StyleSheet.hairlineWidth * 2, borderTopColor: c.lineSoft,
     backgroundColor: c.paper, padding: 12,
     shadowColor: c.ink, shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08, shadowRadius: 12, elevation: 10,
@@ -260,10 +239,10 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   dirBtnText: { fontSize: 11, fontFamily: 'HostGrotesk_700Bold', color: c.muted },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   input: {
-    flex: 1, backgroundColor: c.card, borderRadius: 16,
+    flex: 1, backgroundColor: c.tile, borderRadius: 16,
     paddingHorizontal: 14, paddingVertical: 10, paddingTop: 10,
-    fontSize: 14, fontFamily: 'HostGrotesk_500Medium', color: c.ink,
-    borderWidth: 1, borderColor: c.lineMid, maxHeight: 100,
+    fontSize: 15, fontFamily: 'HostGrotesk_500Medium', color: c.ink,
+    borderWidth: 1, borderColor: c.tileEdge, borderTopColor: c.tileRim, maxHeight: 100,
   },
   sendBtn: {
     width: 44, height: 44, borderRadius: 14,

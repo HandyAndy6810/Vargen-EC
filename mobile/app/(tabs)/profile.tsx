@@ -6,8 +6,6 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  Modal,
-  Pressable,
   Platform,
 } from 'react-native';
 import { useState, useMemo } from 'react';
@@ -17,6 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { outboxCount } from '@/lib/quote-outbox';
 import { useTheme, type Colors, type ThemeMode } from '@/hooks/use-theme';
 import { BottomSheetModal } from '@/components/BottomSheetModal';
+import { ScreenGradient, RimCard, RimGroup, RimRow, GlassButton, heroSecondary } from '@/components/Rim';
 import { useXeroStatus, useXeroDisconnect, useXeroSyncAll } from '@/hooks/use-xero';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { useCustomers } from '@/hooks/use-customers';
@@ -25,148 +24,30 @@ import { useInvoices } from '@/hooks/use-invoices';
 import { isThisMonth } from 'date-fns';
 import {
   Receipt, Sparkles, Palette, Bell, Sun, Moon, Smartphone, LogOut,
-  ChevronRight, Pencil, Link, RefreshCw, Unlink, CheckCircle, Users, Building2,
+  Pencil, Link, RefreshCw, Unlink, CheckCircle, Users, Building2,
   LayoutGrid, Check, ScanLine, CreditCard,
   Trash2,
 } from 'lucide-react-native';
 
 // ── Style factory ─────────────────────────────────────────────────────────────
-function makeStyles(c: Colors) {
+function makeStyles(c: Colors, isDark: boolean) {
   return StyleSheet.create({
-    heroSection: {
-      paddingHorizontal: 20,
-      paddingTop: 0,
-      paddingBottom: 24,
-      overflow: 'hidden',
-      position: 'relative',
-    },
-    heroGlow: {
-      position: 'absolute',
-      top: -60,
-      right: -100,
-      width: 300,
-      height: 300,
-      borderRadius: 150,
-      backgroundColor: `${c.orange}33`,
-    },
+    heroSection: { paddingHorizontal: 20, paddingBottom: 22 },
+    eyebrowOnGradient: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: heroSecondary(isDark) },
+    // Graphite in both modes with orange initials, as on Home.
     avatar: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
-      backgroundColor: c.heroFill,
-      alignItems: 'center',
-      justifyContent: 'center',
-      shadowColor: c.orange,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.2,
-      shadowRadius: 24,
-      elevation: 8,
+      width: 64, height: 64, borderRadius: 32, backgroundColor: '#1C1D21',
+      alignItems: 'center', justifyContent: 'center',
+      ...(isDark ? { borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' } : null),
     },
-    avatarText: {
-      fontSize: 26,
-      fontFamily: 'HostGrotesk_800ExtraBold',
-      color: c.orange,
-    },
-    name: {
-      fontSize: 22,
-      fontFamily: 'HostGrotesk_800ExtraBold',
-      color: c.ink,
-      letterSpacing: -0.5,
-    },
-    biz: {
-      fontSize: 12,
-      fontFamily: 'HostGrotesk_500Medium',
-      color: c.muted,
-      marginTop: 2,
-    },
-    proBadge: {
-      marginTop: 6,
-      alignSelf: 'flex-start',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 999,
-      backgroundColor: c.orangeSoft,
-    },
-    proBadgeText: {
-      fontSize: 9.5,
-      fontFamily: 'HostGrotesk_800ExtraBold',
-      color: c.orangeDeep,
-      letterSpacing: 0.7,
-      textTransform: 'uppercase',
-    },
-    editBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
-      backgroundColor: c.card,
-      borderWidth: 1,
-      borderColor: c.lineSoft,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    statCard: {
-      flex: 1,
-      padding: 14,
-      borderRadius: 16,
-      backgroundColor: c.card,
-      borderWidth: 1,
-      borderColor: c.lineSoft,
-    },
-    statVal: {
-      fontSize: 20,
-      fontFamily: 'HostGrotesk_800ExtraBold',
-      color: c.ink,
-      letterSpacing: -0.4,
-      lineHeight: 22,
-    },
-    statLabel: {
-      fontSize: 10,
-      fontFamily: 'HostGrotesk_800ExtraBold',
-      color: c.muted,
-      letterSpacing: 0.6,
-      textTransform: 'uppercase',
-      marginTop: 6,
-    },
-    groupEyebrow: {
-      fontSize: 10,
-      fontFamily: 'HostGrotesk_800ExtraBold',
-      color: c.muted,
-      letterSpacing: 2,
-      textTransform: 'uppercase',
-      marginBottom: 8,
-    },
-    groupCard: {
-      backgroundColor: c.card,
-      borderWidth: 1,
-      borderColor: c.lineSoft,
-      borderRadius: 16,
-      overflow: 'hidden',
-    },
-    groupRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 14,
-    },
-    groupIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    groupLabel: {
-      fontSize: 14,
-      fontFamily: 'HostGrotesk_800ExtraBold',
-      color: c.ink,
-    },
-    groupSub: {
-      fontSize: 11,
-      fontFamily: 'HostGrotesk_500Medium',
-      color: c.muted,
-      marginTop: 2,
-    },
+    avatarText: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange, letterSpacing: -0.3 },
+    name: { fontSize: 26, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.8, lineHeight: 30 },
+    biz: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: heroSecondary(isDark), marginTop: 2 },
+    statVal: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.5, lineHeight: 26 },
+    statLabel: { fontSize: 12, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted, marginTop: 4 },
+    groupIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+    groupLabel: { fontSize: 15, fontFamily: 'HostGrotesk_700Bold', color: c.ink, letterSpacing: -0.2 },
+    groupSub: { fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2 },
   });
 }
 
@@ -217,38 +98,21 @@ type SettingItem = {
 };
 
 function SettingsGroup({ title, items }: { title: string; items: SettingItem[] }) {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
   return (
-    <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-      <Text style={s.groupEyebrow}>{title}</Text>
-      <View style={s.groupCard}>
-        {items.map((item, i) => (
-          <TouchableOpacity
-            key={item.label}
-            onPress={item.onPress}
-            activeOpacity={0.7}
-            style={[s.groupRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}
-          >
-            <View style={[s.groupIcon, { backgroundColor: item.danger ? c.redSoft : c.paperDeep }]}>
-              <item.icon size={16} color={item.danger ? c.red : c.ink} strokeWidth={2.1} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[s.groupLabel, item.danger && { color: c.red }]}>{item.label}</Text>
-                {item.badge && (
-                  <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: c.orangeSoft }}>
-                    <Text style={{ fontSize: 9, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orangeDeep, letterSpacing: 0.5 }}>{item.badge}</Text>
-                  </View>
-                )}
-              </View>
-              {item.sub ? <Text style={s.groupSub}>{item.sub}</Text> : null}
-            </View>
-            <ChevronRight size={14} color={c.muted} strokeWidth={2} />
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
+    <RimGroup title={title}>
+      {items.map((item, i) => (
+        <RimRow
+          key={item.label}
+          first={i === 0}
+          icon={item.icon}
+          label={item.label}
+          sub={item.sub}
+          badge={item.badge}
+          danger={item.danger}
+          onPress={item.onPress}
+        />
+      ))}
+    </RimGroup>
   );
 }
 
@@ -260,8 +124,8 @@ function SettingsGroup({ title, items }: { title: string; items: SettingItem[] }
 // rebuilding around invoices before anyone connects it. An account that is
 // somehow already connected keeps its sync and disconnect controls.
 function IntegrationsSection() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
   const xs = makeXeroStyles(c);
   const { data: xero } = useXeroStatus();
   const disconnect = useXeroDisconnect();
@@ -290,13 +154,11 @@ function IntegrationsSection() {
   ];
 
   return (
-    <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-      <Text style={s.groupEyebrow}>Integrations</Text>
-      <View style={s.groupCard}>
+    <RimGroup title="Integrations">
         {rows.map((r, i) => (
-          <View key={r.key} style={[{ padding: 14 }, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
+          <View key={r.key} style={[{ paddingHorizontal: 16, paddingVertical: 14 }, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth * 2, borderTopColor: c.lineSoft }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={[s.groupIcon, { backgroundColor: c.paperDeep }]}>
+              <View style={[s.groupIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(28,29,33,0.06)' }]}>
                 <r.Icon size={16} color={c.ink} strokeWidth={2.1} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -338,8 +200,7 @@ function IntegrationsSection() {
             ) : null}
           </View>
         ))}
-      </View>
-    </View>
+    </RimGroup>
   );
 }
 
@@ -384,7 +245,8 @@ function AppearanceModal({ visible, onClose }: { visible: boolean; onClose: () =
 
 // ── Profile screen ────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const { colors: c, mode } = useTheme();
+  const { colors: c, mode, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuth() as any;
   const { data: customers } = useCustomers();
   const { data: jobs } = useJobs();
@@ -434,25 +296,26 @@ export default function ProfileScreen() {
     }
   };
 
-  const s = useMemo(() => makeStyles(c), [c]);
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+        <ScreenGradient intensity="soft" id="profileGradient" />
         {/* Hero */}
-        <View style={s.heroSection}>
-          <View style={s.heroGlow} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, position: 'relative' }}>
+        <View style={[s.heroSection, { paddingTop: insets.top + 14 }]}>
+          <Text style={s.eyebrowOnGradient}>Your account</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 }}>
             <View style={s.avatar}>
               <Text style={s.avatarText}>{initials}</Text>
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={s.name}>{fullName}</Text>
-              <Text style={s.biz}>{user?.email || ''}</Text>
+              <Text style={s.name} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{fullName}</Text>
+              <Text style={s.biz} numberOfLines={1}>{user?.email || ''}</Text>
             </View>
-            <TouchableOpacity style={s.editBtn} activeOpacity={0.7} onPress={() => router.push('/settings/business-details' as any)}>
+            <GlassButton label="Edit business profile" onPress={() => router.push('/settings/business-details' as any)}>
               <Pencil size={18} color={c.ink} strokeWidth={2.1} />
-            </TouchableOpacity>
+            </GlassButton>
           </View>
         </View>
 
@@ -460,13 +323,13 @@ export default function ProfileScreen() {
         <View style={{ paddingHorizontal: 20, flexDirection: 'row', gap: 8 }}>
           {[
             { l: 'Jobs this month', v: String(jobsThisMonth) },
-            { l: 'Revenue this mo', v: revenueLabel },
+            { l: 'Paid this month', v: revenueLabel },
             { l: 'Customers',       v: String((customers as any[])?.length ?? 0) },
           ].map(stat => (
-            <View key={stat.l} style={s.statCard}>
+            <RimCard key={stat.l} padding="sm" style={{ flex: 1, paddingHorizontal: 14 }}>
               <Text style={s.statVal}>{stat.v}</Text>
               <Text style={s.statLabel}>{stat.l}</Text>
-            </View>
+            </RimCard>
           ))}
         </View>
 
