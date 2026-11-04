@@ -68,6 +68,7 @@ export default function ForgotPasswordScreen() {
               <Text style={s.title}>Check your email</Text>
               <Text style={s.successSub}>
                 If that address is registered, we sent a password reset link. It expires in 1 hour.
+                {'\n\n'}Not there in a few minutes? Check your spam or junk folder, then try again.
               </Text>
               <TouchableOpacity
                 style={s.submitBtn}

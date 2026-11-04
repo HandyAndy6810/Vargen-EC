@@ -168,8 +168,14 @@ export async function setupAuth(app: Express) {
         const token = crypto.randomBytes(32).toString("hex");
         const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
         await authStorage.saveResetToken(user.id, token, expiry);
-        const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
-        await sendPasswordResetEmail(user.email ?? email, `${baseUrl}/reset-password?token=${token}`);
+        const baseUrl = (process.env.APP_URL || `${req.protocol}://${req.get("host")}`).replace(/\/+$/, "");
+        try {
+          await sendPasswordResetEmail(user.email ?? email, `${baseUrl}/reset-password?token=${token}`);
+        } catch (err) {
+          // Logged loudly for us, never shown: a failure only happens for accounts
+          // that exist, so reporting it would tell anyone which emails are registered.
+          console.error(`[password reset] email to user ${user.id} FAILED; check RESEND_API_KEY / EMAIL_FROM and the sender domain in Resend:`, err);
+        }
       }
       res.json({ message: "If that email is registered, a reset link has been sent." });
     } catch (error) {
