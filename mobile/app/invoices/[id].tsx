@@ -8,14 +8,24 @@ import {
   ActivityIndicator,
   Linking,
   Share,
+  Modal,
+  Platform,
+  Dimensions,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { apiRequest } from '@/lib/api';
+import { useCustomer } from '@/hooks/use-customers';
+import { fitToWidthHtml } from '@/lib/pdf-templates';
+import { invoiceMessage, invoiceEmailUrl, smsUrl } from '@shared/quote-message';
+import { X, Share2 } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { copyText } from '@/lib/clipboard';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { ActionSheetModal, type SheetAction } from '@/components/ActionSheetModal';
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import PDFComposeModal from '@/components/PDFComposeModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInvoice, useUpdateInvoice, useDeleteInvoice } from '@/hooks/use-invoices';
@@ -44,6 +54,13 @@ export default function InvoiceDetailScreen() {
   const stripeLink = useStripePaymentLink();
   const squareLink = useSquarePaymentLink();
   const { data: settings } = useSettings();
+  const insets = useSafeAreaInsets();
+  const { data: customerRec } = useCustomer(invoice?.customerId || 0) as any;
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  // The share waits for the compose sheet to have fully closed (onClosed): shared
+  // while it was still closing, the share sheet went down with it.
+  const pendingShare = useRef<null | { customMessage: string; notes: string }>(null);
+  const composeAfterPreview = useRef(false);
 
   const sharePaymentLink = (url: string, label: string) => {
     Share.share({ message: `Pay your invoice here: ${url}`, url }).catch(() => {
@@ -117,45 +134,91 @@ export default function InvoiceDetailScreen() {
     });
   };
 
-  const generateAndSharePDF = async (customMessage: string, notes: string) => {
+  /** The invoice exactly as its PDF shows it; the preview and the share both use it. */
+  const invoiceDoc = (customMessage = '', notes = ''): PdfDocumentData => {
+    const parsedItems = (JSON.parse(invoice?.items || '[]') as any[]).map((item: any) => ({
+      description: item.description,
+      quantity: item.quantity || 1,
+      unit: item.unit,
+      unitPrice: item.unitPrice || 0,
+    }));
+
+    // Use actual invoice title (not truncated first-item description)
+    const invoiceTitle = invoice?.title || (parsedItems[0]?.description ?? `Invoice ${num}`);
+
+    return {
+      documentType: 'invoice',
+      documentNumber: invoice?.invoiceNumber || String(id).slice(-3),
+      createdAt: invoice?.createdAt ?? new Date().toISOString(),
+      dueDate: invoice?.dueDate,
+      status: invoice?.status,
+      jobTitle: invoiceTitle,
+      customerName: invoice?.customerName ?? undefined,
+      items: parsedItems,
+      notes: notes || invoice?.notes || undefined,
+      customMessage: customMessage || undefined,
+      subtotal: parseFloat(invoice?.subtotal || '0'),
+      gstAmount: parseFloat(invoice?.gstAmount || '0'),
+      totalAmount: parseFloat(invoice?.totalAmount || '0'),
+      includeGST: parseFloat(invoice?.gstAmount || '0') > 0,
+    };
+  };
+
+  /** "What your customer sees": the PDF's own layout, full screen, fitted to the phone. */
+  const previewInvoice = () => {
+    try {
+      setPreviewHtml(fitToWidthHtml(buildQuotePDF(invoiceDoc(), settings ?? {}), Dimensions.get('window').width));
+    } catch (e: any) {
+      showAlert('Could not build the preview', String(e?.message || 'Try again.'));
+    }
+  };
+
+  const generateAndSharePDF = (customMessage: string, notes: string) => {
+    pendingShare.current = { customMessage, notes };
+    setShowPDF(false); // the share runs from the compose sheet's onClosed
+  };
+
+  const runPendingShare = async () => {
+    const p = pendingShare.current;
+    pendingShare.current = null;
+    if (!p) return;
     setPdfPending(true);
     try {
-      const parsedItems = (JSON.parse(invoice?.items || '[]') as any[]).map((item: any) => ({
-        description: item.description,
-        quantity: item.quantity || 1,
-        unit: item.unit,
-        unitPrice: item.unitPrice || 0,
-      }));
-
-      // Use actual invoice title (not truncated first-item description)
-      const invoiceTitle = invoice?.title || (parsedItems[0]?.description ?? `Invoice ${num}`);
-
-      const docData: PdfDocumentData = {
-        documentType: 'invoice',
-        documentNumber: invoice?.invoiceNumber || String(id).slice(-3),
-        createdAt: invoice?.createdAt ?? new Date().toISOString(),
-        dueDate: invoice?.dueDate,
-        status: invoice?.status,
-        jobTitle: invoiceTitle,
-        customerName: invoice?.customerName ?? undefined,
-        items: parsedItems,
-        notes: notes || invoice?.notes || undefined,
-        customMessage: customMessage || undefined,
-        subtotal: parseFloat(invoice?.subtotal || '0'),
-        gstAmount: parseFloat(invoice?.gstAmount || '0'),
-        totalAmount: parseFloat(invoice?.totalAmount || '0'),
-        includeGST: parseFloat(invoice?.gstAmount || '0') > 0,
-      };
-
-      const html = buildQuotePDF(docData, settings ?? {});
-      setShowPDF(false);
-      await sharePdf(html, documentFilename(docData));
+      const docData = invoiceDoc(p.customMessage, p.notes);
+      await sharePdf(buildQuotePDF(docData, settings ?? {}), documentFilename(docData));
     } catch (err: any) {
-      showAlert('Could not generate PDF', err?.message ?? 'Please try again.');
+      const msg = String(err?.message || '');
+      if (!/cancel|dismiss/i.test(msg)) showAlert('Could not generate PDF', msg || 'Please try again.');
     } finally {
       setPdfPending(false);
     }
   };
+
+  /**
+   * The customer's link (their invoice page, to view and pay), issued by the server
+   * if the invoice has none yet. Resending an invoice is sharing this again.
+   */
+  const withInvoiceLink = async (open: (url: string) => Promise<unknown> | void) => {
+    try {
+      let url: string | undefined = invoice?.invoiceUrl;
+      if (!url) {
+        const res = await apiRequest('POST', `/api/invoices/${invoiceId}/link`);
+        if (!res.ok) throw new Error('No link');
+        url = (await res.json())?.invoiceUrl;
+      }
+      if (!url) throw new Error('No link');
+      await open(url);
+    } catch {
+      showAlert('Could not get the invoice link', 'Check your connection and try again.');
+    }
+  };
+  const linkMessage = (url: string) => invoiceMessage({
+    customerName: customerRec?.name || invoice?.customerName, businessName: settings?.businessName,
+    invoiceNumber: invoice?.invoiceNumber, total: parseFloat(invoice?.totalAmount || '0'),
+    includeGST: parseFloat(invoice?.gstAmount || '0') > 0,
+    dueDate: invoice?.dueDate ? format(new Date(invoice.dueDate), 'd MMM yyyy') : null,
+    invoiceUrl: url,
+  });
 
   const handleDelete = () => {
     showConfirm({
@@ -168,7 +231,19 @@ export default function InvoiceDetailScreen() {
   };
 
   const [showMoreSheet, setShowMoreSheet] = useState(false);
+  const customerEmail: string | undefined = customerRec?.email || undefined;
+  const customerPhone: string | undefined = customerRec?.phone || undefined;
   const moreActions: SheetAction[] = [
+    { label: 'Preview invoice', onPress: previewInvoice },
+    // Send or resend: every way carries the customer's link to view and pay.
+    customerEmail ? { label: 'Email customer', onPress: () => withInvoiceLink(url => Linking.openURL(invoiceEmailUrl(customerEmail, {
+      customerName: customerRec?.name, businessName: settings?.businessName, invoiceNumber: invoice?.invoiceNumber,
+      total: parseFloat(invoice?.totalAmount || '0'), includeGST: parseFloat(invoice?.gstAmount || '0') > 0,
+      dueDate: invoice?.dueDate ? format(new Date(invoice.dueDate), 'd MMM yyyy') : null, invoiceUrl: url,
+    }))) } : null,
+    customerPhone ? { label: 'Send SMS', onPress: () => withInvoiceLink(url => Linking.openURL(smsUrl(customerPhone, linkMessage(url), Platform.OS))) } : null,
+    { label: 'Share link', onPress: () => withInvoiceLink(url => Share.share({ message: linkMessage(url) })) },
+    { label: 'Copy link', onPress: () => withInvoiceLink(url => { copyText(url); showAlert('Link copied', 'Paste it into a message to the customer.'); }) },
     { label: 'Edit invoice', onPress: () => router.push(`/invoices/create/review?invoiceId=${invoiceId}` as any) },
     // A deposit leaves money on the job, and the only way to bill the rest used to
     // be to go back to the QUOTE and find "Invoice balance" there. Nobody looking at
@@ -277,7 +352,7 @@ export default function InvoiceDetailScreen() {
           ) : null}
         </View>
         {!isPaid && (
-          <TouchableOpacity onPress={handleMore} activeOpacity={0.7} style={s.iconBtn}>
+          <TouchableOpacity onPress={handleMore} activeOpacity={0.7} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="More actions">
             <MoreHorizontal size={18} color={c.ink} strokeWidth={2.2} />
           </TouchableOpacity>
         )}
@@ -487,9 +562,9 @@ export default function InvoiceDetailScreen() {
             </View>
           )}
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-            <TouchableOpacity onPress={() => setShowPDF(true)} activeOpacity={0.7} style={s.pdfBtn}>
+            <TouchableOpacity onPress={previewInvoice} activeOpacity={0.7} style={s.pdfBtn} accessibilityRole="button" accessibilityLabel="Preview the invoice">
               <FileText size={16} color={c.orange} strokeWidth={2} />
-              <Text style={s.pdfBtnText}>PDF</Text>
+              <Text style={s.pdfBtnText}>Preview</Text>
             </TouchableOpacity>
             {settings?.stripeEnabled && (
               <TouchableOpacity
@@ -533,9 +608,9 @@ export default function InvoiceDetailScreen() {
       ) : (
         <View style={[s.bottomBar, { bottom: keyboardHeight }]}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity onPress={() => setShowPDF(true)} activeOpacity={0.7} style={s.pdfBtn}>
+            <TouchableOpacity onPress={previewInvoice} activeOpacity={0.7} style={s.pdfBtn} accessibilityRole="button" accessibilityLabel="Preview the invoice">
               <FileText size={16} color={c.orange} strokeWidth={2} />
-              <Text style={s.pdfBtnText}>PDF</Text>
+              <Text style={s.pdfBtnText}>Preview</Text>
             </TouchableOpacity>
             <View style={[s.paidBadge, { flex: 1 }]}>
               <Check size={18} color={c.green} strokeWidth={2.5} />
@@ -557,6 +632,7 @@ export default function InvoiceDetailScreen() {
       visible={showPDF}
       onClose={() => setShowPDF(false)}
       onShare={generateAndSharePDF}
+      onClosed={runPendingShare}
       documentType="invoice"
       documentNumber={invoice?.invoiceNumber || String(id).slice(-3)}
       customerName={invoice?.customerName}
@@ -565,6 +641,49 @@ export default function InvoiceDetailScreen() {
       initialNotes={invoice?.notes}
       isPending={pdfPending}
     />
+
+    {/* "What your customer sees": the invoice's own PDF layout. Share from here
+        goes through the compose sheet (message + notes), as the PDF button did. */}
+    <Modal
+      visible={previewHtml !== null}
+      animationType="slide"
+      onRequestClose={() => setPreviewHtml(null)}
+      onDismiss={() => {
+        if (!composeAfterPreview.current) return;
+        composeAfterPreview.current = false;
+        setShowPDF(true);
+      }}
+    >
+      <View style={{ flex: 1, backgroundColor: c.paper, paddingTop: insets.top }}>
+        <View style={s.previewBar}>
+          <TouchableOpacity onPress={() => setPreviewHtml(null)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close the preview">
+            <X size={20} color={c.ink} strokeWidth={2.2} />
+          </TouchableOpacity>
+          <Text style={s.previewTitle}>What your customer sees</Text>
+          <TouchableOpacity
+            onPress={() => {
+              // On iOS the compose sheet opens once the preview has gone (onDismiss
+              // below): opened during its slide-down, it would never appear.
+              if (Platform.OS === 'ios') composeAfterPreview.current = true;
+              setPreviewHtml(null);
+              if (Platform.OS !== 'ios') setShowPDF(true);
+            }}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Share this invoice as a PDF"
+          >
+            <Share2 size={19} color={c.orange} strokeWidth={2.2} />
+          </TouchableOpacity>
+        </View>
+        <WebView
+          originWhitelist={['*']}
+          source={{ html: previewHtml || '' }}
+          style={{ flex: 1, backgroundColor: '#fff' }}
+          scalesPageToFit
+        />
+        <View style={{ height: insets.bottom, backgroundColor: '#fff' }} />
+      </View>
+    </Modal>
 
     <ActionSheetModal
       visible={showMoreSheet}
@@ -860,4 +979,9 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.orange,
   },
+  previewBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.lineSoft,
+  },
+  previewTitle: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
 });

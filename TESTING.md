@@ -268,6 +268,22 @@ same test ID, with what fixed it. Re-check these on every build.
       sheet **stays open** until you pick an app or cancel. Check an old quote
       (sent before 2 Nov) and a new one. It used to vanish after a moment.
 
+### Invoices: sending and preview (Group B)
+
+- [ ] **i4** New invoice → Send invoice → pick or add a customer → Email customer
+      opens Mail addressed to them with the amount, due date and a **link**
+      (`…/invoice/…`). Open that link **on a phone that isn't signed in**: it shows
+      the invoice with bank details and, if card payments are on, Pay by card. It
+      used to say "Invoice not found". SMS and Share link carry the same link.
+- [ ] **i4** On a saved invoice, ⋯ → Share link / Copy link / Email customer / Send
+      SMS all carry the link, including an invoice sent before 3 Nov.
+- [ ] **i5** On a saved invoice, **Preview** (bottom left) opens "What your customer
+      sees". Its share icon opens the PDF message sheet, and the PDF share sheet
+      stays open.
+- [ ] **i4 email delivery** (server): with `RESEND_API_KEY` and `EMAIL_FROM` set and
+      the sender domain verified in Resend, ⋯ → Edit invoice → Send by any channel
+      sends no second email; Resend (if used) delivers with the `/invoice/` link.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what

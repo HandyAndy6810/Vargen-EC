@@ -1,11 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Linking, Share } from 'react-native';
+import { Linking, Share, Platform } from 'react-native';
+import { onlineManager } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useEntryId, useEntryText } from '@/hooks/use-entry-params';
 import { addDays, format } from 'date-fns';
 import { apiRequest, API_BASE_URL } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { showAlert } from '@/lib/dialogs';
+import { toast } from '@/lib/toast';
+import { isNetworkError } from '@/lib/connectivity';
+import { invoiceMessage, invoiceEmailUrl, smsUrl } from '@shared/quote-message';
 import { buildQuotePDF } from '@/lib/quote-pdf';
 import { sharePdf, documentFilename } from '@/lib/share-pdf';
 import { hapticSuccess, hapticError, hapticPress, hapticWarn } from '@/lib/haptics';
@@ -116,6 +120,8 @@ type InvoiceDraft = {
   hasWork: () => boolean;
   showSendSheet: boolean; setShowSendSheet: (v: boolean) => void;
   handleSendPress: () => void;
+  /** The checks Send makes (online, the invoice is complete). True when it can go. */
+  prepareSend: () => boolean;
   sendActions: SheetAction[];
 
   // AI
@@ -551,8 +557,18 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
-  const save = async (status: 'draft' | 'sent') => {
-    if (!validate() || saving) return;
+  /** Leave the create flow cleanly, onto the invoice. */
+  const leaveTo = (id: number | undefined) => {
+    try { router.dismissAll(); } catch {}
+    router.replace(`/invoices/${id ?? editId}` as any);
+  };
+
+  /**
+   * Save, and return what the server saved (with its invoiceUrl once sent), or null
+   * on failure. A send stays on screen (stay) until its channel has opened.
+   */
+  const save = async (status: 'draft' | 'sent', opts: { stay?: boolean } = {}): Promise<any | null> => {
+    if (!validate() || saving) return null;
     setSaving(true);
     try {
       const body: any = {
@@ -575,6 +591,9 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
         dueDate: dueDate.toISOString(),
         quoteId: sourceQuoteId || undefined,
         invoiceType,
+        // The app sends it itself (Mail, Messages, share sheet): the server's own
+        // "invoice ready" email would double up.
+        notify: false,
         ...(invoiceType === 'deposit'
           ? (depositFixed > 0 ? { depositAmount: depositFixed } : { depositPercent })
           : {}),
@@ -591,34 +610,74 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
       clearQuoteDraft('invoice');
       queryClient.invalidateQueries({ queryKey: ['/api/invoices'] });
       queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-      try { router.dismissAll(); } catch {}
-      router.replace(`/invoices/${saved?.id ?? editId}` as any);
+      if (!opts.stay) leaveTo(saved?.id);
+      return saved;
     } catch (e: any) {
       hapticError();
-      setError(e?.message || 'Could not save the invoice.');
+      if (status === 'sent' && isNetworkError(e)) {
+        showAlert('Needs a connection', "Sending needs a connection. Save it as a draft for now and send it once you're back online.");
+      } else {
+        setError(e?.message || 'Could not save the invoice.');
+      }
+      return null;
     } finally {
       setSaving(false);
     }
   };
 
   const [showSendSheet, setShowSendSheet] = useState(false);
-  const handleSendPress = () => { if (validate()) setShowSendSheet(true); };
-  const sendVia = (open: () => void) => { save('sent'); open(); };
+  /** The checks Send makes (online, the invoice is complete). True when it can go. */
+  const prepareSend = () => {
+    if (!onlineManager.isOnline()) {
+      showAlert('Needs a connection', "Sending needs a connection. Save it as a draft for now and send it once you're back online.");
+      return false;
+    }
+    return validate();
+  };
+  const handleSendPress = () => { if (prepareSend()) setShowSendSheet(true); };
+
+  /**
+   * Save as sent, then hand the customer their link: the invoice page they can view
+   * and pay from, built by the server. This used to open the channel the moment the
+   * save STARTED, before the invoice existed, with "please find your invoice
+   * attached" and nothing attached, and the save then navigated away underneath it.
+   */
+  const sendVia = async (open: (invoiceUrl: string) => Promise<unknown> | void) => {
+    const saved = await save('sent', { stay: true });
+    if (!saved) return;
+    const url: string | undefined = saved.invoiceUrl;
+    if (!url) {
+      leaveTo(saved.id);
+      toast({ title: 'Could not get the invoice link', description: 'The invoice is saved as sent. Open it and use Share link to send it.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await open(url);
+    } catch {
+      toast({ title: "Couldn't open that", description: 'The invoice is sent. Use Share link from the invoice to send it another way.', variant: 'destructive' });
+    } finally {
+      leaveTo(saved.id);
+    }
+  };
+  const message = (invoiceUrl: string) => ({
+    customerName: customer, businessName: settings?.businessName,
+    total, includeGST, dueDate: dueDateLabel, invoiceUrl,
+  });
   const sendActions: SheetAction[] = [
     selectedCustomer?.email ? {
       label: 'Email customer',
-      onPress: () => sendVia(() =>
-        Linking.openURL(`mailto:${selectedCustomer.email}?subject=Your invoice&body=Hi ${customer || 'there'},%0D%0A%0D%0APlease find your invoice attached.%0D%0A%0D%0ATotal: $${total.toFixed(2)}${includeGST ? ' inc. GST' : ''}%0D%0ADue: ${dueDateLabel}%0D%0A%0D%0AThanks`)
-      ),
+      onPress: () => sendVia(url => Linking.openURL(invoiceEmailUrl(selectedCustomer.email, message(url)))),
     } : null,
     selectedCustomer?.phone ? {
       label: 'Send SMS',
-      onPress: () => sendVia(() => Linking.openURL(`sms:${selectedCustomer.phone}`)),
+      onPress: () => sendVia(url => Linking.openURL(smsUrl(selectedCustomer.phone, invoiceMessage(message(url)), Platform.OS))),
     } : null,
     {
       label: 'Share link',
-      onPress: () => sendVia(() => Share.share({ message: `Invoice — $${total.toFixed(2)}${includeGST ? ' (inc. GST)' : ''}, due ${dueDateLabel}` })),
+      onPress: () => sendVia(url => Share.share({ message: invoiceMessage(message(url)) })),
     },
+    // The PDF as an extra; only the link lets the customer view and pay online.
+    { label: 'Share PDF', onPress: () => { shareAnyway(); } },
   ].filter(Boolean) as SheetAction[];
 
   // ── AI ─────────────────────────────────────────────────────────────────────
@@ -687,7 +746,7 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     subtotal, gst, total, totalCost, profit, jobTotal, remainingAfter, includeGST, gstRate,
     invoicePayload, shareAnyway,
     error, setError, saving, save, hasWork,
-    showSendSheet, setShowSendSheet, handleSendPress, sendActions,
+    showSendSheet, setShowSendSheet, handleSendPress, prepareSend, sendActions,
     aiBusy, generateFromDescription,
   };
 

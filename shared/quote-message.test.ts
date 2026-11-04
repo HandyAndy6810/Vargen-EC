@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { quoteMessage, quoteEmailUrl, quoteSmsUrl } from './quote-message';
+import { quoteMessage, quoteEmailUrl, quoteSmsUrl, invoiceMessage, invoiceEmailUrl, smsUrl } from './quote-message';
 
 const q = {
   customerName: 'Sam Smith', businessName: 'Andy Plumbing', jobTitle: 'Hot water swap',
@@ -42,5 +42,23 @@ describe('quoteSmsUrl', () => {
     const body = url.split('body=')[1];
     assert.ok(!/[\n&]/.test(body));
     assert.equal(decodeURIComponent(body), quoteMessage({ ...q, businessName: 'Smith & Sons' }));
+  });
+});
+
+describe('invoiceMessage', () => {
+  const i = { customerName: 'Sam Smith', businessName: 'Andy Plumbing', invoiceNumber: 'INV-0007', total: 330, includeGST: true, dueDate: '17 Nov 2026', invoiceUrl: 'https://vargen.example/invoice/tok' };
+  test('amount, due date and the link to pay', () => {
+    const m = invoiceMessage(i);
+    assert.ok(m.includes('invoice INV-0007: $330.00 inc. GST, due 17 Nov 2026.'));
+    assert.ok(m.includes('View and pay it here: https://vargen.example/invoice/tok'));
+    assert.ok(!/attached/i.test(m));
+  });
+  test('email subject names the invoice and the business; the link survives encoding', () => {
+    const url = invoiceEmailUrl('sam@example.com', i);
+    assert.ok(url.startsWith('mailto:sam%40example.com?subject=Invoice%20INV-0007%20from%20Andy%20Plumbing&body='));
+    assert.equal(decodeURIComponent(url.split('&body=')[1]), invoiceMessage(i));
+  });
+  test('SMS carries it the same way', () => {
+    assert.equal(decodeURIComponent(smsUrl('0412 345 678', invoiceMessage(i), 'ios').split('&body=')[1]), invoiceMessage(i));
   });
 });

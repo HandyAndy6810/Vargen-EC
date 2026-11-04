@@ -10,6 +10,7 @@ import { checkLinePrice } from "../shared/price-sanity";
 import { labourLineCost } from "./lib/labour-cost";
 import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
 import { firstSendFields, publicBaseUrl, withPortalUrl } from "./lib/quote-send";
+import { buildInvoiceView, withInvoiceUrl } from "./lib/invoice-view";
 import { buildPortalView } from "./lib/portal-view";
 import { extractJsonObject, receiptTotal, providerRejectedField, isRateLimited } from "./lib/ai-json";
 import { imageDataUri } from "./lib/image-type";
@@ -1592,7 +1593,8 @@ CRITICAL RULES — follow these exactly:
         await Promise.all(overdueIds.map(id => storage.updateInvoice(id, { status: "overdue" }, req.userId)));
         allInvoices.forEach(inv => { if (overdueIds.includes(inv.id)) inv.status = "overdue"; });
       }
-      res.json(allInvoices);
+      const base = publicBaseUrl(process.env, req);
+      res.json(allInvoices.map((inv) => withInvoiceUrl(inv, base)));
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to get invoices" });
     }
@@ -1769,6 +1771,8 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
         customerId: customerId ? Number(customerId) : null,
         invoiceNumber,
         status: status === "sent" ? "sent" : "draft",
+        // Sent straight away (the app's normal send): it needs its customer link now.
+        shareToken: status === "sent" ? crypto.randomUUID() : null,
         invoiceType,
         items: JSON.stringify(items),
         subtotal: subtotal.toFixed(2),
@@ -1789,14 +1793,14 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
           await storage.updateQuote(quoteId, { status: "invoiced" }, req.userId);
         }
         return res.status(201).json({
-          ...invoice,
+          ...withInvoiceUrl(invoice, publicBaseUrl(process.env, req)),
           quoteInvoicedTotal: invoicedTotal,
           quoteTotal: jobTotal,
           quoteFullyInvoiced: fullyInvoiced,
         });
       }
 
-      res.status(201).json(invoice);
+      res.status(201).json(withInvoiceUrl(invoice, publicBaseUrl(process.env, req)));
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to create invoice" });
     }
@@ -1807,7 +1811,7 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       const id = Number(req.params.id);
       const invoice = await storage.getInvoice(id, req.userId);
       if (!invoice) return res.status(404).json({ message: "Invoice not found" });
-      res.json(invoice);
+      res.json(withInvoiceUrl(invoice, publicBaseUrl(process.env, req)));
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to get invoice" });
     }
@@ -1920,7 +1924,7 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       }
 
       res.status(201).json({
-        ...invoice,
+        ...withInvoiceUrl(invoice, publicBaseUrl(process.env, req)),
         // Lets the client show progress without a second round-trip
         quoteInvoicedTotal: round2(invoicedTotal),
         quoteTotal: round2(quoteTotal),
@@ -1943,6 +1947,10 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
 
       // Partial payment handling: if payAmount is provided, accumulate and decide status
       let patchBody = { ...req.body };
+      // The customer's link is the server's to issue: never taken from the body,
+      // and created the first time the invoice is sent.
+      delete patchBody.shareToken;
+      if (req.body.status === "sent" && !existing.shareToken) patchBody.shareToken = crypto.randomUUID();
       if (typeof patchBody.payAmount === "number") {
         const already = Number(existing.paidAmount || 0);
         const newPaidAmount = +(already + patchBody.payAmount).toFixed(2);
@@ -2037,12 +2045,12 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
           patchBody[field] = d;
         }
       }
-      for (const notAColumn of ["depositPercent", "depositAmount", "includeGST", "customerName"]) {
+      for (const notAColumn of ["depositPercent", "depositAmount", "includeGST", "customerName", "notify"]) {
         delete patchBody[notAColumn];
       }
 
       const updated = await storage.updateInvoice(id, patchBody, req.userId);
-      res.json(updated);
+      res.json(withInvoiceUrl(updated, publicBaseUrl(process.env, req)));
 
       // Sync payment to Xero when invoice first becomes paid
       const justPaid = updated.status === "paid" && existing.status !== "paid";
@@ -2057,7 +2065,9 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
 
       // Send email when invoice is first marked as sent
       const justSent = req.body.status === "sent" && existing.status !== "sent";
-      if (justSent && existing.customerId) {
+      // notify: false = the caller is sending it itself (the app opens Mail, Messages
+      // or the share sheet with the link), so a second email from here would double up.
+      if (justSent && existing.customerId && req.body.notify !== false) {
         const customer = await storage.getCustomer(existing.customerId, req.userId);
         if (customer?.email) {
           const s = await storage.getUserSettings(req.userId);
@@ -2065,8 +2075,9 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
           const dueDate = updated.dueDate
             ? new Date(updated.dueDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" })
             : null;
-          const origin = `${req.protocol}://${req.get("host")}`;
-          const previewLink = `${origin}/invoices/${existing.id}/preview`;
+          // The customer's link: /invoices/:id/preview needs the TRADIE's login, so
+          // customers following it saw "Invoice not found".
+          const previewLink = withInvoiceUrl(updated, publicBaseUrl(process.env, req)).invoiceUrl;
           sendCustomerEmail(
             customer.email,
             `Invoice ${existing.invoiceNumber} from ${businessName}`,
@@ -2076,6 +2087,35 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       }
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to update invoice" });
+    }
+  });
+
+  // The customer's link for an invoice, issuing a token if it has none yet (any
+  // invoice sent before links existed, or one shared before it's marked sent).
+  app.post("/api/invoices/:id/link", requireAuth, async (req: any, res) => {
+    try {
+      const invoice = await storage.ensureInvoiceShareToken(Number(req.params.id), req.userId);
+      if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+      res.json({ invoiceUrl: withInvoiceUrl(invoice, publicBaseUrl(process.env, req)).invoiceUrl });
+    } catch (error: any) {
+      console.error("[invoice link]", error);
+      res.status(500).json({ message: "Couldn't create the invoice link" });
+    }
+  });
+
+  // Public: what the customer sees at /invoice/:token. An allowlisted view
+  // (server/lib/invoice-view.ts); the token, not the guessable id, is the key.
+  app.get("/api/invoice-view/:token", portalReadRateLimit, async (req, res) => {
+    try {
+      const invoice = await storage.getInvoiceByShareToken(String(req.params.token));
+      if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+      const customer = invoice.customerId && invoice.userId
+        ? (await storage.getCustomer(invoice.customerId, invoice.userId)) || null : null;
+      const settings = invoice.userId ? await storage.getUserSettings(invoice.userId) : undefined;
+      res.json(buildInvoiceView({ invoice, customer, settings }));
+    } catch (error: any) {
+      console.error("[invoice view]", error);
+      res.status(500).json({ message: "Couldn't load the invoice" });
     }
   });
 
@@ -2094,8 +2134,8 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
       const dueDate = invoice.dueDate
         ? new Date(invoice.dueDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" })
         : null;
-      const origin = `${req.protocol}://${req.get("host")}`;
-      const previewLink = `${origin}/invoices/${invoice.id}/preview`;
+      const withToken = await storage.ensureInvoiceShareToken(invoice.id, req.userId);
+      const previewLink = withInvoiceUrl(withToken!, publicBaseUrl(process.env, req)).invoiceUrl;
 
       await sendCustomerEmail(
         customer.email,

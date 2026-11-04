@@ -51,6 +51,20 @@ export default function InvoicePreview() {
     );
   }
 
+  return <InvoiceDocument invoice={invoice} customer={customer} settings={settings} onBack={() => setLocation(`/invoices/${id}`)} />;
+}
+
+/**
+ * The invoice itself, as the tradie previews it and as the customer sees it at
+ * /invoice/:token (InvoiceShared.tsx, from the public, allowlisted view). onBack
+ * is the tradie's way back to the invoice; the customer's page has none.
+ */
+export function InvoiceDocument({ invoice, customer, settings, onBack }: {
+  invoice: any;
+  customer: any;
+  settings: any;
+  onBack?: () => void;
+}) {
   const items = parseItems(invoice.items);
   const subtotal = Number(invoice.subtotal) || 0;
   const gstAmount = Number(invoice.gstAmount) || 0;
@@ -82,13 +96,11 @@ export default function InvoicePreview() {
       {/* Toolbar - hidden when printing */}
       <div className="print:hidden sticky top-0 z-50 bg-white/80 dark:bg-black/60 backdrop-blur-xl border-b border-black/5 dark:border-white/10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation(`/invoices/${id}`)}
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+          {onBack ? (
+            <Button variant="ghost" size="icon" onClick={onBack}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          ) : <span className="w-9" />}
           <span className="font-bold text-sm text-foreground">Invoice Preview</span>
           <div className="flex items-center gap-2">
             <Button

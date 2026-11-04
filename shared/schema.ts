@@ -122,10 +122,13 @@ export const invoices = pgTable("invoices", {
   squarePaymentLinkUrl: text("square_payment_link_url"),
   xeroInvoiceId: text("xero_invoice_id"),
   xeroInvoiceNumber: text("xero_invoice_number"),
+  /** The customer's link (/invoice/:token). Unguessable, unlike the id; set when it's first shared or sent. */
+  shareToken: text("share_token"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (t) => ({
   invoices_user_id_idx: index("invoices_user_id_idx").on(t.userId),
   invoices_quote_id_idx: index("invoices_quote_id_idx").on(t.quoteId),
+  invoices_share_token_idx: index("invoices_share_token_idx").on(t.shareToken),
 }));
 
 export const portalFeedback = pgTable("portal_feedback", {
