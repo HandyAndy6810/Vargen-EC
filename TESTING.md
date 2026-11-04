@@ -366,6 +366,20 @@ Check each in **Light** and **Dark** (Profile → Appearance).
       customers. Save as customer?"; tap it, and the quote is linked. Two customers
       with the same name: Review asks which one.
 
+### Sign-up checks (round 2, Group C)
+
+- [ ] **su2** Create account with `sam@example` or `sam`: a red message under Email
+      as soon as you leave the field ("doesn't look right"), and Create account
+      doesn't go through. A real address works.
+- [ ] **su2 duplicate** Sign up again with the same email in different capitals
+      (`Sam@Example.com`): "An account with this email already exists".
+- [ ] **su3** Mobile is optional. `0412 345 678` and `+61 412 345 678` both work;
+      a landline (`02 9876 5432`) or a short number shows "Enter an Australian
+      mobile" under the field.
+- [ ] **su2 business email** Profile → Business profile: an email like
+      `office@plumbing` turns red with the same message and Save doesn't go
+      through; a real one saves; blank is fine.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what

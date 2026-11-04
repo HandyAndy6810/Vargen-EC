@@ -30,7 +30,8 @@ import { squareClient, createSquarePaymentLink } from "./square";
 import { getTradeContext } from "./trade-knowledge";
 import crypto from "crypto";
 import { sendCustomerEmail } from "./lib/email";
-import { uniqueNameMatch, invoiceAddress, formatAbn } from "../shared/customer-fields";
+import { uniqueNameMatch } from "../shared/customer-fields";
+import { optionalEmailProblem } from "../shared/signup-fields";
 
 const upload = multer({ dest: "uploads/" });
 
@@ -1483,6 +1484,13 @@ CRITICAL RULES — follow these exactly:
 
   app.patch(api.settings.update.path, requireAuth, async (req: any, res) => {
     try {
+      // The business email goes on every quote and invoice: the same check as
+      // sign-up (su2). Blank is allowed (not set).
+      if (typeof req.body?.email === "string") {
+        const issue = optionalEmailProblem(req.body.email);
+        if (issue) return res.status(400).json({ message: issue, field: "email" });
+        req.body.email = req.body.email.trim();
+      }
       const input = api.settings.update.input.parse(req.body);
       const settings = await storage.upsertUserSettings(req.userId, input);
       res.json(settings);

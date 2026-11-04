@@ -9,6 +9,7 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 import { useAuth } from '@/hooks/use-auth';
 import { showAlert } from '@/lib/dialogs';
+import { optionalEmailProblem } from '@shared/signup-fields';
 import { LogoPicker } from '@/components/LogoPicker';
 
 function makeStyles(c: Colors, isDark: boolean) {
@@ -77,7 +78,13 @@ export default function BusinessDetailsScreen() {
     }
   }, [settings]);
 
+  const [emailTouched, setEmailTouched] = useState(false);
+  const emailErr = emailTouched ? optionalEmailProblem(form.email) : null;
+
   const handleSave = async () => {
+    // su2: the email printed on every quote and invoice gets the sign-up check.
+    setEmailTouched(true);
+    if (optionalEmailProblem(form.email)) return;
     const rawBsb = form.bsb.replace(/\D/g, '');
     if (rawBsb.length > 0 && rawBsb.length !== 6) {
       showAlert('Invalid BSB', 'BSB must be 6 digits (e.g. 062-001)');
@@ -106,8 +113,8 @@ export default function BusinessDetailsScreen() {
 
   const renderFields = (fields: readonly { key: FormKeys; label: string; placeholder: string; keyboardType?: string }[]) =>
     fields.map((field, i) => (
-      <View key={field.key} style={[s.row, i > 0 && s.rowDivider]}>
-        <Text style={s.label}>{field.label}</Text>
+      <View key={field.key} style={[s.row, i > 0 && s.rowDivider, field.key === 'email' && emailErr ? { backgroundColor: c.redSoft } : null]}>
+        <Text style={[s.label, field.key === 'email' && emailErr ? { color: c.red } : null]}>{field.label}</Text>
         <TextInput
           style={s.input}
           value={form[field.key]}
@@ -117,7 +124,10 @@ export default function BusinessDetailsScreen() {
           keyboardType={(field as any).keyboardType || 'default'}
           autoCapitalize="none"
           autoCorrect={false}
+          onBlur={field.key === 'email' ? () => setEmailTouched(true) : undefined}
+          accessibilityLabel={field.label}
         />
+        {field.key === 'email' && emailErr ? <Text style={{ fontSize: 12.5, fontFamily: 'HostGrotesk_600SemiBold', color: c.red, marginTop: 6 }}>{emailErr}</Text> : null}
       </View>
     ));
 
