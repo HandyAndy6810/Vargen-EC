@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, type ReactElement } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenGradient, GlassButton, RimCard, heroSecondary, wellFill } from '@/components/Rim';
 import { rimTile } from '@/theme/rim';
@@ -194,7 +194,7 @@ export default function CustomerDetailScreen() {
     (f: boolean) => detailRow('compose', PenLine, 'Write a message', null,
       () => router.push(`/customers/compose?customerId=${id}&customerName=${encodeURIComponent(customer.name)}&customerPhone=${encodeURIComponent(customer.phone ?? '')}&customerEmail=${encodeURIComponent(customer.email ?? '')}` as any), f),
     (f: boolean) => detailRow('log', History, 'Contact log', null, () => router.push(`/customers/messages?id=${id}` as any), f),
-  ].filter(Boolean) as ((first: boolean) => JSX.Element)[];
+  ].filter(Boolean) as ((first: boolean) => ReactElement)[];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
