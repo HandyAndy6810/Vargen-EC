@@ -1,6 +1,5 @@
 import {
-  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, acceptanceBlock,
-} from './shared';
+  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, acceptanceBlock, customerExtraLines } from './shared';
 
 /** Words for a total, the way an Australian tax invoice traditionally spells it out. */
 const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
@@ -64,6 +63,7 @@ export function buildLedger(ctx: Ctx): string {
   <div class="to">
     <div class="tolabel">${isInvoice ? 'Bill to' : 'Prepared for'}</div>
     <div class="toname">${d.customerName ? esc(d.customerName) : '—'}</div>
+    ${customerExtraLines(d, 'toline', esc)}
     ${d.customerAddress ? `<div class="toline">${esc(d.customerAddress)}</div>` : ''}
     ${d.customerPhone   ? `<div class="toline">${esc(d.customerPhone)}</div>` : ''}
     ${d.customerEmail   ? `<div class="toline">${esc(d.customerEmail)}</div>` : ''}

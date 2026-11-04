@@ -20,8 +20,9 @@ import { useQuotes } from '@/hooks/use-quotes';
 import { useInvoices } from '@/hooks/use-invoices';
 import { useWeather } from '@/hooks/use-weather';
 import { useSettings } from '@/hooks/use-settings';
+import { useCustomers } from '@/hooks/use-customers';
 import { queryClient } from '@/lib/queryClient';
-import { Play, Navigation, MessageCircle, Sparkles, Mic, Users, AlertTriangle, Zap, FileText, ScanLine } from 'lucide-react-native';
+import { Play, Navigation, MessageCircle, Sparkles, Mic, Users, AlertTriangle, Zap, FileText, ScanLine, Search } from 'lucide-react-native';
 import { quoteTitle } from '@shared/mobile-types';
 import { summariseInvoices, isInvoiceOverdue, invoiceOwing, isQuoteOverdue } from '@shared/invoice-figures';
 import { useTheme, type Colors } from '@/hooks/use-theme';
@@ -178,6 +179,7 @@ function makeStyles(c: Colors, isDark: boolean) {
     pipelineNum: { fontSize: 28, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.8, lineHeight: 32 },
     card: { ...rimTile(c, isDark) },
     qaRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+    custTile: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, marginTop: 10 },
     // Quick actions in one colour: ink square, paper icon, ink label.
     qaBtn: { ...rimTile(c, isDark), flex: 1, paddingVertical: 14, alignItems: 'center', gap: 8 },
     qaIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: c.fillStrong },
@@ -251,6 +253,8 @@ export default function HomeScreen() {
   const { data: invoices } = useInvoices();
   const { data: weather, locError: weatherLocError, requestLocation: retryWeatherLocation } = useWeather();
   const { data: settings } = useSettings();
+  const { data: customersList } = useCustomers();
+  const customerCount = ((customersList as any[]) || []).length;
   const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -423,6 +427,30 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+        );
+
+      // c1: customers one tap from Home, findable even with Quick Actions hidden.
+      case 'customers':
+        return (
+          <View style={{ paddingHorizontal: 20 }}>
+            <Text style={s.eyebrow}>Customers</Text>
+            <TouchableOpacity
+              style={[s.card, s.custTile]}
+              onPress={() => router.push('/customers' as any)}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={`Customers, ${customerCount} on file. Find a customer`}
+            >
+              <View style={s.qaIcon}><Users size={18} color={c.paper} strokeWidth={2} /></View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.rqTitle}>Find a customer</Text>
+                <Text style={s.rqSub}>
+                  {customerCount === 0 ? 'Add the people you work for' : `${customerCount} on file · history, contacts, notes`}
+                </Text>
+              </View>
+              <Search size={18} color={c.mutedHi} strokeWidth={2.2} />
+            </TouchableOpacity>
           </View>
         );
 

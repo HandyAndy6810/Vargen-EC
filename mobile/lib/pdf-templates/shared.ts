@@ -18,7 +18,11 @@ export type PdfDocumentData = {
   customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
+  /** For an invoice, the billing address when set, otherwise the site address. */
   customerAddress?: string;
+  /** The customer's company and ABN, printed under their name when set (round 2, c2). */
+  customerCompany?: string;
+  customerAbn?: string;
   items: { description: string; quantity: number; unit?: string; unitPrice: number }[];
   notes?: string;
   customMessage?: string;
@@ -264,4 +268,15 @@ export function acceptanceBlock(ctx: Ctx, opts: { line: string; label: string })
       <div style="flex:1;">Date</div>
     </div>
   </div>`;
+}
+
+/**
+ * The customer's company and ABN as extra lines under their name, in the
+ * template's own line style. Every style calls this, so they all show the same.
+ */
+export function customerExtraLines(d: PdfDocumentData, cls: string, escape: (s: string) => string): string {
+  return [
+    d.customerCompany ? `<div class="${cls}">${escape(d.customerCompany)}</div>` : '',
+    d.customerAbn ? `<div class="${cls}">ABN ${escape(d.customerAbn)}</div>` : '',
+  ].join('');
 }

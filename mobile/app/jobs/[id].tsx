@@ -20,7 +20,7 @@ import { JobCosts } from '@/components/JobCosts';
 import { useCustomer } from '@/hooks/use-customers';
 import { apiRequest } from '@/lib/api';
 import { api, buildUrl } from '@shared/mobile-routes';
-import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Navigation, CheckCircle2 } from 'lucide-react-native';
+import { ChevronLeft, MoreHorizontal, Phone, MessageSquare, Navigation, CheckCircle2, KeyRound } from 'lucide-react-native';
 import Svg, { Path, Circle, Polygon } from 'react-native-svg';
 import { format } from 'date-fns';
 
@@ -203,6 +203,18 @@ export default function JobDetailScreen() {
             </View>
           ) : null}
 
+          {/* Access notes from the customer's record: gate codes, keys, pets,
+              parking. Shown where the tradie is when they arrive. */}
+          {customer?.accessNotes ? (
+            <View style={[s.card, s.accessCard]} accessibilityLabel={`Access notes: ${customer.accessNotes}`}>
+              <KeyRound size={16} color={c.orangeDeep} strokeWidth={2.2} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.accessLabel}>Access notes</Text>
+                <Text style={s.accessText}>{customer.accessNotes}</Text>
+              </View>
+            </View>
+          ) : null}
+
           {/* Profit check */}
           {reconciliation?.available ? (() => {
             const r = reconciliation;
@@ -330,6 +342,9 @@ export default function JobDetailScreen() {
 }
 
 const makeStyles = (c: Colors) => StyleSheet.create({
+    accessCard: { marginTop: 10, flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: c.orangeSoft, borderColor: c.orangeSoft },
+    accessLabel: { fontSize: 12, fontFamily: 'HostGrotesk_700Bold', color: c.orangeDeep, marginBottom: 2 },
+    accessText: { fontSize: 14, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink, lineHeight: 20 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

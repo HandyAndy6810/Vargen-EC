@@ -18,6 +18,7 @@ export type HomeWidget = {
 export const HOME_WIDGETS: HomeWidget[] = [
   { id: 'upnext',       label: 'Up Next',           description: 'Your next scheduled job, front and centre', fullWidth: true },
   { id: 'quickactions', label: 'Quick Actions',     description: 'Follow up, add a receipt, customers',       fullWidth: true },
+  { id: 'customers',    label: 'Customers',         description: 'Find a customer, their history and details', fullWidth: true },
   { id: 'schedule',     label: 'Today\'s Schedule', description: 'Jobs on today and upcoming',                fullWidth: true },
   { id: 'outstanding',  label: 'Outstanding',       description: 'Unpaid & overdue invoice totals',           fullWidth: false },
   { id: 'weather',      label: 'Weather',           description: '7-day forecast + rain warnings',            fullWidth: true },
@@ -44,7 +45,7 @@ const isLegacyDefault = (v: unknown[]) =>
  * Reads a saved layout into one entry per known widget, in saved order.
  * Unknown ids and duplicates are dropped (the first mention wins), hidden
  * entries stay hidden, and widgets the saved layout doesn't mention (added
- * since it was saved) go at the end, visible. Anything unreadable, and the
+ * since it was saved) go in visible, after their default neighbour. Anything unreadable, and the
  * old column default, gives the default order.
  */
 export function resolveWidgetLayout(raw: string | null | undefined): WidgetEntry[] {
@@ -64,9 +65,17 @@ export function resolveWidgetLayout(raw: string | null | undefined): WidgetEntry
       entries.push({ id, visible });
     }
   }
-  for (const id of DEFAULT_WIDGET_ORDER) {
-    if (!seen.has(id)) entries.push({ id, visible: true });
-  }
+  // A widget the saved layout doesn't mention (added since it was saved) goes
+  // straight after the widget before it in the default order, so a new one
+  // lands where it belongs (Customers after Quick Actions) rather than at the
+  // bottom. With nothing before it in the layout, it goes at the end.
+  DEFAULT_WIDGET_ORDER.forEach((id, i) => {
+    if (seen.has(id)) return;
+    const prev = i > 0 ? entries.findIndex((e) => e.id === DEFAULT_WIDGET_ORDER[i - 1]) : -1;
+    if (prev >= 0) entries.splice(prev + 1, 0, { id, visible: true });
+    else entries.push({ id, visible: true });
+    seen.add(id);
+  });
   return entries;
 }
 

@@ -1,6 +1,5 @@
 import {
-  type Ctx, page, esc, escMultiline, fmt, paidStamp, acceptanceBlock,
-} from './shared';
+  type Ctx, page, esc, escMultiline, fmt, paidStamp, acceptanceBlock, customerExtraLines } from './shared';
 
 /**
  * Big friendly masthead in the accent colour, a logo disc, and a soft grey panel
@@ -51,7 +50,8 @@ export function buildBold(ctx: Ctx): string {
 
       <div class="tolabel">To</div>
       <div class="toname">${d.customerName ? esc(d.customerName) : '—'}</div>
-      ${d.customerAddress ? `<div class="bizline">${esc(d.customerAddress)}</div>` : ''}
+      ${customerExtraLines(d, 'bizline', esc)}
+    ${d.customerAddress ? `<div class="bizline">${esc(d.customerAddress)}</div>` : ''}
       ${d.customerPhone   ? `<div class="bizline">${esc(d.customerPhone)}</div>` : ''}
       ${d.customerEmail   ? `<div class="bizline">${esc(d.customerEmail)}</div>` : ''}
     </div>

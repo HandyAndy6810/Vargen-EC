@@ -336,6 +336,36 @@ Check each in **Light** and **Dark** (Profile → Appearance).
 - [ ] **Compose and Contact log:** look like the rest; sending an SMS/email and
       logging a note work as before.
 
+### Customers you can find, with their history (round 2, Group B)
+
+- [ ] **c1** Home has a **Find a customer** tile right after Quick actions (also
+      on a phone whose widget layout was saved before this update). Hide Quick
+      actions in Home widgets: the Customers tile still shows. Profile → Manage
+      customers still works; the tab bar still has 5 tabs.
+- [ ] **c2 form** New customer and Edit (pencil): Contact (with Call / Text /
+      Email chips), Company (name, ABN), Addresses (site, and billing with **Same
+      as site** on by default), Access notes, Type of customer, Notes.
+      - ABN `51 824 753 556` saves; `51 824 753 557` shows "doesn't check out";
+        `1234` shows "11 digits".
+      - Turn Same as site off, type a billing address, save, reopen: it's kept.
+- [ ] **c2 customer screen**, top to bottom: name, company, type and "Prefers …"
+      chips; Call / Text / Email / New quote, with the preferred one first and
+      orange; History (Billed / Paid / Owing, then Jobs, Quotes, Invoices, newest
+      first, each opens, **Show all** past 5); Contact details (incl. Company + ABN,
+      Site address → Maps, Billing address if different, Write a message, Contact
+      log); Access notes; Notes.
+- [ ] **c2 invoices** Invoice a customer with a company, ABN and billing address:
+      the PDF (every style in Quote style) and the customer's link page show the
+      company, "Attn: name", the ABN and the **billing** address. Without a billing
+      address: the site address.
+- [ ] **c2 jobs** A job for a customer with access notes shows them in an orange
+      **Access notes** card under the customer.
+- [ ] **c2 quotes** New quote, type an existing customer's name in any case
+      ("sarah JOHNSON"): Review shows no prompt, Send offers their email/SMS, and the
+      quote appears in their History. Type a new name: Review says "… isn't in your
+      customers. Save as customer?"; tap it, and the quote is linked. Two customers
+      with the same name: Review asks which one.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what

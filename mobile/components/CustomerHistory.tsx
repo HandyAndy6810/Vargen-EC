@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { router } from 'expo-router';
 import { format } from 'date-fns';
 import { ChevronRight } from 'lucide-react-native';
@@ -17,7 +17,7 @@ const money = (n: number) =>
 const SHOW = 5;
 
 /**
- * Everything done for one customer: their quotes, invoices and jobs, newest
+ * Everything done for one customer: their jobs, quotes and invoices, newest
  * first, and what they've been quoted, billed and still owe. Built from the
  * lists the app already holds, filtered to this customer.
  */
@@ -27,6 +27,11 @@ export function CustomerHistory({ customerId }: { customerId: number }) {
   const { data: quotes } = useQuotes();
   const { data: invoices } = useInvoices();
   const { data: jobs } = useJobs();
+  const [all, setAll] = useState<Record<string, boolean>>({});
+  const shown = <T,>(key: string, list: T[]) => (all[key] ? list : list.slice(0, SHOW));
+  const more = (key: string, list: unknown[]) => list.length > SHOW && !all[key]
+    ? <MoreRow count={list.length} onPress={() => setAll((a) => ({ ...a, [key]: true }))} s={s} c={c} />
+    : null;
 
   const byDateDesc = (a: any, b: any, key: string) =>
     new Date(b[key] || b.createdAt || 0).getTime() - new Date(a[key] || a.createdAt || 0).getTime();
@@ -70,9 +75,26 @@ export function CustomerHistory({ customerId }: { customerId: number }) {
         <Stat label="Owing" value={money(outstanding)} s={s} color={outstanding > 0 ? c.orangeDeep : undefined} />
       </View>
 
+      {theirJobs.length > 0 ? (
+        <Group title={`Jobs · ${theirJobs.length}`} s={s}>
+          {shown('j', theirJobs).map((j, i) => (
+            <Row
+              key={`j${j.id}`}
+              first={i === 0}
+              title={j.title}
+              sub={[j.status, j.scheduledDate ? format(new Date(j.scheduledDate), 'd MMM yyyy') : null].filter(Boolean).join(' · ')}
+              onPress={() => router.push(`/jobs/${j.id}` as any)}
+              s={s}
+              c={c}
+            />
+          ))}
+          {more('j', theirJobs)}
+        </Group>
+      ) : null}
+
       {theirQuotes.length > 0 ? (
         <Group title={`Quotes · ${theirQuotes.length}`} s={s}>
-          {theirQuotes.slice(0, SHOW).map((q, i) => (
+          {shown('q', theirQuotes).map((q, i) => (
             <Row
               key={`q${q.id}`}
               first={i === 0}
@@ -84,12 +106,13 @@ export function CustomerHistory({ customerId }: { customerId: number }) {
               c={c}
             />
           ))}
+          {more('q', theirQuotes)}
         </Group>
       ) : null}
 
       {theirInvoices.length > 0 ? (
         <Group title={`Invoices · ${theirInvoices.length}`} s={s}>
-          {theirInvoices.slice(0, SHOW).map((inv, i) => {
+          {shown('i', theirInvoices).map((inv, i) => {
             const owing = invoiceOwing(inv);
             return (
               <Row
@@ -104,25 +127,19 @@ export function CustomerHistory({ customerId }: { customerId: number }) {
               />
             );
           })}
+          {more('i', theirInvoices)}
         </Group>
       ) : null}
 
-      {theirJobs.length > 0 ? (
-        <Group title={`Jobs · ${theirJobs.length}`} s={s}>
-          {theirJobs.slice(0, SHOW).map((j, i) => (
-            <Row
-              key={`j${j.id}`}
-              first={i === 0}
-              title={j.title}
-              sub={[j.status, j.scheduledDate ? format(new Date(j.scheduledDate), 'd MMM yyyy') : null].filter(Boolean).join(' · ')}
-              onPress={() => router.push(`/jobs/${j.id}` as any)}
-              s={s}
-              c={c}
-            />
-          ))}
-        </Group>
-      ) : null}
     </View>
+  );
+}
+
+function MoreRow({ count, onPress, s, c }: { count: number; onPress: () => void; s: Styles; c: Colors }) {
+  return (
+    <TouchableOpacity style={[s.row, s.rowBorder, { justifyContent: 'center' }]} onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
+      <Text style={[s.rowTitle, { color: c.orangeDeep }]}>Show all {count}</Text>
+    </TouchableOpacity>
   );
 }
 
