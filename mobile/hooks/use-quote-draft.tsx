@@ -13,6 +13,7 @@ import { useQuote } from '@/hooks/use-quotes';
 import { useCustomers } from '@/hooks/use-customers';
 import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
+import { uniqueNameMatch, nameKey, formatAbn } from '@shared/customer-fields';
 import { unitSell, totalsFor, gstRateFor, savedMarkupLabour } from '@shared/money';
 import { newDraftKey } from '@/lib/draft-key';
 import { onlineManager } from '@tanstack/react-query';
@@ -78,6 +79,10 @@ type QuoteDraft = {
   customer: string; setCustomer: (v: string) => void;
   customerId: number | null; setCustomerId: (v: number | null) => void;
   selectedCustomer: any;
+  /** A typed name with no customer record: 'none' (no match) or 'ambiguous' (several share the name). */
+  typedCustomer: { state: 'none' } | { state: 'ambiguous'; matches: any[] } | null;
+  saveTypedAsCustomer: () => Promise<void>;
+  savingTypedCustomer: boolean;
   jobTitle: string; setJobTitle: (v: string) => void;
   summary: string; setSummary: (v: string) => void;
   schedDate: string; setSchedDate: (v: string) => void;
@@ -194,6 +199,43 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     initial.current.prefillName && initial.current.prefillCustomerId ? Number(initial.current.prefillCustomerId) : null
   );
   const selectedCustomer = (allCustomers as any[])?.find((x: any) => x.id === customerId);
+
+  // A name typed rather than picked: link it to the customer when exactly one has
+  // that name (case and spaces ignored), so the quote shows in their history and
+  // the send menu has their number. The server does the same on save as a
+  // backstop. Several with the name, or none: Review asks (typedCustomer).
+  const nameMatch = useMemo(
+    () => (customerId ? null : uniqueNameMatch((allCustomers as any[]) || [], customer)),
+    [allCustomers, customer, customerId],
+  );
+  useEffect(() => {
+    if (nameMatch?.match) setCustomerId(nameMatch.match.id);
+  }, [nameMatch]);
+  const typedCustomer: QuoteDraft['typedCustomer'] =
+    !nameMatch || nameMatch.match ? null
+      : nameMatch.reason === 'none' ? { state: 'none' }
+      : nameMatch.reason === 'ambiguous'
+        ? { state: 'ambiguous', matches: ((allCustomers as any[]) || []).filter((x: any) => nameKey(x.name) === nameKey(customer)) }
+        : null;
+  const [savingTypedCustomer, setSavingTypedCustomer] = useState(false);
+  const saveTypedAsCustomer = async () => {
+    const name = customer.trim();
+    if (!name || savingTypedCustomer) return;
+    setSavingTypedCustomer(true);
+    try {
+      const res = await apiRequest('POST', '/api/customers', { name });
+      const created = await res.json();
+      // Into the cache straight away, so the link and the send menu see them.
+      queryClient.setQueryData(['/api/customers'], (old: any) => (Array.isArray(old) ? [...old, created] : [created]));
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      setCustomerId(created.id);
+      toast({ title: `${name} saved as a customer` });
+    } catch (e: any) {
+      showAlert('Could not save the customer', isNetworkError(e) ? 'Needs a connection. Try again once you’re back online.' : String(e?.message || 'Try again.'));
+    } finally {
+      setSavingTypedCustomer(false);
+    }
+  };
   const [jobTitle, setJobTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [schedDate, setSchedDate] = useState('');
@@ -748,6 +790,8 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     customerPhone: selectedCustomer?.phone || undefined,
     customerEmail: selectedCustomer?.email || undefined,
     customerAddress: selectedCustomer?.address || undefined,
+    customerCompany: selectedCustomer?.companyName || undefined,
+    customerAbn: selectedCustomer?.abn ? formatAbn(selectedCustomer.abn) : undefined,
     items: lines
       .filter(l => l.name.trim() || unitSell(l, markupPct, markupLabour) > 0)
       .map(l => ({
@@ -828,6 +872,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   const value: QuoteDraft = {
     isEditing, editId,
     customer, setCustomer, customerId, setCustomerId, selectedCustomer,
+    typedCustomer, saveTypedAsCustomer, savingTypedCustomer,
     jobTitle, setJobTitle, summary, setSummary, schedDate, setSchedDate, expiryDate, setExpiryDate, notes, setNotes,
     lines, setLines,
     markupPct, setMarkupPct: chooseMarkup, markupLabour, assumptions, setAssumptions, toggleLineLock,

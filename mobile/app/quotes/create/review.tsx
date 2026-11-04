@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import {
   ChevronLeft, ChevronDown, ChevronRight, Send, FileText, Trash2,
   Lock, Unlock, AlertTriangle, User, X, Wrench, Package, Plus, ArrowUp, Share2,
+  UserPlus,
 } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useQuoteDraft, unitSell, type LineItem } from '@/hooks/use-quote-draft';
@@ -291,6 +292,54 @@ export default function ReviewStep() {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
+          {/* A typed name that isn't a customer yet (or matches several): ask,
+              so the quote lands in their history and the send menu has them. */}
+          {d.typedCustomer ? (
+            <View style={s.custPrompt} accessibilityRole="summary">
+              <UserPlus size={18} color={c.orangeDeep} strokeWidth={2.2} />
+              <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
+                {d.typedCustomer.state === 'none' ? (
+                  <>
+                    <Text style={s.custPromptText}>
+                      <Text style={{ fontFamily: 'HostGrotesk_800ExtraBold' }}>{d.customer.trim()}</Text> isn’t in your customers. Save as customer?
+                    </Text>
+                    <TouchableOpacity
+                      style={s.custPromptBtn}
+                      onPress={d.saveTypedAsCustomer}
+                      disabled={d.savingTypedCustomer}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Save ${d.customer.trim()} as a customer`}
+                    >
+                      {d.savingTypedCustomer
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={s.custPromptBtnText}>Save as customer</Text>}
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <Text style={s.custPromptText}>
+                      {d.typedCustomer.matches.length} customers are called <Text style={{ fontFamily: 'HostGrotesk_800ExtraBold' }}>{d.customer.trim()}</Text>. Which one?
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {d.typedCustomer.matches.map((m: any) => (
+                        <TouchableOpacity
+                          key={m.id}
+                          style={s.custPromptChip}
+                          onPress={() => d.setCustomerId(m.id)}
+                          accessibilityRole="button"
+                        >
+                          <Text style={s.custPromptChipText} numberOfLines={1}>
+                            {m.address || m.phone || m.email || `Added ${m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-AU') : ''}`}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+              </View>
+            </View>
+          ) : null}
+
           {/* Totals + markup, all live on the drag */}
           <MarkupSlider
             lines={d.lines}
@@ -527,6 +576,12 @@ export default function ReviewStep() {
 }
 
 const makeStyles = (c: Colors) => StyleSheet.create({
+    custPrompt: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: c.orangeSoft, borderRadius: 16, padding: 14, marginBottom: 14 },
+    custPromptText: { fontSize: 14, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink, lineHeight: 20 },
+    custPromptBtn: { alignSelf: 'flex-start', backgroundColor: c.orange, borderRadius: 12, paddingHorizontal: 16, height: 40, justifyContent: 'center', minWidth: 150, alignItems: 'center' },
+    custPromptBtnText: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' },
+    custPromptChip: { maxWidth: '100%', borderRadius: 12, borderWidth: 1, borderColor: c.orange, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: c.card },
+    custPromptChipText: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 10 },
   backBtn: {
     width: 44, height: 44, borderRadius: 14, backgroundColor: c.card,

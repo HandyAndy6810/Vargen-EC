@@ -19,13 +19,14 @@ describe('resolveWidgetLayout', () => {
   });
 
   test('keeps the saved order exactly', () => {
-    const saved = ['nudge', 'revenue', 'pipeline', 'recentquotes', 'weather', 'outstanding', 'schedule', 'quickactions', 'upnext'];
+    const saved = ['nudge', 'revenue', 'pipeline', 'recentquotes', 'weather', 'outstanding', 'schedule', 'customers', 'quickactions', 'upnext'];
     assert.deepEqual(visibleIds(JSON.stringify(saved)), saved);
   });
 
   test('a hidden widget stays hidden and is not added back at the end', () => {
     const entries = resolveWidgetLayout(JSON.stringify(['weather', '-upnext', 'schedule']));
-    assert.deepEqual(entries.slice(0, 3), [
+    const saved = entries.filter((e) => ['weather', 'upnext', 'schedule'].includes(e.id));
+    assert.deepEqual(saved, [
       { id: 'weather', visible: true },
       { id: 'upnext', visible: false },
       { id: 'schedule', visible: true },
@@ -34,10 +35,22 @@ describe('resolveWidgetLayout', () => {
     assert.equal(entries.filter((e) => e.id === 'upnext').length, 1);
   });
 
-  test('widgets missing from an older layout go at the end, visible, in default order', () => {
+  test('widgets missing from an older layout go in visible, after their default neighbour', () => {
     const ids = visibleIds(JSON.stringify(['revenue', 'schedule']));
-    assert.deepEqual(ids.slice(0, 2), ['revenue', 'schedule']);
-    assert.deepEqual(ids.slice(2), DEFAULT_WIDGET_ORDER.filter((id) => id !== 'revenue' && id !== 'schedule'));
+    // Saved ones keep their order; nudge follows revenue, outstanding onwards
+    // follow schedule; upnext has no neighbour in the layout, so goes last,
+    // and quick actions and customers follow it.
+    assert.deepEqual(ids, ['revenue', 'nudge', 'schedule', 'outstanding', 'weather', 'recentquotes', 'pipeline', 'upnext', 'quickactions', 'customers']);
+  });
+
+  test('c1: Customers, new since a layout was saved, lands right after Quick Actions', () => {
+    const before = DEFAULT_WIDGET_ORDER.filter((id) => id !== 'customers');
+    const ids = visibleIds(JSON.stringify(before));
+    assert.equal(ids[ids.indexOf('quickactions') + 1], 'customers');
+    // Quick Actions hidden: Customers still shows, in that spot.
+    const hidden = resolveWidgetLayout(JSON.stringify(before.map((id) => (id === 'quickactions' ? '-quickactions' : id))));
+    const at = hidden.findIndex((e) => e.id === 'quickactions');
+    assert.deepEqual(hidden[at + 1], { id: 'customers', visible: true });
   });
 
   test('unknown ids and duplicates are dropped, so every entry is a real row', () => {

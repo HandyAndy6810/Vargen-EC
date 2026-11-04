@@ -6,6 +6,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 import { users } from "./models/auth";
+import { CUSTOMER_TYPES, PREFERRED_CONTACTS, abnProblem, normaliseAbn } from "./customer-fields";
 
 // Indexes are declared in this file, not created by hand in the database.
 // db:push diffs the live schema against this one and drops anything it does not
@@ -23,6 +24,14 @@ export const customers = pgTable("customers", {
   phone: text("phone"),
   address: text("address"),
   notes: text("notes").default(""),
+  // Round 2 (c2). All optional. `address` is the site address (where the work
+  // is); an invoice goes to billingAddress when set, otherwise the site.
+  companyName: text("company_name"),
+  abn: text("abn"),
+  billingAddress: text("billing_address"),
+  accessNotes: text("access_notes"),
+  customerType: text("customer_type"),       // CUSTOMER_TYPES in shared/customer-fields
+  preferredContact: text("preferred_contact"), // PREFERRED_CONTACTS
   xeroContactId: text("xero_contact_id"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (t) => ({
@@ -319,7 +328,20 @@ export type AiGeneration = typeof aiGenerations.$inferSelect;
 export type InsertAiGeneration = typeof aiGenerations.$inferInsert;
 
 // Schemas
-export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
+// Blank strings from a form mean "not set" and are stored as null; the type and
+// contact choices must be one of the listed values; an ABN is stored digits-only
+// and must pass the ATO checksum (shared/customer-fields).
+const optionalText = z.string().trim().transform((v) => (v === '' ? null : v)).nullable().optional();
+export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true }).extend({
+  companyName: optionalText,
+  billingAddress: optionalText,
+  accessNotes: optionalText,
+  customerType: z.enum(CUSTOMER_TYPES, { errorMap: () => ({ message: `Customer type must be one of: ${CUSTOMER_TYPES.join(', ')}` }) }).nullable().optional(),
+  preferredContact: z.enum(PREFERRED_CONTACTS, { errorMap: () => ({ message: `Preferred contact must be one of: ${PREFERRED_CONTACTS.join(', ')}` }) }).nullable().optional(),
+  abn: z.string().nullable().optional()
+    .superRefine((v, ctx) => { const p = abnProblem(v); if (p) ctx.addIssue({ code: z.ZodIssueCode.custom, message: p }); })
+    .transform((v) => (v == null ? v : normaliseAbn(v) || null)),
+});
 export const insertJobSchema = createInsertSchema(jobs)
   .omit({ id: true, createdAt: true })
   .extend({ scheduledDate: z.coerce.date().nullable().optional() });

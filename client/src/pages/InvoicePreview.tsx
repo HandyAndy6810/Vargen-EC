@@ -5,6 +5,7 @@ import { useUserSettings } from "@/hooks/use-user-settings";
 import { ArrowLeft, Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { formatAbn, invoiceAddress } from "@shared/customer-fields";
 
 interface ParsedItem {
   description: string;
@@ -158,10 +159,20 @@ export function InvoiceDocument({ invoice, customer, settings, onBack }: {
                 <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-2">Bill To</p>
                 {customer ? (
                   <>
-                    <p className="font-bold text-base">{customer.name}</p>
+                    {/* A company is billed by its name, with the contact under it. */}
+                    {customer.companyName ? (
+                      <>
+                        <p className="font-bold text-base">{customer.companyName}</p>
+                        <p className="text-sm text-gray-600 mt-0.5">Attn: {customer.name}</p>
+                      </>
+                    ) : (
+                      <p className="font-bold text-base">{customer.name}</p>
+                    )}
+                    {customer.abn && <p className="text-sm text-gray-600">ABN {formatAbn(customer.abn)}</p>}
                     {customer.email && <p className="text-sm text-gray-600 mt-0.5">{customer.email}</p>}
                     {customer.phone && <p className="text-sm text-gray-600">{customer.phone}</p>}
-                    {customer.address && <p className="text-sm text-gray-600">{customer.address}</p>}
+                    {/* Billing address when set, otherwise the site address. */}
+                    {invoiceAddress(customer) && <p className="text-sm text-gray-600">{invoiceAddress(customer)}</p>}
                   </>
                 ) : (
                   <p className="text-sm text-gray-400 italic">No customer specified</p>

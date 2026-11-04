@@ -30,6 +30,7 @@ import { squareClient, createSquarePaymentLink } from "./square";
 import { getTradeContext } from "./trade-knowledge";
 import crypto from "crypto";
 import { sendCustomerEmail } from "./lib/email";
+import { uniqueNameMatch, invoiceAddress, formatAbn } from "../shared/customer-fields";
 
 const upload = multer({ dest: "uploads/" });
 
@@ -704,6 +705,7 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
       const clientId = typeof req.body?.clientId === "string" && req.body.clientId.trim()
         ? req.body.clientId.trim().slice(0, 100) : null;
       delete (input as any).clientId;
+      await linkTypedCustomer(req.userId, input);
       let quote;
       if (clientId) {
         const once = await storage.createQuoteOnce({ ...input, userId: req.userId }, clientId);
@@ -728,6 +730,23 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
       res.status(400).json({ message: "Validation error" });
     }
   });
+
+  /**
+   * A quote saved with a typed customer name and no customerId is linked to the
+   * customer of that name when exactly one matches (case and spaces ignored), so
+   * it shows in their history. None or several: left alone; the app asks on
+   * Review. Never creates a customer.
+   */
+  async function linkTypedCustomer(userId: string, input: any, prev?: { customerId: number | null; content: string | null } | null) {
+    if (input.customerId || prev?.customerId) return;
+    const raw = typeof input.content === "string" ? input.content : null;
+    if (!raw) return;
+    let typed: unknown;
+    try { typed = JSON.parse(raw)?.customerName; } catch { return; }
+    if (typeof typed !== "string" || !typed.trim()) return;
+    const found = uniqueNameMatch(await storage.getCustomers(userId), typed);
+    if (found.match) input.customerId = found.match.id;
+  }
 
   // Valid quote status transitions
   const QUOTE_TRANSITIONS: Record<string, string[]> = {
@@ -762,6 +781,7 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
       }
 
       delete (input as any).shareToken; // the server's to issue
+      await linkTypedCustomer(req.userId, input, prevQuote);
 
       // First send: link, sent date and follow-ups, filling only what's missing.
       // The same helper as a quote created already sent (see the create route).

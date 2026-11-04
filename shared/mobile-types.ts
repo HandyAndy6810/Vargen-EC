@@ -6,6 +6,12 @@ export interface Customer {
   phone: string | null;
   address: string | null;
   notes: string | null;
+  companyName: string | null;
+  abn: string | null;
+  billingAddress: string | null;
+  accessNotes: string | null;
+  customerType: string | null;
+  preferredContact: string | null;
   xeroContactId: string | null;
   createdAt: string | null;
 }
@@ -17,6 +23,12 @@ export interface InsertCustomer {
   phone?: string | null;
   address?: string | null;
   notes?: string | null;
+  companyName?: string | null;
+  abn?: string | null;
+  billingAddress?: string | null;
+  accessNotes?: string | null;
+  customerType?: string | null;
+  preferredContact?: string | null;
   xeroContactId?: string | null;
 }
 

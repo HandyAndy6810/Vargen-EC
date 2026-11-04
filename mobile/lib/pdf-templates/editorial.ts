@@ -1,6 +1,5 @@
 import {
-  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock,
-} from './shared';
+  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, customerExtraLines } from './shared';
 
 /**
  * High-contrast and typographic: a stacked wordmark, a solid rule across the page,
@@ -51,6 +50,7 @@ export function buildEditorial(ctx: Ctx): string {
 
   <div class="party">
     <div class="pname">${d.customerName ? esc(d.customerName) : '—'}</div>
+    ${customerExtraLines(d, 'pline', esc)}
     ${d.customerAddress ? `<div class="pline">${esc(d.customerAddress)}</div>` : ''}
     ${d.customerPhone   ? `<div class="pline">${esc(d.customerPhone)}</div>` : ''}
     ${d.customerEmail   ? `<div class="pline">${esc(d.customerEmail)}</div>` : ''}

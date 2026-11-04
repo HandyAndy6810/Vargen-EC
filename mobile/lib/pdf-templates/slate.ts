@@ -1,6 +1,5 @@
 import {
-  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, acceptanceBlock,
-} from './shared';
+  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, acceptanceBlock, customerExtraLines } from './shared';
 
 /**
  * Formal and quiet: a narrow accent rail down the left edge, serif headings, and
@@ -50,7 +49,8 @@ export function buildSlate(ctx: Ctx): string {
       <div class="half">
         <div class="minilabel">${isInvoice ? 'Billed to' : 'Prepared for'}</div>
         <div class="party">${d.customerName ? esc(d.customerName) : '—'}</div>
-        ${d.customerAddress ? `<div class="partyline">${esc(d.customerAddress)}</div>` : ''}
+        ${customerExtraLines(d, 'partyline', esc)}
+    ${d.customerAddress ? `<div class="partyline">${esc(d.customerAddress)}</div>` : ''}
         ${d.customerPhone   ? `<div class="partyline">${esc(d.customerPhone)}</div>` : ''}
         ${d.customerEmail   ? `<div class="partyline">${esc(d.customerEmail)}</div>` : ''}
       </div>

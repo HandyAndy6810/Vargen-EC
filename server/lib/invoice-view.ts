@@ -25,13 +25,19 @@ export type InvoiceView = {
     paidAmount: string | null;
     payByCardUrl: string | null;
   };
-  customer: { name: string | null; email: string | null; phone: string | null; address: string | null } | null;
+  /** address is where the invoice goes: the billing address when set, otherwise the site. */
+  customer: {
+    name: string | null; companyName: string | null; abn: string | null;
+    email: string | null; phone: string | null; address: string | null;
+  } | null;
   business: {
     businessName: string | null; abn: string | null; tradeType: string | null;
     phone: string | null; email: string | null; address: string | null;
     bankName: string | null; bsb: string | null; accountNumber: string | null; accountName: string | null;
   };
 };
+
+import { formatAbn, invoiceAddress } from '../../shared/customer-fields';
 
 const str = (v: unknown) => (v == null ? null : String(v));
 
@@ -54,7 +60,14 @@ export function buildInvoiceView(input: { invoice: Row; customer: Row; settings:
       paidAmount: str(i.paidAmount),
       payByCardUrl: str(i.stripePaymentLinkUrl ?? i.squarePaymentLinkUrl),
     },
-    customer: c ? { name: str(c.name), email: str(c.email), phone: str(c.phone), address: str(c.address) } : null,
+    // Never the access notes or private notes: those are for the tradie.
+    customer: c ? {
+      name: str(c.name),
+      companyName: str(c.companyName) || null,
+      abn: c.abn ? formatAbn(String(c.abn)) : null,
+      email: str(c.email), phone: str(c.phone),
+      address: invoiceAddress(c as any),
+    } : null,
     business: {
       businessName: str(s.businessName), abn: str(s.abn), tradeType: str(s.tradeType),
       phone: str(s.phone), email: str(s.email), address: str(s.address),

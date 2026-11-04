@@ -32,6 +32,7 @@ import { useInvoice, useUpdateInvoice, useDeleteInvoice } from '@/hooks/use-invo
 import { useStripePaymentLink } from '@/hooks/use-stripe';
 import { useSquarePaymentLink } from '@/hooks/use-square';
 import { useSettings } from '@/hooks/use-settings';
+import { invoiceAddress, formatAbn } from '@shared/customer-fields';
 import { buildQuotePDF, type PdfDocumentData } from '@/lib/quote-pdf';
 import { sharePdf, documentFilename } from '@/lib/share-pdf';
 import { ChevronLeft, Check, CreditCard, Building2, Copy, FileText, MoreHorizontal } from 'lucide-react-native';
@@ -153,7 +154,13 @@ export default function InvoiceDetailScreen() {
       dueDate: invoice?.dueDate,
       status: invoice?.status,
       jobTitle: invoiceTitle,
-      customerName: invoice?.customerName ?? undefined,
+      customerName: customerRec?.name || invoice?.customerName || undefined,
+      customerPhone: customerRec?.phone || undefined,
+      customerEmail: customerRec?.email || undefined,
+      // Billing address when set, otherwise the site; company and ABN under the name.
+      customerAddress: invoiceAddress(customerRec) || undefined,
+      customerCompany: customerRec?.companyName || undefined,
+      customerAbn: customerRec?.abn ? formatAbn(customerRec.abn) : undefined,
       items: parsedItems,
       notes: notes || invoice?.notes || undefined,
       customMessage: customMessage || undefined,

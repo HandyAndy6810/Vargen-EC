@@ -10,7 +10,7 @@ const invoice = {
   squarePaymentLinkId: 'sq_secret', xeroInvoiceId: 'xero-secret', xeroInvoiceNumber: 'X-1', invoiceType: 'full',
   createdAt: '2026-11-03T00:00:00Z', dueDate: '2026-11-17T00:00:00Z',
 };
-const customer = { id: 3, userId: 'owner-secret-id', name: 'Sam Smith', email: 'sam@example.com', phone: '0412', address: '1 St', notes: 'private note', xeroContactId: 'xc-secret' };
+const customer = { id: 3, userId: 'owner-secret-id', name: 'Sam Smith', email: 'sam@example.com', phone: '0412', address: '1 St', notes: 'private note', xeroContactId: 'xc-secret', companyName: 'Smith Strata', abn: '51824753556', billingAddress: 'PO Box 9, Sydney', accessNotes: 'gate code 1234' };
 const settings = {
   userId: 'owner-secret-id', businessName: 'Andy Plumbing', abn: '12 345', tradeType: 'Plumber',
   bankName: 'CBA', bsb: '062000', accountNumber: '1234', accountName: 'A Y',
@@ -51,4 +51,14 @@ describe('withInvoiceUrl', () => {
     assert.equal(withInvoiceUrl({ shareToken: 'abc' }, 'https://x').invoiceUrl, 'https://x/invoice/abc');
     assert.equal('invoiceUrl' in withInvoiceUrl({ shareToken: null }, 'https://x'), false);
   });
+});
+
+test('the customer block: company, formatted ABN, and the billing address when set', () => {
+  const view = buildInvoiceView({ invoice, customer, settings });
+  assert.equal(view.customer?.companyName, 'Smith Strata');
+  assert.equal(view.customer?.abn, '51 824 753 556');
+  assert.equal(view.customer?.address, 'PO Box 9, Sydney');
+  const noBilling = buildInvoiceView({ invoice, customer: { ...customer, billingAddress: null }, settings });
+  assert.equal(noBilling.customer?.address, '1 St');
+  assert.ok(!JSON.stringify(view).includes('gate code'), 'access notes stay private');
 });

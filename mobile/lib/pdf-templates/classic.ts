@@ -1,6 +1,5 @@
 import {
-  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock,
-} from './shared';
+  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, customerExtraLines } from './shared';
 
 /**
  * The plain business quote — grey banded headings, ruled boxes, a signature block.
@@ -59,6 +58,7 @@ export function buildClassic(ctx: Ctx): string {
   ${bandLabel('CUSTOMER')}
   <div class="box">
     ${d.customerName ? `<div class="custname">${esc(d.customerName)}</div>` : `<div class="muted">[Customer name]</div>`}
+    ${customerExtraLines(d, 'custline', esc)}
     ${d.customerAddress ? `<div class="custline">${esc(d.customerAddress)}</div>` : ''}
     ${d.customerPhone   ? `<div class="custline">${esc(d.customerPhone)}</div>` : ''}
     ${d.customerEmail   ? `<div class="custline">${esc(d.customerEmail)}</div>` : ''}

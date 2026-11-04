@@ -24,6 +24,7 @@ import { useJob } from '@/hooks/use-jobs';
 import { useCustomers, useCustomer } from '@/hooks/use-customers';
 import { useInvoices, useInvoice } from '@/hooks/use-invoices';
 import { useSettings } from '@/hooks/use-settings';
+import { invoiceAddress, formatAbn } from '@shared/customer-fields';
 import { parseQuoteContent } from '@shared/mobile-types';
 import { newDraftKey } from '@/lib/draft-key';
 import { withAiConnection } from '@/lib/ai-offline';
@@ -521,7 +522,9 @@ export function InvoiceDraftProvider({ children }: { children: ReactNode }) {
     customerName: customer.trim() || undefined,
     customerPhone: selectedCustomer?.phone || undefined,
     customerEmail: selectedCustomer?.email || undefined,
-    customerAddress: selectedCustomer?.address || undefined,
+    customerAddress: invoiceAddress(selectedCustomer) || undefined,
+    customerCompany: selectedCustomer?.companyName || undefined,
+    customerAbn: selectedCustomer?.abn ? formatAbn(selectedCustomer.abn) : undefined,
     items: lines
       .filter(l => l.name.trim() || unitSell(l, markupPct, markupLabour) > 0)
       .map(l => ({

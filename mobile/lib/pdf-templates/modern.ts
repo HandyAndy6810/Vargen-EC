@@ -1,6 +1,5 @@
 import {
-  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, acceptanceBlock,
-} from './shared';
+  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, acceptanceBlock, customerExtraLines } from './shared';
 
 /**
  * The colour-band header the app shipped with, kept so anyone already sending this
@@ -44,7 +43,8 @@ export function buildModern(ctx: Ctx): string {
       <div class="slabel">${isInvoice ? 'Bill to' : 'Prepared for'}</div>
       ${d.customerName ? `
         <div class="sname">${esc(d.customerName)}</div>
-        ${d.customerAddress ? `<div class="sline">${esc(d.customerAddress)}</div>` : ''}
+        ${customerExtraLines(d, 'sline', esc)}
+    ${d.customerAddress ? `<div class="sline">${esc(d.customerAddress)}</div>` : ''}
         ${d.customerPhone   ? `<div class="sline">${esc(d.customerPhone)}</div>` : ''}
         ${d.customerEmail   ? `<div class="sline">${esc(d.customerEmail)}</div>` : ''}`
         : `<div class="snone">No customer on file</div>`}
