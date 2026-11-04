@@ -2,6 +2,7 @@ import {
   View,
   Text,
   ScrollView,
+  Animated,
   TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
@@ -13,7 +14,9 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useState, useEffect, useMemo } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Sparkles, Send, Mail, BookOpen } from 'lucide-react-native';
+import { ScreenGradient, GradientHeader, useGradientScroll, heroSecondary } from '@/components/Rim';
+import { rimTile } from '@/theme/rim';
+import { Sparkles, Send, Mail, BookOpen } from 'lucide-react-native';
 import * as Linking from 'expo-linking';
 import { useSettings } from '@/hooks/use-settings';
 import { useSendMessage } from '@/hooks/use-messages';
@@ -65,8 +68,9 @@ const TEMPLATES = [
 ];
 
 export default function ComposeScreen() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
+  const { scrollY, scrollProps } = useGradientScroll();
   const {
     customerId,
     customerName,
@@ -240,24 +244,15 @@ export default function ComposeScreen() {
   const smsPages = charCount > 0 ? Math.ceil(charCount / 160) : 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
+      <ScreenGradient intensity="soft" scrollY={scrollY} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <GradientHeader eyebrow="Message" title={name} />
 
-        {/* Header */}
-        <View style={s.header}>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-            <ChevronLeft size={18} color={c.ink} strokeWidth={2.2} />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={s.eyebrow}>Message</Text>
-            <Text style={s.title} numberOfLines={1}>{name}</Text>
-          </View>
-        </View>
-
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <Animated.ScrollView {...scrollProps} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 40 }}>
 
           {/* Template cards — horizontal scroll */}
-          <Text style={[s.sectionEyebrow, { paddingHorizontal: 20 }]}>Templates</Text>
+          <Text style={[s.sectionEyebrow, { paddingHorizontal: 22, color: heroSecondary(isDark) }]}>Templates</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -301,7 +296,7 @@ export default function ComposeScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <Text style={s.sectionEyebrow}>Your message</Text>
               {charCount > 0 && (
-                <Text style={{ fontSize: 11, fontFamily: 'HostGrotesk_600SemiBold', color: charCount > 160 ? '#d23b3b' : c.muted }}>
+                <Text style={{ fontSize: 11, fontFamily: 'HostGrotesk_600SemiBold', color: charCount > 160 ? c.red : c.muted }}>
                   {charCount} chars{smsPages > 1 ? ` · ${smsPages} SMS` : ''}
                 </Text>
               )}
@@ -324,19 +319,19 @@ export default function ComposeScreen() {
           <View style={{ paddingHorizontal: 20, marginTop: 20, gap: 10 }}>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               {phone ? (
-                <TouchableOpacity style={[s.sendBtn, { flex: 1, backgroundColor: c.green }]} activeOpacity={0.8} onPress={sendSMS}>
+                <TouchableOpacity style={[s.sendBtn, { flex: 1, backgroundColor: c.orange }]} activeOpacity={0.8} onPress={sendSMS}>
                   <Send size={16} color="#fff" strokeWidth={2} />
                   <Text style={s.sendBtnText}>Send SMS</Text>
                 </TouchableOpacity>
               ) : null}
               {email ? (
-                <TouchableOpacity style={[s.sendBtn, { flex: 1, backgroundColor: c.blue }]} activeOpacity={0.8} onPress={sendEmail}>
-                  <Mail size={16} color="#fff" strokeWidth={2} />
-                  <Text style={s.sendBtnText}>Send Email</Text>
+                <TouchableOpacity style={[s.sendBtn, { flex: 1, backgroundColor: c.fillStrong }]} activeOpacity={0.8} onPress={sendEmail}>
+                  <Mail size={16} color={c.paper} strokeWidth={2} />
+                  <Text style={[s.sendBtnText, { color: c.paper }]}>Send email</Text>
                 </TouchableOpacity>
               ) : null}
               {!phone && !email && (
-                <View style={[s.sendBtn, { flex: 1, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineMid }]}>
+                <View style={[s.sendBtn, s.tile, { flex: 1 }]}>
                   <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted }}>No contact info on file</Text>
                 </View>
               )}
@@ -355,65 +350,33 @@ export default function ComposeScreen() {
               </TouchableOpacity>
             ) : null}
           </View>
-        </ScrollView>
+        </Animated.ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const makeStyles = (c: Colors) => StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: c.card,
-    borderWidth: 1,
-    borderColor: c.lineSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  eyebrow: {
-    fontSize: 10,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: c.muted,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: c.ink,
-    letterSpacing: -0.5,
-    marginTop: 2,
-  },
+const makeStyles = (c: Colors, isDark: boolean) => StyleSheet.create({
+  tile: { ...rimTile(c, isDark) },
   sectionEyebrow: {
-    fontSize: 10,
-    fontFamily: 'HostGrotesk_800ExtraBold',
-    color: c.muted,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: 10,
+    fontSize: 13,
+    fontFamily: 'HostGrotesk_600SemiBold',
+    color: c.mutedHi,
+    marginBottom: 8,
+    marginLeft: 2,
   },
   templateCard: {
-    width: 110,
+    ...rimTile(c, isDark),
+    width: 112,
+    borderRadius: 18,
     paddingVertical: 14,
     paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: c.card,
-    borderWidth: 1,
-    borderColor: c.lineSoft,
     alignItems: 'center',
     gap: 6,
   },
   templateCardActive: {
     borderColor: c.orange,
+    borderTopColor: c.orange,
     backgroundColor: c.orangeSoft,
   },
   templateEmoji: {
@@ -442,10 +405,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     color: c.paper,
   },
   composerWrap: {
-    backgroundColor: c.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: c.lineSoft,
+    ...rimTile(c, isDark),
     overflow: 'hidden',
   },
   composerInput: {
@@ -470,11 +430,9 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     color: '#fff',
   },
   logBtn: {
+    ...rimTile(c, isDark),
     height: 48,
     borderRadius: 14,
-    backgroundColor: c.paperDeep,
-    borderWidth: 1,
-    borderColor: c.lineMid,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Dimensions,
+  View, Text, Animated, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { ScreenGradient, GradientHeader, useGradientScroll, heroSecondary } from '@/components/Rim';
 import { WebView } from 'react-native-webview';
-import { ChevronLeft, Check, Maximize2, X } from 'lucide-react-native';
+import { Check, Maximize2, X } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 import { showAlert } from '@/lib/dialogs';
@@ -53,8 +53,9 @@ const CARD_H = Math.round(A4_PX.height * THUMB_SCALE);
  * gets sent, and a template change can never leave a stale picture behind.
  */
 export default function QuoteStylingScreen() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const { scrollY, scrollProps } = useGradientScroll();
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
   const insets = useSafeAreaInsets();
   const { data: settings, isLoading } = useSettings();
   const update = useUpdateSettings();
@@ -92,24 +93,11 @@ export default function QuoteStylingScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-      <View style={s.header}>
-        <TouchableOpacity
-          style={s.backBtn}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.eyebrow}>Business</Text>
-          <Text style={s.title}>Quote style</Text>
-        </View>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
+      <ScreenGradient intensity="soft" scrollY={scrollY} />
+      <GradientHeader eyebrow="Business" title="Quote style" />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView {...scrollProps} contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
         <Text style={s.intro}>
           This is what your customer opens. Pick a style, then set the colour and type
           to match your business — every style uses both.
@@ -216,7 +204,7 @@ export default function QuoteStylingScreen() {
             Your logo, business details and ABN come from Business details.
           </Text>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Full-size preview, on the real A4 page */}
       <Modal visible={!!fullId} animationType="slide" onRequestClose={() => setFullId(null)}>
@@ -265,18 +253,15 @@ export default function QuoteStylingScreen() {
   );
 }
 
-function makeStyles(c: Colors) {
+function makeStyles(c: Colors, isDark: boolean) {
   return StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14, paddingTop: 4 },
     backBtn: {
-      width: 40, height: 40, borderRadius: 12, backgroundColor: c.card,
-      borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center',
+      width: 40, height: 40, borderRadius: 14, backgroundColor: c.tile,
+      borderWidth: 1, borderColor: c.tileEdge, borderTopColor: c.tileRim, alignItems: 'center', justifyContent: 'center',
     },
-    eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
-    title: { fontSize: 20, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
-    intro: { fontSize: 12.5, fontFamily: 'HostGrotesk_500Medium', color: c.muted, lineHeight: 19, paddingHorizontal: 20, paddingTop: 4 },
+    intro: { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: heroSecondary(isDark), lineHeight: 19, paddingHorizontal: 20, paddingTop: 4 },
     group: { paddingHorizontal: 20, paddingTop: 24 },
-    groupLabel: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
+    groupLabel: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: heroSecondary(isDark), marginBottom: 12, marginLeft: 2 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
     cardWrap: { width: CARD_W },
     card: {

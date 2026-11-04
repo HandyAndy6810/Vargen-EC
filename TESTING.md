@@ -306,6 +306,36 @@ same test ID, with what fixed it. Re-check these on every build.
 - [ ] **su7 server** After a Republish, the deploy log shows
       `[email] sending through Resend as …`, not `RESEND_API_KEY is not set`.
 
+### The new look on Customers, Profile and Settings (round 2, Group A)
+
+Check each in **Light** and **Dark** (Profile → Appearance).
+
+- [ ] **Home is unchanged:** the orange gradient, the tiles and the greeting look
+      exactly as before. Pull down at the top: orange shows above, never grey.
+- [ ] **Profile, Customers, every Settings screen:** a light orange fade at the top
+      behind the title, gone by the first card. Scroll: the fade moves up with
+      the page and the back and save buttons stay put. Pull down at the top:
+      orange above, not grey.
+- [ ] **Readable on the fade:** the small line above each title ("Business",
+      "Pricing", the customer count) and the group headings are easy to read in
+      both modes.
+- [ ] **No black boxes in Dark:** chips, small inputs, the logo buttons and the
+      "Your name" card in Business profile are a soft grey, not black holes in
+      the card.
+- [ ] **Customers list:** each customer is a card with name, phone or company and
+      address. Call and Text work, and are greyed out with no phone number.
+      Search finds by name, phone, email or address. With no customers there's a
+      card explaining what the list is for, with **Add your first customer**;
+      a search with no matches says so, with **Add a new customer**.
+- [ ] **Customer screen:** name large with the address under it; Call, Message,
+      Email, Quote, Log as tiles; contact details, notes and history as cards.
+      Edit (pencil) and Delete (red bin) still work; Cancel and Save while editing.
+- [ ] **New customer:** fields grouped as Contact, Site address, Notes. Tap
+      **Notes** with the keyboard closed: the field scrolls up above the keyboard,
+      on iPhone and Android. Add customer stays above the keyboard.
+- [ ] **Compose and Contact log:** look like the rest; sending an SMS/email and
+      logging a note work as before.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what

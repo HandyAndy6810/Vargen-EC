@@ -1,7 +1,8 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, MessageSquare, Sparkles } from 'lucide-react-native';
+import { MessageSquare, Sparkles } from 'lucide-react-native';
+import { ScreenGradient, GradientHeader, useGradientScroll, heroSecondary, wellFill } from '@/components/Rim';
+import { rimTile } from '@/theme/rim';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 
 const TEMPLATES = [
@@ -22,21 +23,16 @@ const TEMPLATES = [
   },
 ];
 
-function makeStyles(c: Colors) {
+function makeStyles(c: Colors, isDark: boolean) {
   return StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14, paddingTop: 4 },
-    backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
-    titleWrap: { flex: 1 },
-    eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
-    title: { fontSize: 20, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
     group: { paddingHorizontal: 20, paddingTop: 22 },
-    groupLabel: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
-    card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
+    groupLabel: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: heroSecondary(isDark), marginBottom: 8, marginLeft: 2 },
+    card: { ...rimTile(c, isDark), overflow: 'hidden' },
     templateCard: { paddingHorizontal: 14, paddingVertical: 14 },
     divider: { borderTopWidth: 1, borderTopColor: c.lineSoft },
     templateName: { fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
     templateTrigger: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.orange, marginTop: 2, marginBottom: 8 },
-    templatePreview: { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.mutedHi, lineHeight: 20, backgroundColor: c.paperDeep, borderRadius: 10, padding: 12 },
+    templatePreview: { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.mutedHi, lineHeight: 20, backgroundColor: wellFill(isDark), borderRadius: 10, padding: 12 },
     banner: { flexDirection: 'row', gap: 10, backgroundColor: c.orangeSoft, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: `${c.orange}33`, marginHorizontal: 20, marginTop: 22 },
     bannerText: { flex: 1, fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.orangeDeep, lineHeight: 18 },
     comingSoonBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: c.orangeSoft, marginTop: 8 },
@@ -45,22 +41,16 @@ function makeStyles(c: Colors) {
 }
 
 export default function SmsTemplatesScreen() {
-  const { colors: c } = useTheme();
-  const s = makeStyles(c);
+  const { colors: c, isDark } = useTheme();
+  const { scrollY, scrollProps } = useGradientScroll();
+  const s = makeStyles(c, isDark);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-      <View style={s.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" style={s.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
-        </TouchableOpacity>
-        <View style={s.titleWrap}>
-          <Text style={s.eyebrow}>AI & Automations</Text>
-          <Text style={s.title}>SMS Templates</Text>
-        </View>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
+      <ScreenGradient intensity="soft" scrollY={scrollY} />
+      <GradientHeader eyebrow="AI & Automations" title="SMS Templates" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+      <Animated.ScrollView {...scrollProps} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
         <View style={s.banner}>
           <Sparkles size={16} color={c.orange} strokeWidth={2.1} style={{ marginTop: 1 }} />
           <View style={{ flex: 1 }}>
@@ -88,7 +78,7 @@ export default function SmsTemplatesScreen() {
             ))}
           </View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }

@@ -2,6 +2,8 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, Tex
 import { useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Image as ImageIcon, X, Sparkles, Type } from 'lucide-react-native';
+import { wellFill } from '@/components/Rim';
+import { rimTile } from '@/theme/rim';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 import { apiRequest } from '@/lib/api';
@@ -22,8 +24,8 @@ function makeInitialsSvg(businessName: string, accentColor: string): string {
  * copy of it.
  */
 export function LogoPicker() {
-  const { colors: c } = useTheme();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { colors: c, isDark } = useTheme();
+  const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
   const { data: settings } = useSettings();
   const update = useUpdateSettings();
   const [generating, setGenerating] = useState(false);
@@ -138,16 +140,16 @@ export function LogoPicker() {
   );
 }
 
-function makeStyles(c: Colors) {
+function makeStyles(c: Colors, isDark: boolean) {
   return StyleSheet.create({
-    card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
+    card: { ...rimTile(c, isDark), overflow: 'hidden' },
     row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14 },
     rowDivider: { borderTopWidth: 1, borderTopColor: c.lineSoft },
     rowSub: { fontSize: 11, fontFamily: 'HostGrotesk_500Medium', color: c.muted },
     logoPreview: { width: 72, height: 72, borderRadius: 12, resizeMode: 'contain' },
-    logoPlaceholder: { width: 72, height: 72, borderRadius: 12, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+    logoPlaceholder: { width: 72, height: 72, borderRadius: 12, backgroundColor: wellFill(isDark), borderWidth: 1, borderColor: c.lineSoft, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
     urlInput: { flex: 1, fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.ink, paddingVertical: 0 },
-    btn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center' },
+    btn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: wellFill(isDark), borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center' },
     btnRow: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
     btnText: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
   });

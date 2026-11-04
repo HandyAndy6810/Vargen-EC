@@ -1,28 +1,25 @@
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Save } from 'lucide-react-native';
+import { Save } from 'lucide-react-native';
+import { ScreenGradient, GradientHeader, useGradientScroll, heroSecondary } from '@/components/Rim';
+import { rimTile } from '@/theme/rim';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
 import { useAuth } from '@/hooks/use-auth';
 import { showAlert } from '@/lib/dialogs';
 import { LogoPicker } from '@/components/LogoPicker';
 
-function makeStyles(c: Colors) {
+function makeStyles(c: Colors, isDark: boolean) {
   return StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14, paddingTop: 4 },
-    backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, borderWidth: 1, borderColor: c.lineSoft, alignItems: 'center', justifyContent: 'center' },
-    titleWrap: { flex: 1 },
-    eyebrow: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
-    title: { fontSize: 20, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, letterSpacing: -0.4 },
-    saveBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center' },
+    saveBtn: { width: 40, height: 40, borderRadius: 14, backgroundColor: c.orange, alignItems: 'center', justifyContent: 'center' },
     group: { paddingHorizontal: 20, paddingTop: 22 },
-    groupLabel: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
-    card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft, overflow: 'hidden' },
+    groupLabel: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: heroSecondary(isDark), marginBottom: 8, marginLeft: 2 },
+    card: { ...rimTile(c, isDark), overflow: 'hidden' },
     row: { paddingHorizontal: 14, paddingVertical: 12 },
-    rowDivider: { borderTopWidth: 1, borderTopColor: c.lineSoft },
-    label: { fontSize: 10, fontFamily: 'HostGrotesk_700Bold', color: c.muted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
+    rowDivider: { borderTopWidth: StyleSheet.hairlineWidth * 2, borderTopColor: c.lineSoft },
+    label: { fontSize: 12, fontFamily: 'HostGrotesk_700Bold', color: c.mutedHi, marginBottom: 4 },
     input: { fontSize: 14, fontFamily: 'HostGrotesk_500Medium', color: c.ink, padding: 0 },
     hint: { fontSize: 11, color: c.muted, fontFamily: 'HostGrotesk_500Medium', marginTop: 6, paddingHorizontal: 2 },
     readOnly: { fontSize: 14, fontFamily: 'HostGrotesk_500Medium', color: c.mutedHi },
@@ -52,8 +49,9 @@ type Form = Record<FormKeys, string>;
 // again) and Invoice settings (the logo) — three screens editing the same
 // settings, so which one "won" depended on which you saved last.
 export default function BusinessDetailsScreen() {
-  const { colors: c } = useTheme();
-  const s = makeStyles(c);
+  const { colors: c, isDark } = useTheme();
+  const { scrollY, scrollProps } = useGradientScroll();
+  const s = makeStyles(c, isDark);
   const { user } = useAuth() as any;
   const { data: settings, isLoading } = useSettings();
   const update = useUpdateSettings();
@@ -124,25 +122,19 @@ export default function BusinessDetailsScreen() {
     ));
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={['top']}>
-      <View style={s.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" style={s.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
-        </TouchableOpacity>
-        <View style={s.titleWrap}>
-          <Text style={s.eyebrow}>Business</Text>
-          <Text style={s.title}>Business profile</Text>
-        </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
+      <ScreenGradient intensity="soft" scrollY={scrollY} />
+      <GradientHeader eyebrow="Business" title="Business profile" right={<>
         <TouchableOpacity style={s.saveBtn} onPress={handleSave} activeOpacity={0.7} disabled={update.isPending}>
           {update.isPending ? <ActivityIndicator size="small" color="#fff" /> : <Save size={18} color="#fff" strokeWidth={2.2} />}
         </TouchableOpacity>
-      </View>
+      </>} />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 130 }}>
+      <Animated.ScrollView {...scrollProps} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 130 }}>
         <View style={s.group}>
           <Text style={s.groupLabel}>Your name</Text>
-          <View style={[s.card, { backgroundColor: c.paperDeep }]}>
+          <View style={s.card}>
             <View style={s.row}>
               <Text style={s.label}>Name</Text>
               <Text style={s.readOnly}>{`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || '—'}</Text>
@@ -168,7 +160,7 @@ export default function BusinessDetailsScreen() {
           <View style={s.card}>{renderFields(BANK_FIELDS)}</View>
           <Text style={s.hint}>Bank details appear on invoices so customers can pay via direct transfer.</Text>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
