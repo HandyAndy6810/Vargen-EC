@@ -104,7 +104,7 @@ export default function JobCompleteScreen() {
 
             <View style={{ marginTop: 28, gap: 14 }}>
               <View style={s.fieldGroup}>
-                <Text style={s.fieldLabel}>Hours worked</Text>
+                <Text style={s.fieldLabel}>Hours you spent on it</Text>
                 <TextInput
                   style={[s.input, error ? { borderColor: '#d23b3b', borderWidth: 1 } : null]}
                   placeholder="e.g. 2.5"
@@ -115,10 +115,13 @@ export default function JobCompleteScreen() {
                   returnKeyType="next"
                 />
                 {error ? <Text style={s.errorText}>{error}</Text> : null}
+                <Text style={s.fieldHint}>
+                  All of you on the job, added up: two people for 3 hours is 6. This is what works out what the job really made you.
+                </Text>
               </View>
 
               <View style={s.fieldGroup}>
-                <Text style={s.fieldLabel}>Completion notes</Text>
+                <Text style={s.fieldLabel}>What you did (for your records)</Text>
                 <TextInput
                   style={[s.input, { height: 100, textAlignVertical: 'top', paddingTop: 14 }]}
                   placeholder="What was done, any issues found…"
@@ -241,6 +244,7 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     color: c.muted, marginTop: 4,
   },
   fieldGroup: { gap: 8 },
+  fieldHint: { fontSize: 12.5, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 6, lineHeight: 18 },
   fieldLabel: {
     fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold',
     color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase',

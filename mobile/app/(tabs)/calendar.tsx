@@ -8,8 +8,10 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { useState, useMemo, useEffect } from 'react';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { weekPosition, sameLocalDay } from '@shared/calendar-dates';
+import { takeCalendarFocus } from '@/lib/calendar-focus';
 import { format, startOfWeek, addDays, addWeeks, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
@@ -114,7 +116,22 @@ export default function CalendarScreen() {
     [weekStart]
   );
 
-  const { data: jobs } = useJobs();
+  const { data: jobs, isStale: jobsStale, refetch: refetchJobs } = useJobs();
+
+  // j1. Coming back to the tab: show the day of a job just saved, and refetch a
+  // list older than the 30s freshness window. Tabs stay mounted and window focus
+  // doesn't exist on a phone, so a job saved elsewhere (another screen, the web)
+  // otherwise waited for a pull to refresh.
+  useFocusEffect(useCallback(() => {
+    const focus = takeCalendarFocus();
+    if (focus) {
+      const pos = weekPosition(focus, new Date());
+      setSegment('calendar');
+      setWeekOffset(pos.weekOffset);
+      setDayIdx(pos.dayIdx);
+    }
+    if (jobsStale) refetchJobs();
+  }, [jobsStale, refetchJobs]));
   const { data: weather } = useWeather();
   const allJobs = (jobs as any[]) || [];
 
@@ -132,13 +149,7 @@ export default function CalendarScreen() {
     const q = searchQuery.trim().toLowerCase();
     return allJobs
       .filter((j: any) => {
-        if (!j.scheduledDate) return false;
-        const d = new Date(j.scheduledDate);
-        return (
-          d.getFullYear() === selectedDay.getFullYear() &&
-          d.getMonth() === selectedDay.getMonth() &&
-          d.getDate() === selectedDay.getDate()
-        );
+        return !!j.scheduledDate && sameLocalDay(new Date(j.scheduledDate), selectedDay);
       })
       .filter((j: any) => {
         if (!q) return true;
@@ -153,13 +164,7 @@ export default function CalendarScreen() {
   const jobCountPerDay = useMemo(() => {
     return days.map(day =>
       allJobs.filter((j: any) => {
-        if (!j.scheduledDate) return false;
-        const d = new Date(j.scheduledDate);
-        return (
-          d.getFullYear() === day.getFullYear() &&
-          d.getMonth() === day.getMonth() &&
-          d.getDate() === day.getDate()
-        );
+        return !!j.scheduledDate && sameLocalDay(new Date(j.scheduledDate), day);
       }).length
     );
   }, [allJobs, days]);
@@ -214,7 +219,7 @@ export default function CalendarScreen() {
         >
           <Search size={18} color={showSearch ? '#fff' : c.ink} strokeWidth={2.1} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.addBtn} activeOpacity={0.8} onPress={() => router.push('/jobs/create' as any)}>
+        <TouchableOpacity style={s.addBtn} activeOpacity={0.8} onPress={() => router.push('/jobs/create' as any)} accessibilityRole="button" accessibilityLabel="New job">
           <Plus size={20} color="#fff" strokeWidth={2.5} />
         </TouchableOpacity>
       </View>

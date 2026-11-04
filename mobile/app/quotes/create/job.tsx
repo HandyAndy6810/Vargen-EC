@@ -54,8 +54,14 @@ export default function JobStep() {
             value={d.schedDate}
             onChangeText={d.setSchedDate}
             returnKeyType="next"
+            accessibilityLabel="Date, shown on the quote"
           />
         </View>
+        {/* j1: this date is printed on the quote; it doesn't book anything. Said
+            here so nobody waits for it to appear on the calendar. */}
+        <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.muted, paddingHorizontal: 14, paddingBottom: 10, lineHeight: 17 }}>
+          Shown on the quote. To put it on your calendar, add a job (Schedule → +).
+        </Text>
         <View style={[s.fieldRow, { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
           <Text style={s.fieldLabel}>Expires</Text>
           <TextInput
