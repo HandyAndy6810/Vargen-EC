@@ -87,3 +87,42 @@ export function invoiceEmailUrl(email: string, i: InvoiceMessageInput): string {
   const subject = `${i.invoiceNumber?.trim() ? `Invoice ${i.invoiceNumber.trim()}` : 'Your invoice'}${i.businessName?.trim() ? ` from ${i.businessName.trim()}` : ''}`;
   return emailUrl(email, subject, invoiceMessage(i));
 }
+
+/**
+ * Chasing up (s8, Calendar → Outreach): a short, friendly nudge with the same
+ * link, so the customer can act on it from the message itself.
+ */
+export type FollowUpInput =
+  | { kind: 'quote'; customerName?: string | null; businessName?: string | null; jobTitle?: string | null; url: string }
+  | { kind: 'invoice'; customerName?: string | null; businessName?: string | null; invoiceNumber?: string | null; outstanding: number; dueDate?: string | null; url: string };
+
+export function followUpMessage(f: FollowUpInput): string {
+  const first = (f.customerName || '').trim().split(/\s+/)[0] || 'there';
+  const sign = `Thanks${f.businessName?.trim() ? `,\n${f.businessName.trim()}` : ''}`;
+  if (f.kind === 'quote') {
+    const what = f.jobTitle?.trim() ? `the quote for ${f.jobTitle.trim()}` : 'the quote I sent';
+    return [
+      `Hi ${first},`,
+      '',
+      `Just following up on ${what}. Happy to answer any questions or adjust anything.`,
+      `You can view and accept it here: ${f.url}`,
+      '',
+      sign,
+    ].join('\n');
+  }
+  const which = f.invoiceNumber?.trim() ? `invoice ${f.invoiceNumber.trim()}` : 'your invoice';
+  return [
+    `Hi ${first},`,
+    '',
+    `A quick reminder that ${which} has ${money(f.outstanding)} still owing${f.dueDate ? ` (due ${f.dueDate})` : ''}. If it's already on its way, please ignore this.`,
+    `You can view and pay it here: ${f.url}`,
+    '',
+    sign,
+  ].join('\n');
+}
+
+export function followUpSubject(f: FollowUpInput): string {
+  const from = f.businessName?.trim() ? ` from ${f.businessName.trim()}` : '';
+  if (f.kind === 'quote') return `Following up: your quote${from}`;
+  return `Reminder: ${f.invoiceNumber?.trim() ? `invoice ${f.invoiceNumber.trim()}` : 'your invoice'}${from}`;
+}

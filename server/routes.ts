@@ -10,7 +10,7 @@ import { checkLinePrice } from "../shared/price-sanity";
 import { labourLineCost } from "./lib/labour-cost";
 import { resolvePricingInputs, enforceCallOut } from "./lib/pricing-inputs";
 import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
-import { firstSendFields, publicBaseUrl, withPortalUrl } from "./lib/quote-send";
+import { firstSendFields, publicBaseUrl, withPortalUrl, backfillSentFields } from "./lib/quote-send";
 import { buildInvoiceView, withInvoiceUrl } from "./lib/invoice-view";
 import { buildPortalView } from "./lib/portal-view";
 import { extractJsonObject, receiptTotal, providerRejectedField, isRateLimited } from "./lib/ai-json";
@@ -2258,6 +2258,42 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
         }))
         .filter((row) => row.outstanding > 0)
         .sort((a, b) => b.daysOverdue - a.daysOverdue);
+
+      // s8: everything the Chase up menu needs, so it can open Email or SMS
+      // straight away: the customer's contact details (preferred one included)
+      // and the link the message carries. A quote sent before links existed, or
+      // an invoice never shared, gets its link now (as sending would have).
+      const base = publicBaseUrl(process.env, req);
+      const customersById = new Map((await storage.getCustomers(req.userId)).map((c) => [c.id, c]));
+      const contactFor = (id: number | null | undefined, fallbackName?: string | null) => {
+        const c = id ? customersById.get(id) : undefined;
+        return {
+          id: c?.id ?? null,
+          name: c?.name ?? fallbackName ?? null,
+          phone: c?.phone ?? null,
+          email: c?.email ?? null,
+          preferredContact: c?.preferredContact ?? null,
+        };
+      };
+      for (const row of overdueInvoices as any[]) {
+        let inv = row.invoice;
+        if (!inv.shareToken) inv = (await storage.ensureInvoiceShareToken(inv.id, req.userId)) ?? inv;
+        row.invoice = inv;
+        row.link = withInvoiceUrl(inv, base).invoiceUrl ?? null;
+        row.customer = contactFor(inv.customerId);
+      }
+      for (const row of dueFollowUps) {
+        let q = row.quote;
+        if (!q.shareToken) {
+          const fix = backfillSentFields(q);
+          if (fix) q = (await storage.updateQuote(q.id, fix, req.userId)) ?? q;
+        }
+        row.quote = q;
+        row.link = withPortalUrl(q, base).portalUrl ?? null;
+        let typed: string | null = null;
+        try { typed = JSON.parse(q.content || "{}")?.customerName || null; } catch { /* no name */ }
+        row.customer = contactFor(q.customerId, typed);
+      }
 
       res.json([...overdueInvoices, ...dueFollowUps]);
     } catch (error: any) {
