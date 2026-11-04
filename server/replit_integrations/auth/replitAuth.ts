@@ -1,3 +1,4 @@
+import { emailProblem, mobileProblem, normaliseAuMobile } from "../../../shared/signup-fields";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import rateLimit from "express-rate-limit";
@@ -89,12 +90,18 @@ export async function setupAuth(app: Express) {
   app.post("/api/register", authRateLimit, async (req, res) => {
     try {
       const { email, password, firstName, lastName, phone } = req.body || {};
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password are required" });
+      // su2, su3: the same checks the register screen runs, so a bad email or
+      // number gets a clear 400 rather than an account nobody can reach.
+      const emailIssue = emailProblem(email);
+      if (emailIssue) return res.status(400).json({ message: emailIssue, field: "email" });
+      if (!password) return res.status(400).json({ message: "Enter a password", field: "password" });
+      if (String(password).length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters", field: "password" });
       }
-      if (password.length < 8) {
-        return res.status(400).json({ message: "Password must be at least 8 characters" });
-      }
+      const phoneIssue = mobileProblem(phone);
+      if (phoneIssue) return res.status(400).json({ message: phoneIssue, field: "phone" });
+      // Compared lowercased and trimmed (getUserByEmail), so Sam@Example.com
+      // can't open a second account beside sam@example.com.
       const existing = await authStorage.getUserByEmail(email);
       if (existing) {
         return res.status(409).json({ message: "An account with this email already exists" });
@@ -104,7 +111,7 @@ export async function setupAuth(app: Express) {
         email: String(email).trim().toLowerCase(),
         firstName: firstName || null,
         lastName: lastName || null,
-        phone: phone || null,
+        phone: normaliseAuMobile(phone),
         password: hashed,
       });
       (req.session as any).localUserId = user.id;

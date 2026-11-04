@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
+import { emailProblem, mobileProblem, normaliseAuMobile } from '@shared/signup-fields';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useState, useMemo } from 'react';
 import { router } from 'expo-router';
@@ -31,11 +32,17 @@ export default function RegisterScreen() {
   const [password, setPassword]                 = useState('');
   const [confirmPassword, setConfirmPassword]   = useState('');
   const [error, setError]                       = useState<string | null>(null);
+  // Inline checks (su2, su3): shown once a field is left, or on Create account.
+  const [touched, setTouched] = useState({ email: false, phone: false });
+  const [serverField, setServerField] = useState<{ field: string; message: string } | null>(null);
+  const emailErr = (serverField?.field === 'email' ? serverField.message : null) ?? (touched.email ? emailProblem(email) : null);
+  const phoneErr = (serverField?.field === 'phone' ? serverField.message : null) ?? (touched.phone ? mobileProblem(phone) : null);
 
   const registerMutation = useMutation({
     mutationFn: async () => {
       if (!firstName.trim()) throw new Error('First name is required');
-      if (!email.trim()) throw new Error('Email is required');
+      setTouched({ email: true, phone: true });
+      if (emailProblem(email) || mobileProblem(phone)) throw new Error('Check the highlighted fields.');
       if (password.length < 8) throw new Error('Password must be at least 8 characters');
       if (password !== confirmPassword) throw new Error("Passwords don't match");
 
@@ -43,11 +50,16 @@ export default function RegisterScreen() {
         firstName: firstName.trim(),
         lastName: lastName.trim() || null,
         email: email.trim(),
-        phone: phone.trim() || null,
+        // Stored as +614XXXXXXXX; the server normalises too.
+        phone: normaliseAuMobile(phone),
         password,
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
+        if (body?.field === 'email' || body?.field === 'phone') {
+          setServerField({ field: body.field, message: body.message });
+          throw new Error('Check the highlighted fields.');
+        }
         throw new Error(body?.message || 'Registration failed');
       }
       return res.json();
@@ -121,15 +133,20 @@ export default function RegisterScreen() {
           <View style={s.fieldGroup}>
             <Text style={s.fieldLabel}>Email</Text>
             <TextInput
-              style={s.input}
+              style={[s.input, emailErr ? s.inputError : null]}
               placeholder="you@example.com"
               placeholderTextColor={c.muted}
               value={email}
-              onChangeText={v => { setEmail(v); setError(null); }}
+              onChangeText={v => { setEmail(v); setError(null); if (serverField?.field === 'email') setServerField(null); }}
+              onBlur={() => setTouched(t => ({ ...t, email: true }))}
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
+              textContentType="emailAddress"
+              accessibilityLabel="Email"
+              accessibilityHint={emailErr ?? undefined}
             />
+            {emailErr ? <Text style={s.fieldError} accessibilityLiveRegion="polite">{emailErr}</Text> : null}
           </View>
 
           <View style={s.fieldGroup}>
@@ -138,14 +155,19 @@ export default function RegisterScreen() {
               <Text style={{ fontFamily: 'HostGrotesk_500Medium', color: c.muted }}>(optional)</Text>
             </Text>
             <TextInput
-              style={s.input}
-              placeholder="+61 4XX XXX XXX"
+              style={[s.input, phoneErr ? s.inputError : null]}
+              placeholder="0412 345 678"
               placeholderTextColor={c.muted}
               value={phone}
-              onChangeText={v => { setPhone(v); setError(null); }}
+              onChangeText={v => { setPhone(v); setError(null); if (serverField?.field === 'phone') setServerField(null); }}
+              onBlur={() => setTouched(t => ({ ...t, phone: true }))}
               keyboardType="phone-pad"
               autoCorrect={false}
+              textContentType="telephoneNumber"
+              accessibilityLabel="Mobile (optional)"
+              accessibilityHint={phoneErr ?? undefined}
             />
+            {phoneErr ? <Text style={s.fieldError} accessibilityLiveRegion="polite">{phoneErr}</Text> : null}
           </View>
 
           <View style={s.fieldGroup}>
@@ -207,6 +229,8 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     backgroundColor: c.redSoft, borderRadius: 12, padding: 14, marginBottom: 16,
   },
   errorText: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.red },
+  inputError: { borderColor: c.red, borderWidth: 1.5 },
+  fieldError: { fontSize: 12.5, fontFamily: 'HostGrotesk_600SemiBold', color: c.red, marginTop: 6 },
   fieldGroup: { marginBottom: 14 },
   fieldLabel: {
     fontSize: 11, fontFamily: 'HostGrotesk_800ExtraBold',
