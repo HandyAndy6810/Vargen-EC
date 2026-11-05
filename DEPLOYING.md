@@ -73,8 +73,15 @@ npm run update:preview -- -m "what changed"
 
 ```bash
 cd ~/workspace/mobile
-eas update --branch preview --message "<what changed>"
+npm run update:preview -- --message "<what changed>"
 ```
+
+Always use the npm script, never a bare `eas update`. The script
+(`mobile/scripts/publish-update.mjs`) bundles the app with the deployed server's
+URL from `eas.json` forced in, refuses `replit.dev`, `localhost` and private IP
+addresses, reads the finished bundles to confirm, and only then uploads them. A
+bare `eas update` bundles whatever `EXPO_PUBLIC_API_URL` happens to be set on
+Replit. To check without uploading: `node scripts/publish-update.mjs preview --check`.
 
 The app picks it up on its next cold start. `update:production` does the same for
 the App Store build.

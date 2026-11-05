@@ -1,6 +1,6 @@
 {
   "name": "vargen-mobile",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -10,8 +10,8 @@
     "lint": "expo lint",
     "postinstall": "patch-package",
     "typecheck": "tsc --noEmit",
-    "update:preview": "eas update --branch preview",
-    "update:production": "eas update --branch production"
+    "update:preview": "node scripts/publish-update.mjs preview",
+    "update:production": "node scripts/publish-update.mjs production"
   },
   "dependencies": {
     "@expo-google-fonts/host-grotesk": "~0.4.1",

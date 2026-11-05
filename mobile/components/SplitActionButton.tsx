@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { View, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import { Animated, View, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { halvesOffset, buttonScale, buttonShake, setIntroTarget, registerIntroMeasurer } from '@/lib/intro-state';
@@ -41,6 +40,12 @@ const VB_H = 132;
 const BOLT_HALF = 28; // viewBox units from the centre line to the notch
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+// Intro transforms (all identity at rest), on React Native's Animated.
+const leftShift = Animated.multiply(halvesOffset, -1);
+const leftStyle = { transform: [{ translateX: leftShift }] };
+const rightStyle = { transform: [{ translateX: halvesOffset }] };
+const wrapStyle = { transform: [{ translateY: buttonShake }, { scale: buttonScale }] };
+
 export function SplitActionButton({
   onQuote,
   onInvoice,
@@ -58,11 +63,6 @@ export function SplitActionButton({
   const height = clamp(Math.round(btnW * 0.24), 80, 96);
   const fontSize = clamp(Math.round(btnW * 0.056), 18, 22);
   const boltPad = Math.ceil(BOLT_HALF * (height / VB_H)) + 8;
-
-  // Intro transforms (all identity at rest).
-  const leftStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -halvesOffset.value }] }));
-  const rightStyle = useAnimatedStyle(() => ({ transform: [{ translateX: halvesOffset.value }] }));
-  const wrapStyle = useAnimatedStyle(() => ({ transform: [{ translateY: buttonShake.value }, { scale: buttonScale.value }] }));
 
   // Where the gap is on screen, for the intro: Home's button lends the overlay
   // a way to measure it. (Focus events at start-up proved unreliable on the

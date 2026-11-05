@@ -1,16 +1,14 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Appearance, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Animated, {
-  Easing, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue,
-  withDelay, withSequence, withTiming, interpolate, Extrapolation,
-} from 'react-native-reanimated';
+import { Component, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  AccessibilityInfo, Animated, Appearance, Easing, Platform, StyleSheet, View, useWindowDimensions,
+} from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Stop, Polygon, Circle } from 'react-native-svg';
 import * as SplashScreen from 'expo-splash-screen';
 import { useRootNavigationState, usePathname } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import { BOLT_POINTS, BOLT_GRADIENT, SPLASH_IMAGE_WIDTH, SPLASH_BACKGROUND } from '@/lib/brand-bolt';
-import { splashSquare, gapTarget, gapEnds, arcControl, type Rect, type Point } from '@shared/intro-geometry';
+import { splashSquare, gapTarget, gapEnds, arcControl, quadAt, type Rect, type Point } from '@shared/intro-geometry';
 import {
   introPending, markIntroDone, subscribeIntro, waitForIntroTarget,
   halvesOffset, buttonScale, buttonShake,
@@ -26,9 +24,32 @@ import * as K from '@/lib/intro-animation';
  * a deep link, Reduce Motion, no button) the frame just fades.
  *
  * It never takes a touch (pointerEvents none), and it always ends: a safety
- * timer removes it even if an animation callback never arrives.
+ * timer removes it even if an animation callback never arrives, and an error
+ * boundary removes it (and the splash) if it throws.
+ *
+ * Animation: React Native's own Animated on the native driver, NOT reanimated.
+ * reanimated 3.16 throws the moment it is imported on React Native 0.81 (its
+ * Animated.Text rejects RN's function-component Text), which crashed build 3
+ * ~0.5 s after launch. The curves (the arc, the spin, the sparks) are sampled
+ * into interpolations, which the native driver runs on the UI thread.
  */
 export function IntroHost() {
+  return <IntroBoundary><IntroHostInner /></IntroBoundary>;
+}
+
+/** Any error in the intro: log it, drop the splash, carry on without the intro. */
+class IntroBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(err: unknown) {
+    console.error('[intro] failed; starting without it:', err);
+    SplashScreen.hideAsync().catch(() => {});
+    markIntroDone();
+  }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+
+function IntroHostInner() {
   const pending = useSyncExternalStore(subscribeIntro, introPending, introPending);
   const [run, setRun] = useState(0);
   const was = useRef(pending);
@@ -64,9 +85,21 @@ async function openedByLinkOrNotification(): Promise<boolean> {
   } catch { return false; }
 }
 
+const NATIVE = Platform.OS !== 'web'; // react-native-web has no native driver
+const timing = (v: Animated.Value, toValue: number, duration: number, easing?: (t: number) => number, delay = 0) =>
+  Animated.timing(v, { toValue, duration, easing, delay, useNativeDriver: NATIVE });
+
+/**
+ * fn(input) as a native-driver interpolation, sampled at `steps` points over
+ * [lo, hi] (clamped outside). Covers the WHIP overshoot past 1.
+ */
+function curve(v: Animated.Value, fn: (x: number) => number, lo = -0.1, hi = 1.3, steps = 56) {
+  const inputRange = Array.from({ length: steps + 1 }, (_, i) => lo + ((hi - lo) * i) / steps);
+  return v.interpolate({ inputRange, outputRange: inputRange.map(fn), extrapolate: 'clamp' });
+}
+
 function IntroOverlay() {
   const screen = useWindowDimensions();
-  const reduceMotion = useReducedMotion();
   // The native splash follows the system appearance (not the app's own theme
   // setting), so the first frame must too.
   const [scheme] = useState<'light' | 'dark'>(() => (Appearance.getColorScheme() === 'dark' ? 'dark' : 'light'));
@@ -97,29 +130,31 @@ function IntroOverlay() {
     setTimeout(resolve, K.NAV_READY_CAP_MS);
   });
 
-  // Animated values (UI thread).
-  const bgOpacity = useSharedValue(1);
-  const boltOpacity = useSharedValue(1);
-  const wind = useSharedValue(0);
-  const fly = useSharedValue(0);
-  const impact = useSharedValue(0);
-  const bloom = useSharedValue(0);
+  // Animated values (driven natively once started).
+  const v = useRef({
+    bgOpacity: new Animated.Value(1),
+    boltOpacity: new Animated.Value(1),
+    wind: new Animated.Value(0),
+    fly: new Animated.Value(0),
+    impact: new Animated.Value(0),
+    bloom: new Animated.Value(0),
+  }).current;
 
   const finish = () => {
     if (finished.current) return;
     finished.current = true;
-    halvesOffset.value = 0; buttonScale.value = 1; buttonShake.value = 0;
-    markIntroDone();
+    markIntroDone(); // also puts the button's halves, scale and shake back at rest
   };
 
   // First frame painted: hide the native splash under it, then decide.
   const onFirstLayout = () => {
     requestAnimationFrame(() => {
       SplashScreen.hideAsync().catch(() => {});
-      decide();
+      decide().catch((e) => { console.error('[intro] decide failed:', e); setPlan({ kind: 'fade', ms: 250 }); });
     });
   };
   const decide = async () => {
+    const reduceMotion = await AccessibilityInfo.isReduceMotionEnabled().catch(() => false);
     if (reduceMotion) return setPlan({ kind: 'fade', ms: K.SKIP_FADE_MS });
     await whenNavReady();
     const [button, deepLink] = await Promise.all([
@@ -141,90 +176,95 @@ function IntroOverlay() {
   // Run the plan.
   useEffect(() => {
     if (plan.kind === 'fade') {
-      const done = () => { 'worklet'; runOnJS(finish)(); };
-      boltOpacity.value = withTiming(0, { duration: plan.ms });
-      bgOpacity.value = withTiming(0, { duration: plan.ms }, (ok) => { if (ok) done(); });
+      Animated.parallel([timing(v.boltOpacity, 0, plan.ms), timing(v.bgOpacity, 0, plan.ms)]).start(finish);
     }
     if (plan.kind === 'fly') {
       const land = K.WINDUP_MS + K.FLIGHT_MS;
+      const afterLanding = (...steps: Animated.CompositeAnimation[]) => Animated.sequence([Animated.delay(land), ...steps]);
       // The halves sit apart while the background still covers Home.
-      halvesOffset.value = K.HALVES_TRAVEL;
-      bgOpacity.value = withDelay(K.BG_FADE_FROM_MS, withTiming(0, { duration: K.BG_FADE_MS, easing: Easing.out(Easing.quad) }));
-      wind.value = withTiming(1, { duration: K.WINDUP_MS, easing: Easing.out(Easing.quad) });
-      fly.value = withDelay(K.WINDUP_MS, withTiming(1, { duration: K.FLIGHT_MS, easing: K.WHIP }));
-      halvesOffset.value = withDelay(land - K.HALVES_MS, withTiming(0, { duration: K.HALVES_MS, easing: Easing.in(Easing.cubic) }));
-      buttonScale.value = withDelay(land, withSequence(
-        withTiming(1 + K.PULSE, { duration: K.PULSE_MS / 2, easing: Easing.out(Easing.quad) }),
-        withTiming(1, { duration: K.PULSE_MS / 2, easing: Easing.inOut(Easing.quad) }),
-      ));
-      buttonShake.value = withDelay(land, withSequence(
-        withTiming(K.THUD, { duration: K.THUD_STEP_MS }),
-        withTiming(-K.THUD * 0.6, { duration: K.THUD_STEP_MS }),
-        withTiming(0, { duration: K.THUD_STEP_MS }),
-      ));
-      bloom.value = withDelay(land, withSequence(
-        withTiming(1, { duration: K.BLOOM_IN_MS, easing: Easing.out(Easing.quad) }),
-        withTiming(0, { duration: K.BLOOM_OUT_MS, easing: Easing.in(Easing.quad) }),
-      ));
-      boltOpacity.value = withDelay(land, withTiming(0, { duration: K.BOLT_FADE_MS, easing: Easing.inOut(Easing.quad) }));
-      const done = () => { 'worklet'; runOnJS(finish)(); };
-      impact.value = withDelay(land, withTiming(1, { duration: K.EMBER_MS, easing: Easing.linear }, (ok) => { if (ok) done(); }));
+      halvesOffset.setValue(K.HALVES_TRAVEL);
+      Animated.parallel([
+        timing(v.bgOpacity, 0, K.BG_FADE_MS, Easing.out(Easing.quad), K.BG_FADE_FROM_MS),
+        timing(v.wind, 1, K.WINDUP_MS, Easing.out(Easing.quad)),
+        timing(v.fly, 1, K.FLIGHT_MS, K.WHIP, K.WINDUP_MS),
+        timing(halvesOffset, 0, K.HALVES_MS, Easing.in(Easing.cubic), land - K.HALVES_MS),
+        afterLanding(
+          timing(buttonScale, 1 + K.PULSE, K.PULSE_MS / 2, Easing.out(Easing.quad)),
+          timing(buttonScale, 1, K.PULSE_MS / 2, Easing.inOut(Easing.quad)),
+        ),
+        afterLanding(
+          timing(buttonShake, K.THUD, K.THUD_STEP_MS),
+          timing(buttonShake, -K.THUD * 0.6, K.THUD_STEP_MS),
+          timing(buttonShake, 0, K.THUD_STEP_MS),
+        ),
+        afterLanding(
+          timing(v.bloom, 1, K.BLOOM_IN_MS, Easing.out(Easing.quad)),
+          timing(v.bloom, 0, K.BLOOM_OUT_MS, Easing.in(Easing.quad)),
+        ),
+        timing(v.boltOpacity, 0, K.BOLT_FADE_MS, Easing.inOut(Easing.quad), land),
+        timing(v.impact, 1, K.EMBER_MS, Easing.linear, land),
+      ]).start(finish);
     }
   }, [plan]);
 
-  // Geometry of the flight (JS side, plain numbers for the worklets).
+  // Geometry of the flight (JS side, plain numbers for the interpolations).
   const flight = useMemo(() => {
     if (plan.kind !== 'fly') return null;
     const t = gapTarget(plan.button, SPLASH_IMAGE_WIDTH);
     const c = arcControl(start, t.center, K.ARC);
     return { end: t.center, scale: t.scale, control: c, ends: gapEnds(plan.button) };
   }, [plan, start.x, start.y]);
-  const sx = start.x, sy = start.y;
-  const ex = flight?.end.x ?? sx, ey = flight?.end.y ?? sy;
-  const cx = flight?.control.x ?? sx, cy = flight?.control.y ?? sy;
-  const endScale = flight?.scale ?? 1;
 
-  // One bolt's transform at a given flight progress (worklet).
-  const boltTransform = (f: number, w: number) => {
-    'worklet';
-    const u = 1 - f;
-    const x = u * u * sx + 2 * u * f * cx + f * f * ex;
-    const y = u * u * sy + 2 * u * f * cy + f * f * ey;
-    // Wind up: draw back to WINDUP_SCALE and turn to -SPIN; the flight unwinds both.
-    const scale = f > 0
-      ? K.WINDUP_SCALE + (endScale - K.WINDUP_SCALE) * f
-      : 1 - (1 - K.WINDUP_SCALE) * w;
-    const rotate = -K.SPIN * w * (1 - Math.min(f, 1));
-    return [{ translateX: x - sx }, { translateY: y - sy }, { rotate: `${rotate}deg` }, { scale }];
+  /**
+   * One bolt's transform, `lag` of the flight behind the real one. Wind up:
+   * draw back to WINDUP_SCALE and turn to -SPIN; the flight unwinds both. The
+   * wind up ends exactly when the flight starts, so each is the sum of a
+   * wind-up part and a flight part.
+   */
+  const boltTransform = (lag: number) => {
+    const sx = start.x, sy = start.y;
+    const end = flight?.end ?? start, ctl = flight?.control ?? start, endScale = flight?.scale ?? 1;
+    const f = (x: number) => Math.max(0, x - lag);
+    const at = (x: number) => quadAt(start, ctl, end, f(x));
+    const scale = Animated.add(
+      v.wind.interpolate({ inputRange: [0, 1], outputRange: [1, K.WINDUP_SCALE], extrapolate: 'clamp' }),
+      curve(v.fly, (x) => (endScale - K.WINDUP_SCALE) * f(x)),
+    );
+    const rotate = Animated.add(
+      v.wind.interpolate({ inputRange: [0, 1], outputRange: [0, -K.SPIN], extrapolate: 'clamp' }),
+      curve(v.fly, (x) => K.SPIN * Math.min(f(x), 1)),
+    ).interpolate({ inputRange: [-360, 360], outputRange: ['-360deg', '360deg'] });
+    return [
+      { translateX: curve(v.fly, (x) => at(x).x - sx) },
+      { translateY: curve(v.fly, (x) => at(x).y - sy) },
+      { rotate },
+      { scale },
+    ];
   };
+  const styles_ = useMemo(() => ({
+    bolt: { opacity: v.boltOpacity, transform: boltTransform(0) },
+    ghost0: {
+      opacity: v.fly.interpolate({ inputRange: [0, 0.1, 0.85, 1], outputRange: [0, K.AFTERIMAGE_OPACITY[0], K.AFTERIMAGE_OPACITY[0], 0], extrapolate: 'clamp' }),
+      transform: boltTransform(K.AFTERIMAGE_LAG),
+    },
+    ghost1: {
+      opacity: v.fly.interpolate({ inputRange: [0, 0.15, 0.85, 1], outputRange: [0, K.AFTERIMAGE_OPACITY[1], K.AFTERIMAGE_OPACITY[1], 0], extrapolate: 'clamp' }),
+      transform: boltTransform(2 * K.AFTERIMAGE_LAG),
+    },
+    bloom: {
+      opacity: v.bloom.interpolate({ inputRange: [0, 1], outputRange: [0, K.GLOW] }),
+      transform: [{ scale: v.bloom.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }) }],
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [flight, start.x, start.y]);
 
-  const bgStyle = useAnimatedStyle(() => ({ opacity: bgOpacity.value }));
-  const boltStyle = useAnimatedStyle(() => ({ opacity: boltOpacity.value, transform: boltTransform(fly.value, wind.value) }));
-  const ghost0 = useAnimatedStyle(() => {
-    const f = Math.max(0, fly.value - K.AFTERIMAGE_LAG);
-    return {
-      opacity: interpolate(fly.value, [0, 0.1, 0.85, 1], [0, K.AFTERIMAGE_OPACITY[0], K.AFTERIMAGE_OPACITY[0], 0], Extrapolation.CLAMP),
-      transform: boltTransform(f, wind.value),
-    };
-  });
-  const ghost1 = useAnimatedStyle(() => {
-    const f = Math.max(0, fly.value - 2 * K.AFTERIMAGE_LAG);
-    return {
-      opacity: interpolate(fly.value, [0, 0.15, 0.85, 1], [0, K.AFTERIMAGE_OPACITY[1], K.AFTERIMAGE_OPACITY[1], 0], Extrapolation.CLAMP),
-      transform: boltTransform(f, wind.value),
-    };
-  });
-  const bloomStyle = useAnimatedStyle(() => ({
-    opacity: K.GLOW * bloom.value,
-    transform: [{ scale: 0.55 + 0.45 * bloom.value }],
-  }));
-
+  const ex = flight?.end.x ?? start.x, ey = flight?.end.y ?? start.y;
   const boltBox = { left: square.x, top: square.y, width: square.width, height: square.height };
   return (
     <View style={[StyleSheet.absoluteFill, styles.layer]} pointerEvents="none" onLayout={onFirstLayout}>
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: bg }, bgStyle]} />
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: bg, opacity: v.bgOpacity }]} />
       {flight ? (
-        <Animated.View style={[styles.abs, { left: ex - K.BLOOM / 2, top: ey - K.BLOOM / 2, width: K.BLOOM, height: K.BLOOM }, bloomStyle]}>
+        <Animated.View style={[styles.abs, { left: ex - K.BLOOM / 2, top: ey - K.BLOOM / 2, width: K.BLOOM, height: K.BLOOM }, styles_.bloom]}>
           <Svg width={K.BLOOM} height={K.BLOOM}>
             <Defs>
               <RadialGradient id="introBloom" cx="50%" cy="50%" r="50%">
@@ -237,11 +277,11 @@ function IntroOverlay() {
           </Svg>
         </Animated.View>
       ) : null}
-      {flight && K.AFTERIMAGES >= 2 ? <Animated.View style={[styles.abs, boltBox, ghost1]}><Bolt id="introG1" /></Animated.View> : null}
-      {flight && K.AFTERIMAGES >= 1 ? <Animated.View style={[styles.abs, boltBox, ghost0]}><Bolt id="introG0" /></Animated.View> : null}
-      <Animated.View style={[styles.abs, boltBox, boltStyle]}><Bolt id="introBolt" /></Animated.View>
-      {flight ? <Sparks at={flight.ends.top} impact={impact} seed={1} /> : null}
-      {flight ? <Sparks at={flight.ends.bottom} impact={impact} seed={2} /> : null}
+      {flight && K.AFTERIMAGES >= 2 ? <Animated.View style={[styles.abs, boltBox, styles_.ghost1]}><Bolt id="introG1" /></Animated.View> : null}
+      {flight && K.AFTERIMAGES >= 1 ? <Animated.View style={[styles.abs, boltBox, styles_.ghost0]}><Bolt id="introG0" /></Animated.View> : null}
+      <Animated.View style={[styles.abs, boltBox, styles_.bolt]}><Bolt id="introBolt" /></Animated.View>
+      {flight ? <Sparks at={flight.ends.top} impact={v.impact} seed={1} /> : null}
+      {flight ? <Sparks at={flight.ends.bottom} impact={v.impact} seed={2} /> : null}
     </View>
   );
 }
@@ -263,7 +303,7 @@ function Bolt({ id }: { id: string }) {
 /** A small deterministic random, so the sparks look the same every run. */
 const rand = (seed: number) => { let s = seed * 9301 + 49297; return () => ((s = (s * 9301 + 49297) % 233280) / 233280); };
 
-function Sparks({ at, impact, seed }: { at: Point; impact: Animated.SharedValue<number>; seed: number }) {
+function Sparks({ at, impact, seed }: { at: Point; impact: Animated.Value; seed: number }) {
   const parts = useMemo(() => {
     const r = rand(seed);
     const lerp = (a: readonly [number, number]) => a[0] + (a[1] - a[0]) * r();
@@ -288,40 +328,42 @@ function Sparks({ at, impact, seed }: { at: Point; impact: Animated.SharedValue<
 
 const STREAK_LIFE = K.STREAK_MS / K.EMBER_MS;
 
+const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
+
 function Streak({ at, impact, angle, reach, length, color }: {
-  at: Point; impact: Animated.SharedValue<number>; angle: number; reach: number; length: number; color: string;
+  at: Point; impact: Animated.Value; angle: number; reach: number; length: number; color: string;
 }) {
-  const style = useAnimatedStyle(() => {
-    const t = Math.min(1, impact.value / STREAK_LIFE);
-    const out = 1 - (1 - t) * (1 - t); // ease out
-    const d = reach * out;
+  const style = useMemo(() => {
+    const t = (i: number) => Math.min(1, i / STREAK_LIFE);
+    const d = (i: number) => reach * easeOut(t(i));
     return {
-      opacity: impact.value > 0 && t < 1 ? 1 - t : 0,
+      opacity: impact.interpolate({ inputRange: [0, 0.001, STREAK_LIFE, 1], outputRange: [0, 1, 0, 0], extrapolate: 'clamp' }),
       transform: [
-        { translateX: Math.cos(angle) * d },
-        { translateY: Math.sin(angle) * d },
+        { translateX: curve(impact, (i) => Math.cos(angle) * d(i), 0, 1, 24) },
+        { translateY: curve(impact, (i) => Math.sin(angle) * d(i), 0, 1, 24) },
         { rotate: `${angle}rad` },
-        { scaleX: 1 - 0.7 * t },
+        { scaleX: impact.interpolate({ inputRange: [0, STREAK_LIFE, 1], outputRange: [1, 0.3, 0.3], extrapolate: 'clamp' }) },
       ],
     };
-  });
+  }, [impact, angle, reach]);
   return <Animated.View style={[styles.abs, { left: at.x - length / 2, top: at.y - 1, width: length, height: 2, borderRadius: 1, backgroundColor: color }, style]} />;
 }
 
 function Ember({ at, impact, angle, reach, size, color }: {
-  at: Point; impact: Animated.SharedValue<number>; angle: number; reach: number; size: number; color: string;
+  at: Point; impact: Animated.Value; angle: number; reach: number; size: number; color: string;
 }) {
-  const style = useAnimatedStyle(() => {
-    const t = impact.value;
-    const out = 1 - (1 - t) * (1 - t);
-    return {
-      opacity: t > 0 && t < 1 ? 1 - t * t : 0,
-      transform: [
-        { translateX: Math.cos(angle) * reach * out },
-        { translateY: Math.sin(angle) * reach * out + 16 * t * t }, // a little gravity
-      ],
-    };
-  });
+  const style = useMemo(() => ({
+    // 1 - t² while it lives, 0 before and after.
+    opacity: impact.interpolate({
+      inputRange: [0, 0.001, 0.25, 0.5, 0.75, 0.9, 0.999, 1],
+      outputRange: [0, 1, 1 - 0.0625, 0.75, 1 - 0.5625, 1 - 0.81, 0.002, 0],
+      extrapolate: 'clamp',
+    }),
+    transform: [
+      { translateX: curve(impact, (t) => Math.cos(angle) * reach * easeOut(t), 0, 1, 24) },
+      { translateY: curve(impact, (t) => Math.sin(angle) * reach * easeOut(t) + 16 * t * t, 0, 1, 24) }, // a little gravity
+    ],
+  }), [impact, angle, reach]);
   return <Animated.View style={[styles.abs, { left: at.x - size / 2, top: at.y - size / 2, width: size, height: size, borderRadius: size / 2, backgroundColor: color }, style]} />;
 }
 
