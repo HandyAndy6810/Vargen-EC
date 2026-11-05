@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { quoteMessage, quoteEmailUrl, quoteSmsUrl, invoiceMessage, invoiceEmailUrl, smsUrl } from './quote-message';
+import { quoteMessage, quoteEmailUrl, quoteSmsUrl, invoiceMessage, invoiceEmailUrl, smsUrl, followUpMessage, followUpSubject } from './quote-message';
 
 const q = {
   customerName: 'Sam Smith', businessName: 'Andy Plumbing', jobTitle: 'Hot water swap',
@@ -60,5 +60,23 @@ describe('invoiceMessage', () => {
   });
   test('SMS carries it the same way', () => {
     assert.equal(decodeURIComponent(smsUrl('0412 345 678', invoiceMessage(i), 'ios').split('&body=')[1]), invoiceMessage(i));
+  });
+});
+
+describe('followUpMessage (s8, chase up)', () => {
+  test('quote: names the job, carries the link, signs off', () => {
+    const m = followUpMessage({ kind: 'quote', customerName: 'Sarah Johnson', businessName: 'Andy Plumbing', jobTitle: 'Hot water swap', url: 'https://x.test/portal/abc' });
+    assert.match(m, /^Hi Sarah,/);
+    assert.match(m, /the quote for Hot water swap/);
+    assert.match(m, /https:\/\/x\.test\/portal\/abc/);
+    assert.match(m, /Thanks,\nAndy Plumbing$/);
+    assert.equal(followUpSubject({ kind: 'quote', businessName: 'Andy Plumbing', url: 'u' }), 'Following up: your quote from Andy Plumbing');
+  });
+  test('invoice: amount owing, due date, pay link', () => {
+    const m = followUpMessage({ kind: 'invoice', customerName: null, invoiceNumber: 'INV-0007', outstanding: 1234.5, dueDate: '3 Nov 2026', url: 'https://x.test/invoice/t' });
+    assert.match(m, /^Hi there,/);
+    assert.match(m, /invoice INV-0007 has \$1,234\.50 still owing \(due 3 Nov 2026\)/);
+    assert.match(m, /view and pay it here: https:\/\/x\.test\/invoice\/t/);
+    assert.equal(followUpSubject({ kind: 'invoice', invoiceNumber: 'INV-0007', outstanding: 1, url: 'u' }), 'Reminder: invoice INV-0007');
   });
 });

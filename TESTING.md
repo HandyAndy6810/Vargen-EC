@@ -400,6 +400,23 @@ Check each in **Light** and **Dark** (Profile → Appearance).
       set in AI quoting, the Profit check says the hours are costed at the
       charge-out rate.
 
+### Chase up from Outreach (round 2, Group E)
+
+- [ ] **s8** Calendar → Outreach → **Chase up** on a quote follow-up: a menu
+      "Chase up Sarah's quote" with Text / Email (their preferred way first),
+      Share link and Write my own message.
+- [ ] **s8 text/email** Text (or Email): Messages (or Mail) opens to the customer
+      with a follow-up message **and the quote link**. Come back: "Did you send it?"
+      → **Yes, sent**: the row leaves Outreach and the message is in the customer's
+      Contact log. **Not yet**: nothing is logged and the row stays.
+- [ ] **s8 invoice** Chase up an overdue invoice: the message has the amount owing,
+      the due date and the **invoice link** (opens the invoice, Pay by card if on).
+- [ ] **s8 once** Chase the same row again after "Yes, sent": it doesn't ask again
+      or log a second entry. Nothing is ever sent by the server; only your phone
+      sends.
+- [ ] **s8 share** Share link opens the share sheet with the same message; after
+      sharing it asks "Did you send it?" once.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what

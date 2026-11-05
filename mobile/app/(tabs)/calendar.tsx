@@ -12,6 +12,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { weekPosition, sameLocalDay } from '@shared/calendar-dates';
 import { takeCalendarFocus } from '@/lib/calendar-focus';
+import { ChaseUpSheet, type FollowUpItem } from '@/components/ChaseUpSheet';
 import { format, startOfWeek, addDays, addWeeks, isToday } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useJobs } from '@/hooks/use-jobs';
@@ -187,6 +188,9 @@ export default function CalendarScreen() {
     enabled: segment === 'outreach',
   });
 
+  // s8: the Chase up send menu for one Outreach row.
+  const [chase, setChase] = useState<FollowUpItem | null>(null);
+
   const skipFollowUp = useMutation({
     mutationFn: async ({ quoteId, dayIndex }: { quoteId: number; dayIndex: number }) => {
       await apiRequest('POST', `/api/follow-ups/${quoteId}/skip`, { dayIndex });
@@ -293,7 +297,7 @@ export default function CalendarScreen() {
                 // them across two screens means one gets forgotten.
                 if (item.kind === 'invoice') {
                   const inv = item.invoice || {};
-                  const custName = inv.customerName || `Invoice ${inv.invoiceNumber || `#${inv.id}`}`;
+                  const custName = item.customer?.name || inv.customerName || `Invoice ${inv.invoiceNumber || `#${inv.id}`}`;
                   const initials = custName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
                   const owed = Number(item.outstanding) || 0;
                   return (
@@ -318,12 +322,12 @@ export default function CalendarScreen() {
                         <TouchableOpacity
                           style={{ flex: 1, height: 42, borderRadius: 12, backgroundColor: c.orange, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                           activeOpacity={0.8}
-                          onPress={() => router.push(
-                            `/customers/compose?customerId=${inv.customerId || ''}&customerName=${encodeURIComponent(custName)}&context=invoice_overdue&invoiceId=${inv.id || ''}&invoiceNumber=${encodeURIComponent(inv.invoiceNumber || '')}&amount=${encodeURIComponent(`$${owed.toFixed(2)}`)}&due=${encodeURIComponent(inv.dueDate ? format(new Date(inv.dueDate), 'd MMM') : '')}` as any
-                          )}
+                          onPress={() => setChase(item)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Chase up ${custName}`}
                         >
                           <Send size={14} color="#fff" strokeWidth={2} />
-                          <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' }}>Chase it</Text>
+                          <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' }}>Chase up</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={{ height: 42, paddingHorizontal: 16, borderRadius: 12, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, flexDirection: 'row', alignItems: 'center', gap: 6 }}
@@ -338,7 +342,7 @@ export default function CalendarScreen() {
                 }
 
                 const content = parseQuoteContent(item.quote?.content);
-                const custName = content.customerName || `Quote #${item.quote?.id}`;
+                const custName = item.customer?.name || content.customerName || `Quote #${item.quote?.id}`;
                 const jobTitle = content.jobTitle || 'Quote';
                 const total = item.quote?.totalAmount ? `$${parseFloat(item.quote.totalAmount).toLocaleString()}` : '';
                 const initials = custName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
@@ -362,12 +366,12 @@ export default function CalendarScreen() {
                       <TouchableOpacity
                         style={{ flex: 1, height: 42, borderRadius: 12, backgroundColor: c.orange, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                         activeOpacity={0.8}
-                        onPress={() => router.push(
-                          `/customers/compose?customerId=${item.quote?.customerId || ''}&customerName=${encodeURIComponent(custName)}&context=quote_followup&quoteId=${item.quote?.id || ''}&dayIndex=${item.dueIndex ?? ''}` as any
-                        )}
+                        onPress={() => setChase(item)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Chase up ${custName}`}
                       >
                         <Send size={14} color="#fff" strokeWidth={2} />
-                        <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' }}>Send</Text>
+                        <Text style={{ fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: '#fff' }}>Chase up</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={{ height: 42, paddingHorizontal: 16, borderRadius: 12, backgroundColor: c.paperDeep, borderWidth: 1, borderColor: c.lineSoft, flexDirection: 'row', alignItems: 'center', gap: 6 }}
@@ -588,6 +592,7 @@ export default function CalendarScreen() {
       </ScrollView>
       </View>
       )}
+      <ChaseUpSheet item={chase} onClose={() => setChase(null)} />
     </SafeAreaView>
   );
 }
