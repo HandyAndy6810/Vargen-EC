@@ -23,6 +23,15 @@ import { loadCachedUser } from '@/lib/auth-cache';
 import { Snackbar } from '@/components/Snackbar';
 import { persistOptions } from '@/lib/query-persist';
 import { syncOutbox } from '@/lib/quote-outbox';
+import * as SplashScreen from 'expo-splash-screen';
+import { IntroHost } from '@/components/IntroOverlay';
+
+// The native splash (app.json, expo-splash-screen) stays up until the intro
+// overlay has drawn the identical frame over it (components/IntroOverlay.tsx).
+// Failsafe: whatever happens (a crash before the overlay mounts, say), it goes
+// after 6 s, so the app can never be stuck behind the splash.
+SplashScreen.preventAutoHideAsync().catch(() => {});
+setTimeout(() => { SplashScreen.hideAsync().catch(() => {}); }, 6000);
 
 // ── Push notification handler config ────────────────────────────────────────
 Notifications.setNotificationHandler({
@@ -44,6 +53,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
   }
   render() {
     if (!this.state.hasError) return this.props.children;
+    SplashScreen.hideAsync().catch(() => {});
     return (
       <View style={eb.container}>
         <Text style={eb.title}>Something went wrong</Text>
@@ -120,7 +130,8 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
     };
   }, []);
 
-  if (!fontsLoaded || !themeReady || !authReady) return <View style={{ flex: 1, backgroundColor: '#141416' }} />;
+  // Still behind the native splash (preventAutoHideAsync above).
+  if (!fontsLoaded || !themeReady || !authReady) return <View style={{ flex: 1, backgroundColor: colors.paper }} />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
@@ -166,6 +177,8 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
         </Stack>
         <Snackbar />
+        {/* Cold start only: the splash bolt flies into Home's Zap button. */}
+        <IntroHost />
       </PersistQueryClientProvider>
     </GestureHandlerRootView>
   );

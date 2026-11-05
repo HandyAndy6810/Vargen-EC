@@ -1,6 +1,9 @@
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { useTheme, type Colors } from '@/hooks/use-theme';
+import { halvesOffset, buttonScale, buttonShake, setIntroTarget, registerIntroMeasurer } from '@/lib/intro-state';
 
 /**
  * The New Quote / New Invoice primary action. The whole background is ONE svg
@@ -27,6 +30,12 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
  * Max 94px / 22pt). Each label is centred in its half's free area: the half,
  * minus the bolt's reach into it plus 8px. "New Invoice" leaves ≥40px spare
  * even on an SE.
+ *
+ * The cold start intro (components/IntroOverlay.tsx) moves the two halves with
+ * transforms only: each half's path sits in its own svg with exactly the same
+ * viewBox and preserveAspectRatio, so at rest (offset 0) the two layers draw
+ * precisely what one svg did. Home passes introTarget so the intro can find
+ * the gap; the overlay never changes the geometry above.
  */
 const VB_H = 132;
 const BOLT_HALF = 28; // viewBox units from the centre line to the notch
@@ -35,9 +44,12 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 export function SplitActionButton({
   onQuote,
   onInvoice,
+  introTarget = false,
 }: {
   onQuote: () => void;
   onInvoice: () => void;
+  /** Home's button: let the cold start intro measure where the gap is. */
+  introTarget?: boolean;
 }) {
   const { colors: c } = useTheme();
   const s = makeStyles(c);
@@ -47,29 +59,48 @@ export function SplitActionButton({
   const fontSize = clamp(Math.round(btnW * 0.056), 18, 22);
   const boltPad = Math.ceil(BOLT_HALF * (height / VB_H)) + 8;
 
+  // Intro transforms (all identity at rest).
+  const leftStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -halvesOffset.value }] }));
+  const rightStyle = useAnimatedStyle(() => ({ transform: [{ translateX: halvesOffset.value }] }));
+  const wrapStyle = useAnimatedStyle(() => ({ transform: [{ translateY: buttonShake.value }, { scale: buttonScale.value }] }));
+
+  // Where the gap is on screen, for the intro: Home's button lends the overlay
+  // a way to measure it. (Focus events at start-up proved unreliable on the
+  // web: Home could blur before its first layout, so the overlay asks instead.)
+  const ref = useRef<View>(null);
+  useEffect(() => {
+    if (!introTarget) return;
+    return registerIntroMeasurer(() => {
+      ref.current?.measureInWindow((x, y, width, h) => {
+        if (width > 0 && h > 0) setIntroTarget({ x, y, width, height: h });
+      });
+    });
+  }, [introTarget]);
+
   return (
-    <View style={[s.wrap, { height }]}>
-      <Svg
-        width="100%"
-        height="100%"
-        viewBox="0 -22 2000 132"
-        preserveAspectRatio="xMidYMid slice"
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      >
-        {/* Quote (left) half — accent orange */}
-        <Path
-          fill={c.orange}
-          d="M 1010,-22 L 1008,-14 L 972,54 L 1000,54 L 992,102 L 992,110 L -1000,110 L -1000,-22 Z"
-        />
-        {/* Invoice (right) half — graphite in light mode, a mid grey in dark
-            (fillStrong, not c.ink, so it never matches the body text); the label
-            uses c.paper to match. */}
-        <Path
-          fill={c.fillStrong}
-          d="M 1008,-22 L 3000,-22 L 3000,110 L 990,110 L 992,102 L 1028,34 L 1000,34 L 1008,-14 Z"
-        />
-      </Svg>
+    <Animated.View style={[s.wrap, { height }, wrapStyle]}>
+      {/* A plain view to measure: an Animated.View's ref doesn't expose measureInWindow. */}
+      <View ref={ref} collapsable={false} style={StyleSheet.absoluteFill} pointerEvents="none" />
+      {/* Quote (left) half — accent orange */}
+      <Animated.View style={[StyleSheet.absoluteFill, leftStyle]} pointerEvents="none">
+        <Svg width="100%" height="100%" viewBox="0 -22 2000 132" preserveAspectRatio="xMidYMid slice">
+          <Path
+            fill={c.orange}
+            d="M 1010,-22 L 1008,-14 L 972,54 L 1000,54 L 992,102 L 992,110 L -1000,110 L -1000,-22 Z"
+          />
+        </Svg>
+      </Animated.View>
+      {/* Invoice (right) half — graphite in light mode, a mid grey in dark
+          (fillStrong, not c.ink, so it never matches the body text); the label
+          uses c.paper to match. */}
+      <Animated.View style={[StyleSheet.absoluteFill, rightStyle]} pointerEvents="none">
+        <Svg width="100%" height="100%" viewBox="0 -22 2000 132" preserveAspectRatio="xMidYMid slice">
+          <Path
+            fill={c.fillStrong}
+            d="M 1008,-22 L 3000,-22 L 3000,110 L 990,110 L 992,102 L 1028,34 L 1000,34 L 1008,-14 Z"
+          />
+        </Svg>
+      </Animated.View>
 
       <View style={s.row}>
         <TouchableOpacity
@@ -79,7 +110,7 @@ export function SplitActionButton({
           accessibilityRole="button"
           accessibilityLabel="Start a new quote"
         >
-          <Text style={[s.label, { fontSize, color: '#fff' }]} numberOfLines={1}>New Quote</Text>
+          <Animated.Text style={[s.label, { fontSize, color: '#fff' }, leftStyle]} numberOfLines={1}>New Quote</Animated.Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.half, { paddingLeft: boltPad }]}
@@ -88,10 +119,10 @@ export function SplitActionButton({
           accessibilityRole="button"
           accessibilityLabel="Start a new invoice"
         >
-          <Text style={[s.label, { fontSize, color: c.paper }]} numberOfLines={1}>New Invoice</Text>
+          <Animated.Text style={[s.label, { fontSize, color: c.paper }, rightStyle]} numberOfLines={1}>New Invoice</Animated.Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

@@ -439,6 +439,23 @@ Check each in **Light** and **Dark** (Profile → Appearance).
       are on) and the bank details with the invoice number as the reference, then
       the invoice itself. Print / PDF still prints just the invoice.
 
+### App icon, splash and cold start intro (Sunset, Nov 2026)
+
+- [ ] **Icon** Home screen: the Sunset icon (orange gradient bolt on white). iOS 18:
+      long press the home screen → Edit → Customise → Dark and Tinted show the dark
+      and tinted versions. Android 13+: turn on Themed icons; the bolt follows the theme.
+- [ ] **Splash** Kill the app and open it: white splash with the gradient bolt in the
+      middle (dark: `#141416`). No flash of another colour before or after it.
+- [ ] **Intro** (signed in, cold start to Home): the splash bolt swoops into the gap
+      of the New Quote / New Invoice button, the two halves clamp in around it with
+      a spark burst and a soft glow, and the bolt fades into the real gap. About 1.4 s.
+      In light and dark. Tap New Quote straight after: it opens.
+- [ ] **No intro** when: coming back from the background (warm resume); opening to
+      the login screen; opening from a notification or a link; Reduce Motion on (a
+      quick plain fade). In every case nothing blocks a tap afterwards.
+- [ ] **Dev builds only:** long press the Home greeting to replay the intro. A
+      release build ignores the long press.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what
