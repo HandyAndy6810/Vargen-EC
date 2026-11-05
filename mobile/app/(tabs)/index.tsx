@@ -28,6 +28,7 @@ import { summariseInvoices, isInvoiceOverdue, invoiceOwing, isQuoteOverdue } fro
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/dialogs';
 import { SplitActionButton } from '@/components/SplitActionButton';
+import { replayIntro } from '@/lib/intro-state';
 import Svg, { Path } from 'react-native-svg';
 import { ScreenGradient, heroSecondary } from '@/components/Rim';
 import { resolveWidgetLayout, widgetRows } from '@shared/home-widgets';
@@ -770,7 +771,8 @@ export default function HomeScreen() {
 
         <View style={s.hero}>
           <Text style={s.heroDate}>{dayName}, {timeStr}</Text>
-          <Text style={s.heroLine1}>{greeting.pre},</Text>
+          {/* Dev builds only: long press the greeting to replay the cold start intro. */}
+          <Text style={s.heroLine1} onLongPress={__DEV__ ? replayIntro : undefined}>{greeting.pre},</Text>
           <Text style={s.heroName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
             {firstName}{greeting.suf ?? '.'}
           </Text>
@@ -788,6 +790,7 @@ export default function HomeScreen() {
           {/* Pinned primary CTA — split New Quote / New Invoice with a lightning-bolt gap */}
           <Text style={[s.eyebrow, { marginTop: 22, color: heroSecondary(isDark) }]}>Let's start working</Text>
           <SplitActionButton
+            introTarget
             onQuote={() => router.push('/quotes/create')}
             onInvoice={() => router.push('/invoices/create')}
           />
