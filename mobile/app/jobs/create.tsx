@@ -24,7 +24,9 @@ import { useCustomers } from '@/hooks/use-customers';
 import { useQuotes } from '@/hooks/use-quotes';
 import { useInvoices } from '@/hooks/use-invoices';
 import { quoteTitle as resolveQuoteTitle } from '@shared/mobile-types';
-import { addDays, differenceInCalendarDays, format, setHours, setMinutes, startOfDay } from 'date-fns';
+import { differenceInCalendarDays, format, setHours, setMinutes, startOfDay } from 'date-fns';
+import { jobDayOptions, dayChipLabel } from '@shared/calendar-dates';
+import { setCalendarFocus } from '@/lib/calendar-focus';
 
 
 const TIMES = ['7:00', '8:00', '9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
@@ -98,16 +100,20 @@ export default function JobCreateScreen() {
     if (editJob.estimatedDuration) setDuration(editJob.estimatedDuration / 60);
     if (editJob.scheduledDate) {
       const d = new Date(editJob.scheduledDate);
-      const offset = differenceInCalendarDays(startOfDay(d), startOfDay(new Date()));
-      if (offset >= 0 && offset < 30) setDayOffset(offset);
+      // Its own day is always among the options (jobDayOptions), so a job in the
+      // past or more than 30 days out keeps its date. It used to move to today.
+      const idx = jobDayOptions(new Date(), d).findIndex((x) => differenceInCalendarDays(x, d) === 0);
+      if (idx >= 0) setDayOffset(idx);
       setTimeSlot(`${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`);
     }
   }, [isEditing, editJob]);
 
   const today = startOfDay(new Date());
+  const editDate = editJob?.scheduledDate ? new Date(editJob.scheduledDate) : null;
   const dayOptions = useMemo(
-    () => Array.from({ length: 30 }, (_, i) => addDays(today, i)),
-    []
+    () => jobDayOptions(new Date(), editDate),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [editDate?.getTime()]
   );
 
   const selectedDay = dayOptions[dayOffset];
@@ -163,7 +169,9 @@ export default function JobCreateScreen() {
       invoiceId: invoiceId || null,
     };
     const callbacks = {
-      onSuccess: () => { savedRef.current = true; router.back(); },
+      // The calendar opens on the job's day next time, so a job for tomorrow
+      // is in front of you rather than behind a tap (j1).
+      onSuccess: () => { savedRef.current = true; setCalendarFocus(scheduledDate); router.back(); },
       onError: (err: any) => {
         const msg = err?.message || 'Check your connection and try again.';
         if (Platform.OS === 'web') window.alert(`Could not save job\n${msg}`);
@@ -323,7 +331,7 @@ export default function JobCreateScreen() {
                     <TouchableOpacity key={i} onPress={() => setDayOffset(i)} activeOpacity={0.7}
                       style={[s.dayChip, active && s.dayChipActive]}>
                       <Text style={[s.dayChipTop, active && { color: 'rgba(255,255,255,0.7)' }]}>
-                        {i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : format(d, 'EEE')}
+                        {dayChipLabel(d, today, (x) => format(x, 'EEE'))}
                       </Text>
                       <Text style={[s.dayChipNum, active && { color: c.paper }]}>{format(d, 'd')}</Text>
                     </TouchableOpacity>

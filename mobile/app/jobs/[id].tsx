@@ -245,17 +245,17 @@ export default function JobDetailScreen() {
                 <View style={s.card}>
                   <View style={s.profitStatsRow}>
                     <View style={s.profitStat}>
-                      <Text style={s.profitStatLabel}>Quoted</Text>
+                      <Text style={s.profitStatLabel}>Quoted (ex GST)</Text>
                       <Text style={s.profitStatValue}>
                         {r.quotedAmount != null ? fmt(r.quotedAmount) : '—'}
                       </Text>
                     </View>
                     <View style={s.profitStat}>
-                      <Text style={s.profitStatLabel}>Actual cost</Text>
+                      <Text style={s.profitStatLabel}>What it cost you</Text>
                       <Text style={s.profitStatValue}>{fmt(actualCost)}</Text>
                     </View>
                     <View style={s.profitStat}>
-                      <Text style={s.profitStatLabel}>Real profit</Text>
+                      <Text style={s.profitStatLabel}>What you made</Text>
                       <Text style={[s.profitStatValue, { color: profitColor }]}>
                         {r.realProfit != null ? fmt(r.realProfit) : '—'}
                         {r.realMarginPercent != null && (
@@ -277,6 +277,14 @@ export default function JobDetailScreen() {
                   {varianceLine && (
                     <Text style={s.profitVarianceText}>{varianceLine}.</Text>
                   )}
+                  {/* j2: say how the figure is worked out, in plain words. */}
+                  <Text style={s.profitVarianceText}>
+                    {r.actualHours == null
+                      ? 'Mark the job complete with the hours you spent to see what you made.'
+                      : r.labourCostSource === 'chargeOut'
+                        ? 'Your hours are costed at your charge-out rate, so this is lower than what you really made. Set “What an hour costs you” in AI quoting for a truer figure.'
+                        : 'The quoted price, less your hours and the receipts on this job.'}
+                  </Text>
                 </View>
               </>
             );

@@ -178,11 +178,15 @@ curl -s -b /tmp/b.jar -X DELETE "$API/api/quotes/items/<A_ITEM_ID>" -w "\nHTTP %
 
 ## 10. Jobs and calendar
 
-- [ ] Create a job, set a date and time
-- [ ] It appears on the calendar at the right time
+- [ ] **j1** Schedule → + (New job): give it a title, tap **Tomorrow**, tap **9am**,
+      tap Schedule job. The calendar opens on tomorrow with the job in the 9am row.
+      (The Date on a quote is only printed on the quote; it doesn't book a job.)
 - [ ] Link a quote and an invoice to a job; reopen — links survived
-- [ ] Complete a job linked to a quote, entering hours — Profit check shows Quoted (ex-GST),
-      Actual cost and a **Real profit figure**, not "—"
+- [ ] **j2** Open a job that came from a quote → Mark complete → type the hours
+      you all spent on it (two people for 3 hours = 6) → Mark complete. Open the
+      job: **Profit check** shows three numbers: Quoted (ex GST), What it cost you,
+      and **What you made** (a dollar figure, not "—"), with one line saying how
+      it was worked out.
 - [ ] Delete a job a quote is linked to — the job goes, the quote stays
 - [ ] Calendar → Outreach lists overdue quotes and overdue invoices
 - [ ] Sending a follow-up opens Messages prefilled
@@ -379,6 +383,22 @@ Check each in **Light** and **Dark** (Profile → Appearance).
 - [ ] **su2 business email** Profile → Business profile: an email like
       `office@plumbing` turns red with the same message and Save doesn't go
       through; a real one saves; blank is fine.
+
+### Jobs on the calendar (round 2, Group D)
+
+- [ ] **j1** New job for **tomorrow at 9am**: after saving, the calendar opens on
+      tomorrow with the job at 9am (phone set to Sydney time). Go back to today
+      and to tomorrow again: still there. Pull to refresh: still there.
+- [ ] **j1 elsewhere** Add a job on the web dashboard, then open Schedule on the
+      phone (wait 30 seconds first): it shows without pulling to refresh.
+- [ ] **j1 edit** Edit a job booked last week (or more than a month away): the date
+      chip shows its own day, and saving without touching the date keeps it there
+      (it used to move to today).
+- [ ] **j1 quote date** New quote → What's the job? → the Date field says it's
+      shown on the quote and that jobs go on the calendar via Schedule → +.
+- [ ] **j2** The plain-words check in §10 passes; with no "What an hour costs you"
+      set in AI quoting, the Profit check says the hours are costed at the
+      charge-out rate.
 
 ## Findings
 

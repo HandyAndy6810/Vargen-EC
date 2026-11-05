@@ -575,6 +575,8 @@ export async function registerRoutes(
         realProfit,
         realMarginPercent,
         hoursVariance,
+        // Which rate the hours were costed at, so the app can say so (j2).
+        labourCostSource: settings?.labourCostRate ? "cost" : settings?.labourRate ? "chargeOut" : "none",
       });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to compute reconciliation" });
