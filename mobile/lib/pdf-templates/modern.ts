@@ -1,5 +1,5 @@
 import {
-  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, acceptanceBlock, customerExtraLines } from './shared';
+  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, acceptanceBlock, customerExtraLines, noGstRow } from './shared';
 
 /**
  * The colour-band header the app shipped with, kept so anyone already sending this
@@ -96,6 +96,7 @@ export function buildModern(ctx: Ctx): string {
         <span class="grandlabel">TOTAL</span>
         <span class="grandvalue">$${fmt(d.totalAmount)}</span>
       </div>
+      ${noGstRow(ctx, 'div')}
     </div>
   </div>
 

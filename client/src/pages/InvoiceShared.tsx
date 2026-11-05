@@ -2,6 +2,8 @@ import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { InvoiceDocument } from "@/pages/InvoicePreview";
+import { CustomerPageShell, Card, ORANGE } from "@/components/CustomerPageShell";
+import { format } from "date-fns";
 
 /**
  * The customer's invoice link: /invoice/:token. Public, no login: it reads the
@@ -40,17 +42,50 @@ export default function InvoiceShared() {
   }
 
   const payUrl: string | null = data.invoice.payByCardUrl;
-  const settled = data.invoice.status === "paid";
+  const inv = data.invoice;
+  const settled = inv.status === "paid";
+  const total = Number(inv.totalAmount) || 0;
+  const owing = Math.max(0, total - (Number(inv.paidAmount) || 0));
+  const money = (n: number) => `$${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const due = inv.dueDate ? format(new Date(inv.dueDate), "d MMMM yyyy") : null;
+  const overdue = !settled && inv.dueDate && new Date(inv.dueDate).getTime() < Date.now();
   return (
-    <>
-      {payUrl && !settled ? (
-        <div className="print:hidden bg-white border-b px-4 py-3 text-center">
-          <a href={payUrl} className="inline-block rounded-xl bg-black text-white px-5 py-2.5 font-semibold" rel="noopener">
-            Pay by card
-          </a>
-        </div>
+    <CustomerPageShell
+      logoUrl={data.business?.logoUrl}
+      businessName={data.business?.businessName}
+      eyebrow={`Invoice ${inv.invoiceNumber || ""}`.trim()}
+      title={settled ? "Paid. Thank you!" : money(owing)}
+      meta={settled ? null : due ? <span style={overdue ? { color: "#B42318" } : undefined}>{overdue ? "Was due" : "Due"} {due}</span> : null}
+    >
+      {!settled ? (
+        <Card className="print:hidden">
+          {payUrl ? (
+            <a
+              href={payUrl}
+              rel="noopener"
+              className="w-full h-14 rounded-2xl text-lg font-extrabold text-white flex items-center justify-center"
+              style={{ background: ORANGE }}
+              data-testid="link-pay-by-card"
+            >
+              Pay {money(owing)} by card
+            </a>
+          ) : null}
+          {data.business?.bsb || data.business?.accountNumber ? (
+            <div className={payUrl ? "mt-4" : ""}>
+              <p className="text-[13px] font-bold mb-1" style={{ color: "rgba(28,29,33,0.66)" }}>{payUrl ? "Or pay by bank transfer" : "Pay by bank transfer"}</p>
+              <p className="text-[15px] leading-relaxed">
+                {data.business.accountName ? <>{data.business.accountName}<br /></> : null}
+                {data.business.bsb ? <>BSB <strong>{data.business.bsb}</strong>{"  "}</> : null}
+                {data.business.accountNumber ? <>Account <strong>{data.business.accountNumber}</strong></> : null}
+                {inv.invoiceNumber ? <><br />Reference: <strong>{inv.invoiceNumber}</strong></> : null}
+              </p>
+            </div>
+          ) : null}
+        </Card>
       ) : null}
-      <InvoiceDocument invoice={data.invoice} customer={data.customer} settings={data.business} />
-    </>
+      <div className="rounded-[22px] overflow-hidden">
+        <InvoiceDocument invoice={inv} customer={data.customer} settings={data.business} />
+      </div>
+    </CustomerPageShell>
   );
 }

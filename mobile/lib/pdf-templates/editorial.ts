@@ -1,5 +1,5 @@
 import {
-  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, customerExtraLines } from './shared';
+  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, customerExtraLines, noGstRow } from './shared';
 
 /**
  * High-contrast and typographic: a stacked wordmark, a solid rule across the page,
@@ -87,6 +87,7 @@ export function buildEditorial(ctx: Ctx): string {
         <td>${isInvoice ? (isPaid ? 'Paid' : 'Total due') : 'Total'}</td>
         <td><span class="chip">$${fmt(d.totalAmount)}</span></td>
       </tr>
+      ${noGstRow(ctx)}
     </table>
   </div>
 
@@ -99,6 +100,8 @@ export function buildEditorial(ctx: Ctx): string {
       <div class="sitalic">If you have any questions concerning this
       ${isInvoice ? 'invoice' : 'quotation'}, please contact
       <strong>${ctx.biz || 'us'}</strong>${ctx.phone ? ` on ${ctx.phone}` : ''}${ctx.email ? `<br>at ${ctx.email}` : ''}.</div>
+      ${ctx.addr ? `<div class="sitalic" style="margin-top:2mm;">${ctx.addr}</div>` : ''}
+      ${isInvoice && ctx.s.paymentTermsDays ? `<div class="sitalic" style="margin-top:2mm;">Payment due within ${ctx.s.paymentTermsDays} days of the issue date.</div>` : ''}
       <div class="thanks">Thank you for your business!</div>
     </div>
     ${!isInvoice ? `

@@ -7,6 +7,7 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { type LineItem } from '@/hooks/use-quote-draft';
 import { totalsFor } from '@shared/money';
 import { hapticTick } from '@/lib/haptics';
+import { gstTag } from '@shared/gst-wording';
 
 const MIN_PCT = 0;
 // 80% top end. A tradie's markup normally sits between 15% and 40%, so anchoring the
@@ -187,10 +188,9 @@ export function MarkupSlider({
 
   return (
     <View style={s.wrap}>
-      {/* No "inc GST" when the tradie isn't registered for it — the figure genuinely
-          has no tax in it, and saying otherwise on a customer-facing screen is worse
-          than saying nothing. */}
-      <Text style={s.eyebrow}>{totalLabel}{gstRate > 0 ? ' · inc GST' : ''}</Text>
+      {/* Not registered for GST: the figure has no tax in it and none is coming,
+          so it says "No GST charged" (st3), never "inc GST" or "ex GST". */}
+      <Text style={s.eyebrow}>{totalLabel} · {gstTag(gstRate > 0)}</Text>
       <Text style={s.grand}>{money(grand)}</Text>
       <View style={s.profitRow}>
         <Text style={s.profitLabel}>You make</Text>

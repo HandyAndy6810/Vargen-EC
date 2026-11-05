@@ -31,7 +31,7 @@ export type InvoiceView = {
     email: string | null; phone: string | null; address: string | null;
   } | null;
   business: {
-    businessName: string | null; abn: string | null; tradeType: string | null;
+    businessName: string | null; abn: string | null; tradeType: string | null; logoUrl: string | null;
     phone: string | null; email: string | null; address: string | null;
     bankName: string | null; bsb: string | null; accountNumber: string | null; accountName: string | null;
   };
@@ -69,7 +69,7 @@ export function buildInvoiceView(input: { invoice: Row; customer: Row; settings:
       address: invoiceAddress(c as any),
     } : null,
     business: {
-      businessName: str(s.businessName), abn: str(s.abn), tradeType: str(s.tradeType),
+      businessName: str(s.businessName), abn: str(s.abn), tradeType: str(s.tradeType), logoUrl: str(s.logoUrl),
       phone: str(s.phone), email: str(s.email), address: str(s.address),
       bankName: str(s.bankName), bsb: str(s.bsb), accountNumber: str(s.accountNumber), accountName: str(s.accountName),
     },

@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { ArrowLeft, Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { NO_GST_NOTE } from "@shared/gst-wording";
 
 interface ParsedContent {
   jobTitle?: string;
@@ -289,9 +290,10 @@ export default function QuotePreview() {
                 </div>
               )}
               <div className="flex justify-between py-3 border-t-2 mt-1" style={{ borderColor: accentColor }}>
-                <span className="text-base font-bold">Total {includeGST ? "(inc. GST)" : "(ex. GST)"}</span>
+                <span className="text-base font-bold">Total {includeGST ? "(inc. GST)" : ""}</span>
                 <span className="text-xl font-bold" style={{ color: accentColor }} data-testid="text-total">${totalAmount.toFixed(2)}</span>
               </div>
+              {!includeGST && <p className="text-xs text-gray-500 text-right">{NO_GST_NOTE}</p>}
             </div>
           </div>
 
@@ -309,7 +311,7 @@ export default function QuotePreview() {
             <ul className="text-xs text-gray-500 space-y-1 leading-relaxed">
               <li>This quote is valid for 30 days from the date of issue.</li>
               <li>Payment terms: 50% deposit required before commencement, balance due on completion.</li>
-              <li>Prices are in Australian Dollars (AUD){includeGST ? " and include GST" : ""}.</li>
+              <li>Prices are in Australian Dollars (AUD){includeGST ? " and include GST" : ". No GST is charged"}.</li>
               <li>Additional work outside the scope of this quote will be charged at agreed rates.</li>
             </ul>
           </div>

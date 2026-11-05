@@ -417,6 +417,28 @@ Check each in **Light** and **Dark** (Profile → Appearance).
 - [ ] **s8 share** Share link opens the share sheet with the same message; after
       sharing it asks "Did you send it?" once.
 
+### GST wording, quote styles, the customer's pages (round 2, Group F)
+
+- [ ] **st3** Settings → Quotes & invoices → Include GST **off**. Make a quote: the
+      total says **No GST charged** (not "inc GST", not "ex GST") on Review, the
+      quote screen, the PDF and the customer's link. Turn GST back on: "inc GST",
+      a GST line, and no "No GST charged" anywhere.
+- [ ] **q13** Settings → Quote style: open each of the six styles full size with a
+      quote and an invoice. Each shows your logo, name, address, phone, email, ABN;
+      the customer (company and ABN too); the job, items, totals, notes; on an
+      invoice the bank details and "Payment due within … days".
+- [ ] **q13 Slate** A quote of 3–4 items in **Slate** is **one A4 page**: nothing cut
+      off, no blank or near-empty second page. A long quote continues on page 2
+      with a margin at the top, rows never split, and the orange rail on every page.
+- [ ] **p7 portal** Open a sent quote's link on a phone: your logo (or initials)
+      and business name at the top over a soft orange fade, the job, the total,
+      then a big orange **Accept quote** with **Decline** and **Ask for changes**
+      under it. Accept: "Quote accepted". Reload: still accepted, no buttons.
+- [ ] **p7 invoice page** Open an invoice's link on a phone: your name and logo,
+      the amount owing and due date at the top, **Pay … by card** (if card payments
+      are on) and the bank details with the invoice number as the reference, then
+      the invoice itself. Print / PDF still prints just the invoice.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what

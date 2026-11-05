@@ -1,5 +1,5 @@
 import {
-  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, acceptanceBlock, customerExtraLines } from './shared';
+  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, acceptanceBlock, customerExtraLines, noGstRow } from './shared';
 
 /**
  * Formal and quiet: a narrow accent rail down the left edge, serif headings, and
@@ -68,7 +68,7 @@ export function buildSlate(ctx: Ctx): string {
       ${d.customMessage ? `<div class="worktext">${escMultiline(d.customMessage)}</div>` : ''}
     </div>
 
-    <div class="section nb">
+    <div class="section">
       <div class="minilabel">Breakdown</div>
       <table class="items">
         <thead>
@@ -82,11 +82,12 @@ export function buildSlate(ctx: Ctx): string {
         <tbody>${rows || `<tr><td colspan="4" class="empty">No items</td></tr>`}</tbody>
       </table>
 
-      <div class="totalsWrap">
+      <div class="totalsWrap nb">
         <table class="totals">
           ${ctx.showSubtotal ? `<tr><td>Subtotal</td><td>$${fmt(d.subtotal)}</td></tr>` : ''}
           ${ctx.showGst ? `<tr><td>GST (10%)</td><td>$${fmt(d.gstAmount!)}</td></tr>` : ''}
           <tr class="grand"><td>${isInvoice ? (isPaid ? 'Paid' : 'Total due') : 'Total'}</td><td>$${fmt(d.totalAmount)}</td></tr>
+      ${noGstRow(ctx)}
         </table>
       </div>
     </div>
@@ -107,8 +108,17 @@ export function buildSlate(ctx: Ctx): string {
 
   const css = `
   .sheet { padding:0; }
-  .rail { position:absolute; left:0; top:0; bottom:0; width:6mm; background:${accent}; }
-  .inner { padding:16mm 16mm 16mm 22mm; }
+  /* q13. Fixed, so the rail repeats on every printed page (it used to stop
+     partway down page 2). Page margins give a continuation page room at the
+     top and bottom; page 1 keeps its own spacing through .inner. A typical
+     quote fits one A4 page; a long one breaks between rows, not mid-row. */
+  @page { size: A4; margin: 10mm 0 12mm 0; }
+  @page :first { margin-top: 0; }
+  .sheet { min-height: 0 !important; overflow: visible; }
+  .rail { position:fixed; left:0; top:-10mm; bottom:-12mm; width:6mm; background:${accent}; }
+  .items tr { page-break-inside: avoid; }
+  .items thead { display: table-header-group; }
+  .inner { padding:13mm 16mm 0 22mm; }
   .head { display:flex; justify-content:space-between; align-items:flex-start; gap:10mm; }
   .biz { font-family:Georgia,'Times New Roman',serif; font-size:15pt; font-weight:700; letter-spacing:-0.2px; }
   .bizmeta { font-size:8.5pt; color:#666; line-height:1.7; margin-top:1.5mm; }
@@ -117,8 +127,8 @@ export function buildSlate(ctx: Ctx): string {
              color:${accent}; letter-spacing:-0.2px; }
   .docnum { font-size:9.5pt; font-weight:700; margin-top:1.5mm; }
   .docdate { font-size:8.5pt; color:#777; margin-top:0.8mm; }
-  .hr { height:1px; background:#dedad2; margin:8mm 0; }
-  .two { display:flex; gap:12mm; margin-bottom:9mm; }
+  .hr { height:1px; background:#dedad2; margin:5mm 0; }
+  .two { display:flex; gap:12mm; margin-bottom:7mm; }
   .half { flex:1; }
   .minilabel { font-size:7.5pt; font-weight:800; letter-spacing:2px; text-transform:uppercase;
                color:#a3a097; margin-bottom:2mm; }
@@ -127,13 +137,13 @@ export function buildSlate(ctx: Ctx): string {
   .headline { font-family:Georgia,'Times New Roman',serif; font-size:22pt; font-weight:700;
               color:${isPaid ? '#2a9d4c' : '#141310'}; letter-spacing:-0.8px; line-height:1.1; }
   .paidnote { font-size:8.5pt; font-weight:700; color:#2a9d4c; margin-top:1mm; }
-  .section { margin-bottom:9mm; }
+  .section { margin-bottom:6mm; }
   .worktitle { font-family:Georgia,'Times New Roman',serif; font-size:12pt; font-weight:700; }
   .worktext { font-size:9.5pt; color:#555; line-height:1.8; margin-top:1.5mm; }
   .items th { text-align:left; font-size:8pt; font-weight:800; letter-spacing:1.2px;
               text-transform:uppercase; color:#a3a097; padding:0 3mm 2mm 0;
               border-bottom:1px solid #dedad2; }
-  .items td { font-size:9.5pt; padding:3mm 3mm 3mm 0; border-bottom:1px solid #f0eee9; vertical-align:top; }
+  .items td { font-size:9.5pt; padding:2.4mm 3mm 2.4mm 0; border-bottom:1px solid #f0eee9; vertical-align:top; }
   .s-desc { width:54%; }
   .s-qty  { width:11%; text-align:right; }
   .s-unit { width:17%; text-align:right; white-space:nowrap; }
@@ -147,7 +157,7 @@ export function buildSlate(ctx: Ctx): string {
   .grand td { font-family:Georgia,'Times New Roman',serif; font-size:13pt; font-weight:700;
               color:${isPaid ? '#2a9d4c' : '#141310'}; padding-top:2.5mm;
               border-top:1px solid #dedad2; }
-  .foot { margin-top:9mm; font-size:8pt; color:#999; }
+  .foot { margin-top:5mm; font-size:8pt; color:#999; }
   `;
 
   return page({ ctx, css, body, padding: '0' });

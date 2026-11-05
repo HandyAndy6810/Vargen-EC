@@ -1,4 +1,5 @@
 import { type UserSettings } from '@/hooks/use-settings';
+import { NO_GST_NOTE } from '@shared/gst-wording';
 
 /**
  * The document every template renders. Templates receive this already normalised —
@@ -102,6 +103,8 @@ export type Ctx = {
   rows: LineRow[];
   showSubtotal: boolean;
   showGst: boolean;
+  /** GST off (not registered): the total gets a "No GST charged" line (st3). */
+  noGstNote: string | null;
   hasBank: boolean;
   /** ABN and payment terms, already assembled. */
   footerBits: string[];
@@ -154,6 +157,7 @@ export function buildCtx(data: PdfDocumentData, settings: Partial<UserSettings>)
     rows,
     showSubtotal: data.subtotal > 0 && data.includeGST,
     showGst: !!(data.includeGST && data.gstAmount && data.gstAmount > 0),
+    noGstNote: data.includeGST ? null : NO_GST_NOTE,
     hasBank: !!(s.bsb || s.accountNumber),
     footerBits,
   };
@@ -279,4 +283,13 @@ export function customerExtraLines(d: PdfDocumentData, cls: string, escape: (s: 
     d.customerCompany ? `<div class="${cls}">${escape(d.customerCompany)}</div>` : '',
     d.customerAbn ? `<div class="${cls}">ABN ${escape(d.customerAbn)}</div>` : '',
   ].join('');
+}
+
+/** The "No GST charged" line under a total, as a table row or a div (st3). */
+export function noGstRow(ctx: { noGstNote: string | null }, as: 'tr' | 'div' = 'tr'): string {
+  if (!ctx.noGstNote) return '';
+  const style = 'font-size:8.5pt;font-weight:400;color:#666;text-align:right;padding-top:1.5mm;';
+  return as === 'tr'
+    ? `<tr><td colspan="2" style="${style}">${ctx.noGstNote}</td></tr>`
+    : `<div style="${style}">${ctx.noGstNote}</div>`;
 }

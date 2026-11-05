@@ -6,6 +6,7 @@ import { ArrowLeft, Printer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { formatAbn, invoiceAddress } from "@shared/customer-fields";
+import { NO_GST_NOTE } from "@shared/gst-wording";
 
 interface ParsedItem {
   description: string;
@@ -102,7 +103,7 @@ export function InvoiceDocument({ invoice, customer, settings, onBack }: {
               <ArrowLeft className="w-5 h-5" />
             </Button>
           ) : <span className="w-9" />}
-          <span className="font-bold text-sm text-foreground">Invoice Preview</span>
+          <span className="font-bold text-sm text-foreground">{onBack ? "Invoice Preview" : "Your invoice"}</span>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -120,16 +121,16 @@ export function InvoiceDocument({ invoice, customer, settings, onBack }: {
       <div className="max-w-3xl mx-auto p-4 print:p-0 print:max-w-none">
         <div className="bg-white dark:bg-white text-black rounded-2xl print:rounded-none shadow-lg print:shadow-none overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 sm:px-8 py-8 print:px-10 print:py-10">
+          <div className="text-white px-4 sm:px-8 py-8 print:px-10 print:py-10" style={{ background: "#1C1D21" }}>
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">INVOICE</h1>
-                <p className="text-blue-100 text-sm mt-1 font-medium">{invoice.invoiceNumber}</p>
+                <p className="text-sm mt-1 font-medium" style={{ color: "#F26A2A" }}>{invoice.invoiceNumber}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-bold">{businessName}</p>
-                {settings?.tradeType && <p className="text-xs text-blue-100 mt-0.5">{settings.tradeType}</p>}
-                {settings?.abn && <p className="text-xs text-blue-100">ABN: {settings.abn}</p>}
+                {settings?.tradeType && <p className="text-xs text-white/70 mt-0.5">{settings.tradeType}</p>}
+                {settings?.abn && <p className="text-xs text-white/70">ABN: {settings.abn}</p>}
               </div>
             </div>
           </div>
@@ -250,38 +251,39 @@ export function InvoiceDocument({ invoice, customer, settings, onBack }: {
                 </div>
               )}
               <div className="flex justify-between py-3 border-t-2 border-gray-800 mt-1">
-                <span className="text-base font-bold">Total {includeGST ? "(inc. GST)" : "(ex. GST)"}</span>
+                <span className="text-base font-bold">Total {includeGST ? "(inc. GST)" : ""}</span>
                 <span className="text-xl font-bold">${totalAmount.toFixed(2)}</span>
               </div>
+              {!includeGST && <p className="text-xs text-gray-500 text-right">{NO_GST_NOTE}</p>}
             </div>
           </div>
 
           {/* Bank Details */}
           {hasBankDetails && (
-            <div className="px-4 sm:px-8 py-5 print:px-10 bg-blue-50 border-t border-blue-100">
-              <p className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-3">Payment Details</p>
+            <div className="px-4 sm:px-8 py-5 print:px-10 border-t" style={{ background: "#FDF1EA", borderColor: "#F7D9C7" }}>
+              <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "#B5481A" }}>Payment Details</p>
               <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                 {bankName && (
                   <>
-                    <span className="text-blue-600">Bank</span>
+                    <span style={{ color: "#B5481A" }}>Bank</span>
                     <span className="font-medium text-gray-800">{bankName}</span>
                   </>
                 )}
                 {bankBsb && (
                   <>
-                    <span className="text-blue-600">BSB</span>
+                    <span style={{ color: "#B5481A" }}>BSB</span>
                     <span className="font-medium text-gray-800">{bankBsb}</span>
                   </>
                 )}
                 {bankAccountNumber && (
                   <>
-                    <span className="text-blue-600">Account Number</span>
+                    <span style={{ color: "#B5481A" }}>Account Number</span>
                     <span className="font-medium text-gray-800">{bankAccountNumber}</span>
                   </>
                 )}
                 {bankAccountName && (
                   <>
-                    <span className="text-blue-600">Account Name</span>
+                    <span style={{ color: "#B5481A" }}>Account Name</span>
                     <span className="font-medium text-gray-800">{bankAccountName}</span>
                   </>
                 )}
@@ -309,7 +311,7 @@ export function InvoiceDocument({ invoice, customer, settings, onBack }: {
           )}
 
           {/* Footer Bar */}
-          <div className="bg-gray-800 text-white px-4 sm:px-8 py-4 print:px-10 text-center">
+          <div className="text-white px-4 sm:px-8 py-4 print:px-10 text-center" style={{ background: "#1C1D21" }}>
             <p className="text-xs text-gray-400">Thank you for your business</p>
           </div>
         </div>

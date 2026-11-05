@@ -12,6 +12,7 @@ import { useIsOnline } from '@/lib/connectivity';
 import { buildQuotePDF } from '@/lib/quote-pdf';
 import { sharePdf, documentFilename } from '@/lib/share-pdf';
 import { showAlert } from '@/lib/dialogs';
+import { gstTag } from '@shared/gst-wording';
 
 const money = (n: number) =>
   `$${n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -130,7 +131,7 @@ export default function UnsyncedQuoteScreen() {
             </View>
           ))}
           <View style={[s.line, s.lineBorder]}>
-            <Text style={[s.lineName, { flex: 1 }]}>Total{q.gst > 0 ? ' inc GST' : ''}</Text>
+            <Text style={[s.lineName, { flex: 1 }]}>Total · {gstTag(q.gst > 0)}</Text>
             <Text style={s.total}>{money(q.total)}</Text>
           </View>
         </View>
