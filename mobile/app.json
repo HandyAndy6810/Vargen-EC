@@ -8,11 +8,6 @@
     "scheme": "vargen",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
-    "splash": {
-      "image": "./assets/images/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#141416"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.vargen.ec",
@@ -25,12 +20,18 @@
         "NSLocationWhenInUseUsageDescription": "Used to show weather conditions for your location.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Used to show weather conditions for your location.",
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "icon": {
+        "light": "./assets/images/icon.png",
+        "dark": "./assets/images/icon-dark.png",
+        "tinted": "./assets/images/icon-tinted.png"
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#141416"
+        "monochromeImage": "./assets/images/adaptive-icon-monochrome.png",
+        "backgroundColor": "#FFFFFF"
       },
       "package": "com.vargen.ec",
       "versionCode": 1,
@@ -54,6 +55,19 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF",
+          "dark": {
+            "image": "./assets/images/splash-icon.png",
+            "backgroundColor": "#141416"
+          }
+        }
+      ],
       "expo-secure-store",
       [
         "expo-build-properties",
@@ -80,7 +94,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/images/notification-icon.png",
           "color": "#FF5C00",
           "sounds": []
         }
