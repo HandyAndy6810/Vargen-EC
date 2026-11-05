@@ -1,10 +1,13 @@
 import { View, Text, StyleSheet, type TextStyle } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Stop, Rect, Polygon } from 'react-native-svg';
+import { BOLT_POINTS, BOLT_GRADIENT, ICON_BACKGROUND } from '@/lib/brand-bolt';
 
 /**
- * The "Split" brand mark: the app icon in miniature (orange left, graphite
- * right, a light grey bolt between them — the Zap button's bolt, scaled), with
- * the lowercase "vargen" wordmark. Source: assets/brand/icon-split.svg.
+ * The "Sunset" brand mark: the app icon in miniature (the gradient bolt on the
+ * light tile), with the lowercase "vargen" wordmark. Source:
+ * assets/brand/icon-sunset.svg. The tile is light in both themes, as the icon
+ * is, so the mark reads on the dark login hero and on a light page alike; the
+ * wordmark colour is the caller's (white by default for the dark hero).
  */
 export function BrandMark({ size = 42, color, showWordmark = true }: {
   size?: number;
@@ -13,12 +16,20 @@ export function BrandMark({ size = 42, color, showWordmark = true }: {
   showWordmark?: boolean;
 }) {
   return (
-    <View style={s.row}>
+    <View style={s.row} accessibilityRole="image" accessibilityLabel="Vargen">
       <View style={{ width: size, height: size, borderRadius: size * 0.2237, overflow: 'hidden' }}>
         <Svg width={size} height={size} viewBox="0 0 1024 1024">
-          <Rect width={1024} height={1024} fill="#F2F2F0" />
-          <Path d="M 0,0 L 583,0 L 265,600 L 512,600 L 441,1024 L 0,1024 Z" fill="#F26A2A" />
-          <Path d="M 583,0 L 1024,0 L 1024,1024 L 441,1024 L 759,424 L 512,424 Z" fill="#1C1D21" />
+          <Defs>
+            <LinearGradient id="bmBg" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={ICON_BACKGROUND.light[0]} />
+              <Stop offset="1" stopColor={ICON_BACKGROUND.light[1]} />
+            </LinearGradient>
+            <LinearGradient id="bmBolt" x1="0" y1="0" x2="1" y2="1">
+              {BOLT_GRADIENT.map((st) => <Stop key={st.offset} offset={st.offset} stopColor={st.color} />)}
+            </LinearGradient>
+          </Defs>
+          <Rect width={1024} height={1024} fill="url(#bmBg)" />
+          <Polygon points={BOLT_POINTS} fill="url(#bmBolt)" />
         </Svg>
       </View>
       {showWordmark ? (
