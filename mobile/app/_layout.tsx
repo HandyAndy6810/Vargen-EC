@@ -15,7 +15,7 @@ import {
   HostGrotesk_800ExtraBold,
 } from '@expo-google-fonts/host-grotesk';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, AppState } from 'react-native';
-import { useEffect, useRef, useState, Component, type ReactNode } from 'react';
+import { useEffect, useRef, useState, Component, type ReactNode, type ReactElement } from 'react';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { ThemeProvider, useTheme } from '@/hooks/use-theme';
@@ -24,14 +24,30 @@ import { Snackbar } from '@/components/Snackbar';
 import { persistOptions } from '@/lib/query-persist';
 import { syncOutbox } from '@/lib/quote-outbox';
 import * as SplashScreen from 'expo-splash-screen';
-import { IntroHost } from '@/components/IntroOverlay';
 
 // The native splash (app.json, expo-splash-screen) stays up until the intro
 // overlay has drawn the identical frame over it (components/IntroOverlay.tsx).
 // Failsafe: whatever happens (a crash before the overlay mounts, say), it goes
 // after 6 s, so the app can never be stuck behind the splash.
-SplashScreen.preventAutoHideAsync().catch(() => {});
+try {
+  SplashScreen.preventAutoHideAsync().catch(() => {});
+} catch (e) {
+  console.error('[startup] preventAutoHideAsync threw:', e);
+}
 setTimeout(() => { SplashScreen.hideAsync().catch(() => {}); }, 6000);
+
+// The intro is decoration. If its code can't even load (an import that throws,
+// as reanimated did in build 3), the app starts without it instead of crashing:
+// a throw here would otherwise take this whole layout down with it, before any
+// error boundary exists. Its own render errors are caught inside IntroHost.
+let IntroHost: () => ReactElement | null = () => null;
+let introLoaded = false;
+try {
+  IntroHost = (require('@/components/IntroOverlay') as typeof import('@/components/IntroOverlay')).IntroHost;
+  introLoaded = true;
+} catch (e) {
+  console.error('[startup] the intro failed to load; starting without it:', e);
+}
 
 // ── Push notification handler config ────────────────────────────────────────
 Notifications.setNotificationHandler({
@@ -130,8 +146,14 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
     };
   }, []);
 
+  // With no intro to hide the splash, hide it as soon as the app can draw.
+  const ready = fontsLoaded && themeReady && authReady;
+  useEffect(() => {
+    if (ready && !introLoaded) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
+
   // Still behind the native splash (preventAutoHideAsync above).
-  if (!fontsLoaded || !themeReady || !authReady) return <View style={{ flex: 1, backgroundColor: colors.paper }} />;
+  if (!ready) return <View style={{ flex: 1, backgroundColor: colors.paper }} />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>

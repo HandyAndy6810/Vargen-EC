@@ -1,4 +1,4 @@
-import { makeMutable } from 'react-native-reanimated';
+import { Animated } from 'react-native';
 import type { Rect } from '@shared/intro-geometry';
 
 /**
@@ -13,16 +13,24 @@ import type { Rect } from '@shared/intro-geometry';
 /** The intro has not run in this process yet. */
 let pending = true;
 export const introPending = () => pending;
-export const markIntroDone = () => { pending = false; notify(); };
+/** The intro is over (finished, skipped or failed): the button goes back to rest. */
+export const markIntroDone = () => {
+  halvesOffset.setValue(0); buttonScale.setValue(1); buttonShake.setValue(0);
+  pending = false; notify();
+};
 
 /**
- * The Zap button's halves, driven by the overlay on the UI thread: how far each
- * half sits from home (px; left goes left, right goes right), the button's
- * scale and vertical shake. At rest: 0, 1, 0.
+ * The Zap button's halves, driven by the overlay (React Native's Animated, on
+ * the native driver): how far each half sits from home (px; left goes left,
+ * right goes right), the button's scale and vertical shake. At rest: 0, 1, 0.
+ *
+ * Not reanimated: on React Native 0.81, reanimated 3.16 throws as soon as it
+ * is imported (its Animated.Text rejects RN's function-component Text), which
+ * crashed build 3 at launch. Nothing in the app may import it; CI checks.
  */
-export const halvesOffset = makeMutable(0);
-export const buttonScale = makeMutable(1);
-export const buttonShake = makeMutable(0);
+export const halvesOffset = new Animated.Value(0);
+export const buttonScale = new Animated.Value(1);
+export const buttonShake = new Animated.Value(0);
 
 /**
  * The Zap button's position on screen. Home's button registers a measurer on

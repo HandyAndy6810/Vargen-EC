@@ -38,6 +38,13 @@ It applies equally to Expo Go and EAS builds — there is no need to toggle it.
 Reanimated 4.x has a hard podspec assertion that aborts `pod install` if new arch
 is off. Keep reanimated pinned to `~3.16.x` (current: 3.16.7).
 
+**Do NOT import `react-native-reanimated` anywhere in the app.** On React Native
+0.81, reanimated 3.16 throws the moment it is imported (its `Animated.Text` rejects
+RN's function-component `Text`), which crashed build 3 (1.0.0) at launch. It stays
+installed only because packages probe for it in a try/catch. Animate with React
+Native's own `Animated` (`useNativeDriver: true`) or `LayoutAnimation`. CI fails on
+any import.
+
 If new arch is ever enabled in future, the following will need re-evaluation:
 - reanimated (can then upgrade to 4.x)
 - Any packages that polyfill NativeReactNativeFeatureFlags (see metro.config.js)

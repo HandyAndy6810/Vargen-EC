@@ -74,6 +74,16 @@ jobs:
           node-version: '20'
           cache: npm
           cache-dependency-path: mobile/package-lock.json
+      # reanimated 3.16 throws as soon as it is imported on React Native 0.81
+      # (its Animated.Text rejects RN's function-component Text). Build 3 crashed
+      # at launch because the intro imported it, and nothing here could see it:
+      # the web build doesn't hit it. The app animates with RN's own Animated.
+      - name: App code never imports react-native-reanimated
+        run: |
+          if grep -rnE "(from|import|require\\()[[:space:]]*['\"]react-native-reanimated" mobile/app mobile/components mobile/lib mobile/hooks; then
+            echo "::error::App code imports react-native-reanimated, which crashes the app at launch on React Native 0.81 (see CLAUDE.md). Use React Native's Animated instead."
+            exit 1
+          fi
       - run: npm ci
         working-directory: mobile
       - run: npm run typecheck

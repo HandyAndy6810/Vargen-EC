@@ -1,4 +1,4 @@
-import { Easing } from 'react-native-reanimated';
+import { Easing } from 'react-native';
 
 /**
  * Every setting of the cold start intro (components/IntroOverlay.tsx), in one
@@ -35,7 +35,8 @@ export const FLIGHT_MS = 700;
  * LOCKED (shape chosen here). "Whip": a fast snap with an overshoot feel.
  * A cubic bezier whose second control point goes past 1, so the bolt shoots
  * slightly beyond the gap (about 6% of the path) and settles back into it.
- * Tune the four numbers; Easing.bezier(x1, y1, x2, y2).
+ * Tune the four numbers; Easing.bezier(x1, y1, x2, y2) (React Native's own
+ * Easing: the intro runs on Animated, never reanimated; see IntroOverlay.tsx).
  */
 export const WHIP_BEZIER = [0.62, 0.0, 0.14, 1.22] as const;
 export const WHIP = Easing.bezier(...WHIP_BEZIER);

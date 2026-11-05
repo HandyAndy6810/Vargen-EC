@@ -1,6 +1,12 @@
 import Constants from "expo-constants";
 import { initConnectivity, markOffline, markOnline } from "./connectivity";
 
+/**
+ * The deployed server. Builds and updates set EXPO_PUBLIC_API_URL to this
+ * (eas.json, scripts/publish-update.mjs); keep the three in step.
+ */
+export const PRODUCTION_API_URL = "https://vargon-ec--andrewyoukhana.replit.app";
+
 // In development the Metro host is reused; for physical devices and all
 // production builds, EXPO_PUBLIC_API_URL must be set in .env / EAS env.
 function getBaseUrl(): string {
@@ -9,9 +15,12 @@ function getBaseUrl(): string {
   }
 
   if (!__DEV__) {
-    // A production build without a configured API URL must fail loudly —
-    // the old fallback silently sent session cookies to http://localhost
-    throw new Error("EXPO_PUBLIC_API_URL is not set in this production build");
+    // Never throw here: this module loads at startup, and a throw at import
+    // kills the app before anything can draw (expo-updates then aborts it).
+    // Never fall back to localhost either: that sent session cookies there.
+    // Say so loudly and use the deployed server.
+    console.error(`[api] EXPO_PUBLIC_API_URL is not set in this production build; using ${PRODUCTION_API_URL}`);
+    return PRODUCTION_API_URL;
   }
 
   const debuggerHost = Constants.expoConfig?.hostUri;

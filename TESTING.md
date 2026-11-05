@@ -456,6 +456,22 @@ Check each in **Light** and **Dark** (Profile → Appearance).
 - [ ] **Dev builds only:** long press the Home greeting to replay the intro. A
       release build ignores the long press.
 
+### Launch crash fix (build 1.1.0)
+
+- [ ] **Fresh install** of the 1.1.0 build (delete the old app first): it opens,
+      shows the splash, then the intro, then Home. No crash. Kill it and open it
+      five more times: same every time.
+- [ ] **About screen / version:** the app reports 1.1.0 (Settings → iOS → Vargen EZ, or
+      TestFlight / the install page).
+- [ ] **Old build left alone:** a phone still on 1.0.0 doesn't receive updates
+      published for 1.1.0 (they're on different runtimes). Expected, not a bug.
+- [ ] **Signed in and offline** (flight mode, then cold start): it opens to Home
+      with the intro, no crash.
+- [ ] **Publishing an update** from Replit: `cd mobile && npm run update:preview --
+      --message "test"` prints `Publishing to "preview" with
+      EXPO_PUBLIC_API_URL=https://vargon-ec--…replit.app` and two ✔ lines before it
+      uploads. The app then still signs in and loads quotes.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what
