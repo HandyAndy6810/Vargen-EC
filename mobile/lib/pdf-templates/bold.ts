@@ -1,5 +1,5 @@
 import {
-  type Ctx, page, esc, escMultiline, fmt, paidStamp, acceptanceBlock, customerExtraLines } from './shared';
+  type Ctx, page, esc, escMultiline, fmt, paidStamp, acceptanceBlock, customerExtraLines, noGstRow } from './shared';
 
 /**
  * Big friendly masthead in the accent colour, a logo disc, and a soft grey panel
@@ -91,6 +91,7 @@ export function buildBold(ctx: Ctx): string {
       ${ctx.showSubtotal ? `<tr><td>Subtotal</td><td>$${fmt(d.subtotal)}</td></tr>` : ''}
       ${ctx.showGst ? `<tr><td>GST (10%)</td><td>$${fmt(d.gstAmount!)}</td></tr>` : ''}
       <tr class="grand"><td>${isInvoice ? (isPaid ? 'Paid' : 'Total due') : 'Total'}</td><td>$${fmt(d.totalAmount)}</td></tr>
+      ${noGstRow(ctx)}
     </table>
   </div>
 
@@ -118,6 +119,7 @@ export function buildBold(ctx: Ctx): string {
       ${s.accountNumber ? `<div class="fval">Acct ${esc(s.accountNumber)}</div>` : ''}
     </div>` : ''}
   </div>
+  ${isInvoice && s.paymentTermsDays ? `<div style="font-size:8.5pt;color:#555;margin-top:3mm;">Payment due within ${s.paymentTermsDays} days of the issue date.</div>` : ''}
   <div class="baseband"></div>
   `;
 

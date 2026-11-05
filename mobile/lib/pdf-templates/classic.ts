@@ -1,5 +1,5 @@
 import {
-  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, customerExtraLines } from './shared';
+  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, bankBlock, customerExtraLines, noGstRow } from './shared';
 
 /**
  * The plain business quote — grey banded headings, ruled boxes, a signature block.
@@ -94,6 +94,7 @@ export function buildClassic(ctx: Ctx): string {
       <td class="tlabel">${isInvoice ? (isPaid ? 'AMOUNT PAID' : 'AMOUNT DUE') : 'TOTAL QUOTE'}</td>
       <td class="tvalue">$${fmt(d.totalAmount)}</td>
     </tr>
+    ${noGstRow(ctx)}
   </table>
 
   ${d.notes ? `

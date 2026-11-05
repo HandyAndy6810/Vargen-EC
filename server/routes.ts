@@ -1533,7 +1533,7 @@ CRITICAL RULES — follow these exactly:
       res.json(buildPortalView({
         quote,
         customer,
-        business: { name: s?.businessName, phone: s?.phone, email: s?.email, address: s?.address },
+        business: { name: s?.businessName, phone: s?.phone, email: s?.email, address: s?.address, abn: s?.abn, logoUrl: s?.logoUrl },
       }));
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to load portal" });

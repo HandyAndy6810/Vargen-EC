@@ -37,6 +37,7 @@ import { buildQuotePDF, type PdfDocumentData } from '@/lib/quote-pdf';
 import { sharePdf, documentFilename } from '@/lib/share-pdf';
 import { ChevronLeft, Check, CreditCard, Building2, Copy, FileText, MoreHorizontal } from 'lucide-react-native';
 import { format, differenceInCalendarDays } from 'date-fns';
+import { NO_GST_NOTE } from '@shared/gst-wording';
 
 
 export default function InvoiceDetailScreen() {
@@ -454,6 +455,10 @@ export default function InvoiceDetailScreen() {
                   ${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
+              {/* st3: not registered for GST, so none is charged or coming. */}
+              {gst <= 0 && (
+                <Text style={[s.totalLabel, { textAlign: 'right', marginTop: 2 }]}>{NO_GST_NOTE}</Text>
+              )}
             </View>
           </View>
 

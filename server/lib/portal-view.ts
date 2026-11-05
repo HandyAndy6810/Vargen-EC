@@ -49,6 +49,8 @@ export type PortalView = {
   businessPhone: string;
   businessEmail: string;
   businessAddress: string;
+  businessAbn: string;
+  businessLogoUrl: string;
 };
 
 const num = (v: unknown): number => {
@@ -105,7 +107,7 @@ export function sanitisePortalContent(raw: string | null | undefined): string | 
 export function buildPortalView(input: {
   quote: any;
   customer: any | null;
-  business: { name?: string | null; phone?: string | null; email?: string | null; address?: string | null };
+  business: { name?: string | null; phone?: string | null; email?: string | null; address?: string | null; abn?: string | null; logoUrl?: string | null };
 }): PortalView {
   const { quote, customer, business } = input;
 
@@ -129,5 +131,8 @@ export function buildPortalView(input: {
     businessPhone: business.phone || '',
     businessEmail: business.email || '',
     businessAddress: business.address || '',
+    // p7: the business's own branding, shown at the top of the customer's page.
+    businessAbn: business.abn || '',
+    businessLogoUrl: business.logoUrl || '',
   };
 }

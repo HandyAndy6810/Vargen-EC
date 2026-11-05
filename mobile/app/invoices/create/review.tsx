@@ -23,6 +23,7 @@ import { fitToWidthHtml } from '@/lib/pdf-templates';
 import { showConfirm, showAlert } from '@/lib/dialogs';
 import { hapticPress, hapticSelect } from '@/lib/haptics';
 import { animateNextLayout } from '@/lib/layout-animation';
+import { gstTag } from '@shared/gst-wording';
 
 const money = (n: number) =>
   `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -199,7 +200,7 @@ export default function InvoiceReviewStep() {
         >
           {d.fromQuote ? (
             <View style={s.agreedCard}>
-              <Text style={s.agreedEyebrow}>Invoice total{d.includeGST ? ' · inc GST' : ''}</Text>
+              <Text style={s.agreedEyebrow}>Invoice total · {gstTag(d.includeGST)}</Text>
               <Text style={s.agreedTotal}>{money(d.total)}</Text>
               <Text style={s.agreedNote}>
                 Priced from the accepted quote. Edit a line to change it — the markup

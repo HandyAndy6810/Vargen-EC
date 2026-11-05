@@ -31,6 +31,7 @@ import { showAlert, showConfirm } from '@/lib/dialogs';
 import { copyText } from '@/lib/clipboard';
 import { toast } from '@/lib/toast';
 import { quoteMessage, quoteSmsUrl } from '@shared/quote-message';
+import { gstTag, NO_GST_NOTE } from '@shared/gst-wording';
 
 
 const statusPillFor = (c: Colors): Record<string, { bg: string; fg: string; bd: string; label: string }> => ({
@@ -337,7 +338,7 @@ export default function QuoteDetailScreen() {
               <Text style={s.amountLarge}>
                 ${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Text>
-              <Text style={s.amountSub}>inc GST</Text>
+              <Text style={s.amountSub}>{gstTag(gst > 0)}</Text>
             </View>
 
             {/* Progress rail */}
@@ -523,6 +524,10 @@ export default function QuoteDetailScreen() {
                   ${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
+              {/* st3: not registered for GST, so none is charged or coming. */}
+              {gst <= 0 && (
+                <Text style={[s.totalLabel, { textAlign: 'right', marginTop: 2 }]}>{NO_GST_NOTE}</Text>
+              )}
             </View>
           </View>
 

@@ -1,5 +1,5 @@
 import {
-  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, acceptanceBlock, customerExtraLines } from './shared';
+  type Ctx, page, esc, escMultiline, fmt, logoTag, paidStamp, acceptanceBlock, customerExtraLines, noGstRow } from './shared';
 
 /** Words for a total, the way an Australian tax invoice traditionally spells it out. */
 const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
@@ -96,6 +96,7 @@ export function buildLedger(ctx: Ctx): string {
       ${ctx.showSubtotal ? `<tr><td>Subtotal:</td><td>$${fmt(d.subtotal)}</td></tr>` : ''}
       ${ctx.showGst ? `<tr><td>GST (10%):</td><td>$${fmt(d.gstAmount!)}</td></tr>` : ''}
       <tr class="grand"><td>${isInvoice ? (isPaid ? 'Paid:' : 'Total due:') : 'Total:'}</td><td>$${fmt(d.totalAmount)}</td></tr>
+      ${noGstRow(ctx)}
     </table>
   </div>
 
