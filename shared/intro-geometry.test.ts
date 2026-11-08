@@ -14,15 +14,22 @@ test('the gap is centred on the button and sized from its height', () => {
   const button = { x: 20, y: 300, width: 350, height: 84 };
   const t = gapTarget(button, 200);
   assert.deepEqual(t.center, { x: 195, y: 342 });
-  close(t.gapHeight, 116 * 84 / 132);   // 73.8 px tip to tip
-  close(t.scale, t.gapHeight / 160);     // ~0.461 of the splash bolt
+  close(t.gapHeight, 84);               // tip to tip is the button's full height
+  close(t.scale, 84 / 160);             // 0.525 of the splash bolt
 });
 
-test('the gap ends are the tips, 116 units apart', () => {
-  const button = { x: 0, y: 0, width: 400, height: 132 }; // 1 unit = 1 px
+test('the gap ends are the tips, on the top and bottom edges', () => {
+  const button = { x: 0, y: 0, width: 400, height: 116 }; // 1 unit = 1 px
   const e = gapEnds(button);
-  assert.deepEqual(e.top, { x: 208, y: 8 });
-  assert.deepEqual(e.bottom, { x: 192, y: 124 });
+  assert.deepEqual(e.top, { x: 208, y: 0 });
+  assert.deepEqual(e.bottom, { x: 192, y: 116 });
+  // At the real heights too: the tips sit exactly on the edges.
+  for (const h of [80, 96]) {
+    const b = { x: 20, y: 300, width: 350, height: h };
+    const g = gapEnds(b);
+    close(g.top.y, 300); close(g.bottom.y, 300 + h);
+    close(gapTarget(b, 200).gapHeight, h);
+  }
 });
 
 test('arc 0 is a straight line; the curve starts and ends at the ends', () => {

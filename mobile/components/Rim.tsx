@@ -1,18 +1,6 @@
 import { useEffect, useMemo, useRef, type ReactNode, type ComponentType, type RefObject } from 'react';
-import {
-  Animated,
-  Keyboard,
-  Platform,
-  ScrollView,
-  Pressable,
-  Text,
-  View,
-  StyleSheet,
-  type StyleProp,
-  type ViewStyle,
-  type NativeSyntheticEvent,
-  type NativeScrollEvent,
-} from 'react-native';
+import { Animated, Keyboard, Platform, ScrollView, Text, View, StyleSheet, type StyleProp, type ViewStyle, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
+import { Press } from './Press';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { router } from 'expo-router';
@@ -119,6 +107,28 @@ export function ScreenGradient({ intensity, scrollY, id }: { intensity: Intensit
   );
 }
 
+/**
+ * Covers the status bar strip (clock, battery, Dynamic Island) on screens whose
+ * header scrolls away with the content, so nothing ever shows behind it. It is
+ * a window onto the page background: the same gradient, moved by the same
+ * scroll offset, over paper. Pass the scrollY the screen's gradient moves with
+ * (useGradientScroll), or nothing if the screen doesn't scroll. Render it last,
+ * after the scroll view.
+ */
+export function StatusBarBand({ intensity, scrollY, id }: { intensity: Intensity; scrollY?: Animated.Value; id: string }) {
+  const { colors: c } = useTheme();
+  const insets = useSafeAreaInsets();
+  if (!insets.top) return null;
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, overflow: 'hidden', backgroundColor: c.paper, zIndex: 20, elevation: 20 }}
+    >
+      <ScreenGradient intensity={intensity} scrollY={scrollY} id={id} />
+    </View>
+  );
+}
+
 /** The scroll offset ScreenGradient follows. Spread `scrollProps` on an Animated.ScrollView or Animated.FlatList. */
 export function useGradientScroll(onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void) {
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -145,17 +155,17 @@ export function GlassButton({
 }: { onPress: () => void; children: ReactNode; label: string; filled?: boolean; disabled?: boolean }) {
   const { colors: c, isDark } = useTheme();
   return (
-    <Pressable
+    <Press
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
       disabled={disabled}
       hitSlop={6}
-      style={({ pressed }) => [
+      pressedStyle={{ opacity: 0.75, transform: [{ scale: 0.96 }] }}
+      style={[
         {
           width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
-          opacity: pressed ? 0.75 : disabled ? 0.6 : 1,
-          transform: [{ scale: pressed ? 0.96 : 1 }],
+          opacity: disabled ? 0.6 : 1,
         },
         filled
           ? { backgroundColor: c.orange }
@@ -167,7 +177,7 @@ export function GlassButton({
       ]}
     >
       {children}
-    </Pressable>
+    </Press>
   );
 }
 
@@ -235,17 +245,18 @@ export function RimCard({
     return <View style={[base, style]} testID={testID} accessibilityLabel={accessibilityLabel}>{children}</View>;
   }
   return (
-    <Pressable
+    <Press
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       onPress={onPress}
       onLongPress={onLongPress}
       testID={testID}
-      style={({ pressed }) => [base, style, pressed && { opacity: 0.85, transform: [{ scale: 0.985 }] }]}
+      style={[base, style]}
+      pressedStyle={{ opacity: 0.85, transform: [{ scale: 0.985 }] }}
     >
       {children}
-    </Pressable>
+    </Press>
   );
 }
 
@@ -321,16 +332,17 @@ export function RimRow({
     </>
   );
   const rowStyle = [s.row, !first && s.divider];
-  if (!onPress) return <View style={rowStyle}>{body}</View>;
+  if (!onPress) return <View style={StyleSheet.flatten(rowStyle)}>{body}</View>;
   return (
-    <Pressable
+    <Press
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       onPress={onPress}
-      style={({ pressed }) => [rowStyle, pressed && { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(28,29,33,0.04)' }]}
+      style={rowStyle}
+      pressedStyle={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(28,29,33,0.04)' }}
     >
       {body}
-    </Pressable>
+    </Press>
   );
 }
 

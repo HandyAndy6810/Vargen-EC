@@ -1,4 +1,5 @@
 import { Tabs, router } from 'expo-router';
+import { TAB_BAR_H, tabBarBottom } from '@/lib/tab-bar';
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -74,7 +75,7 @@ function TabBar({ state, navigation }: any) {
     <View
       style={[
         styles.container,
-        { bottom: (insets.bottom > 0 ? insets.bottom : 10) + 2 },
+        { bottom: tabBarBottom(insets.bottom) },
       ]}
       pointerEvents="box-none"
     >
@@ -176,7 +177,7 @@ export default function TabsLayout() {
   );
 }
 
-const BAR_H = 62;
+const BAR_H = TAB_BAR_H;
 
 const styles = StyleSheet.create({
   container: {

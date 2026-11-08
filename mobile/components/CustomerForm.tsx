@@ -1,5 +1,6 @@
 import { useMemo, type RefObject } from 'react';
-import { View, Text, TextInput, Pressable, Switch, StyleSheet, type ScrollView } from 'react-native';
+import { View, Text, TextInput, Switch, StyleSheet, type ScrollView } from 'react-native';
+import { Press } from './Press';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { RimGroup, fieldStyles, wellFill, useKeepAboveKeyboard } from '@/components/Rim';
 import {
@@ -118,15 +119,15 @@ export function CustomerForm({
       {options.map((o) => {
         const on = selected === o;
         return (
-          <Pressable
+          <Press
             key={o}
             onPress={() => onPick(on ? null : o)}
             accessibilityRole="radio"
             accessibilityState={{ selected: on }}
-            style={({ pressed }) => [s.chip, on && s.chipOn, pressed && { opacity: 0.8 }]}
+            style={[s.chip, on && s.chipOn]} pressedStyle={{ opacity: 0.8 }}
           >
             <Text style={[s.chipText, on && s.chipTextOn]}>{labels[o]}</Text>
-          </Pressable>
+          </Press>
         );
       })}
     </View>

@@ -1,15 +1,5 @@
-import {
-  View,
-  Text,
-  Animated,
-  Pressable,
-  TouchableOpacity,
-  TextInput,
-  StyleSheet,
-  ActivityIndicator,
-  RefreshControl,
-  Linking,
-} from 'react-native';
+import { View, Text, Animated, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, RefreshControl, Linking } from 'react-native';
+import { Press } from '@/components/Press';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { ScreenGradient, GradientHeader, GlassButton, RimCard, useGradientScroll } from '@/components/Rim';
 import { rimTile } from '@/theme/rim';
@@ -49,11 +39,11 @@ function CustomerCard({ item, onPress }: { item: Customer; onPress: () => void }
   const company = (item as Customer & { companyName?: string | null }).companyName;
   return (
     <RimCard padding="none" style={s.card}>
-      <Pressable
+      <Press
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={`Open ${item.name}`}
-        style={({ pressed }) => [s.cardMain, pressed && { opacity: 0.7 }]}
+        style={[s.cardMain]} pressedStyle={{ opacity: 0.7 }}
       >
         <View style={[s.avatar, { backgroundColor: avatarColor(item.name) }]}>
           <Text style={s.avatarText}>{initials(item.name)}</Text>
@@ -70,26 +60,26 @@ function CustomerCard({ item, onPress }: { item: Customer; onPress: () => void }
             </View>
           ) : null}
         </View>
-      </Pressable>
+      </Press>
       <View style={s.cardActions}>
-        <Pressable
-          style={({ pressed }) => [s.actionBtn, !hasPhone && { opacity: 0.35 }, pressed && { opacity: 0.6 }]}
+        <Press
+          style={[s.actionBtn, !hasPhone && { opacity: 0.35 }]} pressedStyle={{ opacity: 0.6 }}
           disabled={!hasPhone}
           onPress={() => item.phone && openCall(item.phone)}
           accessibilityRole="button"
           accessibilityLabel={`Call ${item.name}`}
         >
           <Phone size={17} color={c.ink} strokeWidth={2.1} />
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [s.actionBtn, !hasPhone && { opacity: 0.35 }, pressed && { opacity: 0.6 }]}
+        </Press>
+        <Press
+          style={[s.actionBtn, !hasPhone && { opacity: 0.35 }]} pressedStyle={{ opacity: 0.6 }}
           disabled={!hasPhone}
           onPress={() => item.phone && openText(item.phone)}
           accessibilityRole="button"
           accessibilityLabel={`Text ${item.name}`}
         >
           <MessageSquare size={17} color={c.ink} strokeWidth={2.1} />
-        </Pressable>
+        </Press>
       </View>
     </RimCard>
   );
@@ -207,14 +197,14 @@ export default function CustomersScreen() {
                   : 'Add the people you work for once, and they’re ready for every quote, invoice and job. Customers you add while quoting land here too.'}
               </Text>
               {!isError && (
-                <Pressable
-                  style={({ pressed }) => [s.emptyCta, pressed && { opacity: 0.85 }]}
+                <Press
+                  style={[s.emptyCta]} pressedStyle={{ opacity: 0.85 }}
                   onPress={() => router.push('/customers/new' as any)}
                   accessibilityRole="button"
                 >
                   <Plus size={16} color="#fff" strokeWidth={2.4} />
                   <Text style={s.emptyCtaText}>{search ? 'Add a new customer' : 'Add your first customer'}</Text>
-                </Pressable>
+                </Press>
               )}
             </RimCard>
           }

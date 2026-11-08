@@ -70,6 +70,9 @@ describe('widgetRows', () => {
   test('pairs neighbouring half-width widgets only, keeping order', () => {
     assert.deepEqual(widgetRows(['upnext', 'pipeline', 'revenue', 'nudge']), [['upnext'], ['pipeline', 'revenue'], ['nudge']]);
     assert.deepEqual(widgetRows(['outstanding', 'weather', 'revenue']), [['outstanding'], ['weather'], ['revenue']]);
+    // Outstanding and the nudge have no half-width layout: never squeezed beside Revenue.
+    assert.deepEqual(widgetRows(['revenue', 'outstanding']), [['revenue'], ['outstanding']]);
+    assert.deepEqual(widgetRows(['nudge', 'pipeline']), [['nudge'], ['pipeline']]);
   });
 
   test('flattening the rows gives back the input order', () => {

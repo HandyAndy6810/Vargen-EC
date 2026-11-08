@@ -1,20 +1,10 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-  Linking,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { View, Text, ScrollView, Animated, TouchableOpacity, ActivityIndicator, StyleSheet, Linking, KeyboardAvoidingView, Platform } from 'react-native';
+import { Press } from '@/components/Press';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useState, useMemo, useRef, type ReactElement } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScreenGradient, GlassButton, RimCard, heroSecondary, wellFill } from '@/components/Rim';
+import { ScreenGradient, StatusBarBand, useGradientScroll, GlassButton, RimCard, heroSecondary, wellFill } from '@/components/Rim';
 import { rimTile } from '@/theme/rim';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import {
@@ -70,6 +60,7 @@ export default function CustomerDetailScreen() {
   const { mutate: updateCustomer, isPending: isSaving } = useUpdateCustomer();
   const { mutate: deleteCustomer } = useDeleteCustomer();
   const scrollRef = useRef<ScrollView>(null);
+  const { scrollY, scrollProps } = useGradientScroll();
 
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState<CustomerFormValue | null>(null);
@@ -175,9 +166,9 @@ export default function CustomerDetailScreen() {
       </>
     );
     return onPress ? (
-      <Pressable key={key} style={({ pressed }) => [s.detailRow, !first && s.divider, pressed && { backgroundColor: wellFill(isDark) }]} onPress={onPress} accessibilityRole="button">
+      <Press key={key} style={[s.detailRow, !first && s.divider]} pressedStyle={{ backgroundColor: wellFill(isDark) }} onPress={onPress} accessibilityRole="button">
         {body}
-      </Pressable>
+      </Press>
     ) : (
       <View key={key} style={[s.detailRow, !first && s.divider]}>{body}</View>
     );
@@ -199,19 +190,19 @@ export default function CustomerDetailScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 60 }}>
+      <Animated.ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 60 }} {...scrollProps}>
         <ScreenGradient intensity="soft" id="customerGradient" />
 
         {/* Header */}
         <View style={[s.header, { paddingTop: insets.top + 6 }]}>
           {isEditing ? (
-            <Pressable
+            <Press
               accessibilityRole="button"
               onPress={() => setIsEditing(false)}
-              style={({ pressed }) => [s.textBtn, pressed && { opacity: 0.7 }]}
+              style={[s.textBtn]} pressedStyle={{ opacity: 0.7 }}
             >
               <Text style={s.textBtnLabel}>Cancel</Text>
-            </Pressable>
+            </Press>
           ) : (
             <GlassButton label="Go back" onPress={() => router.back()}>
               <ChevronLeft size={20} color={c.ink} strokeWidth={2.2} />
@@ -219,17 +210,17 @@ export default function CustomerDetailScreen() {
           )}
           <View style={{ flex: 1 }} />
           {isEditing ? (
-            <Pressable
+            <Press
               accessibilityRole="button"
               accessibilityLabel="Save customer"
               onPress={handleSaveEdit}
               disabled={isSaving}
-              style={({ pressed }) => [s.textBtn, { backgroundColor: c.orange, borderColor: c.orange }, pressed && { opacity: 0.75 }]}
+              style={[s.textBtn, { backgroundColor: c.orange, borderColor: c.orange }]} pressedStyle={{ opacity: 0.75 }}
             >
               {isSaving
                 ? <ActivityIndicator size="small" color="#fff" />
                 : <Text style={[s.textBtnLabel, { color: '#fff' }]}>Save</Text>}
-            </Pressable>
+            </Press>
           ) : (
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <GlassButton label="Edit customer" onPress={startEditing}>
@@ -326,7 +317,8 @@ export default function CustomerDetailScreen() {
             ) : null}
           </>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
+      <StatusBarBand intensity="soft" scrollY={scrollY} id="customerBand" />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

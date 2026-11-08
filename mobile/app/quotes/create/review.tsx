@@ -1,8 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
-import {
-  View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView,
-  ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Animated, PanResponder, Dimensions, Pressable,
-} from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Animated, PanResponder, Dimensions } from 'react-native';
+import { Press } from '@/components/Press';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Print from 'expo-print';
@@ -448,9 +446,9 @@ export default function ReviewStep() {
                       the current lines), an assumption asks Keep or Remove. The
                       count above is derived, so it drops as they clear. */}
                   {priceWarnings.map((w, i) => (
-                    <Pressable
+                    <Press
                       key={`pw-${i}`}
-                      style={({ pressed }) => [s.flagRow, pressed && s.flagRowPressed]}
+                      style={[s.flagRow]} pressedStyle={s.flagRowPressed}
                       onPress={() => openLine(w.line)}
                       accessibilityRole="button"
                       accessibilityLabel={`Check the price of ${w.line.name || 'this item'}`}
@@ -461,12 +459,12 @@ export default function ReviewStep() {
                         {' — '}{w.flag.message}
                       </Text>
                       <ChevronRight size={16} color={c.muted} strokeWidth={2.2} style={s.flagChevron} />
-                    </Pressable>
+                    </Press>
                   ))}
                   {d.assumptions.map((a, i) => (
-                    <Pressable
+                    <Press
                       key={`as-${i}`}
-                      style={({ pressed }) => [s.flagRow, pressed && s.flagRowPressed]}
+                      style={[s.flagRow]} pressedStyle={s.flagRowPressed}
                       onPress={() => reviewAssumption(i)}
                       accessibilityRole="button"
                       accessibilityLabel="Keep or remove this assumption"
@@ -474,7 +472,7 @@ export default function ReviewStep() {
                       <Text style={[s.flagTag, { color: c.mutedHi, backgroundColor: c.paperDeep }]}>ASSUMED</Text>
                       <Text style={s.flagText}>{a}</Text>
                       <ChevronRight size={16} color={c.muted} strokeWidth={2.2} style={s.flagChevron} />
-                    </Pressable>
+                    </Press>
                   ))}
                 </View>
               ) : null}

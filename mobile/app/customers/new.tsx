@@ -1,14 +1,5 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  Animated,
-  Pressable,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, ScrollView, Animated, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { Press } from '@/components/Press';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router } from 'expo-router';
 import { useState, useMemo, useRef } from 'react';
@@ -64,8 +55,9 @@ export default function CustomerNewScreen() {
 
         {/* Save bar */}
         <View style={[s.saveBar, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
-          <Pressable
-            style={({ pressed }) => [s.saveBtn, (pressed || isPending) && { opacity: 0.85 }]}
+          <Press
+            style={[s.saveBtn, isPending && { opacity: 0.85 }]}
+            pressedStyle={{ opacity: 0.85 }}
             onPress={handleSave}
             disabled={isPending}
             accessibilityRole="button"
@@ -73,7 +65,7 @@ export default function CustomerNewScreen() {
             {isPending
               ? <ActivityIndicator color="#fff" />
               : <Text style={s.saveBtnText} numberOfLines={1}>Add customer</Text>}
-          </Pressable>
+          </Press>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
