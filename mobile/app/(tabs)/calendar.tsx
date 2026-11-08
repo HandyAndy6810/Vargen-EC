@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { useTabBarSpace } from '@/lib/tab-bar';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { weekPosition, sameLocalDay } from '@shared/calendar-dates';
@@ -72,6 +73,7 @@ function makeStyles(c: Colors, isDark: boolean) {
 
 export default function CalendarScreen() {
   const { colors: c, isDark } = useTheme();
+  const tabSpace = useTabBarSpace();
   const s = makeStyles(c, isDark);
   const qc = useQueryClient();
 
@@ -278,7 +280,7 @@ export default function CalendarScreen() {
 
       {segment === 'outreach' ? (
         /* ── Outreach view ── */
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: tabSpace }}>
           {followUpsLoading ? (
             <ActivityIndicator color={c.orange} style={{ marginTop: 40 }} />
           ) : followUps.length === 0 ? (
@@ -489,7 +491,7 @@ export default function CalendarScreen() {
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 130 }}
+        contentContainerStyle={{ paddingBottom: tabSpace }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
       >
         <View style={{ paddingLeft: 52, paddingRight: 8, position: 'relative', overflow: 'visible' }}>

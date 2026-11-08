@@ -11,6 +11,7 @@ import {
   Platform,
   Animated,
 } from 'react-native';
+import { useTabBarSpace } from '@/lib/tab-bar';
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { router } from 'expo-router';
 import { format } from 'date-fns';
@@ -74,6 +75,7 @@ export default function InvoicesScreen() {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerPad = insets.top + 44 + LARGE_TITLE_COLLAPSE;
 
@@ -227,7 +229,7 @@ export default function InvoicesScreen() {
         data={filtered}
         keyExtractor={(inv: any) => String(inv.id)}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerPad, paddingBottom: 130, gap: 10 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerPad, paddingBottom: tabSpace, gap: 10 }}
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         scrollIndicatorInsets={{ top: headerPad }}

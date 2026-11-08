@@ -13,12 +13,14 @@ import { halvesOffset, buttonScale, buttonShake, setIntroTarget, registerIntroMe
  *
  * The viewBox is deliberately far wider than any real button: with
  * preserveAspectRatio="xMidYMid slice" the scale is set by the height alone
- * (height / 132), so the bolt stays dead centre and keeps its shape at any
- * width. The viewBox runs from y −22 to 110, so the tips at −14 and 102 sit
- * 8u inside the edges and the whole bolt shows; above and below the tips the
- * two halves meet in a short vertical seam (each half reaches 2u under the
- * other there, so no hairline of background shows). Do not change
- * preserveAspectRatio.
+ * (height / 116), so the bolt stays dead centre and keeps its shape at any
+ * width. The viewBox runs from y −14 to 102, exactly the tips, so the gap runs
+ * edge to edge: the top tip touches the button's top edge and the bottom tip
+ * its bottom edge, at every height. The paths still reach 8u past the edges
+ * (to −22 and 110, clipped by the viewBox and the button's rounded corners), so
+ * no hairline of background shows along an edge. Do not change
+ * preserveAspectRatio, and keep shared/intro-geometry.ts (BUTTON_VB_TOP /
+ * BUTTON_VB_HEIGHT) in step: the intro lands the bolt by those numbers.
  *
  * The bolt has sharp corners: both halves meet the gap at the same six points —
  * tips (1008,-14) and (992,102), notches (972,54) and (1028,34), inner corners
@@ -36,7 +38,7 @@ import { halvesOffset, buttonScale, buttonShake, setIntroTarget, registerIntroMe
  * precisely what one svg did. Home passes introTarget so the intro can find
  * the gap; the overlay never changes the geometry above.
  */
-const VB_H = 132;
+const VB_H = 116;
 const BOLT_HALF = 28; // viewBox units from the centre line to the notch
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -83,7 +85,7 @@ export function SplitActionButton({
       <View ref={ref} collapsable={false} style={StyleSheet.absoluteFill} pointerEvents="none" />
       {/* Quote (left) half — accent orange */}
       <Animated.View style={[StyleSheet.absoluteFill, leftStyle]} pointerEvents="none">
-        <Svg width="100%" height="100%" viewBox="0 -22 2000 132" preserveAspectRatio="xMidYMid slice">
+        <Svg width="100%" height="100%" viewBox="0 -14 2000 116" preserveAspectRatio="xMidYMid slice">
           <Path
             fill={c.orange}
             d="M 1010,-22 L 1008,-14 L 972,54 L 1000,54 L 992,102 L 992,110 L -1000,110 L -1000,-22 Z"
@@ -94,7 +96,7 @@ export function SplitActionButton({
           (fillStrong, not c.ink, so it never matches the body text); the label
           uses c.paper to match. */}
       <Animated.View style={[StyleSheet.absoluteFill, rightStyle]} pointerEvents="none">
-        <Svg width="100%" height="100%" viewBox="0 -22 2000 132" preserveAspectRatio="xMidYMid slice">
+        <Svg width="100%" height="100%" viewBox="0 -14 2000 116" preserveAspectRatio="xMidYMid slice">
           <Path
             fill={c.fillStrong}
             d="M 1008,-22 L 3000,-22 L 3000,110 L 990,110 L 992,102 L 1028,34 L 1000,34 L 1008,-14 Z"

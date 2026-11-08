@@ -11,7 +11,12 @@ export type HomeWidget = {
   id: string;
   label: string;
   description: string;
-  /** Takes a whole row on Home; two neighbouring half-width widgets share one. */
+  /**
+   * Takes a whole row on Home; two neighbouring half-width widgets share one.
+   * Only widgets with a real half-width layout (Home's renderWidget `half`) may
+   * be false: Outstanding and the AI nudge have none, and squeezed into half of
+   * a 375pt screen they truncated to "T…" and broke "Overdue" over three lines.
+   */
   fullWidth: boolean;
 };
 
@@ -20,12 +25,12 @@ export const HOME_WIDGETS: HomeWidget[] = [
   { id: 'quickactions', label: 'Quick Actions',     description: 'Follow up, add a receipt, customers',       fullWidth: true },
   { id: 'customers',    label: 'Customers',         description: 'Find a customer, their history and details', fullWidth: true },
   { id: 'schedule',     label: 'Today\'s Schedule', description: 'Jobs on today and upcoming',                fullWidth: true },
-  { id: 'outstanding',  label: 'Outstanding',       description: 'Unpaid & overdue invoice totals',           fullWidth: false },
+  { id: 'outstanding',  label: 'Outstanding',       description: 'Unpaid & overdue invoice totals',           fullWidth: true },
   { id: 'weather',      label: 'Weather',           description: '7-day forecast + rain warnings',            fullWidth: true },
   { id: 'recentquotes', label: 'Recent Quotes',     description: 'Last 5 quotes with status',                 fullWidth: true },
   { id: 'pipeline',     label: 'Pipeline',          description: 'Quote funnel counts',                       fullWidth: false },
   { id: 'revenue',      label: 'Revenue',           description: 'Paid invoice total',                        fullWidth: false },
-  { id: 'nudge',        label: 'AI Nudge',          description: 'Smart suggestions based on your data',      fullWidth: false },
+  { id: 'nudge',        label: 'AI Nudge',          description: 'Smart suggestions based on your data',      fullWidth: true },
 ];
 
 export const DEFAULT_WIDGET_ORDER = HOME_WIDGETS.map((w) => w.id);

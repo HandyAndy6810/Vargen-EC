@@ -84,6 +84,15 @@ jobs:
             echo "::error::App code imports react-native-reanimated, which crashes the app at launch on React Native 0.81 (see CLAUDE.md). Use React Native's Animated instead."
             exit 1
           fi
+      # NativeWind wraps Pressable on iOS/Android and turns a style FUNCTION
+      # (style={({ pressed }) => ...}) into {}: the component draws with no style.
+      # The web build is fine, so this only shows on a phone. Use components/Press.
+      - name: No style functions in app code
+        run: |
+          if grep -rnE "style=\{[[:space:]]*\(" mobile/app mobile/components mobile/hooks mobile/lib --include=*.tsx --include=*.ts | grep -v "^mobile/components/Press.tsx:"; then
+            echo "::error::A style function loses every style on a phone (NativeWind). Use <Press style={...} pressedStyle={...}> from components/Press.tsx."
+            exit 1
+          fi
       - run: npm ci
         working-directory: mobile
       - run: npm run typecheck

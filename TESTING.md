@@ -472,6 +472,29 @@ Check each in **Light** and **Dark** (Profile → Appearance).
       EXPO_PUBLIC_API_URL=https://vargon-ec--…replit.app` and two ✔ lines before it
       uploads. The app then still signs in and loads quotes.
 
+### Device UI fixes (9 Nov)
+
+Check each on the iPhone (notched / Dynamic Island) in Light and Dark, and on an Android
+phone if you have one. Web screenshots don't count for these.
+
+- [ ] **Rows** Profile and every Settings screen: each row is icon left, label and sub
+      text in the middle, chevron right, with padding and a thin divider between rows.
+      Pressing a row tints it. Same for Customers (list rows, the call/text buttons, the
+      customer page's detail rows) and the quote review's "Check before sending" rows.
+- [ ] **Header buttons** The Profile pencil and every back button sit in a round
+      glass button, and shrink a little while pressed.
+- [ ] **Status bar** Home, Profile and a customer's page: at rest and while scrolling,
+      no text ever passes behind the clock, battery or Dynamic Island. The strip up
+      there shows the page colour (the orange at the top of Home), never content.
+- [ ] **Home tiles** Outstanding invoices is a full-width card: the customer name,
+      "Overdue" on one line and the amount all read in full. Pipeline and Revenue,
+      when side by side, are the same height.
+- [ ] **Zap button** The bolt gap runs from the very top edge to the very bottom edge
+      of New Quote / New Invoice. No sliver of colour above or below the tips. Cold
+      start: the intro bolt still lands exactly in the gap.
+- [ ] **Tab bar** Scroll to the bottom of Home, Profile, Quotes, Invoices and Schedule:
+      the last item (and Home's footer line) sits fully above the floating tab bar.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what

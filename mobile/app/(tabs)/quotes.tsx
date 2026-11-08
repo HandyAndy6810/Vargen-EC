@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
+import { useTabBarSpace } from '@/lib/tab-bar';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
@@ -87,6 +88,7 @@ export default function QuotesScreen() {
   const { colors: c, isDark } = useTheme();
   const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabBarSpace();
   // Drives the title collapse. Native-driven, so it tracks the finger exactly.
   const scrollY = useRef(new Animated.Value(0)).current;
   // The list starts below the fully-expanded header and slides up under it.
@@ -251,7 +253,7 @@ export default function QuotesScreen() {
         data={filtered}
         keyExtractor={(q: any) => String(q.id)}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerPad, paddingBottom: 130, gap: 10 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerPad, paddingBottom: tabSpace, gap: 10 }}
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         scrollIndicatorInsets={{ top: headerPad }}

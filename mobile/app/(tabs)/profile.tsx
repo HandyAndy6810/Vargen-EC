@@ -2,6 +2,7 @@ import {
   View,
   Text,
   ScrollView,
+  Animated,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -15,7 +16,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { outboxCount } from '@/lib/quote-outbox';
 import { useTheme, type Colors, type ThemeMode } from '@/hooks/use-theme';
 import { BottomSheetModal } from '@/components/BottomSheetModal';
-import { ScreenGradient, RimCard, RimGroup, RimRow, GlassButton, heroSecondary } from '@/components/Rim';
+import { ScreenGradient, StatusBarBand, useGradientScroll, RimCard, RimGroup, RimRow, GlassButton, heroSecondary } from '@/components/Rim';
+import { useTabBarSpace } from '@/lib/tab-bar';
 import { useXeroStatus, useXeroDisconnect, useXeroSyncAll } from '@/hooks/use-xero';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { useCustomers } from '@/hooks/use-customers';
@@ -297,10 +299,12 @@ export default function ProfileScreen() {
   };
 
   const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
+  const { scrollY, scrollProps } = useGradientScroll();
+  const tabSpace = useTabBarSpace();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
+      <Animated.ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabSpace }} {...scrollProps}>
         <ScreenGradient intensity="soft" id="profileGradient" />
         {/* Hero */}
         <View style={[s.heroSection, { paddingTop: insets.top + 14 }]}>
@@ -381,7 +385,8 @@ export default function ProfileScreen() {
             VARGEN · v1.0
           </Text>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
+      <StatusBarBand intensity="soft" scrollY={scrollY} id="profileBand" />
 
       <AppearanceModal visible={showAppearance} onClose={() => setShowAppearance(false)} />
     </SafeAreaView>

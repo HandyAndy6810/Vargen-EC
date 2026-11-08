@@ -8,10 +8,10 @@
  *    102.4..921.6, centred at 512,512) drawn in a square of SPLASH_IMAGE_WIDTH
  *    centred on the screen. Its height is 819.2/1024 of that square.
  *  - The Zap gap: components/SplitActionButton draws the same six points in a
- *    viewBox "0 -22 2000 132" with preserveAspectRatio "xMidYMid slice", so
- *    one viewBox unit is height/132 px. The gap runs from the top tip (y -14)
- *    to the bottom tip (y 102): 116 units tall, centred at x 1000 and y 44,
- *    which is exactly the middle of the button.
+ *    viewBox "0 -14 2000 116" with preserveAspectRatio "xMidYMid slice", so
+ *    one viewBox unit is height/116 px. The gap runs from the top tip (y -14)
+ *    to the bottom tip (y 102), which are the button's top and bottom edges:
+ *    116 units, the full height, centred at x 1000 and y 44 (the middle).
  */
 
 export type Rect = { x: number; y: number; width: number; height: number };
@@ -19,9 +19,10 @@ export type Point = { x: number; y: number };
 
 /** Icon-space bolt height over the 1024 square (the 0.8-scaled Sunset bolt). */
 export const BOLT_HEIGHT_RATIO = 819.2 / 1024;
-/** Zap gap height in the button's viewBox units, and the viewBox height. */
+/** Zap gap height in the button's viewBox units, and the viewBox's top and height (edge to edge). */
 export const GAP_UNITS = 116;
-export const BUTTON_VB_HEIGHT = 132;
+export const BUTTON_VB_TOP = -14;
+export const BUTTON_VB_HEIGHT = 116;
 
 /** The splash bolt's square: SPLASH_IMAGE_WIDTH points, centred on the screen. */
 export function splashSquare(screen: { width: number; height: number }, imageWidth: number): Rect {
@@ -49,8 +50,8 @@ export function gapEnds(button: Rect): { top: Point; bottom: Point } {
   const cx = button.x + button.width / 2;
   // Tips at viewBox (1008,-14) and (992,102); the viewBox's x 1000 is the centre.
   return {
-    top: { x: cx + 8 * unit, y: button.y + (-14 + 22) * unit },
-    bottom: { x: cx - 8 * unit, y: button.y + (102 + 22) * unit },
+    top: { x: cx + 8 * unit, y: button.y + (-14 - BUTTON_VB_TOP) * unit },
+    bottom: { x: cx - 8 * unit, y: button.y + (102 - BUTTON_VB_TOP) * unit },
   };
 }
 

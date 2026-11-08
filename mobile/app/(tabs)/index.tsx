@@ -2,6 +2,7 @@ import {
   View,
   Text,
   ScrollView,
+  Animated,
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
@@ -30,7 +31,8 @@ import { showAlert } from '@/lib/dialogs';
 import { SplitActionButton } from '@/components/SplitActionButton';
 import { replayIntro } from '@/lib/intro-state';
 import Svg, { Path } from 'react-native-svg';
-import { ScreenGradient, heroSecondary } from '@/components/Rim';
+import { ScreenGradient, StatusBarBand, useGradientScroll, heroSecondary } from '@/components/Rim';
+import { useTabBarSpace } from '@/lib/tab-bar';
 import { resolveWidgetLayout, widgetRows } from '@shared/home-widgets';
 import { rimTile } from '@/theme/rim';
 
@@ -207,7 +209,8 @@ function makeStyles(c: Colors, isDark: boolean) {
     nudgeCard: { ...rimTile(c, isDark), flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
     nudgeIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
     nudgeText: { flex: 1, fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink, lineHeight: 18 },
-    pipelineHalfGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+    // flex + alignContent stretch: next to a taller tile, the cells grow to match its height.
+    pipelineHalfGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10, flex: 1, alignContent: 'stretch' },
     pipelineHalfCell: { ...rimTile(c, isDark), width: '47%', padding: 10, gap: 2 },
     pipelineHalfNum: { fontSize: 22, fontFamily: 'HostGrotesk_800ExtraBold', letterSpacing: -0.5 },
     pipelineHalfLabel: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.muted },
@@ -258,6 +261,8 @@ export default function HomeScreen() {
   const customerCount = ((customersList as any[]) || []).length;
   const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const { scrollY, scrollProps } = useGradientScroll();
+  const tabSpace = useTabBarSpace();
 
   useFocusEffect(useCallback(() => {
     if (Platform.OS === 'web') {
@@ -488,7 +493,7 @@ export default function HomeScreen() {
 
       case 'pipeline':
         return half ? (
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={s.eyebrow}>Pipeline</Text>
             <View style={s.pipelineHalfGrid}>
               {[
@@ -535,15 +540,15 @@ export default function HomeScreen() {
 
       case 'revenue':
         return half ? (
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={s.eyebrow}>Revenue</Text>
-            <View style={[s.card, { marginTop: 10 }]}>
+            <View style={[s.card, { marginTop: 10, flex: 1 }]}>
               {([
                 { label: 'Paid',    amount: totalPaid,    color: c.green  },
                 { label: 'Pending', amount: totalPending, color: c.blue     },
                 { label: 'Overdue', amount: totalOverdue, color: c.orange },
               ] as const).map((row, i) => (
-                <View key={row.label} style={[s.rvHalfRow, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
+                <View key={row.label} style={[s.rvHalfRow, { flex: 1 }, i > 0 && { borderTopWidth: 1, borderTopColor: c.lineSoft }]}>
                   <Text style={s.rvHalfLabel}>{row.label}</Text>
                   <AnimatedNumber value={row.amount} style={[s.rvHalfAmt, { color: row.color }]} />
                 </View>
@@ -750,10 +755,11 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
-      <ScrollView
+      <Animated.ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 130 }}
+        contentContainerStyle={{ paddingBottom: tabSpace }}
+        {...scrollProps}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.orange} />}
       >
         {/* Full orange at the top fading to the page by 560px. It scrolls away with
@@ -837,7 +843,8 @@ export default function HomeScreen() {
             VARGEN · v1.0
           </Text>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
+      <StatusBarBand intensity="hero" scrollY={scrollY} id="homeBand" />
     </SafeAreaView>
   );
 }
