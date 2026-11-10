@@ -18,6 +18,7 @@ import { isValidISODate, toISODate } from '@/lib/dates';
 import { ChevronLeft, Camera, ImageIcon, RotateCw, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { apiRequest } from '@/lib/api';
+import type { ReceiptLine } from '@shared/receipt-lines';
 import { useCreateReceipt } from '@/hooks/use-receipts';
 import { receiptImageDataUri } from '@/lib/receipt-image';
 import { ReceiptLineItems, ReceiptTotalWarning } from '@/components/ReceiptLineItems';
@@ -32,7 +33,10 @@ interface ScanResult {
   date: string;
   total: string;
   category: string;
-  items: Array<{ description: string; amount: number }>;
+  items: ReceiptLine[];
+  /** Pricing step 4: whether the receipt's prices include GST (null = not stated), and a whole-receipt discount. */
+  pricesIncludeGst?: boolean | null;
+  receiptDiscount?: number | null;
   notes: string;
 }
 
@@ -51,7 +55,9 @@ export default function ScanReceiptScreen() {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Other');
   const [notes, setNotes] = useState('');
-  const [lineItems, setLineItems] = useState<Array<{ description: string; amount: number }>>([]);
+  const [lineItems, setLineItems] = useState<ReceiptLine[]>([]);
+  const [pricesIncludeGst, setPricesIncludeGst] = useState<boolean | null>(null);
+  const [receiptDiscount, setReceiptDiscount] = useState<number | null>(null);
 
   // Opened from a job's page, the receipt starts linked to that job. The param
   // can arrive a render late, so adopt it when it does — unless the tradie has
@@ -78,6 +84,8 @@ export default function ScanReceiptScreen() {
     setCategory(CATEGORIES.includes(result.category as any) ? result.category : 'Other');
     setNotes(result.notes || '');
     setLineItems(result.items || []);
+    setPricesIncludeGst(result.pricesIncludeGst ?? null);
+    setReceiptDiscount(result.receiptDiscount ?? null);
   };
 
   const scanImage = async (asset: ImagePicker.ImagePickerAsset) => {
@@ -153,6 +161,8 @@ export default function ScanReceiptScreen() {
         category: category || undefined,
         notes: notes || undefined,
         items: lineItems.length > 0 ? JSON.stringify(lineItems) : undefined,
+        pricesIncludeGst,
+        receiptDiscount,
         jobId: jobId ?? undefined,
       });
       // Back to the job it was added from; otherwise to the receipts list.

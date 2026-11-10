@@ -292,7 +292,16 @@ export const receipts = pgTable("receipts", {
   totalAmount: text("total_amount").notNull().default("0"),
   category: text("category").default("Other"),
   notes: text("notes"),
-  items: text("items"), // JSON array of { description, amount }
+  /**
+   * JSON array of lines (shared/receipt-lines.ts): { description, amount } and,
+   * from pricing step 4, quantity, unit, unitPrice and lineDiscount when printed.
+   * Old receipts have description and amount only; both shapes read the same.
+   */
+  items: text("items"),
+  /** The receipt's prices include GST (normal for an Australian tax invoice). Null = not stated. */
+  pricesIncludeGst: boolean("prices_include_gst"),
+  /** A discount on the whole receipt, not tied to a line. Such a receipt is an expense but teaches no prices. */
+  receiptDiscount: numeric("receipt_discount", { precision: 12, scale: 2 }),
   jobId: integer("job_id"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (t) => ({

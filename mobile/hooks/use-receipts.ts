@@ -30,6 +30,9 @@ export function useCreateReceipt() {
       notes?: string;
       items?: string;
       jobId?: number | null;
+      /** Pricing step 4: what the scan read about GST and any whole-receipt discount. */
+      pricesIncludeGst?: boolean | null;
+      receiptDiscount?: number | null;
     }) => {
       const res = await apiRequest('POST', '/api/receipts', data);
       if (!res.ok) throw new Error('Failed to save receipt');

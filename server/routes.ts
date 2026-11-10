@@ -10,6 +10,7 @@ import { checkLinePrice } from "../shared/price-sanity";
 import { isHourlyUnit } from "../shared/labour-panel";
 import { applyPriceList, newestPrices } from "../shared/price-list";
 import { quickSetupEntries, cleanSuggestions } from "../shared/quick-setup";
+import { cleanReceiptLines, cleanGstFlag, cleanReceiptDiscount } from "../shared/receipt-lines";
 import { labourLineCost } from "./lib/labour-cost";
 import { resolvePricingInputs, enforceCallOut } from "./lib/pricing-inputs";
 import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
@@ -3160,14 +3161,21 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
   "date": "YYYY-MM-DD or empty string if not found",
   "total": 0.00,
   "category": "one of: Materials, Equipment, Fuel, Subcontractor, Food, Other",
-  "items": [{ "description": "item name", "amount": 0.00 }],
+  "pricesIncludeGst": true,
+  "receiptDiscount": 0.00,
+  "items": [{ "description": "item as printed", "quantity": null, "unit": "", "unitPrice": null, "amount": 0.00, "lineDiscount": 0.00 }],
   "notes": "any useful notes or empty string"
 }
 
 Rules:
 - "total" is the final amount paid: the line labelled AMOUNT DUE, TOTAL, or TOTAL (INC. GST), including GST and any surcharge. Never the subtotal. Copy every digit exactly.
-- Include every purchased line as an item, in order. Skip subtotal, GST, surcharge, payment and change lines.
-- Each item's "amount" is that line's total price (quantity × unit price), taken from the same line or the price printed beside it. Do not shift prices between items.
+- Include every purchased line as an item, in order. Skip subtotal, GST, surcharge, payment, card, account, loyalty and change lines.
+- Each item's "description" is the item text exactly as printed (e.g. "SL82 MESH 6X2.4").
+- "quantity", "unit" (as printed, e.g. EA, LM, BAG, M) and "unitPrice" (per unit, as printed): copy them only if the receipt prints them. If not printed, use null for numbers and "" for unit. Never work them out or guess.
+- Each item's "amount" is the price actually paid for that line (quantity × unit price, after any discount printed on that line), taken from the same line or the price printed beside it. Do not shift prices between items.
+- "lineDiscount": a discount printed against that line, else 0. "receiptDiscount": a discount on the whole receipt that isn't tied to a line, else 0.
+- "pricesIncludeGst": true when the receipt shows the prices include GST (e.g. "Total includes GST", "GST incl"), false when it shows GST added on top of ex-GST prices, null if it doesn't say.
+- Never include card numbers, account numbers or loyalty numbers anywhere.
 - The item amounts should add up to roughly the total (before any surcharge). If they don't, re-read the prices.
 - Dates on Australian receipts are day first: 05/03/2026 is 5 March 2026.
 
@@ -3190,7 +3198,9 @@ If you cannot read the image clearly, return your best guess. Always return vali
       const ask = (withReasoningOff: boolean) => openai.chat.completions.create({
         model: AI_VISION_MODEL,
         messages,
-        max_tokens: 700,
+        // A trade receipt with quantities and units is more JSON than the old
+        // description-and-amount list; still well under Groq's 1,000/min cap.
+        max_tokens: 950,
         temperature: 0,
         ...(withReasoningOff ? { reasoning_effort: "none" } : {}),
       } as any);
@@ -3236,7 +3246,11 @@ If you cannot read the image clearly, return your best guess. Always return vali
         date: isValidISODate(scanDate) ? scanDate : '',
         total: total.toFixed(2),
         category: parsed.category || 'Other',
-        items: Array.isArray(parsed.items) ? parsed.items : [],
+        // Only the fields pricing needs, numbers as numbers; payment and
+        // loyalty lines and long digit runs dropped (shared/receipt-lines).
+        items: cleanReceiptLines(parsed.items),
+        pricesIncludeGst: cleanGstFlag(parsed.pricesIncludeGst),
+        receiptDiscount: cleanReceiptDiscount(parsed.receiptDiscount),
         notes: parsed.notes || '',
       });
     } catch (err: any) {
@@ -3272,6 +3286,11 @@ If you cannot read the image clearly, return your best guess. Always return vali
       const jobId = await ownedReceiptJobId(body.jobId, req.userId);
       if (jobId === undefined) return res.status(404).json({ message: "Job not found" });
       body.jobId = jobId;
+      // Whatever the phone sends, store only the known line fields.
+      if (body.items !== undefined && body.items !== null) body.items = JSON.stringify(cleanReceiptLines(body.items));
+      body.pricesIncludeGst = cleanGstFlag(body.pricesIncludeGst);
+      const discount = cleanReceiptDiscount(body.receiptDiscount);
+      body.receiptDiscount = discount == null ? null : String(discount);
       const receipt = await storage.createReceipt({ ...body, userId: req.userId });
       res.status(201).json(receipt);
     } catch (err: any) {
@@ -3290,7 +3309,8 @@ If you cannot read the image clearly, return your best guess. Always return vali
       const id = Number(req.params.id);
       const existing = await storage.getReceipt(id, req.userId);
       if (!existing) return res.status(404).json({ message: "Not found" });
-      const { vendor, receiptDate, totalAmount, category, notes, items } = req.body;
+      const { vendor, receiptDate, totalAmount, category, notes } = req.body;
+      const items = req.body.items === undefined || req.body.items === null ? req.body.items : JSON.stringify(cleanReceiptLines(req.body.items));
       // null detaches the receipt from its job; an id must be one of your jobs.
       let jobId: number | null | undefined;
       if (req.body.jobId !== undefined) {
@@ -3305,6 +3325,8 @@ If you cannot read the image clearly, return your best guess. Always return vali
         ...(category !== undefined && { category }),
         ...(notes !== undefined && { notes }),
         ...(items !== undefined && { items }),
+        ...(req.body.pricesIncludeGst !== undefined && { pricesIncludeGst: cleanGstFlag(req.body.pricesIncludeGst) }),
+        ...(req.body.receiptDiscount !== undefined && { receiptDiscount: (() => { const d = cleanReceiptDiscount(req.body.receiptDiscount); return d == null ? null : String(d); })() }),
         ...(jobId !== undefined && { jobId }),
       });
       res.json(updated);

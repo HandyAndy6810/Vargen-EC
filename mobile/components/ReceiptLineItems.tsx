@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react-native';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { receiptItems, receiptTotalMismatch } from '@shared/receipt-check';
+import { cleanReceiptLines } from '@shared/receipt-lines';
 
 const money = (n: number) =>
   `$${n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -36,6 +37,8 @@ export function ReceiptLineItems({ items, title = 'Line items' }: { items: unkno
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   const list = receiptItems(items);
+  // Quantity × unit price where the receipt printed them (pricing step 4); old receipts have neither.
+  const detail = cleanReceiptLines(items);
   if (list.length === 0) return null;
   const sum = list.reduce((acc, it) => acc + (Number.isFinite(it.amount) ? it.amount : 0), 0);
 
@@ -44,7 +47,16 @@ export function ReceiptLineItems({ items, title = 'Line items' }: { items: unkno
       <Text style={s.label}>{title}</Text>
       {list.map((item, idx) => (
         <View key={idx} style={[s.row, idx > 0 && s.rowBorder]}>
-          <Text style={s.desc} numberOfLines={2}>{item.description || 'Item'}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.desc} numberOfLines={2}>{item.description || 'Item'}</Text>
+            {detail[idx]?.quantity != null ? (
+              <Text style={s.sub}>
+                {detail[idx].quantity}{detail[idx].unit ? ` ${detail[idx].unit}` : ''}
+                {detail[idx].unitPrice != null ? ` × ${money(detail[idx].unitPrice!)}` : ''}
+                {detail[idx].lineDiscount ? `  ·  ${money(detail[idx].lineDiscount!)} off` : ''}
+              </Text>
+            ) : null}
+          </View>
           <Text style={s.amt}>{Number.isFinite(item.amount) ? money(item.amount) : '—'}</Text>
         </View>
       ))}
@@ -61,7 +73,8 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   label: { fontSize: 10, fontFamily: 'HostGrotesk_800ExtraBold', color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9, gap: 12 },
   rowBorder: { borderTopWidth: 1, borderTopColor: c.lineSoft },
-  desc: { flex: 1, fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.ink },
+  desc: { fontSize: 13, fontFamily: 'HostGrotesk_500Medium', color: c.ink },
+  sub: { fontSize: 11.5, fontFamily: 'HostGrotesk_500Medium', color: c.muted, marginTop: 2 },
   amt: { fontSize: 13, fontFamily: 'HostGrotesk_700Bold', color: c.ink },
   sumLabel: { flex: 1, fontSize: 12, fontFamily: 'HostGrotesk_700Bold', color: c.mutedHi },
   sumAmt: { fontSize: 13, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
