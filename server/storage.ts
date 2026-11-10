@@ -93,6 +93,8 @@ export interface IStorage {
   deleteUnsure(userId: string, id: number): Promise<void>;
   /** Quick setup has been offered to this tradie (sets user_settings.quick_setup_seen_at once). */
   markQuickSetupSeen(userId: string): Promise<void>;
+  /** Every AI generation's response behind a quote (the "AI" side of learning from edits). */
+  getGenerationResponses(userId: string, quoteId: number): Promise<string[]>;
   /** Learn from a quote's first send: lines the tradie changed versus every AI generation behind it. */
   learnPricesFromSentQuote(userId: string, quoteId: number, content: string): Promise<number>;
 
@@ -527,6 +529,12 @@ export class DatabaseStorage implements IStorage {
     // Settings rows are made lazily; an account without one yet gets it here.
     await db.insert(userSettings).values({ userId, quickSetupSeenAt: new Date() })
       .onConflictDoUpdate({ target: userSettings.userId, set: { quickSetupSeenAt: sql`coalesce(${userSettings.quickSetupSeenAt}, now())` } });
+  }
+
+  async getGenerationResponses(userId: string, quoteId: number): Promise<string[]> {
+    const gens = await db.select({ response: aiGenerations.response }).from(aiGenerations)
+      .where(and(eq(aiGenerations.quoteId, quoteId), eq(aiGenerations.userId, userId)));
+    return gens.map((g) => g.response);
   }
 
   async learnPricesFromSentQuote(userId: string, quoteId: number, content: string): Promise<number> {

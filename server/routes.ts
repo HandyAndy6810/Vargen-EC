@@ -8,7 +8,8 @@ import { num, round2, totalsFor, gstRateFor } from "../shared/money";
 import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
 import { isHourlyUnit } from "../shared/labour-panel";
-import { applyPriceList, newestPrices } from "../shared/price-list";
+import { applyPriceList, applyPriceMatches, newestPrices, learnedPrices } from "../shared/price-list";
+import { resolveQuoteMatches, matchLearnedEntries } from "./lib/quote-prices";
 import { quickSetupEntries, cleanSuggestions } from "../shared/quick-setup";
 import { cleanReceiptLines, cleanGstFlag, cleanReceiptDiscount } from "../shared/receipt-lines";
 import { priceReceipt } from "./lib/receipt-prices";
@@ -755,7 +756,17 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
     }
     if (!first) return;
     try {
-      const learned = await storage.learnPricesFromSentQuote(userId, quoteId, content);
+      // Learned from the lines the tradie changed (shared/price-list), then
+      // stored against the item they match (pricing step 4), so an edit and a
+      // receipt for the same thing update one entry.
+      const responses = await storage.getGenerationResponses(userId, quoteId);
+      const entries = await matchLearnedEntries(
+        learnedPrices(responses, content),
+        await storage.getPriceList(userId),
+        await storage.getRememberedMatches(userId),
+        completeJson,
+      );
+      const learned = await storage.addPrices(userId, entries, { source: "edit" });
       if (learned) console.log(`[quote ${quoteId}] learned ${learned} price(s) for the tradie's price list`);
     } catch (err) {
       console.error(`[quote ${quoteId}] could not learn prices from the sent quote:`, err);
@@ -1391,8 +1402,21 @@ CRITICAL RULES — follow these exactly:
         // material line is marked "estimate" (docs/pricing-design.md, step 2).
         // Before the capture below, so the record compares the sent quote with
         // exactly what the phone received. A failed lookup only loses the badges.
+        //
+        // Through the matching engine (pricing step 4): remembered, plain, then
+        // one batched AI call for lines still unmatched, so a receipt's "SL82 MESH"
+        // reaches an AI line called "SL82 mesh sheet". If matching fails, plain
+        // matching still applies; if that fails too, the AI's figures stand.
         try {
-          parsed.items = applyPriceList(parsed.items, newestPrices(await storage.getPriceList(req.userId)), markupNum ?? 0);
+          const rows = await storage.getPriceList(req.userId);
+          try {
+            // A tighter wait than receipts: the tradie is watching this quote build.
+            const matches = await resolveQuoteMatches(parsed.items, rows, await storage.getRememberedMatches(req.userId), completeJson, { timeoutMs: 8_000 });
+            parsed.items = applyPriceMatches(parsed.items, matches, markupNum ?? 0);
+          } catch (err) {
+            console.error("[price list] matching failed; plain matching only:", err);
+            parsed.items = applyPriceList(parsed.items, newestPrices(rows), markupNum ?? 0);
+          }
         } catch (err) {
           console.error("[price list] lookup failed; the quote keeps the AI's figures:", err);
         }
