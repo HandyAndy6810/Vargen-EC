@@ -7,6 +7,7 @@ import { isValidISODate, toISODate } from "../shared/mobile-types";
 import { num, round2, totalsFor, gstRateFor } from "../shared/money";
 import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
+import { isHourlyUnit } from "../shared/labour-panel";
 import { labourLineCost } from "./lib/labour-cost";
 import { resolvePricingInputs, enforceCallOut } from "./lib/pricing-inputs";
 import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
@@ -1343,9 +1344,7 @@ CRITICAL RULES — follow these exactly:
           // reasonable at; what an hour COSTS is a fact the tradie already knows.
           // So the hours stand and the rate is imposed, for hourly lines only —
           // labour billed as a lot or a flat fee has no rate to apply.
-          const hourly = ["hr", "hrs", "hour", "hours"].includes(
-            String(item.unit || "").trim().toLowerCase()
-          );
+          const hourly = isHourlyUnit(item.unit);
           const useRate = category === "labour" && hourly && labourRateNum;
           const unitPrice = useRate ? labourRateNum : price;
           // The price is the charge-out rate; see labourLineCost for the cost.
