@@ -8,6 +8,7 @@ import {
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { markQuickSetupOffered } from '@/lib/quick-setup-offer';
 import {
   Home,
   FileText,
@@ -76,10 +77,12 @@ export default function OnboardingScreen() {
 
   const dismiss = async () => {
     await AsyncStorage.setItem('onboarding_seen', 'true');
-    // Land on home, then open the quote flow — the first thing a new tradie
-    // should do is see a quote build itself
+    // Land on home, then quick setup (their prices, all optional, with a Skip),
+    // then the quote flow: the first thing a new tradie should do is see a quote
+    // build itself, and with their prices in it if they gave any.
+    markQuickSetupOffered();
     router.replace('/(tabs)');
-    router.push('/quotes/create' as any);
+    router.push('/settings/quick-setup?first=1&then=quote' as any);
   };
 
   const goTo = async (route: string) => {

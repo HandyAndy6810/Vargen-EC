@@ -64,6 +64,8 @@ export interface IStorage {
   /** Every price row, numbers as numbers (numeric columns read back as strings). */
   getPriceList(userId: string): Promise<StoredPrice[]>;
   addPrices(userId: string, entries: PriceEntry[], supplier?: string | null): Promise<number>;
+  /** Quick setup has been offered to this tradie (sets user_settings.quick_setup_seen_at once). */
+  markQuickSetupSeen(userId: string): Promise<void>;
   /** Learn from a quote's first send: lines the tradie changed versus every AI generation behind it. */
   learnPricesFromSentQuote(userId: string, quoteId: number, content: string): Promise<number>;
 
@@ -431,6 +433,12 @@ export class DatabaseStorage implements IStorage {
       supplier,
     }))).returning({ id: priceListItems.id });
     return rows.length;
+  }
+
+  async markQuickSetupSeen(userId: string): Promise<void> {
+    // Settings rows are made lazily; an account without one yet gets it here.
+    await db.insert(userSettings).values({ userId, quickSetupSeenAt: new Date() })
+      .onConflictDoUpdate({ target: userSettings.userId, set: { quickSetupSeenAt: sql`coalesce(${userSettings.quickSetupSeenAt}, now())` } });
   }
 
   async learnPricesFromSentQuote(userId: string, quoteId: number, content: string): Promise<number> {

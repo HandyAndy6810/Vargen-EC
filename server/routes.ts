@@ -9,6 +9,7 @@ import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
 import { isHourlyUnit } from "../shared/labour-panel";
 import { applyPriceList, newestPrices } from "../shared/price-list";
+import { quickSetupEntries, cleanSuggestions } from "../shared/quick-setup";
 import { labourLineCost } from "./lib/labour-cost";
 import { resolvePricingInputs, enforceCallOut } from "./lib/pricing-inputs";
 import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
@@ -1423,6 +1424,80 @@ CRITICAL RULES — follow these exactly:
           ? "The attached image couldn't be read — try a clearer photo or remove it and describe the job instead."
           : (msg || "Failed to generate quote"),
       });
+    }
+  });
+
+  // ── The tradie's own price list (docs/pricing-design.md, steps 2 and 3) ──
+
+  /** Their saved prices, newest per item and unit: quick setup fills its boxes from these. */
+  app.get("/api/price-list", requireAuth, async (req: any, res) => {
+    try {
+      const newest = [...newestPrices(await storage.getPriceList(req.userId)).values()];
+      res.json(newest.map((r) => ({ item: r.item, unit: r.unit, unitPrice: r.unitPrice, priceDate: r.priceDate })));
+    } catch (err) {
+      console.error("[price list] read failed:", err);
+      res.status(500).json({ message: "Could not load your prices." });
+    }
+  });
+
+  /**
+   * Quick setup: what the tradie typed in the price boxes. Each one becomes
+   * "your price" straight away. Junk is dropped and a figure the sanity bands
+   * flag is held back and named, never saved (shared/quick-setup.ts).
+   */
+  app.post("/api/price-list/quick-setup", requireAuth, async (req: any, res) => {
+    try {
+      const { entries, heldBack } = quickSetupEntries(req.body);
+      const saved = await storage.addPrices(req.userId, entries);
+      await storage.markQuickSetupSeen(req.userId);
+      res.json({ saved, heldBack });
+    } catch (err) {
+      console.error("[quick setup] save failed:", err);
+      res.status(500).json({ message: "Could not save your prices. Try again." });
+    }
+  });
+
+  /** Quick setup was shown (offered once): Skip and Save both end here too. */
+  app.post("/api/price-list/quick-setup/seen", requireAuth, async (req: any, res) => {
+    try {
+      await storage.markQuickSetupSeen(req.userId);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("[quick setup] could not mark it seen:", err);
+      res.status(500).json({ message: "Could not save that." });
+    }
+  });
+
+  /**
+   * "Other" trade: the tradie says what they do in plain words, and the AI
+   * suggests the items they'd likely charge for, and how (per hour, per item,
+   * per package). Names and units only: the AI never writes a price. The phone
+   * shows these clearly marked as suggestions to edit, delete or add to.
+   */
+  app.post("/api/price-list/suggest", requireAuth, aiRateLimit, async (req: any, res) => {
+    const what = typeof req.body?.description === "string" ? req.body.description.trim().slice(0, 200) : "";
+    if (!what) return res.status(400).json({ message: "Say what you do first." });
+    try {
+      const response = await openai.chat.completions.create({
+        model: AI_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: `A small Australian business owner describes what they do. List the things they most likely charge for or buy for the work, as they would name them on a quote, each with how it is charged.
+Return JSON only: {"items":[{"item":"short name","unit":"hour | item | package | each | m² | lineal m | litre | kg | job"}]}
+Rules: at most 12 items; the most common first; no prices, ever; no brand names; plain Australian English.`,
+          },
+          { role: "user", content: what },
+        ],
+        max_tokens: 600,
+        response_format: { type: "json_object" },
+      });
+      let parsed: unknown = {};
+      try { parsed = JSON.parse(response.choices[0]?.message?.content || "{}"); } catch { parsed = {}; }
+      res.json({ items: cleanSuggestions(parsed) });
+    } catch (error: any) {
+      console.error("[quick setup] suggest failed:", error);
+      res.status(500).json({ message: "Couldn't get suggestions right now. Add your own items instead." });
     }
   });
 
