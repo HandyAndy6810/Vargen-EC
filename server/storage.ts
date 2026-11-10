@@ -2,7 +2,7 @@ import { db } from "./db";
 import {
   customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
   invoices, portalFeedback, jobTemplates, receipts, customerMessages, aiGenerations,
-  priceListItems, sessions, users,
+  priceListItems, priceMatches, sessions, users,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem,
@@ -17,6 +17,7 @@ import {
 } from "../shared/schema";
 import { eq, desc, and, or, sql, inArray, getTableColumns } from "drizzle-orm";
 import { learnedPrices, type PriceEntry, type PriceRow } from "../shared/price-list";
+import type { Remembered } from "../shared/matcher";
 
 export type StoredPrice = PriceRow & { id: number; supplier: string | null };
 
@@ -64,6 +65,10 @@ export interface IStorage {
   /** Every price row, numbers as numbers (numeric columns read back as strings). */
   getPriceList(userId: string): Promise<StoredPrice[]>;
   addPrices(userId: string, entries: PriceEntry[], supplier?: string | null): Promise<number>;
+  /** The tradie's remembered matches (shared/matcher Remembered). */
+  getRememberedMatches(userId: string): Promise<Remembered[]>;
+  /** Remember (or update) a match for this line text and supplier. */
+  rememberMatch(userId: string, m: Remembered): Promise<void>;
   /** Quick setup has been offered to this tradie (sets user_settings.quick_setup_seen_at once). */
   markQuickSetupSeen(userId: string): Promise<void>;
   /** Learn from a quote's first send: lines the tradie changed versus every AI generation behind it. */
@@ -362,8 +367,9 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(receipts).where(eq(receipts.userId, userId));
       await tx.delete(customers).where(eq(customers.userId, userId));
 
-      // Account-level rows. The price list (and its history) goes too.
+      // Account-level rows. The price list (and its history) and the remembered matches go too.
       await tx.delete(priceListItems).where(eq(priceListItems.userId, userId));
+      await tx.delete(priceMatches).where(eq(priceMatches.userId, userId));
       await tx.delete(jobTemplates).where(eq(jobTemplates.userId, userId));
       await tx.delete(xeroTokens).where(eq(xeroTokens.userId, userId));
       await tx.delete(userSettings).where(eq(userSettings.userId, userId));
@@ -433,6 +439,24 @@ export class DatabaseStorage implements IStorage {
       supplier,
     }))).returning({ id: priceListItems.id });
     return rows.length;
+  }
+
+  async getRememberedMatches(userId: string): Promise<Remembered[]> {
+    const rows = await db.select().from(priceMatches).where(eq(priceMatches.userId, userId));
+    return rows.map((r) => ({
+      lineKey: r.lineKey, supplierKey: r.supplierKey, item: r.item, unit: r.unit,
+      factor: r.factor == null ? null : Number(r.factor), ignore: r.ignore,
+    }));
+  }
+
+  async rememberMatch(userId: string, m: Remembered): Promise<void> {
+    if (!m.lineKey) return;
+    const values = {
+      item: m.ignore ? null : m.item, unit: m.ignore ? null : m.unit,
+      factor: m.ignore || m.factor == null ? null : String(m.factor), ignore: m.ignore, lastUsedAt: new Date(),
+    };
+    await db.insert(priceMatches).values({ userId, lineKey: m.lineKey.slice(0, 200), supplierKey: m.supplierKey.slice(0, 120), ...values })
+      .onConflictDoUpdate({ target: [priceMatches.userId, priceMatches.lineKey, priceMatches.supplierKey], set: values });
   }
 
   async markQuickSetupSeen(userId: string): Promise<void> {

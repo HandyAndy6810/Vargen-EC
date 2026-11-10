@@ -1,7 +1,7 @@
 export * from "./models/auth";
 export * from "./models/chat";
 
-import { pgTable, text, serial, integer, boolean, timestamp, numeric, varchar, index, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, numeric, varchar, index, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -364,6 +364,33 @@ export const priceListItems = pgTable("price_list_items", {
 }, (t) => ({
   price_list_items_user_id_idx: index("price_list_items_user_id_idx").on(t.userId),
 }));
+
+/**
+ * Remembered matches (docs/pricing-design.md, step 4): a receipt line the tradie
+ * confirmed or corrected ("SL82 MESH 6X2.4" from Bunnings is their "Reinforcing
+ * mesh SL82, sheet"), or a confident AI match that was applied. The same line
+ * never needs the AI, or the tradie, again. Per tradie; deleted with the account.
+ */
+export const priceMatches = pgTable("price_matches", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  /** The line text, tidied (shared/matcher lineKey). */
+  lineKey: text("line_key").notNull(),
+  /** The supplier's name, tidied; '' when unknown. */
+  supplierKey: text("supplier_key").notNull().default(""),
+  /** The matched item and its unit; null when the tradie said "not a material, ignore it". */
+  item: text("item"),
+  unit: text("unit"),
+  /** How many of the item's unit one of the line's units is. */
+  factor: numeric("factor", { precision: 14, scale: 6 }),
+  ignore: boolean("ignore").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at").notNull().defaultNow(),
+}, (t) => ({
+  price_matches_user_line_idx: uniqueIndex("price_matches_user_line_idx").on(t.userId, t.lineKey, t.supplierKey),
+}));
+
+export type PriceMatch = typeof priceMatches.$inferSelect;
 
 export type PriceListItem = typeof priceListItems.$inferSelect;
 export type InsertPriceListItem = typeof priceListItems.$inferInsert;
