@@ -45,6 +45,7 @@ export async function priceReceipt(userId: string, receiptId: number, complete: 
 
   // Whatever this receipt taught before goes first: a re-save or an edit replaces it.
   await storage.deleteReceiptPrices(userId, receiptId);
+  await storage.clearUnsureForReceipt(userId, receiptId);
 
   const skip = pricingSkip(receipt);
   if (skip) return { ...result, skipped: skip };
@@ -94,5 +95,6 @@ export async function priceReceipt(userId: string, receiptId: number, complete: 
   result.saved = await storage.addPrices(userId, entries, {
     source: "receipt", receiptId, supplier: receipt.vendor, priceDate: receiptPriceDate(receipt),
   });
+  await storage.queueUnsure(userId, receiptId, receipt.vendor ?? null, receipt.receiptDate ?? null, result.unsure);
   return result;
 }

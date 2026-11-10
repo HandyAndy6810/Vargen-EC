@@ -400,6 +400,40 @@ export const priceMatches = pgTable("price_matches", {
 
 export type PriceMatch = typeof priceMatches.$inferSelect;
 
+/**
+ * The "Not sure what this is" list (docs/pricing-design.md, step 4): receipt
+ * lines the matcher couldn't place for certain, waiting for one tap from the
+ * tradie. Ignoring them is fine: they just don't price anything. Cleared when the
+ * receipt is saved again (then rebuilt) or deleted; deleted with the account.
+ */
+export const unsurePriceLines = pgTable("unsure_price_lines", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  receiptId: integer("receipt_id").notNull().references(() => receipts.id),
+  lineIndex: integer("line_index").notNull(),
+  /** The line as printed. */
+  lineText: text("line_text").notNull(),
+  unit: text("unit"),
+  supplier: text("supplier"),
+  receiptDate: text("receipt_date"),
+  quantity: numeric("quantity", { precision: 12, scale: 3 }).notNull(),
+  /** What one of these cost, as paid (GST as printed). */
+  perUnit: numeric("per_unit", { precision: 12, scale: 4 }).notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }),
+  /** The AI's best guess, if it had one (never a price). */
+  guessItem: text("guess_item"),
+  guessUnit: text("guess_unit"),
+  /** A certain conversion to the guess's unit, if one is known. */
+  guessFactor: numeric("guess_factor", { precision: 14, scale: 6 }),
+  /** The AI's own idea of the conversion: a hint for the tradie, never applied on its own. */
+  guessAiFactor: numeric("guess_ai_factor", { precision: 14, scale: 6 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  unsure_price_lines_user_id_idx: index("unsure_price_lines_user_id_idx").on(t.userId),
+}));
+
+export type UnsurePriceLine = typeof unsurePriceLines.$inferSelect;
+
 export type PriceListItem = typeof priceListItems.$inferSelect;
 export type InsertPriceListItem = typeof priceListItems.$inferInsert;
 

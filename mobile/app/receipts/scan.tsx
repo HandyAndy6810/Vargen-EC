@@ -13,7 +13,9 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { showAlert } from '@/lib/dialogs';
+import { showAlert, showConfirm } from '@/lib/dialogs';
+import { queryClient } from '@/lib/queryClient';
+import { UNSURE_KEY } from '@/hooks/use-unsure';
 import { isValidISODate, toISODate } from '@/lib/dates';
 import { ChevronLeft, Camera, ImageIcon, RotateCw, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -154,7 +156,7 @@ export default function ScanReceiptScreen() {
       return;
     }
     try {
-      await createReceipt.mutateAsync({
+      const saved = await createReceipt.mutateAsync({
         vendor: vendor || undefined,
         receiptDate: date || undefined,
         totalAmount: amount,
@@ -166,8 +168,22 @@ export default function ScanReceiptScreen() {
         jobId: jobId ?? undefined,
       });
       // Back to the job it was added from; otherwise to the receipts list.
-      if (entryJobId) router.back();
-      else router.replace('/receipts' as any);
+      const leave = () => { if (entryJobId) router.back(); else router.replace('/receipts' as any); };
+      // Lines we couldn't match for sure (pricing step 4): offer to sort them, never insist.
+      const unsure = Number(saved?.pricing?.unsure) || 0;
+      if (unsure > 0) {
+        queryClient.invalidateQueries({ queryKey: UNSURE_KEY });
+        showConfirm({
+          title: `${unsure} ${unsure === 1 ? 'item' : 'items'} we weren't sure about`,
+          message: 'Sort them now? One tap each, and we\'ll remember for next time.',
+          confirmLabel: 'Sort them',
+          cancelLabel: 'Later',
+          onConfirm: () => router.replace('/settings/unsure-prices' as any),
+          onCancel: leave,
+        });
+        return;
+      }
+      leave();
     } catch (err: any) {
       const msg = err?.message || 'Could not save receipt. Please try again.';
       showAlert('Save failed', msg);

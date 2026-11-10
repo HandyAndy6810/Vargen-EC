@@ -12,6 +12,10 @@ import { applyPriceList, newestPrices } from "../shared/price-list";
 import { quickSetupEntries, cleanSuggestions } from "../shared/quick-setup";
 import { cleanReceiptLines, cleanGstFlag, cleanReceiptDiscount } from "../shared/receipt-lines";
 import { priceReceipt } from "./lib/receipt-prices";
+import { lineKey, supplierKey, resolutionFactor } from "../shared/matcher";
+import { receiptCandidates } from "../shared/match-candidates";
+import { priceFromMatch, receiptPriceDate } from "../shared/receipt-pricing";
+import type { UnsurePriceLine } from "../shared/schema";
 import { labourLineCost } from "./lib/labour-cost";
 import { resolvePricingInputs, enforceCallOut } from "./lib/pricing-inputs";
 import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
@@ -1458,6 +1462,86 @@ CRITICAL RULES — follow these exactly:
   }
 
   // ── The tradie's own price list (docs/pricing-design.md, steps 2 and 3) ──
+
+  // ── The "Not sure what this is" list (pricing step 4) ──────────────────
+
+  const unsureView = (r: UnsurePriceLine) => ({
+    id: r.id, receiptId: r.receiptId, text: r.lineText, unit: r.unit, supplier: r.supplier, receiptDate: r.receiptDate,
+    quantity: Number(r.quantity), perUnit: Number(r.perUnit), amount: r.amount == null ? null : Number(r.amount),
+    guess: r.guessItem && r.guessUnit ? {
+      item: r.guessItem, unit: r.guessUnit,
+      factor: r.guessFactor == null ? null : Number(r.guessFactor),
+      aiFactor: r.guessAiFactor == null ? null : Number(r.guessAiFactor),
+    } : null,
+  });
+
+  /** The tradie's unsure lines (optionally one receipt's), newest first. */
+  app.get("/api/price-unsure", requireAuth, async (req: any, res) => {
+    const receiptId = req.query.receiptId != null ? Number(req.query.receiptId) : undefined;
+    if (receiptId !== undefined && !Number.isInteger(receiptId)) return res.status(400).json({ message: "Bad receipt" });
+    res.json((await storage.listUnsure(req.userId, receiptId)).map(unsureView));
+  });
+
+  /** "It's something else": their items and their trade's catalogue, to search. */
+  app.get("/api/price-unsure/choices", requireAuth, async (req: any, res) => {
+    const list = [...newestPrices(await storage.getPriceList(req.userId)).values()];
+    const settings = await storage.getUserSettings(req.userId);
+    res.json(receiptCandidates(list, settings?.tradeType));
+  });
+
+  /**
+   * Sort one line: "yes" (the AI's guess), "item" (one of theirs, or a new one)
+   * or "ignore" (not a material). Remembered for this tradie and supplier, so
+   * the same line never asks again; "yes" and "item" also save the price, by
+   * the same rules as any receipt line. When the units differ and no conversion
+   * is certain, the answer to "How many [unit] is one of these?" is required.
+   */
+  app.post("/api/price-unsure/:id/resolve", requireAuth, async (req: any, res) => {
+    try {
+      const row = await storage.getUnsure(req.userId, Number(req.params.id));
+      if (!row) return res.status(404).json({ message: "Not found" });
+      const action = req.body?.action;
+      const memo = { lineKey: lineKey(row.lineText), supplierKey: supplierKey(row.supplier) };
+
+      if (action === "ignore") {
+        await storage.rememberMatch(req.userId, { ...memo, item: null, unit: null, factor: null, ignore: true });
+        await storage.deleteUnsure(req.userId, row.id);
+        return res.json({ saved: 0 });
+      }
+
+      let item: string, unit: string;
+      if (action === "yes") {
+        if (!row.guessItem || !row.guessUnit) return res.status(400).json({ message: "There's no guess for this one." });
+        item = row.guessItem; unit = row.guessUnit;
+      } else if (action === "item") {
+        item = typeof req.body?.item === "string" ? req.body.item.trim().slice(0, 200) : "";
+        unit = typeof req.body?.unit === "string" ? req.body.unit.trim().slice(0, 30) : "";
+        if (!item || !unit) return res.status(400).json({ message: "Choose an item and its unit." });
+      } else {
+        return res.status(400).json({ message: "Unknown choice." });
+      }
+
+      const factor = resolutionFactor(row.lineText, row.unit, unit, req.body?.factor);
+      if (!factor) return res.status(422).json({ needsConversion: true, itemUnit: unit, message: `How many ${unit} is one of these?` });
+
+      await storage.rememberMatch(req.userId, { ...memo, item, unit, factor, ignore: false });
+      const receipt = await storage.getReceipt(row.receiptId, req.userId);
+      let saved = 0;
+      if (receipt) {
+        const entry = priceFromMatch(receipt, { quantity: Number(row.quantity), perUnit: Number(row.perUnit) }, { item, unit, factor });
+        if (entry) {
+          saved = await storage.addPrices(req.userId, [entry], {
+            source: "receipt", receiptId: receipt.id, supplier: receipt.vendor, priceDate: receiptPriceDate(receipt),
+          });
+        }
+      }
+      await storage.deleteUnsure(req.userId, row.id);
+      res.json({ saved, heldBack: saved === 0 });
+    } catch (err) {
+      console.error("[not sure] resolve failed:", err);
+      res.status(500).json({ message: "Couldn't save that. Try again." });
+    }
+  });
 
   /** Their saved prices, newest per item and unit: quick setup fills its boxes from these. */
   app.get("/api/price-list", requireAuth, async (req: any, res) => {

@@ -154,6 +154,18 @@ export function conversionFactor(text: string, lineUnit: unknown, itemUnit: unkn
   return null;
 }
 
+/**
+ * The conversion to use when the tradie sorts a line: a certain one if there is
+ * one, else the number they typed for "How many [unit] is one of these?".
+ * Null means we must ask.
+ */
+export function resolutionFactor(text: string, lineUnit: unknown, itemUnit: unknown, typed?: unknown): number | null {
+  const known = conversionFactor(text, lineUnit, itemUnit);
+  if (known) return known;
+  const n = typeof typed === 'number' ? typed : Number(String(typed ?? '').trim());
+  return Number.isFinite(n) && n > 0 && n <= 100_000 ? n : null;
+}
+
 // ── Matching ─────────────────────────────────────────────────────────────────
 
 /** Remembered, then plain. `needs_ai` when neither applies. */

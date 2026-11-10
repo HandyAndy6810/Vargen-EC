@@ -2,7 +2,7 @@ import { db } from "./db";
 import {
   customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
   invoices, portalFeedback, jobTemplates, receipts, customerMessages, aiGenerations,
-  priceListItems, priceMatches, sessions, users,
+  priceListItems, priceMatches, unsurePriceLines, sessions, users,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem,
@@ -13,13 +13,19 @@ import {
   type Receipt, type InsertReceipt,
   type CustomerMessage, type InsertCustomerMessage,
   type AiGeneration, type InsertAiGeneration,
-  type PriceListItem,
+  type PriceListItem, type UnsurePriceLine,
 } from "../shared/schema";
 import { eq, desc, and, or, sql, inArray, getTableColumns } from "drizzle-orm";
 import { learnedPrices, type PriceEntry, type PriceRow } from "../shared/price-list";
-import type { Remembered } from "../shared/matcher";
+import type { Remembered, Guess } from "../shared/matcher";
 
 export type StoredPrice = PriceRow & { id: number; supplier: string | null };
+
+/** A receipt line for the "Not sure what this is" list (server/lib/receipt-prices UnsureLine). */
+export type UnsureQueueLine = {
+  lineIndex: number; text: string; unit: string | null; quantity: number; perUnit: number; amount: number;
+  guess: Guess | null;
+};
 
 /** How a price was learned (price_list_items.source and its receipt link). */
 export type PriceWriteOptions = {
@@ -79,6 +85,12 @@ export interface IStorage {
   getRememberedMatches(userId: string): Promise<Remembered[]>;
   /** Remember (or update) a match for this line text and supplier. */
   rememberMatch(userId: string, m: Remembered): Promise<void>;
+  // The "Not sure what this is" list
+  queueUnsure(userId: string, receiptId: number, supplier: string | null, receiptDate: string | null, lines: UnsureQueueLine[]): Promise<void>;
+  clearUnsureForReceipt(userId: string, receiptId: number): Promise<void>;
+  listUnsure(userId: string, receiptId?: number): Promise<UnsurePriceLine[]>;
+  getUnsure(userId: string, id: number): Promise<UnsurePriceLine | undefined>;
+  deleteUnsure(userId: string, id: number): Promise<void>;
   /** Quick setup has been offered to this tradie (sets user_settings.quick_setup_seen_at once). */
   markQuickSetupSeen(userId: string): Promise<void>;
   /** Learn from a quote's first send: lines the tradie changed versus every AI generation behind it. */
@@ -372,6 +384,7 @@ export class DatabaseStorage implements IStorage {
       // The price list (its history points at receipts) and the remembered matches.
       await tx.delete(priceListItems).where(eq(priceListItems.userId, userId));
       await tx.delete(priceMatches).where(eq(priceMatches.userId, userId));
+      await tx.delete(unsurePriceLines).where(eq(unsurePriceLines.userId, userId));
 
       // The documents, then what they point at.
       await tx.delete(invoices).where(eq(invoices.userId, userId));
@@ -476,6 +489,38 @@ export class DatabaseStorage implements IStorage {
     };
     await db.insert(priceMatches).values({ userId, lineKey: m.lineKey.slice(0, 200), supplierKey: m.supplierKey.slice(0, 120), ...values })
       .onConflictDoUpdate({ target: [priceMatches.userId, priceMatches.lineKey, priceMatches.supplierKey], set: values });
+  }
+
+  async queueUnsure(userId: string, receiptId: number, supplier: string | null, receiptDate: string | null, lines: UnsureQueueLine[]): Promise<void> {
+    if (!lines.length) return;
+    const num = (n: number | null | undefined) => (n == null || !Number.isFinite(n) ? null : String(n));
+    await db.insert(unsurePriceLines).values(lines.map((l) => ({
+      userId, receiptId, lineIndex: l.lineIndex, lineText: l.text.slice(0, 200), unit: l.unit ? l.unit.slice(0, 20) : null,
+      supplier: supplier ? supplier.slice(0, 120) : null, receiptDate,
+      quantity: String(l.quantity), perUnit: String(l.perUnit), amount: num(l.amount),
+      guessItem: l.guess?.item ?? null, guessUnit: l.guess?.unit ?? null,
+      guessFactor: num(l.guess?.factor), guessAiFactor: num(l.guess?.aiFactor),
+    })));
+  }
+
+  async clearUnsureForReceipt(userId: string, receiptId: number): Promise<void> {
+    await db.delete(unsurePriceLines).where(and(eq(unsurePriceLines.userId, userId), eq(unsurePriceLines.receiptId, receiptId)));
+  }
+
+  async listUnsure(userId: string, receiptId?: number): Promise<UnsurePriceLine[]> {
+    const where = receiptId != null
+      ? and(eq(unsurePriceLines.userId, userId), eq(unsurePriceLines.receiptId, receiptId))
+      : eq(unsurePriceLines.userId, userId);
+    return await db.select().from(unsurePriceLines).where(where).orderBy(desc(unsurePriceLines.createdAt), unsurePriceLines.lineIndex);
+  }
+
+  async getUnsure(userId: string, id: number): Promise<UnsurePriceLine | undefined> {
+    const [row] = await db.select().from(unsurePriceLines).where(and(eq(unsurePriceLines.id, id), eq(unsurePriceLines.userId, userId)));
+    return row;
+  }
+
+  async deleteUnsure(userId: string, id: number): Promise<void> {
+    await db.delete(unsurePriceLines).where(and(eq(unsurePriceLines.id, id), eq(unsurePriceLines.userId, userId)));
   }
 
   async markQuickSetupSeen(userId: string): Promise<void> {
@@ -784,8 +829,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteReceipt(id: number, userId: string): Promise<void> {
-    // The prices this receipt alone taught go with it (they point at it).
+    // The prices this receipt alone taught, and its open questions, go with it (they point at it).
     await this.deleteReceiptPrices(userId, id);
+    await this.clearUnsureForReceipt(userId, id);
     await db.delete(receipts).where(and(eq(receipts.id, id), eq(receipts.userId, userId)));
   }
 

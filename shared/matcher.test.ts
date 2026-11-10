@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  localMatch, decideAi, conversionFactor, parseAiMatches, matchPrompt, dedupeCandidates, cleanUnit, lineKey, supplierKey,
+  localMatch, decideAi, conversionFactor, resolutionFactor, parseAiMatches, matchPrompt, dedupeCandidates, cleanUnit, lineKey, supplierKey,
   AUTO_ACCEPT_CONFIDENCE, type Candidate, type Remembered, type Match,
 } from './matcher';
 
@@ -141,4 +141,11 @@ test('candidates are deduplicated and capped', () => {
   const out = dedupeCandidates([{ item: 'Tie wire', unit: 'roll' }, { item: 'tie  wire', unit: 'rolls' }, { item: 'Tie wire', unit: 'ea' }]);
   assert.equal(out.length, 2);
   assert.equal(dedupeCandidates(Array.from({ length: 400 }, (_, i) => ({ item: `I${i}`, unit: 'ea' }))).length, 250);
+});
+
+test('sorting a line: a known conversion wins; otherwise the tradie\'s answer; otherwise ask', () => {
+  assert.equal(resolutionFactor('SL82 MESH 6X2.4', 'EA', 'sheet', '7'), 1);
+  assert.equal(resolutionFactor('PREMIX 25MPA', 'M3', 'bag', '50'), 50);
+  assert.equal(resolutionFactor('PREMIX 25MPA', 'M3', 'bag', ''), null);
+  assert.equal(resolutionFactor('PREMIX 25MPA', 'M3', 'bag', '-2'), null);
 });

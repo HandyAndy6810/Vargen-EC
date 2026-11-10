@@ -6,6 +6,9 @@ import { apiRequest } from '@/lib/api';
 function invalidateReceiptViews(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ['/api/receipts'] });
   queryClient.invalidateQueries({ queryKey: ['/api/jobs/:id/reconciliation'] });
+  // Saving, editing or deleting a receipt changes what it taught (pricing step 4).
+  queryClient.invalidateQueries({ queryKey: ['/api/price-unsure'] });
+  queryClient.invalidateQueries({ queryKey: ['/api/price-list'] });
 }
 
 export function useReceipts() {
