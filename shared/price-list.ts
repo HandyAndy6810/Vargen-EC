@@ -82,44 +82,68 @@ const isLabour = (it: any) => String(it?.category ?? '').toLowerCase() === 'labo
 /**
  * The prices a sent quote teaches, given every AI generation behind it.
  *
- * A sent material line counts when its cost is the tradie's:
- *  - it matches an AI line (same item and unit) but its cost is different: they
- *    corrected it; or
- *  - it matches no AI line (they added or renamed it) and its cost isn't one the
- *    AI gave for any line: a renamed AI line still carrying the AI's figure is
- *    the AI's guess with a new name, not their price.
+ * A sent material line counts when its figure is the tradie's:
+ *  - it matches an AI line (same item and unit) but its figure is different:
+ *    they corrected it; or
+ *  - it matches no AI line (they added or renamed it) and its figure isn't one
+ *    the AI gave for any line: a renamed AI line still carrying the AI's figure
+ *    is the AI's guess with a new name, not their price.
  *
- * Only lines with a cost count: the price list holds what the tradie PAYS, and a
- * line with only a sell price (no cost) would be marked up twice next time.
- * Labour never counts (the charge-out rate lives in settings), nor a line pinned
- * at a price (markupLocked). Figures the sanity check flags are held back.
+ * The figure is the line's cost when it has one. A line with no cost, where
+ * only the sell price was changed, counts too: its cost is worked back from the
+ * sell price at the quote's markup, price / (1 + markup), because the price
+ * list holds what the tradie PAYS and storing a sell price would mark it up
+ * twice next time.
+ *
+ * Never counted: labour (the charge-out rate lives in settings), lines pinned at
+ * a price (markupLocked) and lines charged at cost (noMarkup), whose price says
+ * nothing about a markup to undo. Figures the sanity check flags are held back.
  */
 export function learnedPrices(aiResponses: unknown[], sentContent: unknown): PriceEntry[] {
-  const sent = itemsOf(parse(sentContent));
+  const doc = parse(sentContent);
+  const sent = itemsOf(doc);
   const aiItems = aiResponses.flatMap((r) => itemsOf(parse(r)));
   if (!aiItems.length || !sent.length) return [];
+  const markup = Math.max(0, n(doc?.markupPct));
 
-  const aiCostsByKey = new Map<string, number[]>();
+  // What the AI gave, per item and overall: costs, and sell prices for lines
+  // the tradie prices by sell price only.
+  const byKey = new Map<string, { costs: number[]; prices: number[] }>();
   const aiCosts = new Set<number>();
+  const aiPrices = new Set<number>();
   for (const it of aiItems) {
     const c = cents(n(it?.unitCost));
+    const p = cents(n(it?.unitPrice));
     const k = key(it?.description, it?.unit);
-    aiCostsByKey.set(k, [...(aiCostsByKey.get(k) ?? []), c]);
+    const e = byKey.get(k) ?? { costs: [], prices: [] };
+    e.costs.push(c); e.prices.push(p);
+    byKey.set(k, e);
     if (c > 0) aiCosts.add(c);
+    if (p > 0) aiPrices.add(p);
   }
 
   const out = new Map<string, PriceEntry>();
   for (const it of sent) {
-    if (isLabour(it) || it?.markupLocked) continue;
+    if (isLabour(it) || it?.markupLocked || it?.noMarkup) continue;
     const item = String(it?.description ?? '').trim();
-    const cost = cents(n(it?.unitCost));
-    if (!item || cost <= 0) continue;
+    if (!item) continue;
     const k = key(item, it?.unit);
-    const aiForThis = aiCostsByKey.get(k);
-    const yours = aiForThis
-      ? !aiForThis.includes(cost)
-      : !aiCosts.has(cost);
-    if (!yours) continue;
+    const ai = byKey.get(k);
+
+    let cost = cents(n(it?.unitCost));
+    if (cost > 0) {
+      const yours = ai ? !ai.costs.includes(cost) : !aiCosts.has(cost);
+      if (!yours) continue;
+    } else {
+      // Sell price only: count it if that price was changed, then work back to cost.
+      const price = cents(n(it?.unitPrice));
+      if (price <= 0) continue;
+      const yours = ai ? !ai.prices.includes(price) : !aiPrices.has(price);
+      if (!yours) continue;
+      cost = cents(price / (1 + markup / 100));
+      if (cost <= 0) continue;
+    }
+
     if (checkLinePrice({ description: item, unitPrice: cost, unit: it?.unit })) continue;
     const qty = n(it?.quantity);
     out.set(k, { item, quantity: qty > 0 ? qty : null, unit: String(it?.unit ?? 'ea').trim() || 'ea', unitPrice: cost });
