@@ -16,6 +16,7 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useQuoteDraft, unitSell, type LineItem } from '@/hooks/use-quote-draft';
 import { useIsOnline } from '@/lib/connectivity';
 import { checkLinePrice } from '@shared/price-sanity';
+import { labourPanel, applyLabourRate, applyLabourHours } from '@shared/labour-panel';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { useSettings } from '@/hooks/use-settings';
 import { MarkupSlider } from '@/components/MarkupSlider';
@@ -70,41 +71,37 @@ export default function ReviewStep() {
   );
   const hasFlags = priceWarnings.length > 0 || d.assumptions.length > 0;
 
-  const labourHours = labour.reduce((n, l) => n + (parseFloat(l.qty) || 0), 0);
   // With markupLabour off the panel shows and sets the CHARGE-OUT rate (the labour
   // lines' price, what the customer pays per hour). With it on, labour is cost-plus
   // as before: the panel sets the lines' cost and the slider marks it up.
   const rateField: 'price' | 'cost' = d.markupLabour ? 'cost' : 'price';
-  const labourRate = labour.length
-    ? (parseFloat(labour[0][rateField] || '0') || 0)
-    : (typeof settings?.labourRate === 'number' ? settings.labourRate : 0);
-  const labourTotal = labour.reduce((n, l) => n + (parseFloat(l.qty) || 0) * unitSell(l, d.markupPct, d.markupLabour), 0);
+  // Hours × rate covers the HOURLY labour lines only (unit hr). A call-out fee or a
+  // lump sum priced "each" is not an hour and has no rate: those show separately
+  // (shared/labour-panel.ts).
+  const panel = labourPanel(labour, {
+    rateField,
+    settingsRate: typeof settings?.labourRate === 'number' ? settings.labourRate : null,
+  });
+  const labourHours = panel.hours;
+  const labourRate = panel.rate;
+  const lineSum = (ls: LineItem[]) => ls.reduce((n, l) => n + (parseFloat(l.qty) || 0) * unitSell(l, d.markupPct, d.markupLabour), 0);
+  const hourlyTotal = lineSum(panel.hourly);
+  const flatTotal = lineSum(panel.flat);
 
   const idxOf = (line: LineItem) => d.lines.indexOf(line);
   // Sending needs the server; a draft can still be saved offline (it waits in the
   // outbox on the phone and syncs when the connection returns).
   const online = useIsOnline();
 
-  /** The rate goes on every labour line: its price (charge-out), or its cost when labour is marked up. */
-  const applyLabourRate = (raw: string) => {
-    const rate = parseFloat(raw);
-    d.setLines(prev => prev.map(l =>
-      l.category === 'labour' ? { ...l, [rateField]: Number.isFinite(rate) ? String(rate) : '' } : l
-    ));
-  };
+  /** The rate goes on the hourly labour lines: their price (charge-out), or their cost when labour is marked up. */
+  const applyRate = (raw: string) => d.setLines(prev => applyLabourRate(prev, rateField, raw));
 
-  /** Hours scale the labour lines proportionally so the split between them holds. */
-  const applyLabourHours = (raw: string) => {
-    const next = parseFloat(raw);
-    if (!Number.isFinite(next) || next < 0) return;
-    const current = labourHours;
-    d.setLines(prev => prev.map(l => {
-      if (l.category !== 'labour') return l;
-      if (current <= 0) return { ...l, qty: String(next) };
-      const share = (parseFloat(l.qty) || 0) / current;
-      return { ...l, qty: String(Math.round(next * share * 100) / 100) };
-    }));
-  };
+  /** Hours scale the hourly lines proportionally so the split between them holds (or add one if there's none). */
+  const applyHours = (raw: string) => d.setLines(prev => applyLabourHours(prev, raw, {
+    rate: labourRate,
+    rateField,
+    makeLine: (qty, rate) => ({ name: 'Labour', qty, unit: 'hr', category: 'labour', price: rate, ...(rateField === 'cost' ? { cost: rate } : null) }),
+  }));
 
   /**
    * Show the quote itself, full screen, in the app.
@@ -391,7 +388,7 @@ export default function ReviewStep() {
                   <TextInput
                     style={s.labourInput}
                     defaultValue={String(labourHours)}
-                    onEndEditing={e => applyLabourHours(e.nativeEvent.text)}
+                    onEndEditing={e => applyHours(e.nativeEvent.text)}
                     keyboardType="decimal-pad"
                   />
                 </View>
@@ -402,15 +399,24 @@ export default function ReviewStep() {
                     key={rateField}
                     style={s.labourInput}
                     defaultValue={String(labourRate)}
-                    onEndEditing={e => applyLabourRate(e.nativeEvent.text)}
+                    onEndEditing={e => applyRate(e.nativeEvent.text)}
                     keyboardType="decimal-pad"
                   />
                 </View>
                 <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                  <Text style={s.labourLabel}>Labour</Text>
-                  <Text style={s.labourTotal}>{money(labourTotal)}</Text>
+                  <Text style={s.labourLabel}>Hourly</Text>
+                  <Text style={s.labourTotal}>{money(hourlyTotal)}</Text>
                 </View>
               </View>
+              {panel.flat.length ? (
+                <View style={s.flatLabour}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.labourLabel}>Flat, not counted as hours</Text>
+                    <Text style={s.flatLabourNames} numberOfLines={2}>{panel.flat.map(l => l.name || 'Labour').join(', ')}</Text>
+                  </View>
+                  <Text style={s.flatLabourTotal}>{money(flatTotal)}</Text>
+                </View>
+              ) : null}
             </>
           ) : null}
 
@@ -649,6 +655,13 @@ const makeStyles = (c: Colors) => StyleSheet.create({
   },
   labourTimes: { fontSize: 15, fontFamily: 'HostGrotesk_700Bold', color: c.muted, marginTop: 12 },
   labourTotal: { fontSize: 17, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink, marginTop: 3 },
+  flatLabour: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8,
+    backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft,
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  flatLabourNames: { fontSize: 13, fontFamily: 'HostGrotesk_600SemiBold', color: c.ink, marginTop: 3 },
+  flatLabourTotal: { fontSize: 15, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
   flagsHead: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 22,
     backgroundColor: c.orangeSoft, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13,
