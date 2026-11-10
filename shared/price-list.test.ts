@@ -36,14 +36,47 @@ test('a line the tradie added counts; a renamed AI line still at the AI figure d
   assert.deepEqual(learnedPrices([ai], sent(items)).map((e) => e.item), ['Builders plastic 200um']);
 });
 
-test('labour, call-out, pinned lines and lines with no cost never count', () => {
+test('labour, call-out, pinned lines and at-cost lines never count', () => {
   const items = [
     { description: 'Labour', quantity: 8, unit: 'hr', unitPrice: 80, unitCost: 60, category: 'labour' },
     { description: 'Call-out fee', quantity: 1, unit: 'ea', unitPrice: 120, unitCost: 0, category: 'labour' },
     { description: 'Pump hire', quantity: 1, unit: 'job', unitPrice: 450, unitCost: 300, markupLocked: true },
-    { description: 'Skip bin', quantity: 1, unit: 'ea', unitPrice: 380, unitCost: 0 },
+    { description: 'Pump hire 2', quantity: 1, unit: 'job', unitPrice: 450, unitCost: 0, markupLocked: true, lockedPrice: 450 },
+    { description: 'Council permit', quantity: 1, unit: 'ea', unitPrice: 380, unitCost: 380, noMarkup: true },
+    { description: 'Tip fee', quantity: 1, unit: 'ea', unitPrice: 260, unitCost: 0, noMarkup: true },
   ];
   assert.deepEqual(learnedPrices([ai], sent(items)), []);
+});
+
+// The quote's markup travels in its content as markupPct.
+const sentAt = (markupPct: number, items: any[]) => JSON.stringify({ markupPct, items });
+
+test('sell price only, changed: the cost is worked back at the quote markup', () => {
+  // The AI gave the mesh a sell price and no cost; the tradie changed the price to $180.
+  const aiNoCost = JSON.stringify({ items: [{ description: 'Reinforcing mesh SL82', quantity: 4, unit: 'sheet', unitPrice: 165, unitCost: 0 }] });
+  const learned = learnedPrices([aiNoCost], sentAt(50, [{ description: 'Reinforcing mesh SL82', quantity: 4, unit: 'sheet', unitPrice: 180, unitCost: 0 }]));
+  assert.deepEqual(learned, [{ item: 'Reinforcing mesh SL82', quantity: 4, unit: 'sheet', unitPrice: 120 }]); // 180 / 1.5
+  // At 0% markup (or none recorded) the sell price is the cost.
+  assert.equal(learnedPrices([aiNoCost], sentAt(0, [{ description: 'Reinforcing mesh SL82', quantity: 4, unit: 'sheet', unitPrice: 180 }]))[0].unitPrice, 180);
+  assert.equal(learnedPrices([aiNoCost], sent([{ description: 'Reinforcing mesh SL82', quantity: 4, unit: 'sheet', unitPrice: 180 }]))[0].unitPrice, 180);
+  // Rounded to cents: 100 / 1.3 = 76.923...
+  assert.equal(learnedPrices([aiNoCost], sentAt(30, [{ description: 'Reinforcing mesh SL82', quantity: 4, unit: 'sheet', unitPrice: 100 }]))[0].unitPrice, 76.92);
+});
+
+test('sell price only, unchanged or an AI figure under a new name: not counted', () => {
+  const aiNoCost = JSON.stringify({ items: [{ description: 'Bar chairs', quantity: 2, unit: 'bag', unitPrice: 30, unitCost: 0 }] });
+  assert.deepEqual(learnedPrices([aiNoCost], sentAt(50, [{ description: 'Bar chairs', quantity: 2, unit: 'bag', unitPrice: 30 }])), []);
+  assert.deepEqual(learnedPrices([aiNoCost], sentAt(50, [{ description: 'Bar chairs 65/75', quantity: 2, unit: 'bag', unitPrice: 30 }])), []);
+  // A line the tradie added with only a price counts, worked back the same way.
+  assert.deepEqual(
+    learnedPrices([aiNoCost], sentAt(25, [{ description: 'Tie wire', quantity: 1, unit: 'roll', unitPrice: 25 }])),
+    [{ item: 'Tie wire', quantity: 1, unit: 'roll', unitPrice: 20 }],
+  );
+});
+
+test('sell price only: a worked-back cost the sanity check flags is held back', () => {
+  const aiNoCost = JSON.stringify({ items: [{ description: 'Paint 10L tin', quantity: 1, unit: 'ea', unitPrice: 180, unitCost: 0 }] });
+  assert.deepEqual(learnedPrices([aiNoCost], sentAt(50, [{ description: 'Paint 10L tin', quantity: 1, unit: 'ea', unitPrice: 3 }])), []);
 });
 
 test('a figure the sanity check flags is held back', () => {
