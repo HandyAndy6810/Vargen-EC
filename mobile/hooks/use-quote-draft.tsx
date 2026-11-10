@@ -15,6 +15,7 @@ import { useSettings } from '@/hooks/use-settings';
 import { parseQuoteContent } from '@shared/mobile-types';
 import { uniqueNameMatch, nameKey, formatAbn } from '@shared/customer-fields';
 import { unitSell, totalsFor, gstRateFor, savedMarkupLabour } from '@shared/money';
+import type { PriceSource } from '@shared/price-list';
 import { newDraftKey } from '@/lib/draft-key';
 import { onlineManager } from '@tanstack/react-query';
 import { isNetworkError } from '@/lib/connectivity';
@@ -52,8 +53,31 @@ export type LineItem = {
    * ready to show.
    */
   priceNote?: string;
+  /**
+   * Where the price came from (docs/pricing-design.md, step 2): 'yours' is the
+   * tradie's own price list, 'estimate' is the AI's figure to check. Set by the
+   * server on AI lines; dropped as soon as the tradie changes the price, because
+   * then it's simply what they typed.
+   */
+  priceSource?: PriceSource;
+  /** When 'yours' was recorded, for "your price, 3 weeks ago". */
+  priceDate?: string;
 };
 const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
+
+/**
+ * An edited line keeps its price badge only if the price didn't change. Change
+ * the cost or the price and it's the tradie's own figure: no "your price" date
+ * to vouch for it, nothing left for "estimate, check this" to ask.
+ */
+function keepSourceIfSamePrice(prev: LineItem, next: LineItem): LineItem {
+  const same = (a?: string, b?: string) => (parseFloat(a || '0') || 0) === (parseFloat(b || '0') || 0);
+  if (same(prev.cost, next.cost) && same(prev.price, next.price)) {
+    return { ...next, priceSource: prev.priceSource, priceDate: prev.priceDate };
+  }
+  const { priceSource: _s, priceDate: _d, ...rest } = next;
+  return rest;
+}
 
 
 /** A question the AI asks only when the answer materially changes the price. */
@@ -336,7 +360,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   };
 
   const upsertLine = (index: number | null, line: LineItem) => {
-    setLines(prev => (index === null ? [...prev, line] : prev.map((l, i) => (i === index ? line : l))));
+    setLines(prev => (index === null ? [...prev, line] : prev.map((l, i) => (i === index ? keepSourceIfSamePrice(l, line) : l))));
   };
   const removeLine = (index: number) => {
     hapticWarn();
@@ -692,6 +716,8 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       cost: !it.costUnknown && it.unitCost != null ? String(it.unitCost) : undefined,
       category: String(it.category || '').toLowerCase() === 'labour' ? 'labour' : 'material',
       priceNote: typeof it.priceNote === 'string' ? it.priceNote : undefined,
+      priceSource: it.priceSource === 'yours' || it.priceSource === 'estimate' ? it.priceSource : undefined,
+      priceDate: typeof it.priceDate === 'string' ? it.priceDate : undefined,
     }));
   };
 

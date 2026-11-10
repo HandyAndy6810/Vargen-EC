@@ -327,6 +327,33 @@ export const aiGenerations = pgTable("ai_generations", {
 export type AiGeneration = typeof aiGenerations.$inferSelect;
 export type InsertAiGeneration = typeof aiGenerations.$inferInsert;
 
+/**
+ * Each tradie's own price list (docs/pricing-design.md, step 2): what they pay
+ * for an item, learned from their own records. History is kept, one row per
+ * price seen; the newest per item wins (shared/price-list.ts).
+ *
+ * Only these fields, by design: item, quantity, unit, unit price, date and
+ * supplier. Never a customer, address, job or quote reference. Deleted with the
+ * account (storage.deleteAccount).
+ */
+export const priceListItems = pgTable("price_list_items", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  item: text("item").notNull(),
+  quantity: numeric("quantity", { precision: 12, scale: 3 }),
+  unit: text("unit").notNull(),
+  /** What the tradie pays per unit, ex GST. */
+  unitPrice: numeric("unit_price", { precision: 12, scale: 2 }).notNull(),
+  priceDate: timestamp("price_date").notNull().defaultNow(),
+  /** Where it was bought. Null when it was learned from a quote edit. */
+  supplier: text("supplier"),
+}, (t) => ({
+  price_list_items_user_id_idx: index("price_list_items_user_id_idx").on(t.userId),
+}));
+
+export type PriceListItem = typeof priceListItems.$inferSelect;
+export type InsertPriceListItem = typeof priceListItems.$inferInsert;
+
 // Schemas
 // Blank strings from a form mean "not set" and are stored as null; the type and
 // contact choices must be one of the listed values; an ABN is stored digits-only

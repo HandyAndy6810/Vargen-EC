@@ -8,6 +8,7 @@ import { num, round2, totalsFor, gstRateFor } from "../shared/money";
 import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
 import { isHourlyUnit } from "../shared/labour-panel";
+import { applyPriceList, newestPrices } from "../shared/price-list";
 import { labourLineCost } from "./lib/labour-cost";
 import { resolvePricingInputs, enforceCallOut } from "./lib/pricing-inputs";
 import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
@@ -723,17 +724,36 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
       // A new quote sent straight from Review is created as "sent" in one go, so
       // the PATCH handler's first-sent branch never runs for it.
       if (quote.status === "sent" && quote.content) {
-        try {
-          await storage.snapshotSentGeneration(req.userId, quote.id, quote.content);
-        } catch (err) {
-          console.error(`[quote ${quote.id}] could not snapshot the sent quote for its AI generation:`, err);
-        }
+        await recordFirstSend(req.userId, quote.id, quote.content);
       }
       res.status(201).json(withPortalUrl(quote, base));
     } catch (err) {
       res.status(400).json({ message: "Validation error" });
     }
   });
+
+  /**
+   * A quote's first send: keep what went to the customer beside what the AI said
+   * (#145), then learn the tradie's own prices from the lines they changed
+   * (docs/pricing-design.md, step 2). Both are side records: a failure is logged
+   * and never fails the send. Learning runs only when the snapshot does, so a
+   * quote teaches its prices once.
+   */
+  async function recordFirstSend(userId: string, quoteId: number, content: string) {
+    let first = false;
+    try {
+      first = await storage.snapshotSentGeneration(userId, quoteId, content);
+    } catch (err) {
+      console.error(`[quote ${quoteId}] could not snapshot the sent quote for its AI generation:`, err);
+    }
+    if (!first) return;
+    try {
+      const learned = await storage.learnPricesFromSentQuote(userId, quoteId, content);
+      if (learned) console.log(`[quote ${quoteId}] learned ${learned} price(s) for the tradie's price list`);
+    } catch (err) {
+      console.error(`[quote ${quoteId}] could not learn prices from the sent quote:`, err);
+    }
+  }
 
   /**
    * A quote saved with a typed customer name and no customerId is linked to the
@@ -800,11 +820,7 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
       await linkGenerations(req.userId, req.body?.generationId, quoteId);
       // First time sent: keep what went to the customer beside what the AI said.
       if ((input as any).sentAt && quote?.content) {
-        try {
-          await storage.snapshotSentGeneration(req.userId, quoteId, quote.content);
-        } catch (err) {
-          console.error(`[quote ${quoteId}] could not snapshot the sent quote for its AI generation:`, err);
-        }
+        await recordFirstSend(req.userId, quoteId, quote.content);
       }
       res.json(withPortalUrl(quote, publicBaseUrl(process.env, req)));
 
@@ -1364,6 +1380,15 @@ CRITICAL RULES — follow these exactly:
         });
         // The saved call-out fee, exactly once, whatever the model did with it.
         parsed.items = enforceCallOut(parsed.items, callOutNum);
+        // The tradie's own prices where they have one ("your price"); every other
+        // material line is marked "estimate" (docs/pricing-design.md, step 2).
+        // Before the capture below, so the record compares the sent quote with
+        // exactly what the phone received. A failed lookup only loses the badges.
+        try {
+          parsed.items = applyPriceList(parsed.items, newestPrices(await storage.getPriceList(req.userId)), markupNum ?? 0);
+        } catch (err) {
+          console.error("[price list] lookup failed; the quote keeps the AI's figures:", err);
+        }
       }
       // What this quote was priced with, so the phone prices with the same values
       // rather than its own (possibly older) copy of settings.

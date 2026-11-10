@@ -495,6 +495,22 @@ phone if you have one. Web screenshots don't count for these.
 - [ ] **Tab bar** Scroll to the bottom of Home, Profile, Quotes, Invoices and Schedule:
       the last item (and Home's footer line) sits fully above the floating tab bar.
 
+### Your prices (pricing step 2, 10 Nov)
+
+- [ ] **Estimate badge** New AI quote: every material line on Review shows an orange
+      "Estimate, check this" badge, and the Materials header says how many ("3 estimates
+      to check"). Labour lines have no badge.
+- [ ] **Learning** Change one material line's cost (e.g. mesh $110 → $128.50) and send
+      the quote. Start a new AI quote for a similar job: if the AI names the item the same
+      way, that line shows a green "Your price, today" badge with your $128.50 cost.
+- [ ] **Untouched lines don't count** Lines you sent without changing still show
+      "Estimate, check this" next time.
+- [ ] **Badge goes when you edit** Change a line's price or cost: its badge disappears
+      (it's your own figure now).
+- [ ] **Not on the PDF** The badges never appear on the quote PDF or the customer's page.
+- [ ] **Account deletion** Deleting the account removes its price list too (covered by
+      `npm run test:db`).
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what
