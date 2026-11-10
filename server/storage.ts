@@ -2,7 +2,7 @@ import { db } from "./db";
 import {
   customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
   invoices, portalFeedback, jobTemplates, receipts, customerMessages, aiGenerations,
-  sessions, users,
+  priceListItems, sessions, users,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem,
@@ -13,8 +13,12 @@ import {
   type Receipt, type InsertReceipt,
   type CustomerMessage, type InsertCustomerMessage,
   type AiGeneration, type InsertAiGeneration,
+  type PriceListItem,
 } from "../shared/schema";
 import { eq, desc, and, or, sql, inArray, getTableColumns } from "drizzle-orm";
+import { learnedPrices, type PriceEntry, type PriceRow } from "../shared/price-list";
+
+export type StoredPrice = PriceRow & { id: number; supplier: string | null };
 
 export interface IStorage {
   // Customers (userId-scoped)
@@ -53,8 +57,15 @@ export interface IStorage {
   createAiGeneration(row: InsertAiGeneration): Promise<AiGeneration>;
   /** Link a generation, and every other one from the same draft, to a quote. Owner-scoped. */
   linkAiGenerations(userId: string, generationId: number, quoteId: number): Promise<number>;
-  /** Store what was sent on the quote's most recent generation, the first time only. */
-  snapshotSentGeneration(userId: string, quoteId: number, content: string): Promise<void>;
+  /** Store what was sent on the quote's most recent generation, the first time only. True if it did. */
+  snapshotSentGeneration(userId: string, quoteId: number, content: string): Promise<boolean>;
+
+  // The tradie's own price list (docs/pricing-design.md, step 2)
+  /** Every price row, numbers as numbers (numeric columns read back as strings). */
+  getPriceList(userId: string): Promise<StoredPrice[]>;
+  addPrices(userId: string, entries: PriceEntry[], supplier?: string | null): Promise<number>;
+  /** Learn from a quote's first send: lines the tradie changed versus every AI generation behind it. */
+  learnPricesFromSentQuote(userId: string, quoteId: number, content: string): Promise<number>;
 
   // Quote Items
   getQuoteItems(quoteId: number): Promise<QuoteItem[]>;
@@ -349,7 +360,8 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(receipts).where(eq(receipts.userId, userId));
       await tx.delete(customers).where(eq(customers.userId, userId));
 
-      // Account-level rows.
+      // Account-level rows. The price list (and its history) goes too.
+      await tx.delete(priceListItems).where(eq(priceListItems.userId, userId));
       await tx.delete(jobTemplates).where(eq(jobTemplates.userId, userId));
       await tx.delete(xeroTokens).where(eq(xeroTokens.userId, userId));
       await tx.delete(userSettings).where(eq(userSettings.userId, userId));
@@ -386,15 +398,45 @@ export class DatabaseStorage implements IStorage {
     return linked.length;
   }
 
-  async snapshotSentGeneration(userId: string, quoteId: number, content: string): Promise<void> {
+  async snapshotSentGeneration(userId: string, quoteId: number, content: string): Promise<boolean> {
     const [latest] = await db.select({ id: aiGenerations.id, sentAt: aiGenerations.sentAt })
       .from(aiGenerations)
       .where(and(eq(aiGenerations.quoteId, quoteId), eq(aiGenerations.userId, userId)))
       .orderBy(desc(aiGenerations.createdAt), desc(aiGenerations.id))
       .limit(1);
-    if (!latest || latest.sentAt) return;
+    if (!latest || latest.sentAt) return false;
     await db.update(aiGenerations).set({ sentSnapshot: content, sentAt: new Date() })
       .where(eq(aiGenerations.id, latest.id));
+    return true;
+  }
+
+  // ── Price list ────────────────────────────────────────────────────────
+  async getPriceList(userId: string): Promise<StoredPrice[]> {
+    const rows: PriceListItem[] = await db.select().from(priceListItems).where(eq(priceListItems.userId, userId));
+    return rows.map((r) => ({
+      id: r.id, item: r.item, unit: r.unit, supplier: r.supplier, priceDate: r.priceDate,
+      quantity: r.quantity == null ? null : Number(r.quantity),
+      unitPrice: Number(r.unitPrice),
+    }));
+  }
+
+  async addPrices(userId: string, entries: PriceEntry[], supplier: string | null = null): Promise<number> {
+    if (!entries.length) return 0;
+    const rows = await db.insert(priceListItems).values(entries.map((e) => ({
+      userId,
+      item: e.item.slice(0, 200),
+      quantity: e.quantity == null ? null : String(e.quantity),
+      unit: e.unit.slice(0, 30),
+      unitPrice: String(e.unitPrice),
+      supplier,
+    }))).returning({ id: priceListItems.id });
+    return rows.length;
+  }
+
+  async learnPricesFromSentQuote(userId: string, quoteId: number, content: string): Promise<number> {
+    const gens = await db.select({ response: aiGenerations.response }).from(aiGenerations)
+      .where(and(eq(aiGenerations.quoteId, quoteId), eq(aiGenerations.userId, userId)));
+    return this.addPrices(userId, learnedPrices(gens.map((g) => g.response), content));
   }
 
   // ── Quote Items ───────────────────────────────────────────────────────

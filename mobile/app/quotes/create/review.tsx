@@ -17,6 +17,7 @@ import { useQuoteDraft, unitSell, type LineItem } from '@/hooks/use-quote-draft'
 import { useIsOnline } from '@/lib/connectivity';
 import { checkLinePrice } from '@shared/price-sanity';
 import { labourPanel, applyLabourRate, applyLabourHours } from '@shared/labour-panel';
+import { priceAge } from '@shared/price-list';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { useSettings } from '@/hooks/use-settings';
 import { MarkupSlider } from '@/components/MarkupSlider';
@@ -187,6 +188,19 @@ export default function ReviewStep() {
               {l.qty || '1'} {l.unit || 'ea'} · cost {money(parseFloat(l.cost || '0') || 0)}
               {l.noMarkup ? '  ·  At cost' : ''}
             </Text>
+            {/* Where the price came from (docs/pricing-design.md): the tradie's own
+                price list, or the AI's figure to check. Gone once they change it. */}
+            {l.priceSource === 'yours' ? (
+              <View style={[s.sourceBadge, { backgroundColor: c.greenSoft }]}>
+                <Text style={[s.sourceBadgeText, { color: c.green }]}>
+                  Your price{l.priceDate ? `, ${priceAge(l.priceDate, new Date())}` : ''}
+                </Text>
+              </View>
+            ) : l.priceSource === 'estimate' ? (
+              <View style={[s.sourceBadge, { backgroundColor: c.orangeSoft }]}>
+                <Text style={[s.sourceBadgeText, { color: c.orangeDeep }]}>Estimate, check this</Text>
+              </View>
+            ) : null}
           </View>
           <View style={{ alignItems: 'flex-end', gap: 6 }}>
             <Text style={s.lineTotal}>{money((parseFloat(l.qty) || 0) * sell)}</Text>
@@ -205,6 +219,9 @@ export default function ReviewStep() {
       </SwipeableRow>
     );
   };
+
+  /** Lines still on the AI's estimate: what the tradie should look at before sending. */
+  const estimates = (items: LineItem[]) => items.filter(l => l.priceSource === 'estimate').length;
 
   const group = (
     key: 'labour' | 'material',
@@ -233,7 +250,10 @@ export default function ReviewStep() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.groupLabel}>{label}</Text>
-            <Text style={s.groupMeta}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text>
+            <Text style={s.groupMeta}>
+              {items.length} {items.length === 1 ? 'item' : 'items'}
+              {estimates(items) ? ` · ${estimates(items)} ${estimates(items) === 1 ? 'estimate' : 'estimates'} to check` : ''}
+            </Text>
           </View>
           <Text style={s.groupSum}>{money(sum)}</Text>
           {/* One rotating chevron rather than swapping two icons, matching the
@@ -639,6 +659,8 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   lineTotal: { fontSize: 14.5, fontFamily: 'HostGrotesk_800ExtraBold', color: c.ink },
+  sourceBadge: { alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  sourceBadgeText: { fontSize: 11, fontFamily: 'HostGrotesk_700Bold' },
   labourCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.lineSoft,
