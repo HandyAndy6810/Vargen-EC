@@ -51,7 +51,10 @@ test('first send learns the changed lines, once; untouched lines are ignored', a
   assert.equal(rows[0].item, 'Reinforcing mesh SL82');
   assert.equal(Number(rows[0].unitPrice), 128.5);
   assert.equal(rows[0].supplier, null);
-  assert.deepEqual(Object.keys(rows[0]).sort(), ['id', 'item', 'priceDate', 'quantity', 'supplier', 'unit', 'unitPrice', 'userId']);
+  // Step 4 adds how it was learned and, for receipt prices only, which receipt: still no customer, job or quote.
+  assert.deepEqual(Object.keys(rows[0]).sort(), ['id', 'item', 'priceDate', 'quantity', 'receiptId', 'source', 'supplier', 'unit', 'unitPrice', 'userId']);
+  assert.equal(rows[0].source, 'edit');
+  assert.equal(rows[0].receiptId, null);
 
   // The next quote finds it as "your price".
   const list = newestPrices(await storage.getPriceList(userId));
