@@ -29,6 +29,7 @@ import {
   Pencil, Link, RefreshCw, Unlink, CheckCircle, Users, Building2,
   LayoutGrid, Check, ScanLine, CreditCard,
   Trash2,
+  Tag,
 } from 'lucide-react-native';
 
 // ── Style factory ─────────────────────────────────────────────────────────────
@@ -359,6 +360,7 @@ export default function ProfileScreen() {
 
         <SettingsGroup title="Pricing" items={[
           { icon: Sparkles, label: 'AI quoting', sub: 'Trade, labour rate, markup, call-out fee', onPress: () => router.push('/settings/ai-quoting' as any) },
+          { icon: Tag, label: 'Your prices', sub: 'What you pay for common items, so quotes use your prices', onPress: () => router.push('/settings/quick-setup' as any) },
         ]} />
 
         <SettingsGroup title="Follow-ups" items={[

@@ -10,6 +10,8 @@ import { TabIcon, type TabIconSpec } from '@/components/TabIcon';
 import { hapticSelect } from '@/lib/haptics';
 import { Home, FileText, Receipt, CalendarClock, User } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiRequest } from '@/lib/api';
+import { shouldOfferQuickSetup, markQuickSetupOffered, quickSetupOffered } from '@/lib/quick-setup-offer';
 
 const TABS: { name: string; label: string; icon: TabIconSpec }[] = [
   { name: 'index',    label: 'Home',     icon: { symbol: 'house',              symbolActive: 'house.fill',              Fallback: Home } },
@@ -152,6 +154,7 @@ export default function TabsLayout() {
   const { isAuthenticated, isLoading } = useAuth();
   const { colors: c } = useTheme();
 
+  const [onboarded, setOnboarded] = useState(false);
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) {
@@ -160,8 +163,28 @@ export default function TabsLayout() {
     }
     AsyncStorage.getItem('onboarding_seen').then((seen) => {
       if (!seen) router.replace('/onboarding');
+      else setOnboarded(true);
     });
   }, [isAuthenticated, isLoading]);
+
+  // Quick setup (docs/pricing-design.md, step 3), offered once: a new tradie
+  // gets it straight after onboarding (onboarding.tsx opens it), an existing one
+  // here, the first time the server says it has never been offered. Asked of the
+  // server directly, never the cached settings: the copy restored from the phone
+  // predates the offer and would bring it round again.
+  useEffect(() => {
+    if (!isAuthenticated || !onboarded || quickSetupOffered()) return;
+    let live = true;
+    apiRequest('GET', '/api/settings')
+      .then((r) => (r.ok ? r.json() : undefined))
+      .then((fresh) => {
+        if (!live || !shouldOfferQuickSetup(fresh)) return;
+        markQuickSetupOffered();
+        router.push('/settings/quick-setup?first=1' as any);
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [isAuthenticated, onboarded]);
 
   return (
     <Tabs

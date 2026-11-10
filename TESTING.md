@@ -511,6 +511,23 @@ phone if you have one. Web screenshots don't count for these.
 - [ ] **Account deletion** Deleting the account removes its price list too (covered by
       `npm run test:db`).
 
+### Quick setup (pricing step 3, 10 Nov)
+
+- [ ] **New tradie** Sign up, finish onboarding ("Create your first quote"): Quick setup
+      opens. Pick a trade (or several): Next shows that trade's items with an empty $ box
+      each. Skip for now (big button) goes straight to your first quote.
+- [ ] **Prices stick** Type a few prices, Save my prices. Start an AI quote that uses one
+      of those items: it shows "Your price, today" with your figure as the cost.
+- [ ] **Existing tradie** Open the app once after the update: Quick setup is offered once.
+      Skip it, close and reopen the app: it doesn't come back.
+- [ ] **Edit later** Profile → Pricing → Your prices: your trades are ticked and your
+      saved prices are in their boxes. Change one and save.
+- [ ] **Other** Pick Other, type "dog groomer", Suggest items: the AI's items show marked
+      SUGGESTED under an orange note ("Suggestions from the AI, not prices"), with no
+      prices filled in. Edit one, remove one with ×, add your own, save.
+- [ ] **Typos held back** A silly price (tiles at $2/m²) isn't saved: you're told which.
+- [ ] **Light and dark** Both steps read clearly in both.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what
