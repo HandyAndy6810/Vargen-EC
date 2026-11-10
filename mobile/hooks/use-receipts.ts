@@ -6,6 +6,9 @@ import { apiRequest } from '@/lib/api';
 function invalidateReceiptViews(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ['/api/receipts'] });
   queryClient.invalidateQueries({ queryKey: ['/api/jobs/:id/reconciliation'] });
+  // Saving, editing or deleting a receipt changes what it taught (pricing step 4).
+  queryClient.invalidateQueries({ queryKey: ['/api/price-unsure'] });
+  queryClient.invalidateQueries({ queryKey: ['/api/price-list'] });
 }
 
 export function useReceipts() {
@@ -30,6 +33,9 @@ export function useCreateReceipt() {
       notes?: string;
       items?: string;
       jobId?: number | null;
+      /** Pricing step 4: what the scan read about GST and any whole-receipt discount. */
+      pricesIncludeGst?: boolean | null;
+      receiptDiscount?: number | null;
     }) => {
       const res = await apiRequest('POST', '/api/receipts', data);
       if (!res.ok) throw new Error('Failed to save receipt');

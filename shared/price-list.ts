@@ -33,7 +33,7 @@ export type PriceEntry = {
 };
 
 /** A stored row as the matcher needs it. */
-export type PriceRow = PriceEntry & { priceDate: Date | string; id?: number };
+export type PriceRow = PriceEntry & { priceDate: Date | string; id?: number; supplier?: string | null };
 
 /** Where a quote line's price came from, shown as a badge on Review. */
 export type PriceSource = 'yours' | 'estimate';
@@ -179,11 +179,29 @@ export function applyPriceList<I extends Record<string, any>, R extends PriceRow
   list: Map<string, R>,
   markupPercent: number,
 ): I[] {
-  return items.map((it) => {
+  return applyPriceMatches(items, items.map((it) => {
+    const mine = isLabour(it) ? undefined : priceFor(list, it);
+    return mine ? { row: mine, factor: 1 } : undefined;
+  }), markupPercent);
+}
+
+/**
+ * The same, with the matching engine's answer per line (pricing step 4): the
+ * tradie's price row a line matched, and how many of that row's unit one of
+ * the line's units is. Their price per the LINE's unit is the row's price ×
+ * factor (a 6 m bar at $2.48/m is $14.88 a length). Lines with no match stay
+ * the AI's figure, marked "estimate". Labour is left alone.
+ */
+export function applyPriceMatches<I extends Record<string, any>, R extends PriceRow>(
+  items: I[],
+  matches: ({ row: R; factor: number } | undefined)[],
+  markupPercent: number,
+): I[] {
+  return items.map((it, i) => {
     if (isLabour(it)) return it;
-    const mine = priceFor(list, it);
-    if (!mine) return { ...it, priceSource: 'estimate' as PriceSource };
-    const cost = cents(mine.unitPrice);
+    const m = matches[i];
+    if (!m || !(m.factor > 0)) return { ...it, priceSource: 'estimate' as PriceSource };
+    const cost = cents(m.row.unitPrice * m.factor);
     return {
       ...it,
       unitCost: cost,
@@ -191,7 +209,9 @@ export function applyPriceList<I extends Record<string, any>, R extends PriceRow
       costUnknown: false,
       priceNote: undefined, // the sanity note was about the AI's figure
       priceSource: 'yours' as PriceSource,
-      priceDate: new Date(mine.priceDate).toISOString(),
+      priceDate: new Date(m.row.priceDate).toISOString(),
+      // Where they bought it, when a receipt taught it: "your price, Reece, 3 weeks ago".
+      ...(m.row.supplier ? { priceSupplier: m.row.supplier } : {}),
     };
   });
 }

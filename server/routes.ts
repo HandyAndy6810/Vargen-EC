@@ -8,8 +8,15 @@ import { num, round2, totalsFor, gstRateFor } from "../shared/money";
 import { quoteItemRowsFromContent } from "../shared/quote-items";
 import { checkLinePrice } from "../shared/price-sanity";
 import { isHourlyUnit } from "../shared/labour-panel";
-import { applyPriceList, newestPrices } from "../shared/price-list";
+import { applyPriceList, applyPriceMatches, newestPrices, learnedPrices } from "../shared/price-list";
+import { resolveQuoteMatches, matchLearnedEntries } from "./lib/quote-prices";
 import { quickSetupEntries, cleanSuggestions } from "../shared/quick-setup";
+import { cleanReceiptLines, cleanGstFlag, cleanReceiptDiscount } from "../shared/receipt-lines";
+import { priceReceipt } from "./lib/receipt-prices";
+import { lineKey, supplierKey, resolutionFactor } from "../shared/matcher";
+import { receiptCandidates } from "../shared/match-candidates";
+import { priceFromMatch, receiptPriceDate } from "../shared/receipt-pricing";
+import type { UnsurePriceLine } from "../shared/schema";
 import { labourLineCost } from "./lib/labour-cost";
 import { resolvePricingInputs, enforceCallOut } from "./lib/pricing-inputs";
 import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
@@ -749,7 +756,17 @@ async function syncQuoteItems(quoteId: number, content: unknown): Promise<void> 
     }
     if (!first) return;
     try {
-      const learned = await storage.learnPricesFromSentQuote(userId, quoteId, content);
+      // Learned from the lines the tradie changed (shared/price-list), then
+      // stored against the item they match (pricing step 4), so an edit and a
+      // receipt for the same thing update one entry.
+      const responses = await storage.getGenerationResponses(userId, quoteId);
+      const entries = await matchLearnedEntries(
+        learnedPrices(responses, content),
+        await storage.getPriceList(userId),
+        await storage.getRememberedMatches(userId),
+        completeJson,
+      );
+      const learned = await storage.addPrices(userId, entries, { source: "edit" });
       if (learned) console.log(`[quote ${quoteId}] learned ${learned} price(s) for the tradie's price list`);
     } catch (err) {
       console.error(`[quote ${quoteId}] could not learn prices from the sent quote:`, err);
@@ -1385,8 +1402,21 @@ CRITICAL RULES — follow these exactly:
         // material line is marked "estimate" (docs/pricing-design.md, step 2).
         // Before the capture below, so the record compares the sent quote with
         // exactly what the phone received. A failed lookup only loses the badges.
+        //
+        // Through the matching engine (pricing step 4): remembered, plain, then
+        // one batched AI call for lines still unmatched, so a receipt's "SL82 MESH"
+        // reaches an AI line called "SL82 mesh sheet". If matching fails, plain
+        // matching still applies; if that fails too, the AI's figures stand.
         try {
-          parsed.items = applyPriceList(parsed.items, newestPrices(await storage.getPriceList(req.userId)), markupNum ?? 0);
+          const rows = await storage.getPriceList(req.userId);
+          try {
+            // A tighter wait than receipts: the tradie is watching this quote build.
+            const matches = await resolveQuoteMatches(parsed.items, rows, await storage.getRememberedMatches(req.userId), completeJson, { timeoutMs: 8_000 });
+            parsed.items = applyPriceMatches(parsed.items, matches, markupNum ?? 0);
+          } catch (err) {
+            console.error("[price list] matching failed; plain matching only:", err);
+            parsed.items = applyPriceList(parsed.items, newestPrices(rows), markupNum ?? 0);
+          }
         } catch (err) {
           console.error("[price list] lookup failed; the quote keeps the AI's figures:", err);
         }
@@ -1427,7 +1457,115 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
+  /** One JSON completion for the matching engine (server/lib/match-ai.ts): text only, no reasoning budget wasted. */
+  const completeJson = async (system: string, user: string): Promise<string> => {
+    const response = await openai.chat.completions.create({
+      model: AI_MODEL,
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+      max_tokens: 900,
+      temperature: 0,
+      response_format: { type: "json_object" },
+    });
+    return response.choices[0]?.message?.content || "";
+  };
+
+  /**
+   * Price a receipt after it's saved or edited (pricing step 4). Waits a few
+   * seconds so the app can say how it went; past that it carries on in the
+   * background and the response just has no summary. Never fails the save.
+   */
+  const RECEIPT_PRICING_WAIT_MS = 8_000;
+  async function pricingAfterSave(userId: string, receiptId: number) {
+    const run = priceReceipt(userId, receiptId, completeJson).catch((err) => {
+      console.error(`[receipt ${receiptId}] pricing failed (the receipt is saved):`, err);
+      return null;
+    });
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), RECEIPT_PRICING_WAIT_MS));
+    const done = await Promise.race([run, timeout]);
+    return done ? { saved: done.saved, unsure: done.unsure.length, ignored: done.ignored, skipped: done.skipped } : null;
+  }
+
   // ── The tradie's own price list (docs/pricing-design.md, steps 2 and 3) ──
+
+  // ── The "Not sure what this is" list (pricing step 4) ──────────────────
+
+  const unsureView = (r: UnsurePriceLine) => ({
+    id: r.id, receiptId: r.receiptId, text: r.lineText, unit: r.unit, supplier: r.supplier, receiptDate: r.receiptDate,
+    quantity: Number(r.quantity), perUnit: Number(r.perUnit), amount: r.amount == null ? null : Number(r.amount),
+    guess: r.guessItem && r.guessUnit ? {
+      item: r.guessItem, unit: r.guessUnit,
+      factor: r.guessFactor == null ? null : Number(r.guessFactor),
+      aiFactor: r.guessAiFactor == null ? null : Number(r.guessAiFactor),
+    } : null,
+  });
+
+  /** The tradie's unsure lines (optionally one receipt's), newest first. */
+  app.get("/api/price-unsure", requireAuth, async (req: any, res) => {
+    const receiptId = req.query.receiptId != null ? Number(req.query.receiptId) : undefined;
+    if (receiptId !== undefined && !Number.isInteger(receiptId)) return res.status(400).json({ message: "Bad receipt" });
+    res.json((await storage.listUnsure(req.userId, receiptId)).map(unsureView));
+  });
+
+  /** "It's something else": their items and their trade's catalogue, to search. */
+  app.get("/api/price-unsure/choices", requireAuth, async (req: any, res) => {
+    const list = [...newestPrices(await storage.getPriceList(req.userId)).values()];
+    const settings = await storage.getUserSettings(req.userId);
+    res.json(receiptCandidates(list, settings?.tradeType));
+  });
+
+  /**
+   * Sort one line: "yes" (the AI's guess), "item" (one of theirs, or a new one)
+   * or "ignore" (not a material). Remembered for this tradie and supplier, so
+   * the same line never asks again; "yes" and "item" also save the price, by
+   * the same rules as any receipt line. When the units differ and no conversion
+   * is certain, the answer to "How many [unit] is one of these?" is required.
+   */
+  app.post("/api/price-unsure/:id/resolve", requireAuth, async (req: any, res) => {
+    try {
+      const row = await storage.getUnsure(req.userId, Number(req.params.id));
+      if (!row) return res.status(404).json({ message: "Not found" });
+      const action = req.body?.action;
+      const memo = { lineKey: lineKey(row.lineText), supplierKey: supplierKey(row.supplier) };
+
+      if (action === "ignore") {
+        await storage.rememberMatch(req.userId, { ...memo, item: null, unit: null, factor: null, ignore: true });
+        await storage.deleteUnsure(req.userId, row.id);
+        return res.json({ saved: 0 });
+      }
+
+      let item: string, unit: string;
+      if (action === "yes") {
+        if (!row.guessItem || !row.guessUnit) return res.status(400).json({ message: "There's no guess for this one." });
+        item = row.guessItem; unit = row.guessUnit;
+      } else if (action === "item") {
+        item = typeof req.body?.item === "string" ? req.body.item.trim().slice(0, 200) : "";
+        unit = typeof req.body?.unit === "string" ? req.body.unit.trim().slice(0, 30) : "";
+        if (!item || !unit) return res.status(400).json({ message: "Choose an item and its unit." });
+      } else {
+        return res.status(400).json({ message: "Unknown choice." });
+      }
+
+      const factor = resolutionFactor(row.lineText, row.unit, unit, req.body?.factor);
+      if (!factor) return res.status(422).json({ needsConversion: true, itemUnit: unit, message: `How many ${unit} is one of these?` });
+
+      await storage.rememberMatch(req.userId, { ...memo, item, unit, factor, ignore: false });
+      const receipt = await storage.getReceipt(row.receiptId, req.userId);
+      let saved = 0;
+      if (receipt) {
+        const entry = priceFromMatch(receipt, { quantity: Number(row.quantity), perUnit: Number(row.perUnit) }, { item, unit, factor });
+        if (entry) {
+          saved = await storage.addPrices(req.userId, [entry], {
+            source: "receipt", receiptId: receipt.id, supplier: receipt.vendor, priceDate: receiptPriceDate(receipt),
+          });
+        }
+      }
+      await storage.deleteUnsure(req.userId, row.id);
+      res.json({ saved, heldBack: saved === 0 });
+    } catch (err) {
+      console.error("[not sure] resolve failed:", err);
+      res.status(500).json({ message: "Couldn't save that. Try again." });
+    }
+  });
 
   /** Their saved prices, newest per item and unit: quick setup fills its boxes from these. */
   app.get("/api/price-list", requireAuth, async (req: any, res) => {
@@ -1448,7 +1586,7 @@ CRITICAL RULES — follow these exactly:
   app.post("/api/price-list/quick-setup", requireAuth, async (req: any, res) => {
     try {
       const { entries, heldBack } = quickSetupEntries(req.body);
-      const saved = await storage.addPrices(req.userId, entries);
+      const saved = await storage.addPrices(req.userId, entries, { source: 'quick_setup' });
       await storage.markQuickSetupSeen(req.userId);
       res.json({ saved, heldBack });
     } catch (err) {
@@ -3160,14 +3298,21 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
   "date": "YYYY-MM-DD or empty string if not found",
   "total": 0.00,
   "category": "one of: Materials, Equipment, Fuel, Subcontractor, Food, Other",
-  "items": [{ "description": "item name", "amount": 0.00 }],
+  "pricesIncludeGst": true,
+  "receiptDiscount": 0.00,
+  "items": [{ "description": "item as printed", "quantity": null, "unit": "", "unitPrice": null, "amount": 0.00, "lineDiscount": 0.00 }],
   "notes": "any useful notes or empty string"
 }
 
 Rules:
 - "total" is the final amount paid: the line labelled AMOUNT DUE, TOTAL, or TOTAL (INC. GST), including GST and any surcharge. Never the subtotal. Copy every digit exactly.
-- Include every purchased line as an item, in order. Skip subtotal, GST, surcharge, payment and change lines.
-- Each item's "amount" is that line's total price (quantity × unit price), taken from the same line or the price printed beside it. Do not shift prices between items.
+- Include every purchased line as an item, in order. Skip subtotal, GST, surcharge, payment, card, account, loyalty and change lines.
+- Each item's "description" is the item text exactly as printed (e.g. "SL82 MESH 6X2.4").
+- "quantity", "unit" (as printed, e.g. EA, LM, BAG, M) and "unitPrice" (per unit, as printed): copy them only if the receipt prints them. If not printed, use null for numbers and "" for unit. Never work them out or guess.
+- Each item's "amount" is the price actually paid for that line (quantity × unit price, after any discount printed on that line), taken from the same line or the price printed beside it. Do not shift prices between items.
+- "lineDiscount": a discount printed against that line, else 0. "receiptDiscount": a discount on the whole receipt that isn't tied to a line, else 0.
+- "pricesIncludeGst": true when the receipt shows the prices include GST (e.g. "Total includes GST", "GST incl"), false when it shows GST added on top of ex-GST prices, null if it doesn't say.
+- Never include card numbers, account numbers or loyalty numbers anywhere.
 - The item amounts should add up to roughly the total (before any surcharge). If they don't, re-read the prices.
 - Dates on Australian receipts are day first: 05/03/2026 is 5 March 2026.
 
@@ -3190,7 +3335,9 @@ If you cannot read the image clearly, return your best guess. Always return vali
       const ask = (withReasoningOff: boolean) => openai.chat.completions.create({
         model: AI_VISION_MODEL,
         messages,
-        max_tokens: 700,
+        // A trade receipt with quantities and units is more JSON than the old
+        // description-and-amount list; still well under Groq's 1,000/min cap.
+        max_tokens: 950,
         temperature: 0,
         ...(withReasoningOff ? { reasoning_effort: "none" } : {}),
       } as any);
@@ -3236,7 +3383,11 @@ If you cannot read the image clearly, return your best guess. Always return vali
         date: isValidISODate(scanDate) ? scanDate : '',
         total: total.toFixed(2),
         category: parsed.category || 'Other',
-        items: Array.isArray(parsed.items) ? parsed.items : [],
+        // Only the fields pricing needs, numbers as numbers; payment and
+        // loyalty lines and long digit runs dropped (shared/receipt-lines).
+        items: cleanReceiptLines(parsed.items),
+        pricesIncludeGst: cleanGstFlag(parsed.pricesIncludeGst),
+        receiptDiscount: cleanReceiptDiscount(parsed.receiptDiscount),
         notes: parsed.notes || '',
       });
     } catch (err: any) {
@@ -3272,8 +3423,13 @@ If you cannot read the image clearly, return your best guess. Always return vali
       const jobId = await ownedReceiptJobId(body.jobId, req.userId);
       if (jobId === undefined) return res.status(404).json({ message: "Job not found" });
       body.jobId = jobId;
+      // Whatever the phone sends, store only the known line fields.
+      if (body.items !== undefined && body.items !== null) body.items = JSON.stringify(cleanReceiptLines(body.items));
+      body.pricesIncludeGst = cleanGstFlag(body.pricesIncludeGst);
+      const discount = cleanReceiptDiscount(body.receiptDiscount);
+      body.receiptDiscount = discount == null ? null : String(discount);
       const receipt = await storage.createReceipt({ ...body, userId: req.userId });
-      res.status(201).json(receipt);
+      res.status(201).json({ ...receipt, pricing: await pricingAfterSave(req.userId, receipt.id) });
     } catch (err: any) {
       res.status(400).json({ message: err?.message || "Failed to create receipt" });
     }
@@ -3290,7 +3446,8 @@ If you cannot read the image clearly, return your best guess. Always return vali
       const id = Number(req.params.id);
       const existing = await storage.getReceipt(id, req.userId);
       if (!existing) return res.status(404).json({ message: "Not found" });
-      const { vendor, receiptDate, totalAmount, category, notes, items } = req.body;
+      const { vendor, receiptDate, totalAmount, category, notes } = req.body;
+      const items = req.body.items === undefined || req.body.items === null ? req.body.items : JSON.stringify(cleanReceiptLines(req.body.items));
       // null detaches the receipt from its job; an id must be one of your jobs.
       let jobId: number | null | undefined;
       if (req.body.jobId !== undefined) {
@@ -3305,9 +3462,14 @@ If you cannot read the image clearly, return your best guess. Always return vali
         ...(category !== undefined && { category }),
         ...(notes !== undefined && { notes }),
         ...(items !== undefined && { items }),
+        ...(req.body.pricesIncludeGst !== undefined && { pricesIncludeGst: cleanGstFlag(req.body.pricesIncludeGst) }),
+        ...(req.body.receiptDiscount !== undefined && { receiptDiscount: (() => { const d = cleanReceiptDiscount(req.body.receiptDiscount); return d == null ? null : String(d); })() }),
         ...(jobId !== undefined && { jobId }),
       });
-      res.json(updated);
+      // Re-learn from what changed (lines, GST, discount, category, date): replaces what it taught before.
+      const repriced = ["items", "pricesIncludeGst", "receiptDiscount", "category", "receiptDate", "vendor", "totalAmount"]
+        .some((k) => req.body[k] !== undefined);
+      res.json(repriced ? { ...updated, pricing: await pricingAfterSave(req.userId, id) } : updated);
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to update receipt" });
     }

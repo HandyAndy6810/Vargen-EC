@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useUnsureLines } from '@/hooks/use-unsure';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,6 +29,7 @@ export default function ReceiptDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const receiptId = id ? Number(id) : 0;
   const { data: receipt, isLoading } = useReceipt(receiptId) as any;
+  const unsure = useUnsureLines(receiptId).data ?? [];
   const updateReceipt = useUpdateReceipt();
   const deleteReceipt = useDeleteReceipt();
 
@@ -136,6 +138,20 @@ export default function ReceiptDetailScreen() {
             <TextInput style={s.input} value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={c.muted} />
             <ReceiptTotalWarning total={amount} items={receipt.items} />
           </View>
+          {/* Lines from this receipt we couldn't match for sure (pricing step 4). */}
+          {unsure.length ? (
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.orangeSoft, borderRadius: 16, padding: 14 }}
+              onPress={() => router.push('/settings/unsure-prices' as any)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+            >
+              <Text style={{ flex: 1, fontSize: 14, fontFamily: 'HostGrotesk_700Bold', color: c.orangeDeep }}>
+                {unsure.length} {unsure.length === 1 ? 'item' : 'items'} we weren't sure about. Sort them?
+              </Text>
+              <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange }}>Sort</Text>
+            </TouchableOpacity>
+          ) : null}
           {/* The items were always saved, but this screen never showed them. */}
           <ReceiptLineItems items={receipt.items} />
           <View style={s.fieldCard}>

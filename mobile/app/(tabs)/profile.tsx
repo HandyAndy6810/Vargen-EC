@@ -18,6 +18,7 @@ import { useTheme, type Colors, type ThemeMode } from '@/hooks/use-theme';
 import { BottomSheetModal } from '@/components/BottomSheetModal';
 import { ScreenGradient, StatusBarBand, useGradientScroll, RimCard, RimGroup, RimRow, GlassButton, heroSecondary } from '@/components/Rim';
 import { useTabBarSpace } from '@/lib/tab-bar';
+import { useUnsureLines } from '@/hooks/use-unsure';
 import { useXeroStatus, useXeroDisconnect, useXeroSyncAll } from '@/hooks/use-xero';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { useCustomers } from '@/hooks/use-customers';
@@ -29,7 +30,7 @@ import {
   Pencil, Link, RefreshCw, Unlink, CheckCircle, Users, Building2,
   LayoutGrid, Check, ScanLine, CreditCard,
   Trash2,
-  Tag,
+  Tag, HelpCircle,
 } from 'lucide-react-native';
 
 // ── Style factory ─────────────────────────────────────────────────────────────
@@ -302,6 +303,7 @@ export default function ProfileScreen() {
   const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
   const { scrollY, scrollProps } = useGradientScroll();
   const tabSpace = useTabBarSpace();
+  const unsureCount = useUnsureLines().data?.length ?? 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.paper }} edges={[]}>
@@ -361,6 +363,12 @@ export default function ProfileScreen() {
         <SettingsGroup title="Pricing" items={[
           { icon: Sparkles, label: 'AI quoting', sub: 'Trade, labour rate, markup, call-out fee', onPress: () => router.push('/settings/ai-quoting' as any) },
           { icon: Tag, label: 'Your prices', sub: 'What you pay for common items, so quotes use your prices', onPress: () => router.push('/settings/quick-setup' as any) },
+          // Only while there's something to sort (pricing step 4).
+          ...(unsureCount > 0 ? [{
+            icon: HelpCircle, label: 'Not sure what these are',
+            sub: `${unsureCount} ${unsureCount === 1 ? 'line' : 'lines'} from your receipts. One tap each.`,
+            onPress: () => router.push('/settings/unsure-prices' as any),
+          }] : []),
         ]} />
 
         <SettingsGroup title="Follow-ups" items={[

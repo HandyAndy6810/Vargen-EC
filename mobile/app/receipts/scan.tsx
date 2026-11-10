@@ -13,11 +13,14 @@ import { useTheme, type Colors } from '@/hooks/use-theme';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { showAlert } from '@/lib/dialogs';
+import { showAlert, showConfirm } from '@/lib/dialogs';
+import { queryClient } from '@/lib/queryClient';
+import { UNSURE_KEY } from '@/hooks/use-unsure';
 import { isValidISODate, toISODate } from '@/lib/dates';
 import { ChevronLeft, Camera, ImageIcon, RotateCw, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { apiRequest } from '@/lib/api';
+import type { ReceiptLine } from '@shared/receipt-lines';
 import { useCreateReceipt } from '@/hooks/use-receipts';
 import { receiptImageDataUri } from '@/lib/receipt-image';
 import { ReceiptLineItems, ReceiptTotalWarning } from '@/components/ReceiptLineItems';
@@ -32,7 +35,10 @@ interface ScanResult {
   date: string;
   total: string;
   category: string;
-  items: Array<{ description: string; amount: number }>;
+  items: ReceiptLine[];
+  /** Pricing step 4: whether the receipt's prices include GST (null = not stated), and a whole-receipt discount. */
+  pricesIncludeGst?: boolean | null;
+  receiptDiscount?: number | null;
   notes: string;
 }
 
@@ -51,7 +57,9 @@ export default function ScanReceiptScreen() {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Other');
   const [notes, setNotes] = useState('');
-  const [lineItems, setLineItems] = useState<Array<{ description: string; amount: number }>>([]);
+  const [lineItems, setLineItems] = useState<ReceiptLine[]>([]);
+  const [pricesIncludeGst, setPricesIncludeGst] = useState<boolean | null>(null);
+  const [receiptDiscount, setReceiptDiscount] = useState<number | null>(null);
 
   // Opened from a job's page, the receipt starts linked to that job. The param
   // can arrive a render late, so adopt it when it does — unless the tradie has
@@ -78,6 +86,8 @@ export default function ScanReceiptScreen() {
     setCategory(CATEGORIES.includes(result.category as any) ? result.category : 'Other');
     setNotes(result.notes || '');
     setLineItems(result.items || []);
+    setPricesIncludeGst(result.pricesIncludeGst ?? null);
+    setReceiptDiscount(result.receiptDiscount ?? null);
   };
 
   const scanImage = async (asset: ImagePicker.ImagePickerAsset) => {
@@ -146,18 +156,34 @@ export default function ScanReceiptScreen() {
       return;
     }
     try {
-      await createReceipt.mutateAsync({
+      const saved = await createReceipt.mutateAsync({
         vendor: vendor || undefined,
         receiptDate: date || undefined,
         totalAmount: amount,
         category: category || undefined,
         notes: notes || undefined,
         items: lineItems.length > 0 ? JSON.stringify(lineItems) : undefined,
+        pricesIncludeGst,
+        receiptDiscount,
         jobId: jobId ?? undefined,
       });
       // Back to the job it was added from; otherwise to the receipts list.
-      if (entryJobId) router.back();
-      else router.replace('/receipts' as any);
+      const leave = () => { if (entryJobId) router.back(); else router.replace('/receipts' as any); };
+      // Lines we couldn't match for sure (pricing step 4): offer to sort them, never insist.
+      const unsure = Number(saved?.pricing?.unsure) || 0;
+      if (unsure > 0) {
+        queryClient.invalidateQueries({ queryKey: UNSURE_KEY });
+        showConfirm({
+          title: `${unsure} ${unsure === 1 ? 'item' : 'items'} we weren't sure about`,
+          message: 'Sort them now? One tap each, and we\'ll remember for next time.',
+          confirmLabel: 'Sort them',
+          cancelLabel: 'Later',
+          onConfirm: () => router.replace('/settings/unsure-prices' as any),
+          onCancel: leave,
+        });
+        return;
+      }
+      leave();
     } catch (err: any) {
       const msg = err?.message || 'Could not save receipt. Please try again.';
       showAlert('Save failed', msg);

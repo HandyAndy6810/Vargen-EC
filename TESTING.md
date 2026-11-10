@@ -528,6 +528,27 @@ phone if you have one. Web screenshots don't count for these.
 - [ ] **Typos held back** A silly price (tiles at $2/m²) isn't saved: you're told which.
 - [ ] **Light and dark** Both steps read clearly in both.
 
+### Receipts teach your prices (pricing step 4, Nov)
+
+- [ ] **Trade receipt** Scan a real trade receipt (Bunnings, Reece, etc.): the saved receipt
+      shows each line with quantity × unit price where the receipt prints them, and the
+      total still matches. Start an AI quote with one of those items (worded differently):
+      it shows "Your price, [supplier], [age]" at the receipt's price ex GST.
+- [ ] **Not sure** If some lines weren't clear, saving asks "N items we weren't sure about.
+      Sort them?" (Later is fine). The receipt screen shows the same card, and Profile →
+      Pricing shows "Not sure what these are" with the count (only while there are some).
+- [ ] **Sorting** On each: "Yes, it's [guess]", "It's something else" (search, or Add as a new
+      item with a unit) or "Not a material, ignore it". A unit that doesn't convert asks
+      "How many [unit] is one of these?". Scan a receipt with the same line again: no question.
+- [ ] **Teaches nothing** A fuel or food receipt, a receipt whose total doesn't match its
+      lines, or one with a discount on the whole receipt: no prices change (still an expense).
+- [ ] **Edit / delete** Edit a receipt line's price: the price list follows. Delete the
+      receipt: the prices it taught go; quick setup and quote prices stay.
+- [ ] **Old receipts** A receipt from before this update opens and shows its lines and total
+      exactly as before.
+- [ ] **Quotes never wait** AI quotes still build normally (a few seconds at most longer
+      when they look up your prices).
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what

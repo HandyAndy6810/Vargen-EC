@@ -1,7 +1,7 @@
 export * from "./models/auth";
 export * from "./models/chat";
 
-import { pgTable, text, serial, integer, boolean, timestamp, numeric, varchar, index, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, numeric, varchar, index, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -292,7 +292,16 @@ export const receipts = pgTable("receipts", {
   totalAmount: text("total_amount").notNull().default("0"),
   category: text("category").default("Other"),
   notes: text("notes"),
-  items: text("items"), // JSON array of { description, amount }
+  /**
+   * JSON array of lines (shared/receipt-lines.ts): { description, amount } and,
+   * from pricing step 4, quantity, unit, unitPrice and lineDiscount when printed.
+   * Old receipts have description and amount only; both shapes read the same.
+   */
+  items: text("items"),
+  /** The receipt's prices include GST (normal for an Australian tax invoice). Null = not stated. */
+  pricesIncludeGst: boolean("prices_include_gst"),
+  /** A discount on the whole receipt, not tied to a line. Such a receipt is an expense but teaches no prices. */
+  receiptDiscount: numeric("receipt_discount", { precision: 12, scale: 2 }),
   jobId: integer("job_id"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (t) => ({
@@ -352,9 +361,78 @@ export const priceListItems = pgTable("price_list_items", {
   priceDate: timestamp("price_date").notNull().defaultNow(),
   /** Where it was bought. Null when it was learned from a quote edit. */
   supplier: text("supplier"),
+  /** How it was learned: 'edit', 'quick_setup' or 'receipt' (null on rows from before step 4). */
+  source: text("source"),
+  /**
+   * The receipt (the tradie's own expense record) a 'receipt' price came from, so
+   * saving it again replaces what it taught and deleting it removes those prices.
+   * Never a customer, job or quote reference.
+   */
+  receiptId: integer("receipt_id").references(() => receipts.id),
 }, (t) => ({
   price_list_items_user_id_idx: index("price_list_items_user_id_idx").on(t.userId),
 }));
+
+/**
+ * Remembered matches (docs/pricing-design.md, step 4): a receipt line the tradie
+ * confirmed or corrected ("SL82 MESH 6X2.4" from Bunnings is their "Reinforcing
+ * mesh SL82, sheet"), or a confident AI match that was applied. The same line
+ * never needs the AI, or the tradie, again. Per tradie; deleted with the account.
+ */
+export const priceMatches = pgTable("price_matches", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  /** The line text, tidied (shared/matcher lineKey). */
+  lineKey: text("line_key").notNull(),
+  /** The supplier's name, tidied; '' when unknown. */
+  supplierKey: text("supplier_key").notNull().default(""),
+  /** The matched item and its unit; null when the tradie said "not a material, ignore it". */
+  item: text("item"),
+  unit: text("unit"),
+  /** How many of the item's unit one of the line's units is. */
+  factor: numeric("factor", { precision: 14, scale: 6 }),
+  ignore: boolean("ignore").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at").notNull().defaultNow(),
+}, (t) => ({
+  price_matches_user_line_idx: uniqueIndex("price_matches_user_line_idx").on(t.userId, t.lineKey, t.supplierKey),
+}));
+
+export type PriceMatch = typeof priceMatches.$inferSelect;
+
+/**
+ * The "Not sure what this is" list (docs/pricing-design.md, step 4): receipt
+ * lines the matcher couldn't place for certain, waiting for one tap from the
+ * tradie. Ignoring them is fine: they just don't price anything. Cleared when the
+ * receipt is saved again (then rebuilt) or deleted; deleted with the account.
+ */
+export const unsurePriceLines = pgTable("unsure_price_lines", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  receiptId: integer("receipt_id").notNull().references(() => receipts.id),
+  lineIndex: integer("line_index").notNull(),
+  /** The line as printed. */
+  lineText: text("line_text").notNull(),
+  unit: text("unit"),
+  supplier: text("supplier"),
+  receiptDate: text("receipt_date"),
+  quantity: numeric("quantity", { precision: 12, scale: 3 }).notNull(),
+  /** What one of these cost, as paid (GST as printed). */
+  perUnit: numeric("per_unit", { precision: 12, scale: 4 }).notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }),
+  /** The AI's best guess, if it had one (never a price). */
+  guessItem: text("guess_item"),
+  guessUnit: text("guess_unit"),
+  /** A certain conversion to the guess's unit, if one is known. */
+  guessFactor: numeric("guess_factor", { precision: 14, scale: 6 }),
+  /** The AI's own idea of the conversion: a hint for the tradie, never applied on its own. */
+  guessAiFactor: numeric("guess_ai_factor", { precision: 14, scale: 6 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  unsure_price_lines_user_id_idx: index("unsure_price_lines_user_id_idx").on(t.userId),
+}));
+
+export type UnsurePriceLine = typeof unsurePriceLines.$inferSelect;
 
 export type PriceListItem = typeof priceListItems.$inferSelect;
 export type InsertPriceListItem = typeof priceListItems.$inferInsert;

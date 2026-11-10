@@ -188,6 +188,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="settings/widgets" />
           <Stack.Screen name="settings/delete-account" />
           <Stack.Screen name="settings/quick-setup" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="settings/unsure-prices" />
           <Stack.Screen name="customers/index" />
           <Stack.Screen name="customers/[id]" />
           <Stack.Screen name="customers/new" />
