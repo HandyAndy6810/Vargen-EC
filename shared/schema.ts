@@ -361,6 +361,14 @@ export const priceListItems = pgTable("price_list_items", {
   priceDate: timestamp("price_date").notNull().defaultNow(),
   /** Where it was bought. Null when it was learned from a quote edit. */
   supplier: text("supplier"),
+  /** How it was learned: 'edit', 'quick_setup' or 'receipt' (null on rows from before step 4). */
+  source: text("source"),
+  /**
+   * The receipt (the tradie's own expense record) a 'receipt' price came from, so
+   * saving it again replaces what it taught and deleting it removes those prices.
+   * Never a customer, job or quote reference.
+   */
+  receiptId: integer("receipt_id").references(() => receipts.id),
 }, (t) => ({
   price_list_items_user_id_idx: index("price_list_items_user_id_idx").on(t.userId),
 }));

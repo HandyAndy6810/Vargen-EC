@@ -193,7 +193,7 @@ export default function ReviewStep() {
             {l.priceSource === 'yours' ? (
               <View style={[s.sourceBadge, { backgroundColor: c.greenSoft }]}>
                 <Text style={[s.sourceBadgeText, { color: c.green }]}>
-                  Your price{l.priceDate ? `, ${priceAge(l.priceDate, new Date())}` : ''}
+                  Your price{l.priceSupplier ? `, ${l.priceSupplier}` : ''}{l.priceDate ? `, ${priceAge(l.priceDate, new Date())}` : ''}
                 </Text>
               </View>
             ) : l.priceSource === 'estimate' ? (

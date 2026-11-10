@@ -11,6 +11,7 @@ import { isHourlyUnit } from "../shared/labour-panel";
 import { applyPriceList, newestPrices } from "../shared/price-list";
 import { quickSetupEntries, cleanSuggestions } from "../shared/quick-setup";
 import { cleanReceiptLines, cleanGstFlag, cleanReceiptDiscount } from "../shared/receipt-lines";
+import { priceReceipt } from "./lib/receipt-prices";
 import { labourLineCost } from "./lib/labour-cost";
 import { resolvePricingInputs, enforceCallOut } from "./lib/pricing-inputs";
 import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
@@ -1428,6 +1429,34 @@ CRITICAL RULES — follow these exactly:
     }
   });
 
+  /** One JSON completion for the matching engine (server/lib/match-ai.ts): text only, no reasoning budget wasted. */
+  const completeJson = async (system: string, user: string): Promise<string> => {
+    const response = await openai.chat.completions.create({
+      model: AI_MODEL,
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+      max_tokens: 900,
+      temperature: 0,
+      response_format: { type: "json_object" },
+    });
+    return response.choices[0]?.message?.content || "";
+  };
+
+  /**
+   * Price a receipt after it's saved or edited (pricing step 4). Waits a few
+   * seconds so the app can say how it went; past that it carries on in the
+   * background and the response just has no summary. Never fails the save.
+   */
+  const RECEIPT_PRICING_WAIT_MS = 8_000;
+  async function pricingAfterSave(userId: string, receiptId: number) {
+    const run = priceReceipt(userId, receiptId, completeJson).catch((err) => {
+      console.error(`[receipt ${receiptId}] pricing failed (the receipt is saved):`, err);
+      return null;
+    });
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), RECEIPT_PRICING_WAIT_MS));
+    const done = await Promise.race([run, timeout]);
+    return done ? { saved: done.saved, unsure: done.unsure.length, ignored: done.ignored, skipped: done.skipped } : null;
+  }
+
   // ── The tradie's own price list (docs/pricing-design.md, steps 2 and 3) ──
 
   /** Their saved prices, newest per item and unit: quick setup fills its boxes from these. */
@@ -1449,7 +1478,7 @@ CRITICAL RULES — follow these exactly:
   app.post("/api/price-list/quick-setup", requireAuth, async (req: any, res) => {
     try {
       const { entries, heldBack } = quickSetupEntries(req.body);
-      const saved = await storage.addPrices(req.userId, entries);
+      const saved = await storage.addPrices(req.userId, entries, { source: 'quick_setup' });
       await storage.markQuickSetupSeen(req.userId);
       res.json({ saved, heldBack });
     } catch (err) {
@@ -3292,7 +3321,7 @@ If you cannot read the image clearly, return your best guess. Always return vali
       const discount = cleanReceiptDiscount(body.receiptDiscount);
       body.receiptDiscount = discount == null ? null : String(discount);
       const receipt = await storage.createReceipt({ ...body, userId: req.userId });
-      res.status(201).json(receipt);
+      res.status(201).json({ ...receipt, pricing: await pricingAfterSave(req.userId, receipt.id) });
     } catch (err: any) {
       res.status(400).json({ message: err?.message || "Failed to create receipt" });
     }
@@ -3329,7 +3358,10 @@ If you cannot read the image clearly, return your best guess. Always return vali
         ...(req.body.receiptDiscount !== undefined && { receiptDiscount: (() => { const d = cleanReceiptDiscount(req.body.receiptDiscount); return d == null ? null : String(d); })() }),
         ...(jobId !== undefined && { jobId }),
       });
-      res.json(updated);
+      // Re-learn from what changed (lines, GST, discount, category, date): replaces what it taught before.
+      const repriced = ["items", "pricesIncludeGst", "receiptDiscount", "category", "receiptDate", "vendor", "totalAmount"]
+        .some((k) => req.body[k] !== undefined);
+      res.json(repriced ? { ...updated, pricing: await pricingAfterSave(req.userId, id) } : updated);
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to update receipt" });
     }

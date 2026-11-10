@@ -21,6 +21,14 @@ import type { Remembered } from "../shared/matcher";
 
 export type StoredPrice = PriceRow & { id: number; supplier: string | null };
 
+/** How a price was learned (price_list_items.source and its receipt link). */
+export type PriceWriteOptions = {
+  supplier?: string | null;
+  source?: 'edit' | 'quick_setup' | 'receipt';
+  receiptId?: number | null;
+  priceDate?: Date;
+};
+
 export interface IStorage {
   // Customers (userId-scoped)
   getCustomers(userId: string): Promise<Customer[]>;
@@ -64,7 +72,9 @@ export interface IStorage {
   // The tradie's own price list (docs/pricing-design.md, step 2)
   /** Every price row, numbers as numbers (numeric columns read back as strings). */
   getPriceList(userId: string): Promise<StoredPrice[]>;
-  addPrices(userId: string, entries: PriceEntry[], supplier?: string | null): Promise<number>;
+  addPrices(userId: string, entries: PriceEntry[], opts?: PriceWriteOptions): Promise<number>;
+  /** Remove what a receipt taught (before re-pricing it, or when it's deleted). */
+  deleteReceiptPrices(userId: string, receiptId: number): Promise<void>;
   /** The tradie's remembered matches (shared/matcher Remembered). */
   getRememberedMatches(userId: string): Promise<Remembered[]>;
   /** Remember (or update) a match for this line text and supplier. */
@@ -359,6 +369,10 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(quoteItems).where(inArray(quoteItems.quoteId, myQuotes));
       await tx.delete(portalFeedback).where(inArray(portalFeedback.quoteId, myQuotes));
 
+      // The price list (its history points at receipts) and the remembered matches.
+      await tx.delete(priceListItems).where(eq(priceListItems.userId, userId));
+      await tx.delete(priceMatches).where(eq(priceMatches.userId, userId));
+
       // The documents, then what they point at.
       await tx.delete(invoices).where(eq(invoices.userId, userId));
       await tx.delete(jobs).where(eq(jobs.userId, userId));
@@ -367,9 +381,7 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(receipts).where(eq(receipts.userId, userId));
       await tx.delete(customers).where(eq(customers.userId, userId));
 
-      // Account-level rows. The price list (and its history) and the remembered matches go too.
-      await tx.delete(priceListItems).where(eq(priceListItems.userId, userId));
-      await tx.delete(priceMatches).where(eq(priceMatches.userId, userId));
+      // Account-level rows.
       await tx.delete(jobTemplates).where(eq(jobTemplates.userId, userId));
       await tx.delete(xeroTokens).where(eq(xeroTokens.userId, userId));
       await tx.delete(userSettings).where(eq(userSettings.userId, userId));
@@ -428,7 +440,7 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async addPrices(userId: string, entries: PriceEntry[], supplier: string | null = null): Promise<number> {
+  async addPrices(userId: string, entries: PriceEntry[], opts: PriceWriteOptions = {}): Promise<number> {
     if (!entries.length) return 0;
     const rows = await db.insert(priceListItems).values(entries.map((e) => ({
       userId,
@@ -436,9 +448,16 @@ export class DatabaseStorage implements IStorage {
       quantity: e.quantity == null ? null : String(e.quantity),
       unit: e.unit.slice(0, 30),
       unitPrice: String(e.unitPrice),
-      supplier,
+      supplier: opts.supplier ? opts.supplier.slice(0, 120) : null,
+      source: opts.source ?? null,
+      receiptId: opts.receiptId ?? null,
+      ...(opts.priceDate ? { priceDate: opts.priceDate } : {}),
     }))).returning({ id: priceListItems.id });
     return rows.length;
+  }
+
+  async deleteReceiptPrices(userId: string, receiptId: number): Promise<void> {
+    await db.delete(priceListItems).where(and(eq(priceListItems.userId, userId), eq(priceListItems.receiptId, receiptId)));
   }
 
   async getRememberedMatches(userId: string): Promise<Remembered[]> {
@@ -468,7 +487,7 @@ export class DatabaseStorage implements IStorage {
   async learnPricesFromSentQuote(userId: string, quoteId: number, content: string): Promise<number> {
     const gens = await db.select({ response: aiGenerations.response }).from(aiGenerations)
       .where(and(eq(aiGenerations.quoteId, quoteId), eq(aiGenerations.userId, userId)));
-    return this.addPrices(userId, learnedPrices(gens.map((g) => g.response), content));
+    return this.addPrices(userId, learnedPrices(gens.map((g) => g.response), content), { source: 'edit' });
   }
 
   // ── Quote Items ───────────────────────────────────────────────────────
@@ -765,6 +784,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteReceipt(id: number, userId: string): Promise<void> {
+    // The prices this receipt alone taught go with it (they point at it).
+    await this.deleteReceiptPrices(userId, id);
     await db.delete(receipts).where(and(eq(receipts.id, id), eq(receipts.userId, userId)));
   }
 

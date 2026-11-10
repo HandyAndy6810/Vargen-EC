@@ -33,7 +33,7 @@ export type PriceEntry = {
 };
 
 /** A stored row as the matcher needs it. */
-export type PriceRow = PriceEntry & { priceDate: Date | string; id?: number };
+export type PriceRow = PriceEntry & { priceDate: Date | string; id?: number; supplier?: string | null };
 
 /** Where a quote line's price came from, shown as a badge on Review. */
 export type PriceSource = 'yours' | 'estimate';
@@ -192,6 +192,8 @@ export function applyPriceList<I extends Record<string, any>, R extends PriceRow
       priceNote: undefined, // the sanity note was about the AI's figure
       priceSource: 'yours' as PriceSource,
       priceDate: new Date(mine.priceDate).toISOString(),
+      // Where they bought it, when a receipt taught it: "your price, Reece, 3 weeks ago".
+      ...(mine.supplier ? { priceSupplier: mine.supplier } : {}),
     };
   });
 }

@@ -62,6 +62,8 @@ export type LineItem = {
   priceSource?: PriceSource;
   /** When 'yours' was recorded, for "your price, 3 weeks ago". */
   priceDate?: string;
+  /** Where they bought it, when a receipt taught the price: "your price, Reece, 3 weeks ago". */
+  priceSupplier?: string;
 };
 const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
 
@@ -73,9 +75,9 @@ const DEFAULT_LINES: LineItem[] = [{ name: '', qty: '1', price: '' }];
 function keepSourceIfSamePrice(prev: LineItem, next: LineItem): LineItem {
   const same = (a?: string, b?: string) => (parseFloat(a || '0') || 0) === (parseFloat(b || '0') || 0);
   if (same(prev.cost, next.cost) && same(prev.price, next.price)) {
-    return { ...next, priceSource: prev.priceSource, priceDate: prev.priceDate };
+    return { ...next, priceSource: prev.priceSource, priceDate: prev.priceDate, priceSupplier: prev.priceSupplier };
   }
-  const { priceSource: _s, priceDate: _d, ...rest } = next;
+  const { priceSource: _s, priceDate: _d, priceSupplier: _p, ...rest } = next;
   return rest;
 }
 
@@ -718,6 +720,7 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
       priceNote: typeof it.priceNote === 'string' ? it.priceNote : undefined,
       priceSource: it.priceSource === 'yours' || it.priceSource === 'estimate' ? it.priceSource : undefined,
       priceDate: typeof it.priceDate === 'string' ? it.priceDate : undefined,
+      priceSupplier: typeof it.priceSupplier === 'string' && it.priceSupplier.trim() ? it.priceSupplier.trim() : undefined,
     }));
   };
 
