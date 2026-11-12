@@ -13,6 +13,9 @@ import { resolveQuoteMatches, matchLearnedEntries } from "./lib/quote-prices";
 import { quickSetupEntries, cleanSuggestions } from "../shared/quick-setup";
 import { cleanReceiptLines, cleanGstFlag, cleanReceiptDiscount } from "../shared/receipt-lines";
 import { priceReceipt } from "./lib/receipt-prices";
+import { pdfText } from "./lib/pdf-text";
+import { parseUpload } from "./lib/attachment-upload";
+import { suggestionFromAi } from "../shared/share-intake";
 import { lineKey, supplierKey, resolutionFactor } from "../shared/matcher";
 import { receiptCandidates } from "../shared/match-candidates";
 import { priceFromMatch, receiptPriceDate } from "../shared/receipt-pricing";
@@ -1486,6 +1489,97 @@ CRITICAL RULES — follow these exactly:
   }
 
   // ── The tradie's own price list (docs/pricing-design.md, steps 2 and 3) ──
+
+  // ── Attachments: receipt/invoice files and job site photos (pricing step 5) ──
+
+  /** The parent must be one of the caller's own records; 404 otherwise (never confirms it exists). */
+  async function ownsParent(userId: string, parent: { receiptId?: number; jobId?: number; quoteId?: number }): Promise<boolean> {
+    if (parent.receiptId != null) return !!(await storage.getReceipt(parent.receiptId, userId));
+    if (parent.jobId != null) return !!(await storage.getJob(parent.jobId, userId));
+    if (parent.quoteId != null) return !!(await storage.getQuote(parent.quoteId, userId));
+    return false;
+  }
+
+  /** Keep a photo or PDF with a receipt, job or quote. JSON body: { receiptId|jobId|quoteId, data (base64), fileName? }. */
+  app.post("/api/attachments", requireAuth, async (req: any, res) => {
+    try {
+      const up = parseUpload(req.body);
+      if (!up.ok) return res.status(up.status).json({ message: up.message });
+      if (!(await ownsParent(req.userId, up.parent))) return res.status(404).json({ message: "Not found" });
+      const row = await storage.createAttachment(req.userId, { mimeType: up.mimeType, fileName: up.fileName, data: up.data, ...up.parent });
+      res.status(201).json(row);
+    } catch (err) {
+      console.error("[attachments] save failed:", err);
+      res.status(500).json({ message: "Couldn't keep that file. Try again." });
+    }
+  });
+
+  /** A record's files (no data): ?receiptId= or ?jobId= or ?quoteId=. */
+  app.get("/api/attachments", requireAuth, async (req: any, res) => {
+    const n = (v: unknown) => (v == null ? undefined : Number(v));
+    const parent = { receiptId: n(req.query.receiptId), jobId: n(req.query.jobId), quoteId: n(req.query.quoteId) };
+    if (Object.values(parent).filter((v) => v !== undefined).length !== 1 || Object.values(parent).some((v) => v !== undefined && !Number.isInteger(v))) {
+      return res.status(400).json({ message: "Ask for one receipt, job or quote." });
+    }
+    res.json(await storage.listAttachments(req.userId, parent as any));
+  });
+
+  /** One file, as a data URI (photos on screen) — owner only. */
+  app.get("/api/attachments/:id", requireAuth, async (req: any, res) => {
+    const row = await storage.getAttachment(req.userId, Number(req.params.id));
+    if (!row) return res.status(404).json({ message: "Not found" });
+    res.json({ id: row.id, mimeType: row.mimeType, fileName: row.fileName, dataUri: `data:${row.mimeType};base64,${row.data.toString("base64")}` });
+  });
+
+  app.delete("/api/attachments/:id", requireAuth, async (req: any, res) => {
+    await storage.deleteAttachment(req.userId, Number(req.params.id));
+    res.json({ ok: true });
+  });
+
+  /**
+   * Share to Vargen: the AI's guess at what a shared photo or message is, so the
+   * likeliest option goes first in "What do you want to do with this?". Only a
+   * suggestion: the tradie always picks. Failure or no vision model → null.
+   */
+  app.post("/api/share/suggest", requireAuth, aiRateLimit, async (req: any, res) => {
+    try {
+      const kind = req.body?.kind;
+      if (kind === "image") {
+        if (!AI_VISION_MODEL) return res.json({ suggested: null });
+        const image = typeof req.body?.imageBase64 === "string" ? imageDataUri(req.body.imageBase64.includes(";base64,") ? req.body.imageBase64.split(";base64,")[1] : req.body.imageBase64) : null;
+        if (!image?.uri) return res.json({ suggested: null });
+        const r = await openai.chat.completions.create({
+          model: AI_VISION_MODEL,
+          messages: [{ role: "user", content: [
+            { type: "image_url", image_url: { url: image.uri } },
+            { type: "text", text: 'Is this photo a receipt or supplier invoice, or a photo of a job site or work? Reply with JSON only: {"kind":"receipt"} or {"kind":"site"}.' },
+          ] }],
+          max_tokens: 30,
+          temperature: 0,
+        } as any);
+        return res.json({ suggested: suggestionFromAi("image", extractJsonObject(r.choices[0]?.message?.content)) });
+      }
+      if (kind === "text") {
+        const text = typeof req.body?.text === "string" ? req.body.text.slice(0, 3000) : "";
+        if (!text.trim()) return res.json({ suggested: null });
+        const r = await openai.chat.completions.create({
+          model: AI_MODEL,
+          messages: [
+            { role: "system", content: 'A tradesperson shared this message into their quoting app. Is it a customer asking for work or a quote ("request"), or something to keep as a note ("note")? Reply with JSON only: {"kind":"request"} or {"kind":"note"}.' },
+            { role: "user", content: text },
+          ],
+          max_tokens: 30,
+          temperature: 0,
+          response_format: { type: "json_object" },
+        });
+        return res.json({ suggested: suggestionFromAi("text", r.choices[0]?.message?.content) });
+      }
+      res.json({ suggested: null });
+    } catch (err) {
+      console.error("[share] suggestion failed (the menu keeps its default order):", err);
+      res.json({ suggested: null });
+    }
+  });
 
   // ── The "Not sure what this is" list (pricing step 4) ──────────────────
 
@@ -3242,10 +3336,81 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
 
   // ── Receipts ──────────────────────────────────────────────────────────
 
+  /** The receipt reader's instructions, for a photo (vision model) or a PDF's text (chat model). */
+  const RECEIPT_SCAN_PROMPT = `You are a receipt scanner. Extract the following from this receipt image and return ONLY valid JSON with no markdown:
+{
+  "vendor": "store or supplier name",
+  "date": "YYYY-MM-DD or empty string if not found",
+  "total": 0.00,
+  "category": "one of: Materials, Equipment, Fuel, Subcontractor, Food, Other",
+  "pricesIncludeGst": true,
+  "receiptDiscount": 0.00,
+  "items": [{ "description": "item as printed", "quantity": null, "unit": "", "unitPrice": null, "amount": 0.00, "lineDiscount": 0.00 }],
+  "notes": "any useful notes or empty string"
+}
+
+Rules:
+- "total" is the final amount paid: the line labelled AMOUNT DUE, TOTAL, or TOTAL (INC. GST), including GST and any surcharge. Never the subtotal. Copy every digit exactly.
+- Include every purchased line as an item, in order. Skip subtotal, GST, surcharge, payment, card, account, loyalty and change lines.
+- Each item's "description" is the item text exactly as printed (e.g. "SL82 MESH 6X2.4").
+- "quantity", "unit" (as printed, e.g. EA, LM, BAG, M) and "unitPrice" (per unit, as printed): copy them only if the receipt prints them. If not printed, use null for numbers and "" for unit. Never work them out or guess.
+- Each item's "amount" is the price actually paid for that line (quantity × unit price, after any discount printed on that line), taken from the same line or the price printed beside it. Do not shift prices between items.
+- "lineDiscount": a discount printed against that line, else 0. "receiptDiscount": a discount on the whole receipt that isn't tied to a line, else 0.
+- "pricesIncludeGst": true when the receipt shows the prices include GST (e.g. "Total includes GST", "GST incl"), false when it shows GST added on top of ex-GST prices, null if it doesn't say.
+- Never include card numbers, account numbers or loyalty numbers anywhere.
+- The item amounts should add up to roughly the total (before any surcharge). If they don't, re-read the prices.
+- Dates on Australian receipts are day first: 05/03/2026 is 5 March 2026.
+
+If you cannot read the image clearly, return your best guess. Always return valid JSON.`;
+
   // AI scan a receipt image
   app.post("/api/receipts/scan", requireAuth, async (req: any, res) => {
     try {
-      const { imageBase64 } = req.body;
+      const { imageBase64, pdfBase64 } = req.body;
+      // A PDF supplier invoice or receipt (Share to Vargen): read its text with
+      // the chat model and the same instructions. A scan saved as a PDF has no
+      // text; say so rather than guess.
+      if (pdfBase64) {
+        const b64 = typeof pdfBase64 === "string" ? (pdfBase64.includes(";base64,") ? pdfBase64.split(";base64,")[1] : pdfBase64) : "";
+        const data = Buffer.from(b64, "base64");
+        if (!data.length || data.subarray(0, 5).toString("latin1") !== "%PDF-") {
+          return res.status(415).json({ message: "Vargen can't use this kind of file." });
+        }
+        let text = "";
+        try { text = await pdfText(data); } catch (err) {
+          console.error("[receipt-scan] PDF could not be read:", err);
+          return res.status(422).json({ message: "Couldn't open that PDF. Enter it yourself for now." });
+        }
+        if (text.length < 20) {
+          return res.status(422).json({ message: "That PDF is a picture, not text. Take a photo of it instead, or enter it yourself." });
+        }
+        const response = await openai.chat.completions.create({
+          model: AI_MODEL,
+          messages: [
+            { role: "system", content: RECEIPT_SCAN_PROMPT.replace("this receipt image", "this receipt or supplier invoice text") },
+            { role: "user", content: text },
+          ],
+          max_tokens: 1200,
+          temperature: 0,
+          response_format: { type: "json_object" },
+        } as any);
+        const parsed = extractJsonObject(response.choices[0]?.message?.content);
+        const total = receiptTotal(parsed?.total);
+        if (!parsed || total == null) {
+          return res.status(422).json({ message: "Couldn't read a total from that PDF. Enter it yourself for now." });
+        }
+        const scanDate = toISODate(parsed.date);
+        return res.json({
+          vendor: parsed.vendor || '',
+          date: isValidISODate(scanDate) ? scanDate : '',
+          total: total.toFixed(2),
+          category: parsed.category || 'Other',
+          items: cleanReceiptLines(parsed.items),
+          pricesIncludeGst: cleanGstFlag(parsed.pricesIncludeGst),
+          receiptDiscount: cleanReceiptDiscount(parsed.receiptDiscount),
+          notes: parsed.notes || '',
+        });
+      }
       if (!imageBase64) return res.status(400).json({ message: "imageBase64 required" });
 
       // Say what is actually wrong. Without this the route sent the photo to a
@@ -3292,31 +3457,7 @@ function applyInvoiceSplit(input: InvoiceSplitInput): InvoiceSplitResult {
               // The rules spell out the two misreads seen on a real receipt: the
               // subtotal taken for the total (with a digit dropped), and prices
               // shifted one line out of step with their items.
-              text: `You are a receipt scanner. Extract the following from this receipt image and return ONLY valid JSON with no markdown:
-{
-  "vendor": "store or supplier name",
-  "date": "YYYY-MM-DD or empty string if not found",
-  "total": 0.00,
-  "category": "one of: Materials, Equipment, Fuel, Subcontractor, Food, Other",
-  "pricesIncludeGst": true,
-  "receiptDiscount": 0.00,
-  "items": [{ "description": "item as printed", "quantity": null, "unit": "", "unitPrice": null, "amount": 0.00, "lineDiscount": 0.00 }],
-  "notes": "any useful notes or empty string"
-}
-
-Rules:
-- "total" is the final amount paid: the line labelled AMOUNT DUE, TOTAL, or TOTAL (INC. GST), including GST and any surcharge. Never the subtotal. Copy every digit exactly.
-- Include every purchased line as an item, in order. Skip subtotal, GST, surcharge, payment, card, account, loyalty and change lines.
-- Each item's "description" is the item text exactly as printed (e.g. "SL82 MESH 6X2.4").
-- "quantity", "unit" (as printed, e.g. EA, LM, BAG, M) and "unitPrice" (per unit, as printed): copy them only if the receipt prints them. If not printed, use null for numbers and "" for unit. Never work them out or guess.
-- Each item's "amount" is the price actually paid for that line (quantity × unit price, after any discount printed on that line), taken from the same line or the price printed beside it. Do not shift prices between items.
-- "lineDiscount": a discount printed against that line, else 0. "receiptDiscount": a discount on the whole receipt that isn't tied to a line, else 0.
-- "pricesIncludeGst": true when the receipt shows the prices include GST (e.g. "Total includes GST", "GST incl"), false when it shows GST added on top of ex-GST prices, null if it doesn't say.
-- Never include card numbers, account numbers or loyalty numbers anywhere.
-- The item amounts should add up to roughly the total (before any surcharge). If they don't, re-read the prices.
-- Dates on Australian receipts are day first: 05/03/2026 is 5 March 2026.
-
-If you cannot read the image clearly, return your best guess. Always return valid JSON.`,
+              text: RECEIPT_SCAN_PROMPT,
             },
           ],
         },
