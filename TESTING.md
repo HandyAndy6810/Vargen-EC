@@ -549,6 +549,34 @@ phone if you have one. Web screenshots don't count for these.
 - [ ] **Quotes never wait** AI quotes still build normally (a few seconds at most longer
       when they look up your prices).
 
+### Share to Vargen (pricing step 5, build 1.2.0)
+
+Needs the 1.2.0 build. Delete the old app first. Do each on iPhone, and on Android if you have one.
+
+- [ ] **It's in the share sheet** In Photos, Files, Mail/Gmail, Messages and Contacts, tap
+      Share: Vargen is listed (iOS: you may need "More" the first time).
+- [ ] **Receipt photo** Share a receipt photo → "What do you want to do with this?" → Add to
+      expenses is first ("Suggested"). It opens the receipt screen already read; check and
+      Save. The receipt shows its photo under "Original", and its prices update (step 4).
+- [ ] **PDF invoice** Share a supplier's PDF invoice from Mail or Files → Add to expenses →
+      read from the PDF's text. A scanned PDF (a picture) says so plainly.
+- [ ] **Linked to a job** Share a receipt → "Add to expenses, linked to a job" → pick the job →
+      the saved receipt is on that job.
+- [ ] **Several receipts** Share 3 receipt photos at once → each one comes up in turn to check
+      and save. All 3 arrive (none missing).
+- [ ] **Job site photo** Share a site photo → Add to a job → pick it → the job's Photos show it.
+      Attach to a quote → the quote shows it. Start a quote from this → the photo is on the
+      quote once you save it.
+- [ ] **Customer's message** Share a text or email → Start a quote is first; Describe has the
+      text. Or "Save to a customer's notes" → pick them → the note is on their page, dated.
+- [ ] **Contact card** Share a contact from Contacts → Save as customer → the new-customer
+      form is filled in; Save.
+- [ ] **Can't use it** Share a video or a zip → "Vargen can't use this kind of file."
+- [ ] **Signed out** Sign out, share a photo → sign in → it carries on to the menu.
+- [ ] **No signal** Flight mode, share a receipt → Add to expenses → "Saved on this phone".
+      Back online → it appears in Receipts (with its photo) without doing anything.
+- [ ] **Nothing silent** Cancel on the menu: nothing is saved anywhere.
+
 ## Findings
 
 Anything marked `[F]` goes here. One line each: what you did, what happened, what

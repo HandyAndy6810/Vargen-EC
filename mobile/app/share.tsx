@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, StyleSheet, Animated, ActivityIndicator, Image, FlatList,
+  View, Text, TextInput, StyleSheet, Animated, ActivityIndicator, Image, FlatList, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -20,7 +20,7 @@ import { keepSharedFile, photoDataUri, fileText, forgetFiles } from '@/lib/share
 import { keepFile, addCustomerNote, saveContact } from '@/lib/share-actions';
 import { queueShare } from '@/lib/share-outbox';
 import {
-  setReceiptQueue, setQuotePrefill, setCustomerPrefill, setShareAfterLogin, type LocalFile,
+  setReceiptQueue, setQuotePrefill, setCustomerPrefill, setShareAfterLogin, setShareScreenOpen, type LocalFile,
 } from '@/lib/share-handoff';
 import {
   shareItems, shareMenu, itemsForAction, ACTION_LABELS, CANT_USE, parseVCard,
@@ -50,7 +50,10 @@ export default function ShareScreen() {
   const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
   const insets = useSafeAreaInsets();
   const { scrollY, scrollProps } = useGradientScroll();
-  const { hasShareIntent, shareIntent, resetShareIntent, isReady } = useShareIntentContext();
+  const share = useShareIntentContext();
+  const { hasShareIntent, shareIntent, resetShareIntent } = share;
+  // The library is off on the web (no share sheet there): ready, with nothing shared.
+  const isReady = share.isReady || Platform.OS === 'web';
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const online = useIsOnline();
 
@@ -66,6 +69,7 @@ export default function ShareScreen() {
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState<Picking>(null);
   const asked = useRef(false);
+  useEffect(() => { setShareScreenOpen(true); return () => setShareScreenOpen(false); }, []);
 
   // Signed out: sign in first, then come back to this same share (the tab layout brings us back).
   useEffect(() => {

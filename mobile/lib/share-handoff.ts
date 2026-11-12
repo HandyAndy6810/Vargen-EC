@@ -50,3 +50,8 @@ export function takeCustomerPrefill(): ContactCard | null { const c = customer; 
 
 export const setShareAfterLogin = (v: boolean) => { afterLogin = v; };
 export const shareAfterLogin = () => afterLogin;
+
+/** The share screen is showing (so a new share doesn't open a second one). */
+let screenOpen = false;
+export const setShareScreenOpen = (v: boolean) => { screenOpen = v; };
+export const shareScreenOpen = () => screenOpen;

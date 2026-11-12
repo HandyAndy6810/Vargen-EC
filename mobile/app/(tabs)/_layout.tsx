@@ -12,7 +12,8 @@ import { Home, FileText, Receipt, CalendarClock, User } from 'lucide-react-nativ
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiRequest } from '@/lib/api';
 import { shouldOfferQuickSetup, markQuickSetupOffered, quickSetupOffered } from '@/lib/quick-setup-offer';
-import { shareAfterLogin, setShareAfterLogin } from '@/lib/share-handoff';
+import { shareAfterLogin, setShareAfterLogin, shareScreenOpen } from '@/lib/share-handoff';
+import { useShareIntentContext } from 'expo-share-intent';
 
 const TABS: { name: string; label: string; icon: TabIconSpec }[] = [
   { name: 'index',    label: 'Home',     icon: { symbol: 'house',              symbolActive: 'house.fill',              Fallback: Home } },
@@ -162,16 +163,23 @@ export default function TabsLayout() {
       router.replace('/(auth)/login');
       return;
     }
-    // A share that arrived while signed out (app/share.tsx): carry on with it now.
-    if (shareAfterLogin()) {
-      setShareAfterLogin(false);
-      router.push('/share' as any);
-    }
+    // A share that waited for sign-in is picked up by the share effect below
+    // (the share stays in the provider); this only clears the note.
+    if (shareAfterLogin()) setShareAfterLogin(false);
     AsyncStorage.getItem('onboarding_seen').then((seen) => {
       if (!seen) router.replace('/onboarding');
       else setOnboarded(true);
     });
   }, [isAuthenticated, isLoading]);
+
+  // Share to Vargen (step 5): a share that arrives while the app is open or
+  // starting (Android delivers it this way; iOS also opens a vargen:// link that
+  // app/+native-intent.tsx routes), or one that waited for sign-in.
+  const { hasShareIntent } = useShareIntentContext();
+  useEffect(() => {
+    if (!isAuthenticated || !hasShareIntent || shareScreenOpen()) return;
+    router.push('/share' as any);
+  }, [isAuthenticated, hasShareIntent]);
 
   // Quick setup (docs/pricing-design.md, step 3), offered once: a new tradie
   // gets it straight after onboarding (onboarding.tsx opens it), an existing one
