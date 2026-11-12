@@ -16,7 +16,7 @@ import { storage } from '../storage';
 import {
   users, sessions, customers, jobs, quotes, quoteItems, invoices, portalFeedback,
   customerMessages, receipts, jobTemplates, xeroTokens, userSettings, aiGenerations, priceListItems,
-  priceMatches, unsurePriceLines,
+  priceMatches, unsurePriceLines, attachments,
 } from '../../shared/schema';
 
 const stamp = Date.now();
@@ -41,6 +41,8 @@ async function seedUser(tag: string): Promise<string> {
   await db.insert(priceListItems).values({ userId: u.id, item: 'Tie wire', unit: 'roll', unitPrice: '12.50', source: 'receipt', receiptId: rc.id, supplier: 'Bunnings' });
   await db.insert(priceMatches).values({ userId: u.id, lineKey: 'sl82 mesh 6x2.4', supplierKey: 'bunnings', item: 'Reinforcing mesh SL82', unit: 'sheet', factor: '1' });
   await db.insert(unsurePriceLines).values({ userId: u.id, receiptId: rc.id, lineIndex: 0, lineText: 'MYSTERY ITEM', quantity: '1', perUnit: '10' });
+  await db.insert(attachments).values({ userId: u.id, receiptId: rc.id, mimeType: 'application/pdf', sizeBytes: 4, data: Buffer.from('%PDF') });
+  await db.insert(attachments).values({ userId: u.id, jobId: j.id, mimeType: 'image/jpeg', sizeBytes: 3, data: Buffer.from([0xff, 0xd8, 0xff]) });
   await db.insert(sessions).values({ sid: `sid-${tag}-${stamp}`, sess: { localUserId: u.id, cookie: {} }, expire: new Date(Date.now() + 3600_000) });
   return u.id;
 }
@@ -67,6 +69,7 @@ async function counts(userId: string): Promise<Record<string, number>> {
     price_list_items: await n(db.select({ n: sql<number>`count(*)` }).from(priceListItems).where(eq(priceListItems.userId, userId))),
     price_matches: await n(db.select({ n: sql<number>`count(*)` }).from(priceMatches).where(eq(priceMatches.userId, userId))),
     unsure_price_lines: await n(db.select({ n: sql<number>`count(*)` }).from(unsurePriceLines).where(eq(unsurePriceLines.userId, userId))),
+    attachments: await n(db.select({ n: sql<number>`count(*)` }).from(attachments).where(eq(attachments.userId, userId))),
   };
 }
 

@@ -1,7 +1,7 @@
 export * from "./models/auth";
 export * from "./models/chat";
 
-import { pgTable, text, serial, integer, boolean, timestamp, numeric, varchar, index, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, numeric, varchar, index, uniqueIndex, customType, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -436,6 +436,38 @@ export type UnsurePriceLine = typeof unsurePriceLines.$inferSelect;
 
 export type PriceListItem = typeof priceListItems.$inferSelect;
 export type InsertPriceListItem = typeof priceListItems.$inferInsert;
+
+/** Postgres bytea, read and written as a Node Buffer. */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
+
+/**
+ * Files the tradie keeps with their records (docs/pricing-design.md, step 5:
+ * Share to Vargen): a receipt or supplier invoice's photo or PDF ("the full
+ * image stays with the expense record"), and job site photos on a job or a
+ * quote. Exactly one of receiptId / jobId / quoteId is set. Stored in the
+ * database (there's no file store), so they're backed up and deleted with
+ * everything else: with their record, and with the account. Pricing never
+ * reads these; it keeps only the fields in price_list_items.
+ */
+export const attachments = pgTable("attachments", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  receiptId: integer("receipt_id").references(() => receipts.id),
+  jobId: integer("job_id").references(() => jobs.id),
+  quoteId: integer("quote_id").references(() => quotes.id),
+  mimeType: text("mime_type").notNull(),
+  fileName: text("file_name"),
+  sizeBytes: integer("size_bytes").notNull(),
+  data: bytea("data").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  attachments_user_id_idx: index("attachments_user_id_idx").on(t.userId),
+  attachments_receipt_id_idx: index("attachments_receipt_id_idx").on(t.receiptId),
+  attachments_job_id_idx: index("attachments_job_id_idx").on(t.jobId),
+  attachments_quote_id_idx: index("attachments_quote_id_idx").on(t.quoteId),
+}));
+
+export type Attachment = typeof attachments.$inferSelect;
 
 // Schemas
 // Blank strings from a form mean "not set" and are stored as null; the type and

@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { useUnsureLines } from '@/hooks/use-unsure';
+import { AttachmentStrip } from '@/components/AttachmentStrip';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -152,6 +153,8 @@ export default function ReceiptDetailScreen() {
               <Text style={{ fontSize: 14, fontFamily: 'HostGrotesk_800ExtraBold', color: c.orange }}>Sort</Text>
             </TouchableOpacity>
           ) : null}
+          {/* The photo or PDF it was read from ("the full image stays with the expense record"). */}
+          <AttachmentStrip parent={{ receiptId }} title="Original" size={96} />
           {/* The items were always saved, but this screen never showed them. */}
           <ReceiptLineItems items={receipt.items} />
           <View style={s.fieldCard}>

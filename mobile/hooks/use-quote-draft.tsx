@@ -16,6 +16,9 @@ import { parseQuoteContent } from '@shared/mobile-types';
 import { uniqueNameMatch, nameKey, formatAbn } from '@shared/customer-fields';
 import { unitSell, totalsFor, gstRateFor, savedMarkupLabour } from '@shared/money';
 import type { PriceSource } from '@shared/price-list';
+import { takeQuotePhotos, type LocalFile } from '@/lib/share-handoff';
+import { keepFile } from '@/lib/share-actions';
+import { queueShare } from '@/lib/share-outbox';
 import { newDraftKey } from '@/lib/draft-key';
 import { onlineManager } from '@tanstack/react-query';
 import { isNetworkError } from '@/lib/connectivity';
@@ -278,6 +281,9 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
   // server can link them to the quote. Both ride along in the device draft cache.
   const draftKey = useRef(newDraftKey());
   const [generationId, setGenerationId] = useState<number | undefined>(undefined);
+  /** Photos shared into Vargen to start this quote (Share to Vargen): kept with it when it's saved. */
+  const sharedPhotos = useRef<LocalFile[] | null>(null);
+  if (sharedPhotos.current === null) sharedPhotos.current = takeQuotePhotos();
   // Identifies this new quote to the server: a save that is retried, or sent later
   // from the offline outbox, returns the quote already made instead of a second.
   const clientId = useRef(newDraftKey());
@@ -458,6 +464,20 @@ export function QuoteDraftProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (result, status) => {
       hapticSuccess();
+      // Photos shared into Vargen for this quote (Share to Vargen) are kept with it:
+      // now if it reached the server, or once it syncs if it was saved offline.
+      const photos = sharedPhotos.current ?? [];
+      sharedPhotos.current = [];
+      if (photos.length) {
+        if (result?.quote?.id) {
+          const quoteId = result.quote.id;
+          (async () => {
+            for (const f of photos) await keepFile({ quoteId }, f).catch(() => queueShare([{ action: 'quote_photo', file: f, quoteId }]));
+          })();
+        } else {
+          queueShare(photos.map((file) => ({ action: 'quote_photo_by_client' as const, file, quoteClientId: clientId.current })));
+        }
+      }
       if (result?.offline) {
         toast({ title: 'Saved on this phone', description: "No connection. It'll sync as soon as you're back online." });
       }

@@ -2,7 +2,7 @@ import { db } from "./db";
 import {
   customers, jobs, quotes, quoteItems, userSettings, xeroTokens,
   invoices, portalFeedback, jobTemplates, receipts, customerMessages, aiGenerations,
-  priceListItems, priceMatches, unsurePriceLines, sessions, users,
+  priceListItems, priceMatches, unsurePriceLines, attachments, sessions, users,
   type InsertCustomer, type InsertJob, type InsertQuote, type InsertQuoteItem,
   type InsertUserSettings, type UserSettings,
   type Customer, type Job, type Quote, type QuoteItem,
@@ -13,13 +13,16 @@ import {
   type Receipt, type InsertReceipt,
   type CustomerMessage, type InsertCustomerMessage,
   type AiGeneration, type InsertAiGeneration,
-  type PriceListItem, type UnsurePriceLine,
+  type PriceListItem, type UnsurePriceLine, type Attachment,
 } from "../shared/schema";
 import { eq, desc, and, or, sql, inArray, getTableColumns } from "drizzle-orm";
 import { learnedPrices, type PriceEntry, type PriceRow } from "../shared/price-list";
 import type { Remembered, Guess } from "../shared/matcher";
 
 export type StoredPrice = PriceRow & { id: number; supplier: string | null };
+
+/** An attachment without its file data. */
+export type AttachmentMeta = Omit<Attachment, 'data'>;
 
 /** A receipt line for the "Not sure what this is" list (server/lib/receipt-prices UnsureLine). */
 export type UnsureQueueLine = {
@@ -85,6 +88,12 @@ export interface IStorage {
   getRememberedMatches(userId: string): Promise<Remembered[]>;
   /** Remember (or update) a match for this line text and supplier. */
   rememberMatch(userId: string, m: Remembered): Promise<void>;
+  // Attachments: receipt and invoice files, job site photos (Share to Vargen)
+  createAttachment(userId: string, a: { mimeType: string; fileName: string | null; data: Buffer; receiptId?: number; jobId?: number; quoteId?: number }): Promise<AttachmentMeta>;
+  /** Metadata only (no file data), newest first. */
+  listAttachments(userId: string, parent: { receiptId?: number; jobId?: number; quoteId?: number }): Promise<AttachmentMeta[]>;
+  getAttachment(userId: string, id: number): Promise<Attachment | undefined>;
+  deleteAttachment(userId: string, id: number): Promise<void>;
   // The "Not sure what this is" list
   queueUnsure(userId: string, receiptId: number, supplier: string | null, receiptDate: string | null, lines: UnsureQueueLine[]): Promise<void>;
   clearUnsureForReceipt(userId: string, receiptId: number): Promise<void>;
@@ -264,6 +273,8 @@ export class DatabaseStorage implements IStorage {
     // quote stays, and its receipts become general expenses instead of pointing
     // at a job that no longer exists.
     await db.transaction(async (tx) => {
+      // Its photos are part of the job: they go with it.
+      await tx.delete(attachments).where(and(eq(attachments.jobId, id), eq(attachments.userId, userId)));
       await tx.update(quotes).set({ jobId: null }).where(and(eq(quotes.jobId, id), eq(quotes.userId, userId)));
       await tx.update(receipts).set({ jobId: null }).where(and(eq(receipts.jobId, id), eq(receipts.userId, userId)));
       await tx.update(customerMessages).set({ jobId: null }).where(and(eq(customerMessages.jobId, id), eq(customerMessages.userId, userId)));
@@ -354,6 +365,7 @@ export class DatabaseStorage implements IStorage {
       await tx.update(jobs).set({ quoteId: null }).where(and(eq(jobs.quoteId, id), eq(jobs.userId, userId)));
       await tx.delete(portalFeedback).where(eq(portalFeedback.quoteId, id));
       await tx.delete(quoteItems).where(eq(quoteItems.quoteId, id));
+      await tx.delete(attachments).where(and(eq(attachments.quoteId, id), eq(attachments.userId, userId)));
       // The AI's record of this quote is the tradie's data too: it goes with it.
       await tx.delete(aiGenerations).where(and(eq(aiGenerations.quoteId, id), eq(aiGenerations.userId, userId)));
       await tx.delete(quotes).where(and(eq(quotes.id, id), eq(quotes.userId, userId)));
@@ -387,6 +399,8 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(priceListItems).where(eq(priceListItems.userId, userId));
       await tx.delete(priceMatches).where(eq(priceMatches.userId, userId));
       await tx.delete(unsurePriceLines).where(eq(unsurePriceLines.userId, userId));
+      // Files point at receipts, jobs and quotes: before those.
+      await tx.delete(attachments).where(eq(attachments.userId, userId));
 
       // The documents, then what they point at.
       await tx.delete(invoices).where(eq(invoices.userId, userId));
@@ -491,6 +505,40 @@ export class DatabaseStorage implements IStorage {
     };
     await db.insert(priceMatches).values({ userId, lineKey: m.lineKey.slice(0, 200), supplierKey: m.supplierKey.slice(0, 120), ...values })
       .onConflictDoUpdate({ target: [priceMatches.userId, priceMatches.lineKey, priceMatches.supplierKey], set: values });
+  }
+
+  async createAttachment(userId: string, a: { mimeType: string; fileName: string | null; data: Buffer; receiptId?: number; jobId?: number; quoteId?: number }): Promise<AttachmentMeta> {
+    const [row] = await db.insert(attachments).values({
+      userId, mimeType: a.mimeType, fileName: a.fileName, sizeBytes: a.data.length, data: a.data,
+      receiptId: a.receiptId ?? null, jobId: a.jobId ?? null, quoteId: a.quoteId ?? null,
+    }).returning({
+      id: attachments.id, userId: attachments.userId, receiptId: attachments.receiptId, jobId: attachments.jobId,
+      quoteId: attachments.quoteId, mimeType: attachments.mimeType, fileName: attachments.fileName,
+      sizeBytes: attachments.sizeBytes, createdAt: attachments.createdAt,
+    });
+    return row;
+  }
+
+  async listAttachments(userId: string, parent: { receiptId?: number; jobId?: number; quoteId?: number }): Promise<AttachmentMeta[]> {
+    const which = parent.receiptId != null ? eq(attachments.receiptId, parent.receiptId)
+      : parent.jobId != null ? eq(attachments.jobId, parent.jobId)
+      : parent.quoteId != null ? eq(attachments.quoteId, parent.quoteId)
+      : null;
+    if (!which) return [];
+    return await db.select({
+      id: attachments.id, userId: attachments.userId, receiptId: attachments.receiptId, jobId: attachments.jobId,
+      quoteId: attachments.quoteId, mimeType: attachments.mimeType, fileName: attachments.fileName,
+      sizeBytes: attachments.sizeBytes, createdAt: attachments.createdAt,
+    }).from(attachments).where(and(eq(attachments.userId, userId), which)).orderBy(desc(attachments.createdAt), desc(attachments.id));
+  }
+
+  async getAttachment(userId: string, id: number): Promise<Attachment | undefined> {
+    const [row] = await db.select().from(attachments).where(and(eq(attachments.id, id), eq(attachments.userId, userId)));
+    return row;
+  }
+
+  async deleteAttachment(userId: string, id: number): Promise<void> {
+    await db.delete(attachments).where(and(eq(attachments.id, id), eq(attachments.userId, userId)));
   }
 
   async queueUnsure(userId: string, receiptId: number, supplier: string | null, receiptDate: string | null, lines: UnsureQueueLine[]): Promise<void> {
@@ -840,6 +888,8 @@ export class DatabaseStorage implements IStorage {
     // The prices this receipt alone taught, and its open questions, go with it (they point at it).
     await this.deleteReceiptPrices(userId, id);
     await this.clearUnsureForReceipt(userId, id);
+    // Its photo or PDF ("the full image stays with the expense record") goes with it.
+    await db.delete(attachments).where(and(eq(attachments.receiptId, id), eq(attachments.userId, userId)));
     await db.delete(receipts).where(and(eq(receipts.id, id), eq(receipts.userId, userId)));
   }
 

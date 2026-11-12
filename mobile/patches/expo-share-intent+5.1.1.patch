@@ -1,0 +1,142 @@
+diff --git a/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt b/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt
+index 0153c89..dbdcafe 100644
+--- a/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt
++++ b/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt
+@@ -66,13 +66,22 @@ class ExpoShareIntentModule : Module() {
+                     "filePath" to instance?.getAbsolutePath(uri),
+                 )
+             }
+-            val queryResult: Cursor = resolver.query(uri, null, null, null, null)!!
+-            queryResult.moveToFirst()
+-            val fileName = queryResult.getString(queryResult.getColumnIndex(OpenableColumns.DISPLAY_NAME))
+-            val fileSize = queryResult.getString(queryResult.getColumnIndex(OpenableColumns.SIZE))
+-            queryResult.close()
++            // Vargen patch (upstream #234/#238): an unreadable file used to crash the
++            // app here (a null or empty cursor, or no MIME type). Now it reports
++            // what it can, and the app says it can't use the file.
++            var fileName: String? = null
++            var fileSize: String? = null
++            val queryResult: Cursor? = try { resolver.query(uri, null, null, null, null) } catch (e: Exception) { null }
++            queryResult?.use { cursor ->
++                if (cursor.moveToFirst()) {
++                    val nameIdx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
++                    val sizeIdx = cursor.getColumnIndex(OpenableColumns.SIZE)
++                    if (nameIdx >= 0) fileName = cursor.getString(nameIdx)
++                    if (sizeIdx >= 0) fileSize = cursor.getString(sizeIdx)
++                }
++            }
+ 
+-            val mimeType = resolver.getType(uri)!!
++            val mimeType = resolver.getType(uri) ?: "application/octet-stream"
+ 
+             var mediaWidth: String? = null;
+             var mediaHeight: String? = null;
+@@ -227,11 +236,10 @@ class ExpoShareIntentModule : Module() {
+                     val split = docId.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+                     val type = split[0]
+ 
+-                    return if ("primary".equals(type, ignoreCase = true)) {
+-                        Environment.getExternalStorageDirectory().toString() + "/" + split[1]
+-                    } else {
+-                        getDataColumn(uri, null, null)
+-                    }
++                    // Vargen patch (upstream #235): the "primary:" shortcut returned a raw
++                    // external-storage path the app can't read on Android 13+ (EACCES), so a
++                    // PDF shared from the Files app was unusable. Always copy it into the cache.
++                    return getDataColumn(uri, null, null)
+                 } else if (isDownloadsDocument(uri)) {
+                     return try {
+                         val id = DocumentsContract.getDocumentId(uri)
+@@ -301,7 +309,16 @@ class ExpoShareIntentModule : Module() {
+                     val columnIndex = cursor.getColumnIndexOrThrow(column)
+                     val fileName = cursor.getString(columnIndex)
+                     Log.i("FileDirectory", "File name: $fileName")
+-                    targetFile = File(context.cacheDir, fileName)
++                    // Vargen patch: the upstream fix for path traversal from a shared
++                    // file's display name (CWE-22, upstream c6900b1, released in 8.0.1).
++                    val safeName = fileName?.let { File(it).name }.orEmpty()
++                    if (safeName.isNotEmpty()) {
++                        val candidate = File(context.cacheDir, safeName)
++                        val cacheRoot = context.cacheDir.canonicalPath + File.separator
++                        if (candidate.canonicalPath.startsWith(cacheRoot)) {
++                            targetFile = candidate
++                        }
++                    }
+                 }
+             } finally {
+                 cursor?.close()
+diff --git a/node_modules/expo-share-intent/plugin/build/ios/ShareExtensionViewController.swift b/node_modules/expo-share-intent/plugin/build/ios/ShareExtensionViewController.swift
+index 0911a9e..6901a99 100644
+--- a/node_modules/expo-share-intent/plugin/build/ios/ShareExtensionViewController.swift
++++ b/node_modules/expo-share-intent/plugin/build/ios/ShareExtensionViewController.swift
+@@ -16,6 +16,16 @@ class ShareViewController: UIViewController {
+   var sharedMedia: [SharedMediaFile] = []
+   var sharedWebUrl: [WebUrl] = []
+   var sharedText: [String] = []
++  // Vargen patch: hand off when EVERY attachment has finished, not when the
++  // last-indexed one has (upstream #236: multi-photo shares could arrive with
++  // photos missing). Each handler finishes on the main actor; the lock is belt and braces.
++  private let completionLock = NSLock()
++  private var completedAttachments = 0
++  private func finishedAll(_ content: NSExtensionItem) -> Bool {
++    completionLock.lock(); defer { completionLock.unlock() }
++    completedAttachments += 1
++    return completedAttachments >= (content.attachments?.count ?? 1)
++  }
+   let imageContentType: String = UTType.image.identifier
+   let videoContentType: String = UTType.movie.identifier
+   let textContentType: String = UTType.text.identifier
+@@ -103,7 +113,7 @@ class ShareViewController: UIViewController {
+ 
+           self.sharedText.append(item)
+           // If this is the last item, save sharedText in userDefaults and redirect to host app
+-          if index == (content.attachments?.count)! - 1 {
++          if self.finishedAll(content) {
+             let userDefaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
+             userDefaults?.set(self.sharedText, forKey: self.sharedKey)
+             userDefaults?.synchronize()
+@@ -126,7 +136,7 @@ class ShareViewController: UIViewController {
+ 
+           self.sharedWebUrl.append(WebUrl(url: item.absoluteString, meta: ""))
+           // If this is the last item, save sharedText in userDefaults and redirect to host app
+-          if index == (content.attachments?.count)! - 1 {
++          if self.finishedAll(content) {
+             let userDefaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
+             userDefaults?.set(self.toData(data: self.sharedWebUrl), forKey: self.sharedKey)
+             userDefaults?.synchronize()
+@@ -161,7 +171,7 @@ class ShareViewController: UIViewController {
+             self.sharedWebUrl.append(
+               WebUrl(url: results["baseURI"] as! String, meta: results["meta"] as! String))
+             // If this is the last item, save sharedText in userDefaults and redirect to host app
+-            if index == (content.attachments?.count)! - 1 {
++            if self.finishedAll(content) {
+               let userDefaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
+               userDefaults?.set(self.toData(data: self.sharedWebUrl), forKey: self.sharedKey)
+               userDefaults?.synchronize()
+@@ -300,7 +310,7 @@ class ShareViewController: UIViewController {
+           }
+ 
+           // If this is the last item, save imagesData in userDefaults and redirect to host app
+-          if index == (content.attachments?.count)! - 1 {
++          if self.finishedAll(content) {
+             let userDefaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
+             userDefaults?.set(self.toData(data: self.sharedMedia), forKey: self.sharedKey)
+             userDefaults?.synchronize()
+@@ -385,7 +395,7 @@ class ShareViewController: UIViewController {
+           }
+ 
+           // If this is the last item, save imagesData in userDefaults and redirect to host app
+-          if index == (content.attachments?.count)! - 1 {
++          if self.finishedAll(content) {
+             let userDefaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
+             userDefaults?.set(self.toData(data: self.sharedMedia), forKey: self.sharedKey)
+             userDefaults?.synchronize()
+@@ -453,7 +463,7 @@ class ShareViewController: UIViewController {
+           type: .file))
+     }
+ 
+-    if index == (content.attachments?.count)! - 1 {
++    if self.finishedAll(content) {
+       let userDefaults = UserDefaults(suiteName: self.hostAppGroupIdentifier)
+       userDefaults?.set(self.toData(data: self.sharedMedia), forKey: self.sharedKey)
+       userDefaults?.synchronize()

@@ -16,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { showAlert, showConfirm } from '@/lib/dialogs';
 import { queryClient } from '@/lib/queryClient';
 import { UNSURE_KEY } from '@/hooks/use-unsure';
+import { nextReceiptFile, type LocalFile } from '@/lib/share-handoff';
+import { fileBase64, photoDataUri } from '@/lib/share-files';
 import { isValidISODate, toISODate } from '@/lib/dates';
 import { ChevronLeft, Camera, ImageIcon, RotateCw, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -60,6 +62,11 @@ export default function ScanReceiptScreen() {
   const [lineItems, setLineItems] = useState<ReceiptLine[]>([]);
   const [pricesIncludeGst, setPricesIncludeGst] = useState<boolean | null>(null);
   const [receiptDiscount, setReceiptDiscount] = useState<number | null>(null);
+  /** The photo or PDF this receipt was read from: kept with the saved receipt ("the full image stays with the expense record"). */
+  const [original, setOriginal] = useState<{ data: string; fileName: string | null } | null>(null);
+  /** Receipts shared into Vargen (Share to Vargen) still to read after this one. */
+  const [shareLeft, setShareLeft] = useState(0);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
 
   // Opened from a job's page, the receipt starts linked to that job. The param
   // can arrive a render late, so adopt it when it does — unless the tradie has
@@ -95,6 +102,7 @@ export default function ScanReceiptScreen() {
     try {
       // Always a real JPEG of a sensible size — see lib/receipt-image.
       const imageBase64 = await receiptImageDataUri(asset);
+      setOriginal({ data: imageBase64, fileName: asset.fileName ?? null });
       const res = await apiRequest('POST', '/api/receipts/scan', { imageBase64 });
       if (res.ok) {
         const data: ScanResult = await res.json();
@@ -113,6 +121,47 @@ export default function ScanReceiptScreen() {
     }
     setStep('review');
   };
+
+  /** A receipt or supplier invoice shared into Vargen: a photo, or a PDF read as text on the server. */
+  const scanShared = async (file: LocalFile) => {
+    setStep('scanning');
+    setScanMessage(null);
+    try {
+      const isPdf = file.mimeType === 'application/pdf';
+      const data = isPdf ? `data:application/pdf;base64,${await fileBase64(file)}` : await photoDataUri(file);
+      setOriginal({ data, fileName: file.fileName });
+      const res = await apiRequest('POST', '/api/receipts/scan', isPdf ? { pdfBase64: data } : { imageBase64: data });
+      const body = await res.json().catch(() => ({} as any));
+      if (res.ok) {
+        setScanResult(body);
+        setScanFailed(false);
+        populateForm(body);
+      } else {
+        setScanResult(null);
+        setScanFailed(true);
+        setScanMessage(typeof body?.message === 'string' ? body.message : null);
+      }
+    } catch {
+      setScanResult(null);
+      setScanFailed(true);
+    }
+    setStep('review');
+  };
+
+  /** The next shared receipt, if any: a clean form for it. False when there are none left. */
+  const takeNextShared = (): boolean => {
+    const next = nextReceiptFile();
+    if (!next) { setShareLeft(0); return false; }
+    setVendor(''); setDate(''); setAmount(''); setCategory('Other'); setNotes(''); setLineItems([]);
+    setPricesIncludeGst(null); setReceiptDiscount(null); setOriginal(null);
+    if (next.jobId) { jobTouched.current = true; setJobId(next.jobId); }
+    setShareLeft(next.left);
+    scanShared(next.file);
+    return true;
+  };
+
+  // Opened from Share to Vargen: start on the first shared receipt.
+  useEffect(() => { takeNextShared(); }, []);
 
   const handleCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -167,8 +216,21 @@ export default function ScanReceiptScreen() {
         receiptDiscount,
         jobId: jobId ?? undefined,
       });
+      // The photo or PDF goes with the receipt. If it can't be kept, the receipt still is.
+      if (original && saved?.id) {
+        try {
+          const r = await apiRequest('POST', '/api/attachments', { receiptId: saved.id, data: original.data, fileName: original.fileName });
+          if (!r.ok) throw new Error();
+        } catch {
+          showAlert('Receipt saved', "The receipt is saved, but its photo couldn't be kept this time.");
+        }
+      }
       // Back to the job it was added from; otherwise to the receipts list.
-      const leave = () => { if (entryJobId) router.back(); else router.replace('/receipts' as any); };
+      // More receipts shared at once: on to the next before leaving.
+      const leave = () => {
+        if (takeNextShared()) return;
+        if (entryJobId) router.back(); else router.replace('/receipts' as any);
+      };
       // Lines we couldn't match for sure (pricing step 4): offer to sort them, never insist.
       const unsure = Number(saved?.pricing?.unsure) || 0;
       if (unsure > 0) {
@@ -296,7 +358,7 @@ export default function ScanReceiptScreen() {
                 Couldn't read the receipt
               </Text>
               <Text style={{ fontSize: 12, fontFamily: 'HostGrotesk_500Medium', color: c.orangeDeep, marginTop: 2 }}>
-                The fields below are blank — enter the details manually, or go back and try a clearer photo.
+                {scanMessage ?? 'The fields below are blank — enter the details manually, or go back and try a clearer photo.'}
               </Text>
             </View>
           )}

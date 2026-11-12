@@ -2,7 +2,7 @@
   "expo": {
     "name": "Vargen EZ",
     "slug": "vgnec",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "vargen",
@@ -102,7 +102,24 @@
       "expo-updates",
       "expo-image-picker",
       "expo-location",
-      "./plugins/with-folly-fix"
+      "./plugins/with-folly-fix",
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": "SUBQUERY (extensionItems, $extensionItem, SUBQUERY ($extensionItem.attachments, $attachment, ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO \"public.image\" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO \"com.adobe.pdf\" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO \"public.vcard\" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO \"public.plain-text\").@count >= 1).@count >= 1",
+          "androidIntentFilters": [
+            "text/plain",
+            "image/*",
+            "application/pdf",
+            "text/x-vcard",
+            "text/vcard"
+          ],
+          "androidMultiIntentFilters": [
+            "image/*",
+            "application/pdf"
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
