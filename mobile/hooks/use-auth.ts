@@ -7,6 +7,7 @@ import { clearQuoteDraft } from "@/lib/quote-draft-cache";
 import { isNetworkError } from "@/lib/connectivity";
 import { clearPersistedCache } from "@/lib/query-persist";
 import { clearOutbox } from "@/lib/quote-outbox";
+import { clearShareOutbox } from "@/lib/share-outbox";
 
 async function fetchUser(): Promise<User | null> {
   // Read cache first so we can fall back if the network is down
@@ -51,6 +52,7 @@ export async function clearLocalAccountData(): Promise<void> {
   await clearUnfinishedDrafts();
   await clearPersistedCache();
   await clearOutbox();
+  await clearShareOutbox();
 }
 
 /**

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { takeQuoteText } from '@/lib/share-handoff';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView,
   ActivityIndicator, KeyboardAvoidingView, Platform, Modal,
@@ -141,7 +142,8 @@ export default function DescribeStep() {
   const { data: pastQuotes } = useQuotes() as any;
   const { data: allCustomers } = useCustomers() as any;
 
-  const [text, setText] = useState(d.summary || '');
+  // A customer's message shared into Vargen (Share to Vargen) starts here.
+  const [text, setText] = useState(() => takeQuoteText() || d.summary || '');
   const [showCustomers, setShowCustomers] = useState(false);
   const [custQuery, setCustQuery] = useState('');
   const [listening, setListening] = useState(false);

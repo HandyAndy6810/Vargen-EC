@@ -6,6 +6,7 @@ import { useState, useMemo, useRef } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenGradient, GradientHeader, useGradientScroll } from '@/components/Rim';
 import { CustomerForm, emptyCustomerForm, formToCustomer, customerFormProblem, type CustomerFormValue } from '@/components/CustomerForm';
+import { takeCustomerPrefill } from '@/lib/share-handoff';
 import { useCreateCustomer } from '@/hooks/use-customers';
 
 
@@ -18,7 +19,13 @@ export default function CustomerNewScreen() {
   // The fields near the bottom scroll up clear of the keyboard (as in AI quoting).
   const { mutate: createCustomer, isPending } = useCreateCustomer();
 
-  const [form, setForm] = useState<CustomerFormValue>(emptyCustomerForm);
+  // A contact card shared into Vargen (Share to Vargen) fills the form; the tradie checks it and saves.
+  const [form, setForm] = useState<CustomerFormValue>(() => {
+    const card = takeCustomerPrefill();
+    return card
+      ? { ...emptyCustomerForm(), name: card.name, phone: card.phone ?? '', email: card.email ?? '', address: card.address ?? '', companyName: card.company ?? '' }
+      : emptyCustomerForm();
+  });
   const [error, setError] = useState<string | null>(null);
 
   const handleSave = () => {

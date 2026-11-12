@@ -8,6 +8,7 @@ import {
   Linking,
   Platform,
 } from 'react-native';
+import { AttachmentStrip } from '@/components/AttachmentStrip';
 import { useMemo, useState } from 'react';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -302,13 +303,9 @@ export default function JobDetailScreen() {
             </>
           ) : null}
 
-          {/* Parts & photos */}
-          <Text style={s.sectionEyebrow}>Parts & photos</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {[0, 1, 2].map(i => (
-              <View key={i} style={s.photoSlot} />
-            ))}
-          </View>
+          {/* Photos: shared into Vargen from Photos or the camera roll (Share → Vargen → Add to a job). */}
+          <Text style={s.sectionEyebrow}>Photos</Text>
+          <AttachmentStrip parent={{ jobId }} empty="No photos yet. Share one from Photos and choose Vargen → Add to a job." />
         </View>
       </ScrollView>
 
@@ -586,15 +583,6 @@ const makeStyles = (c: Colors) => StyleSheet.create({
     fontFamily: 'HostGrotesk_600SemiBold',
     color: c.mutedHi,
     marginTop: 8,
-  },
-  photoSlot: {
-    flex: 1,
-    aspectRatio: 1,
-    borderRadius: 12,
-    backgroundColor: c.paperDeep,
-    borderWidth: 1,
-    borderColor: c.lineMid,
-    borderStyle: 'dashed',
   },
   bottomBar: {
     position: 'absolute',

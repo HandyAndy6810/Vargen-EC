@@ -12,6 +12,7 @@ import { Home, FileText, Receipt, CalendarClock, User } from 'lucide-react-nativ
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiRequest } from '@/lib/api';
 import { shouldOfferQuickSetup, markQuickSetupOffered, quickSetupOffered } from '@/lib/quick-setup-offer';
+import { shareAfterLogin, setShareAfterLogin } from '@/lib/share-handoff';
 
 const TABS: { name: string; label: string; icon: TabIconSpec }[] = [
   { name: 'index',    label: 'Home',     icon: { symbol: 'house',              symbolActive: 'house.fill',              Fallback: Home } },
@@ -160,6 +161,11 @@ export default function TabsLayout() {
     if (!isAuthenticated) {
       router.replace('/(auth)/login');
       return;
+    }
+    // A share that arrived while signed out (app/share.tsx): carry on with it now.
+    if (shareAfterLogin()) {
+      setShareAfterLogin(false);
+      router.push('/share' as any);
     }
     AsyncStorage.getItem('onboarding_seen').then((seen) => {
       if (!seen) router.replace('/onboarding');

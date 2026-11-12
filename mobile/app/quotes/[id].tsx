@@ -11,6 +11,7 @@ import {
 import { parseQuoteContent, toMoney } from '@shared/mobile-types';
 import { useTheme, type Colors } from '@/hooks/use-theme';
 import { router, useLocalSearchParams } from 'expo-router';
+import { AttachmentStrip } from '@/components/AttachmentStrip';
 import { useState, useMemo } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api';
@@ -532,6 +533,11 @@ export default function QuoteDetailScreen() {
           </View>
 
           {/* Notes */}
+          {/* Job site photos kept with this quote (Share to Vargen). Nothing shows when there are none. */}
+          <View style={{ marginTop: 18 }}>
+            <AttachmentStrip parent={{ quoteId }} title="Photos" />
+          </View>
+
           {content.notes ? (
             <>
               <Text style={s.sectionEyebrow}>Notes</Text>

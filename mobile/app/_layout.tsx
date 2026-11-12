@@ -23,6 +23,8 @@ import { loadCachedUser } from '@/lib/auth-cache';
 import { Snackbar } from '@/components/Snackbar';
 import { persistOptions } from '@/lib/query-persist';
 import { syncOutbox } from '@/lib/quote-outbox';
+import { syncShareOutbox } from '@/lib/share-outbox';
+import { ShareIntake } from '@/components/ShareIntake';
 import * as SplashScreen from 'expo-splash-screen';
 
 // The native splash (app.json, expo-splash-screen) stays up until the intro
@@ -118,10 +120,10 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
   // copy has been restored, below.)
   useEffect(() => {
     const appSub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') syncOutbox();
+      if (state === 'active') { syncOutbox(); syncShareOutbox(); }
     });
     const onlineUnsub = onlineManager.subscribe((online) => {
-      if (online) syncOutbox();
+      if (online) { syncOutbox(); syncShareOutbox(); }
     });
     return () => { appSub.remove(); onlineUnsub(); };
   }, []);
@@ -162,7 +164,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
       <PersistQueryClientProvider
         client={queryClient}
         persistOptions={persistOptions}
-        onSuccess={() => { syncOutbox(); }}
+        onSuccess={() => { syncOutbox(); syncShareOutbox(); }}
       >
         <ThemedStatusBar />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper } }}>
@@ -189,6 +191,7 @@ function AppContent({ fontsLoaded }: { fontsLoaded: boolean }) {
           <Stack.Screen name="settings/delete-account" />
           <Stack.Screen name="settings/quick-setup" options={{ gestureEnabled: false }} />
           <Stack.Screen name="settings/unsure-prices" />
+          <Stack.Screen name="share" options={{ animation: 'fade', gestureEnabled: false }} />
           <Stack.Screen name="customers/index" />
           <Stack.Screen name="customers/[id]" />
           <Stack.Screen name="customers/new" />
@@ -220,11 +223,13 @@ export default function RootLayout() {
   });
 
   return (
-    <ErrorBoundary>
-      <ThemeProvider>
-        <AppContent fontsLoaded={fontsLoaded ?? false} />
-      </ThemeProvider>
-    </ErrorBoundary>
+    <ShareIntake>
+      <ErrorBoundary>
+        <ThemeProvider>
+          <AppContent fontsLoaded={fontsLoaded ?? false} />
+        </ThemeProvider>
+      </ErrorBoundary>
+    </ShareIntake>
   );
 }
 
