@@ -16,8 +16,9 @@
     "cap:android": "npx cap open android",
     "cap:run:android": "npx cap run android",
     "cap:run:ios": "npx cap run ios",
-    "test": "node --import tsx --test shared/*.test.ts server/lib/*.test.ts",
-    "test:db": "VARGEN_DB_TARGET=dev node --env-file-if-exists=.env --import tsx --test server/db-tests/*.test.ts"
+    "test": "node --import tsx --test shared/*.test.ts server/lib/*.test.ts eval/*.test.ts",
+    "test:db": "VARGEN_DB_TARGET=dev node --env-file-if-exists=.env --import tsx --test server/db-tests/*.test.ts",
+    "eval:models": "VARGEN_DB_TARGET=dev node --env-file-if-exists=.env --import tsx eval/run.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",

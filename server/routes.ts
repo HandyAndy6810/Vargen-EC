@@ -6,10 +6,8 @@ import { api } from "../shared/routes";
 import { isValidISODate, toISODate } from "../shared/mobile-types";
 import { num, round2, totalsFor, gstRateFor } from "../shared/money";
 import { quoteItemRowsFromContent } from "../shared/quote-items";
-import { checkLinePrice } from "../shared/price-sanity";
-import { isHourlyUnit } from "../shared/labour-panel";
-import { applyPriceList, applyPriceMatches, newestPrices, learnedPrices } from "../shared/price-list";
-import { resolveQuoteMatches, matchLearnedEntries } from "./lib/quote-prices";
+import { newestPrices, learnedPrices } from "../shared/price-list";
+import { matchLearnedEntries } from "./lib/quote-prices";
 import { quickSetupEntries, cleanSuggestions } from "../shared/quick-setup";
 import { cleanReceiptLines, cleanGstFlag, cleanReceiptDiscount } from "../shared/receipt-lines";
 import { priceReceipt } from "./lib/receipt-prices";
@@ -20,14 +18,15 @@ import { lineKey, supplierKey, resolutionFactor } from "../shared/matcher";
 import { receiptCandidates } from "../shared/match-candidates";
 import { priceFromMatch, receiptPriceDate } from "../shared/receipt-pricing";
 import type { UnsurePriceLine } from "../shared/schema";
-import { labourLineCost } from "./lib/labour-cost";
-import { resolvePricingInputs, enforceCallOut } from "./lib/pricing-inputs";
-import { generationInput, cleanDraftKey, cleanGenerationId, captureGeneration } from "./lib/ai-capture";
+import { cleanGenerationId } from "./lib/ai-capture";
 import { firstSendFields, publicBaseUrl, withPortalUrl, backfillSentFields } from "./lib/quote-send";
 import { buildInvoiceView, withInvoiceUrl } from "./lib/invoice-view";
 import { buildPortalView } from "./lib/portal-view";
 import { extractJsonObject, receiptTotal, providerRejectedField, isRateLimited } from "./lib/ai-json";
 import { imageDataUri } from "./lib/image-type";
+import { aiConfigFromEnv } from "./lib/ai-config";
+import { generateQuoteRoute } from "./lib/generate-quote-route";
+import { completeJsonWith } from "./lib/generate-quote";
 import { z } from "zod";
 import OpenAI, { toFile } from "openai";
 
@@ -40,7 +39,6 @@ import fs from "fs";
 import { buildAuthUrl, buildMobileAuthUrl, verifyMobileState, exchangeCodeForTokens, fetchTenants, getValidToken, upsertXeroContact, createXeroInvoice, recordXeroPayment, getXeroInvoiceStatus } from "./xero";
 import { stripe, createPaymentLink } from "./stripe";
 import { squareClient, createSquarePaymentLink } from "./square";
-import { getTradeContext } from "./trade-knowledge";
 import crypto from "crypto";
 import { sendCustomerEmail } from "./lib/email";
 import { uniqueNameMatch } from "../shared/customer-fields";
@@ -213,25 +211,17 @@ async function syncCustomerToXero(
 }
 
 let openai: OpenAI;
-const isGroq = (process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || '').includes('groq');
-// Model IDs are env-overridable so a provider rotation (Groq retires models often)
-// doesn't need a code change. Groq deprecated llama-3.3-70b-versatile on 2026-08-16;
-// gpt-oss-120b is its recommended replacement. Transcription on Groq is Whisper —
-// gpt-4o-mini-transcribe is OpenAI-only and Groq never served it.
-const AI_MODEL = process.env.AI_CHAT_MODEL || (isGroq ? 'openai/gpt-oss-120b' : 'gpt-4o');
-const AI_TRANSCRIBE_MODEL = process.env.AI_TRANSCRIBE_MODEL || (isGroq ? 'whisper-large-v3-turbo' : 'gpt-4o-mini-transcribe');
-// gpt-oss (and most Groq text models) are text-only — don't send job photos to them.
-const AI_SUPPORTS_VISION = process.env.AI_SUPPORTS_VISION === 'true' || !isGroq;
-// Reading a receipt needs a model that can actually see. The chat model does not
-// have to be one: Groq's gpt-oss is text-only, so scanning a receipt sent an image
-// to a model incapable of looking at it and failed every single time, reported to
-// the tradie as "couldn't read receipt" — blaming their photo for something no
-// photo could have fixed. Set AI_VISION_MODEL to a multimodal model to enable it.
-const AI_VISION_MODEL = process.env.AI_VISION_MODEL || (AI_SUPPORTS_VISION ? AI_MODEL : '');
+// Which provider and models: server/lib/ai-config.ts (env-overridable, because
+// Groq retires models often). The model comparison script reads the same file.
+const AI = aiConfigFromEnv(process.env);
+const AI_MODEL = AI.model;
+const AI_TRANSCRIBE_MODEL = AI.transcribeModel;
+const AI_SUPPORTS_VISION = AI.supportsVision;
+const AI_VISION_MODEL = AI.visionModel;
 try {
   openai = new OpenAI({
-    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    apiKey: AI.apiKey,
+    baseURL: AI.baseURL,
   });
 } catch (e) {
   console.warn("OpenAI client not initialized (AI features disabled):", (e as Error).message);
@@ -1086,391 +1076,17 @@ Do not invent details. If unsure of a field, use an empty string.`;
     }
   });
 
-  // AI Quote Generation
-  app.post("/api/quotes/generate", requireAuth, aiRateLimit, async (req: any, res) => {
-    // Declared out here, not inside the try: `let` is block-scoped, so the catch
-    // below could not see it and threw a ReferenceError of its own every time a
-    // generation failed — losing the real provider error behind a bare 500.
-    let sentImage = false;
-    try {
-      const { description, imageBase64, customerName, targetPrice } = req.body;
-
-      if (!description || typeof description !== "string") {
-        return res.status(400).json({ message: "Job description is required" });
-      }
-
-      const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-
-      // Priced with the SAVED settings (server/lib/pricing-inputs.ts): the app's
-      // cached copy could be a change behind, which is why a settings change only
-      // applied "on the second attempt". The request body is only a fallback for
-      // an account with no settings row. What was used goes back as `pricing`.
-      const pricing = resolvePricingInputs(await storage.getUserSettings(req.userId), req.body);
-      const tradeType = pricing.tradeType;
-      // labourRate is the CHARGE-OUT rate: what the customer pays per hour. Only
-      // with "Mark up labour too" on does the markup apply to labour as well.
-      const labourRateNum = pricing.labourRate;
-      const markupNum = pricing.markupPercent;
-      const markupLabourOn = pricing.markupLabour;
-      const labourCostNum = pricing.labourCostRate;
-      const callOutNum = pricing.callOutFee;
-      const gstEnabled = pricing.includeGST;
-
-      let pricingInstructions = "";
-      if (labourRateNum && markupLabourOn) {
-        pricingInstructions += `\n- Use a labour rate of $${labourRateNum}/hour for all labour items`;
-      } else if (labourRateNum) {
-        pricingInstructions += `\n- Charge all labour at the charge-out rate of $${labourRateNum}/hour. That is exactly what the customer pays per hour: do NOT mark up labour. The markup applies to materials only`;
-      }
-      if (markupNum > 0) {
-        pricingInstructions += `\n- Apply a ${markupNum}% markup on all material costs (include the markup in the unit prices, do NOT show it as a separate line item)`;
-      }
-      if (callOutNum > 0) {
-        pricingInstructions += `\n- Include a call-out/travel fee of $${callOutNum} as a separate line item`;
-      } else {
-        pricingInstructions += `\n- Do NOT include any call-out fee, site visit fee, or travel fee line item. The customer is not being charged for call-out.`;
-      }
-      if (gstEnabled) {
-        pricingInstructions += `\n- Add 10% GST to the total. Include a "gstAmount" field in your response with the GST dollar amount. The "totalAmount" should be the GST-inclusive total`;
-      } else {
-        pricingInstructions += `\n- All prices are GST-exclusive. Mention "All prices exclude GST" in the notes`;
-      }
-
-      const targetPriceNum = typeof targetPrice === "number" && targetPrice > 0 ? targetPrice
-        : typeof targetPrice === "string" && parseFloat(targetPrice) > 0 ? parseFloat(targetPrice)
-        : null;
-      if (targetPriceNum) {
-        pricingInstructions += `\n- TARGET PRICE: The tradesperson expects this job to come in at approximately $${targetPriceNum}${gstEnabled ? " (GST inclusive)" : " (ex GST)"}. Shape your line items so the total lands close to this figure. Adjust labour hours and material specs to fit — if you cannot reach the target without being dishonest, note the shortfall in the "notes" field and explain why the true cost is higher. Do NOT sacrifice safety or compliance to hit the number.`;
-      }
-
-      const tradeContext = tradeType && tradeType !== "general" ? `\nThe tradesperson is a ${tradeType}. Use pricing, terminology, units of measure, and compliance requirements specific to this trade.` : "";
-      const tradeKnowledge = getTradeContext(tradeType || "general");
-
-      // Whether to ask was left entirely to the model, and it was inconsistent about
-      // it — "build a house" came back with a finished quote and no questions while
-      // "house" asked several. A description this thin cannot be priced honestly
-      // without more detail, so the requirement is made deterministic here rather
-      // than hoped for.
-      const descText = String(description || "");
-      const descWords = descText.trim().split(/\s+/).filter(Boolean).length;
-      const descHasNumbers = /\d/.test(descText);
-      const descIsThin = descWords < 8 || !descHasNumbers;
-      const thinDescriptionRule = descIsThin
-        ? `\n\nTHIS DESCRIPTION IS THIN: "${descText.trim()}". It gives you too little to price honestly — it is missing size, quantity, materials or scope. You MUST return 1-3 clarifying questions covering whichever of those matter most to the price. Still produce a complete, usable quote from your best assumptions; the questions only refine it. This overrides the "normally empty" guidance in rule 00.`
-        : "";
-
-      const businessProfile = [
-        tradeType && tradeType !== "general" ? `Trade: ${tradeType}` : null,
-        labourRateNum ? `Charge out rate: $${labourRateNum}/hr` : null,
-        callOutNum > 0 ? `Callout fee: $${callOutNum}` : null,
-        gstEnabled ? `GST: 10% included in totals` : `GST: all prices GST-exclusive`,
-        markupNum > 0 ? `Materials markup: ${markupNum}%` : null,
-      ].filter(Boolean).join('\n');
-
-      const systemPrompt = `You are Trade Pal — an AI quoting assistant built specifically for Australian tradespeople. Your job is to generate fast, accurate, professional quotes that help tradies win work and get paid what they're worth.
-
-You understand Australian trade work deeply: realistic 2025 pricing, AS/NZS compliance requirements, how clients think, and the small line items that most people forget (consumables, disposal, compliance paperwork, cleanup time). You write quotes that are specific enough to be legally defensible, yet clear enough that a client with no trade knowledge can understand exactly what they're getting.
-
-${businessProfile ? `BUSINESS PROFILE — apply these settings to every quote:\n${businessProfile}\n` : ''}
-
-You MUST respond with valid JSON in this exact format:
-{
-  "jobTitle": "Concise, professional job title (e.g. 'Hot Water System Replacement' not 'plumbing job')",
-  "summary": "2-3 sentence professional summary of the scope of work, written for the client",
-  "items": [
-    {
-      "description": "Specific item description — ALWAYS include size, spec, brand tier (e.g. '25mm copper elbow fitting x4', 'Rinnai B16 continuous flow HWS 16L/min', 'Labour – hot water system removal and install')",
-      "quantity": 1,
-      "unit": "each|hr|sqm|lm|lot",
-      "category": "labour|material",
-      "unitCost": 60.00,
-      "unitPrice": 85.00
-    }
-  ],
-  "questions": [],
-  "notes": "Professional notes covering: key assumptions made, what is NOT included (exclusions), site access requirements, compliance notes, and any warranties offered",
-  "estimatedHours": 4,
-  "totalLabour": 340.00,
-  "totalMaterials": 250.00,
-  "subtotal": 590.00,
-  "gstAmount": 59.00,
-  "totalAmount": 649.00
-}
-
-${tradeKnowledge}
-
-CRITICAL RULES — follow these exactly:
-00. CLARIFYING QUESTIONS — "questions" is normally an EMPTY array. Only add a question
-   when the description leaves out something that MATERIALLY changes the price and you
-   cannot reasonably assume it. A well-described job must return []. Never ask for
-   something already stated, never ask to be polite, and never ask more than 3.
-   Each question is an object:
-     { "q": "Single or double storey?", "type": "chips",
-       "options": ["Single storey", "Double storey"],
-       "assumption": "Quoted as single storey. Add ~$X if double." }
-   "type" is "chips" (preferred, always give 2-4 options), "number" (a measurement —
-   include "unit"), or "toggle" (yes/no). "assumption" states what you assumed when
-   the tradesperson skips it, stating the assumed value and the cost impact where you
-   can. Still produce a full, usable quote using your assumptions — the questions only
-   refine it.
-0. COST vs PRICE — every item needs BOTH:
-   - "unitCost" = what the tradesperson PAYS per unit. For materials that's the supplier
-     cost before any markup. For labour it's the true cost of that time to the business.
-   - "unitPrice" = what the CLIENT is charged per unit (cost plus markup).
-   - "category" = "material" for parts/materials/disposal/permits, "labour" for time on tools.
-   unitCost must always be greater than 0 and less than or equal to unitPrice. Never copy
-   unitPrice into unitCost — the app calculates the tradesperson's profit from the gap
-   between them, so a wrong cost silently misreports what they earn.
-1. LINE ITEMS must be specific. BAD: "Labour". GOOD: "Labour – remove existing hot water unit, install new unit, connect copper pipework and test". BAD: "Materials". GOOD: "25mm copper half-union x2 @ $18 each".
-2. ALWAYS break labour and materials into SEPARATE line items. Never bundle them.
-3. LIST ORDER: call-out/travel first (only if a call-out fee is specified in pricing instructions), then labour items, then materials, then any permit or disposal fees.
-4. QUANTITIES must be real numbers — if 3 fittings are needed, quantity is 3, unitPrice is cost per fitting.
-5. NEVER under-quote. Australian tradies routinely lose money from thin margins. Include: travel/setup time, consumables (tape, sealant, fixings), waste disposal where applicable, and at least 15 minutes of post-job cleanup time.
-6. USE THE TRADE KNOWLEDGE BASE: All pricing must align with the reference data above. Use the estimation formulas provided to calculate quantities. Apply the correct units of measure for this trade.
-7. NOTES section must include: what is NOT included (exclusions), assumptions made, relevant compliance requirements from the knowledge base, and quote validity period (14 days).
-8. jobTitle must be professional and specific — suitable to show a client on a formal document.
-9. CROSS-CHECK every price against the pricing reference before finalising. If a material or labour rate differs by more than 20% from the reference ranges, adjust it — unless the job description specifically calls for a premium brand, remote location, or unusual circumstance.
-10. CHECK THE GOTCHAS: Review the trade-specific gotchas section and ensure your quote accounts for commonly missed items (e.g. disposal fees, compliance certificates, consumables allowance).
-11. CONSISTENCY: Ensure line item descriptions and the notes/exclusions section do not contradict each other. If an item is included as a line item, do NOT exclude it in the notes. If something is genuinely excluded, it must not appear as a line item.${pricingInstructions}${thinDescriptionRule}`;
-
-      messages.push({ role: "system", content: systemPrompt });
-
-      // Learn from past quotes — recent ones the customer engaged with, as few-shot
-      // examples. "invoiced" belongs here and was missing: a quote that reached an
-      // invoice is the strongest evidence there is of a price a customer actually
-      // paid, which is exactly what makes a good example. getQuotes already
-      // returns newest first.
-      try {
-        const allQuotes = await storage.getQuotes(req.userId);
-        const PRICED_WELL = ["invoiced", "accepted", "sent"];
-        const pastQuotes = allQuotes
-          .filter(q => q.content && PRICED_WELL.includes(String(q.status)))
-          .slice(0, 5);
-
-        if (pastQuotes.length > 0) {
-          const examples = pastQuotes.map(q => {
-            try {
-              const parsed = JSON.parse(q.content || "{}");
-              return {
-                jobTitle: parsed.jobTitle || parsed.title || "Untitled",
-                totalAmount: q.totalAmount,
-                itemCount: parsed.items?.length || 0,
-                items: (parsed.items || []).slice(0, 5).map((item: any) => ({
-                  description: item.description,
-                  quantity: item.quantity,
-                  unit: item.unit,
-                  unitPrice: item.unitPrice,
-                })),
-              };
-            } catch {
-              return null;
-            }
-          }).filter(Boolean);
-
-          if (examples.length > 0) {
-            const pastQuotesContext = `\n\nPAST QUOTES FROM THIS BUSINESS — Learn from these to match the tradesperson's pricing style and level of detail:\n${examples.map((ex, i) =>
-              `Example ${i + 1}: "${ex!.jobTitle}" — $${ex!.totalAmount} total, ${ex!.itemCount} line items\n` +
-              ex!.items.map((item: any) => `  • ${item.description} — qty ${item.quantity} ${item.unit || 'each'} @ $${item.unitPrice}`).join('\n')
-            ).join('\n\n')}
-\nUse these past quotes to calibrate your pricing. If the tradesperson consistently quotes higher or lower than the reference ranges, match their style. Maintain their level of detail and item granularity.`;
-
-            messages.push({ role: "system", content: pastQuotesContext });
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load past quotes for AI context:", err);
-        // Non-critical — continue without past quote context
-      }
-
-      const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
-
-      userContent.push({
-        type: "text",
-        text: `Generate a quote for this job:\n\n${description}${customerName ? `\n\nClient: ${customerName}` : ""}`,
-      });
-
-      const imagePayload = typeof imageBase64 === 'string'
-        ? imageBase64.includes(';base64,') ? imageBase64.split(';base64,')[1] : imageBase64
-        : null;
-
-      if (imagePayload && imagePayload.length > 128 && AI_SUPPORTS_VISION) {
-        sentImage = true;
-        userContent.push({
-          type: "image_url",
-          image_url: {
-            url: imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
-            detail: "high",
-          },
-        });
-      }
-
-      messages.push({ role: "user", content: userContent });
-
-      const response = await openai.chat.completions.create({
-        model: AI_MODEL,
-        messages,
-        max_tokens: 4096,
-        response_format: { type: "json_object" },
-      });
-
-      const raw = response.choices[0]?.message?.content || "{}";
-      let parsed;
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        return res.status(500).json({ message: "AI returned invalid JSON", raw });
-      }
-
-      // Post-generation reconciliation of the call-out fee — never trust the
-      // LLM to include or exclude it correctly
-      const callOutPattern = /call.?out|site.?visit|travel.?fee|call.?in|mobilisation/i;
-      if (Array.isArray(parsed.items)) {
-        let itemsChanged = false;
-        if (callOutNum === 0) {
-          // Strip call-out/travel items when no fee was requested
-          const before = parsed.items.length;
-          parsed.items = parsed.items.filter((item: any) => !callOutPattern.test(item.description || ""));
-          itemsChanged = parsed.items.length !== before;
-        } else if (!parsed.items.some((item: any) => callOutPattern.test(item.description || ""))) {
-          // Fee was requested but the model omitted it — append deterministically
-          parsed.items.push({ description: "Call-out fee", quantity: 1, unit: "ea", unitPrice: callOutNum });
-          itemsChanged = true;
-        }
-        if (itemsChanged && parsed.items.length > 0) {
-          const subtotal = parsed.items.reduce((sum: number, item: any) => sum + (item.quantity || 0) * (item.unitPrice || 0), 0);
-          parsed.subtotal = Math.round(subtotal * 100) / 100;
-          parsed.gstAmount = gstEnabled ? Math.round(subtotal * 0.1 * 100) / 100 : 0;
-          parsed.totalAmount = Math.round((parsed.subtotal + parsed.gstAmount) * 100) / 100;
-        }
-      }
-
-      // Clarifying questions are optional and capped — the tradie should only be
-      // asked when the answer genuinely moves the price, never as a routine gate.
-      parsed.questions = (Array.isArray(parsed.questions) ? parsed.questions : [])
-        .filter((q: any) => q && typeof q.q === "string" && q.q.trim())
-        .slice(0, 3)
-        .map((q: any) => ({
-          q: String(q.q).trim(),
-          type: ["chips", "number", "toggle"].includes(q.type) ? q.type : "chips",
-          options: Array.isArray(q.options) ? q.options.map(String).slice(0, 4) : [],
-          unit: typeof q.unit === "string" ? q.unit : undefined,
-          assumption: typeof q.assumption === "string" ? q.assumption : "",
-        }));
-
-      // Normalise the cost basis and note prices that look wrong.
-      if (Array.isArray(parsed.items)) {
-        parsed.items = parsed.items.map((item: any) => {
-          const price = Number(item.unitPrice) || 0;
-
-          // The cost the model gave, or nothing. This used to fabricate
-          // `price * 0.7` whenever the model left it out or returned something
-          // odd — which meant an invented price silently became an invented cost
-          // and an invented profit, three made-up figures shown as data with
-          // nothing marking them as guesses. An unknown cost is now left unknown:
-          // the line reports no cost, and Review already says out loud that a
-          // line without one is being counted as pure profit.
-          const rawCost = Number(item.unitCost);
-          const costKnown = Number.isFinite(rawCost) && rawCost > 0 && rawCost <= price;
-          const unitCost = costKnown ? round2(rawCost) : 0;
-
-          const category = String(item.category || "").toLowerCase() === "labour" ? "labour" : "material";
-
-          // The prompt ASKS the model to use the tradie's labour rate, and a model
-          // is free to ignore it — which is why the rate in settings never quite
-          // matched the quote. What a job takes in HOURS is a judgement the AI is
-          // reasonable at; what an hour COSTS is a fact the tradie already knows.
-          // So the hours stand and the rate is imposed, for hourly lines only —
-          // labour billed as a lot or a flat fee has no rate to apply.
-          const hourly = isHourlyUnit(item.unit);
-          const useRate = category === "labour" && hourly && labourRateNum;
-          const unitPrice = useRate ? labourRateNum : price;
-          // The price is the charge-out rate; see labourLineCost for the cost.
-          const labourCost = labourLineCost({ rate: labourRateNum, markupLabour: markupLabourOn, costRate: labourCostNum });
-          // Catches a figure that is wrong by an order of magnitude — the $20 five
-          // litre tin of paint. Deliberately crude: it only ever adds a note.
-          const flag = checkLinePrice({ description: item.description, unitPrice: price, unit: item.unit });
-
-          return {
-            ...item,
-            category,
-            unitPrice,
-            unitCost: useRate ? (labourCost ?? 0) : unitCost,
-            costUnknown: useRate ? labourCost == null : !costKnown,
-            priceNote: flag?.message,
-          };
-        });
-        // The saved call-out fee, exactly once, whatever the model did with it.
-        parsed.items = enforceCallOut(parsed.items, callOutNum);
-        // The tradie's own prices where they have one ("your price"); every other
-        // material line is marked "estimate" (docs/pricing-design.md, step 2).
-        // Before the capture below, so the record compares the sent quote with
-        // exactly what the phone received. A failed lookup only loses the badges.
-        //
-        // Through the matching engine (pricing step 4): remembered, plain, then
-        // one batched AI call for lines still unmatched, so a receipt's "SL82 MESH"
-        // reaches an AI line called "SL82 mesh sheet". If matching fails, plain
-        // matching still applies; if that fails too, the AI's figures stand.
-        try {
-          const rows = await storage.getPriceList(req.userId);
-          try {
-            // A tighter wait than receipts: the tradie is watching this quote build.
-            const matches = await resolveQuoteMatches(parsed.items, rows, await storage.getRememberedMatches(req.userId), completeJson, { timeoutMs: 8_000 });
-            parsed.items = applyPriceMatches(parsed.items, matches, markupNum ?? 0);
-          } catch (err) {
-            console.error("[price list] matching failed; plain matching only:", err);
-            parsed.items = applyPriceList(parsed.items, newestPrices(rows), markupNum ?? 0);
-          }
-        } catch (err) {
-          console.error("[price list] lookup failed; the quote keeps the AI's figures:", err);
-        }
-      }
-      // What this quote was priced with, so the phone prices with the same values
-      // rather than its own (possibly older) copy of settings.
-      parsed.pricing = {
-        labourRate: labourRateNum, markupPercent: markupNum, markupLabour: markupLabourOn,
-        labourCostRate: labourCostNum, callOutFee: callOutNum, includeGST: gstEnabled,
-      };
-
-      // Keep the generation exactly as the phone receives it: the correction record
-      // compares it with what the tradie finally sends. A failed write never costs
-      // the quote; the response just goes without a generationId.
-      const generationId = await captureGeneration(() => storage.createAiGeneration({
-        userId: req.userId,
-        draftKey: cleanDraftKey(req.body?.draftKey),
-        input: generationInput(req.body),
-        response: JSON.stringify(parsed),
-        model: AI_MODEL,
-      }));
-      if (generationId != null) parsed.generationId = generationId;
-
-      res.json(parsed);
-    } catch (error: any) {
-      console.error("Quote generation error:", error);
-      const msg: string = error?.message || "";
-      // Only blame the image when one was actually sent AND the provider named an
-      // image problem. A bare "400" match was wrongly classifying every provider
-      // error (e.g. an unsupported parameter) as an unreadable photo, hiding the
-      // real cause from us.
-      const isImageError = sentImage && /image|invalid.*url|unsupported.*media/i.test(msg);
-      res.status(isImageError ? 400 : 500).json({
-        message: isImageError
-          ? "The attached image couldn't be read — try a clearer photo or remove it and describe the job instead."
-          : (msg || "Failed to generate quote"),
-      });
-    }
-  });
+  // AI Quote Generation: the prompt, the model call and every pricing step are in
+  // server/lib/generate-quote.ts, so the model comparison script (eval/) runs the
+  // same code. This route uses the configured model (AI_CHAT_MODEL).
+  app.post("/api/quotes/generate", requireAuth, aiRateLimit, generateQuoteRoute({
+    storage,
+    ai: { client: openai, model: AI_MODEL },
+    supportsVision: AI_SUPPORTS_VISION,
+  }));
 
   /** One JSON completion for the matching engine (server/lib/match-ai.ts): text only, no reasoning budget wasted. */
-  const completeJson = async (system: string, user: string): Promise<string> => {
-    const response = await openai.chat.completions.create({
-      model: AI_MODEL,
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      max_tokens: 900,
-      temperature: 0,
-      response_format: { type: "json_object" },
-    });
-    return response.choices[0]?.message?.content || "";
-  };
+  const completeJson = (system: string, user: string): Promise<string> => completeJsonWith(openai, AI_MODEL)(system, user);
 
   /**
    * Price a receipt after it's saved or edited (pricing step 4). Waits a few

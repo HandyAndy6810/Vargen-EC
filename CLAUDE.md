@@ -28,6 +28,9 @@ Claude Code sessions must push the schema with `npm run db:push` (the Neon dev b
   `AI_SUPPORTS_VISION` (gpt-oss is text-only, so job photos are skipped on Groq).
 - Secrets needed in Replit: `AI_INTEGRATIONS_OPENAI_BASE_URL`, `AI_INTEGRATIONS_OPENAI_API_KEY`
 - Endpoints: `POST /api/quotes/generate`, `POST /api/agent/intake`, `POST /api/audio/transcribe`
+- The generation logic behind `/api/quotes/generate` is `server/lib/generate-quote.ts`; env model config is
+  `server/lib/ai-config.ts`. To compare models before switching `AI_CHAT_MODEL`, run `npm run eval:models`
+  (dev database, read only, costs tokens, not in CI). See `eval/README.md`.
 
 ## Native Architecture
 
