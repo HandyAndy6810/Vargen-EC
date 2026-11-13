@@ -1,0 +1,50 @@
+{
+  "$comment": "Models to compare. apiKeyEnv is the NAME of the env var holding the key, never the key. Prices are US dollars per million tokens. 'verified: false' means the id or price could not be checked against the provider's own docs when this file was written (see eval/README.md); run `npm run eval:models -- --list-models` to see which ids your account actually has. A model whose id isn't on the account, or whose key env var isn't set, is skipped with a message.",
+  "models": [
+    {
+      "label": "groq-gpt-oss-120b",
+      "provider": "groq",
+      "baseURL": "https://api.groq.com/openai/v1",
+      "apiKeyEnv": "AI_INTEGRATIONS_OPENAI_API_KEY",
+      "model": "openai/gpt-oss-120b",
+      "pricePerMillion": { "input": 0.15, "output": 0.6 },
+      "priceSource": "https://groq.com/pricing (not reachable from the session that wrote this; figure from https://www.usagepricing.com/blueprint/groq, which cites Groq's model docs captured 24 Oct 2026)",
+      "verified": false,
+      "baseline": true,
+      "why": "The live model today (AI_CHAT_MODEL default on Groq). The baseline every other model is compared with."
+    },
+    {
+      "label": "groq-gpt-oss-20b",
+      "provider": "groq",
+      "baseURL": "https://api.groq.com/openai/v1",
+      "apiKeyEnv": "AI_INTEGRATIONS_OPENAI_API_KEY",
+      "model": "openai/gpt-oss-20b",
+      "pricePerMillion": { "input": 0.075, "output": 0.3 },
+      "priceSource": "https://groq.com/pricing (not reachable from the session that wrote this; figure from https://costbench.com/software/llm-api-providers/groq/ and https://www.maximem.ai/blog/groq-api-pricing-2026)",
+      "verified": false,
+      "why": "The same family as the baseline at half the price and faster. Tells us whether the cheaper sibling reads jobs well enough; it is also the most likely replacement if the 120b is retired."
+    },
+    {
+      "label": "groq-kimi-k2",
+      "provider": "groq",
+      "baseURL": "https://api.groq.com/openai/v1",
+      "apiKeyEnv": "AI_INTEGRATIONS_OPENAI_API_KEY",
+      "model": "moonshotai/kimi-k2-instruct-0905",
+      "pricePerMillion": { "input": 1.0, "output": 3.0 },
+      "priceSource": "https://groq.com/pricing (not reachable from the session that wrote this; figure from https://costbench.com/software/llm-api-providers/groq/; newer third-party lists don't mention it, so it may have been retired)",
+      "verified": false,
+      "why": "A large non-reasoning model from a different family: a check on whether a bigger model reads mixed-trade and vague jobs better, at about 6x the baseline's cost."
+    },
+    {
+      "label": "anthropic-claude-haiku",
+      "provider": "anthropic",
+      "baseURL": "https://api.anthropic.com/v1/",
+      "apiKeyEnv": "ANTHROPIC_API_KEY",
+      "model": "claude-haiku-5-5",
+      "pricePerMillion": null,
+      "priceSource": "Optional, not on Groq. Add the price from https://www.anthropic.com/pricing before trusting the cost column (cost shows n/a until then). Uses Anthropic's OpenAI-compatible endpoint.",
+      "verified": false,
+      "why": "Optional outside comparison. Skipped unless ANTHROPIC_API_KEY is set."
+    }
+  ]
+}

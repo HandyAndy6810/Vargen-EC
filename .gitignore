@@ -21,3 +21,7 @@ mobile/.env
 /eas.json
 # DotSlash / RN DevTools cache — read-only dirs break EAS tarball cleanup
 .cache
+
+# Model comparison results (npm run eval:models): raw model output, not for the repo
+eval/results/*
+!eval/results/.gitkeep

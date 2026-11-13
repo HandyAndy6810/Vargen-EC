@@ -1,0 +1,1863 @@
+{
+  "$comment": "Machine-readable form of eval/model-eval-set.md (draft 2, 13 Nov 2026). Terms: case-insensitive words/phrases at word boundaries (a trailing s/es allowed), or \"re:\" + a regular expression. Item lines are read as \"description | qty unit @ unitPrice | category\". See eval/types.ts and eval/README.md.",
+  "jobs": [
+    {
+      "mustHave": [
+        {
+          "label": "premix",
+          "synonyms": [
+            "premix",
+            "pre-mix",
+            "pre mix",
+            "readymix",
+            "ready mix",
+            "ready-mix",
+            "ready mixed",
+            "N20",
+            "N25",
+            "N32",
+            "N40",
+            "re:\\b(20|25|32|40)\\s?mpa\\b",
+            "re:concrete[^|]*\\|\\s*[\\d.]+\\s*(m3|m³|cum|cubic)",
+            "re:\\b(supply|supplied|deliver\\w*)\\b[^|]*\\bconcrete\\b",
+            "re:\\bconcrete\\b[^|]*\\b(supply|supplied|delivered|delivery)\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "mesh",
+          "synonyms": [
+            "mesh",
+            "SL62",
+            "SL72",
+            "SL82",
+            "SL92",
+            "reo",
+            "reinforcement",
+            "reinforcing"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "formwork",
+          "synonyms": [
+            "formwork",
+            "form work",
+            "formboard",
+            "boxing",
+            "edge form",
+            "timber edge",
+            "pegs",
+            "re:\\bform(s|ing|ed|work)?\\b"
+          ]
+        },
+        {
+          "label": "removal of the old concrete",
+          "synonyms": [
+            "re:(remov|demoli|break|cut|excavat|jackhammer)\\w*[^|]*(old|existing)[^|]*(concrete|slab|driveway)",
+            "re:(old|existing)[^|]*(concrete|slab|driveway)[^|]*(remov|demoli|break)",
+            "demolition",
+            "demolish",
+            "break out",
+            "break up",
+            "jackhammer"
+          ]
+        },
+        {
+          "label": "disposal / tip",
+          "synonyms": [
+            "disposal",
+            "tip fee",
+            "tipping",
+            "skip",
+            "skip bin",
+            "bin hire",
+            "cart away",
+            "carted away",
+            "waste removal",
+            "re:\\bdispos\\w*",
+            "re:\\btip\\b"
+          ]
+        }
+      ],
+      "shouldHave": [
+        {
+          "label": "road base",
+          "synonyms": [
+            "road base",
+            "roadbase",
+            "crushed rock",
+            "sub-base",
+            "subbase",
+            "base course",
+            "FCR",
+            "DGB",
+            "crusher dust",
+            "compacted base",
+            "re:\\bbase\\b[^|]*(prep|compact)"
+          ]
+        },
+        {
+          "label": "bar chairs",
+          "synonyms": [
+            "bar chair",
+            "mesh chair",
+            "spacer",
+            "re:\\bchairs?\\b"
+          ]
+        },
+        {
+          "label": "expansion joint",
+          "synonyms": [
+            "expansion joint",
+            "isolation joint",
+            "abelflex",
+            "expansion strip",
+            "joint filler",
+            "re:\\bexpansion\\b"
+          ]
+        },
+        {
+          "label": "saw cuts",
+          "synonyms": [
+            "saw cut",
+            "sawcut",
+            "saw cutting",
+            "control joint",
+            "crack control",
+            "re:\\bsaw\\w*\\b"
+          ]
+        }
+      ],
+      "mustNot": [
+        {
+          "label": "pump hire (access is easy)",
+          "synonyms": [
+            "pump",
+            "line pump",
+            "boom pump",
+            "pumping"
+          ]
+        }
+      ],
+      "expectedTrades": [
+        "concreting"
+      ],
+      "expectedFacts": [
+        {
+          "label": "area 24 m²",
+          "numbers": [
+            {
+              "value": 24,
+              "unit": "m2"
+            }
+          ]
+        },
+        {
+          "label": "thickness 100 mm",
+          "numbers": [
+            {
+              "value": 100,
+              "unit": "mm"
+            },
+            {
+              "value": 0.1,
+              "unit": "m"
+            }
+          ]
+        },
+        {
+          "label": "SL72 mesh",
+          "text": [
+            "SL72",
+            "SL 72"
+          ]
+        },
+        {
+          "label": "old concrete removed",
+          "text": [
+            "re:(remov|demoli|break|excavat|jackhammer)\\w*[^|\\n]*(old|existing)[^|\\n]*(concrete|slab|driveway)",
+            "re:(old|existing)[^|\\n]*(concrete|slab|driveway)[^|\\n]*(remov|demoli|break)",
+            "demolition",
+            "demolish"
+          ]
+        },
+        {
+          "label": "broom finish",
+          "text": [
+            "broom"
+          ]
+        }
+      ],
+      "keyQuestion": null,
+      "expectNoQuestions": true,
+      "pairWith": null,
+      "id": "C1",
+      "title": "Detailed driveway (should ask nothing)",
+      "text": "6m x 4m driveway, 100mm thick, SL72, old concrete needs to come out, broom finish, easy truck access"
+    },
+    {
+      "mustHave": [
+        {
+          "label": "asks for the size before quoting",
+          "synonyms": [
+            "size",
+            "dimension",
+            "how big",
+            "length",
+            "width",
+            "long",
+            "wide",
+            "area",
+            "m2",
+            "m²",
+            "sqm",
+            "square met",
+            "square metre"
+          ],
+          "where": "questions"
+        }
+      ],
+      "shouldHave": [
+        {
+          "label": "asks whether old concrete comes out",
+          "synonyms": [
+            "old concrete",
+            "existing concrete",
+            "existing driveway",
+            "re:(remov|demoli|break)\\w*",
+            "re:\\b(old|existing)\\b"
+          ],
+          "where": "questions"
+        }
+      ],
+      "mustNot": [
+        {
+          "label": "a quote with made-up dimensions shown as facts",
+          "synonyms": [
+            "size",
+            "dimension",
+            "how big",
+            "length",
+            "width",
+            "long",
+            "wide",
+            "area",
+            "m2",
+            "m²",
+            "sqm",
+            "square met",
+            "square metre"
+          ],
+          "kind": "unflaggedAssumedSize"
+        }
+      ],
+      "expectedTrades": [
+        "concreting"
+      ],
+      "expectedFacts": [],
+      "keyQuestion": {
+        "text": "rough size (length × width), then whether old concrete comes out",
+        "synonyms": [
+          "size",
+          "dimension",
+          "how big",
+          "length",
+          "width",
+          "long",
+          "wide",
+          "area",
+          "m2",
+          "m²",
+          "sqm",
+          "square met",
+          "square metre"
+        ]
+      },
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "C2",
+      "title": "Vague driveway",
+      "text": "can you quote a driveway at my mums place",
+      "note": "The generator always produces a full quote from assumptions, so this passes only when it asks for the size AND says the size it priced is assumed."
+    },
+    {
+      "mustHave": [
+        {
+          "label": "premix",
+          "synonyms": [
+            "premix",
+            "pre-mix",
+            "pre mix",
+            "readymix",
+            "ready mix",
+            "ready-mix",
+            "ready mixed",
+            "N20",
+            "N25",
+            "N32",
+            "N40",
+            "re:\\b(20|25|32|40)\\s?mpa\\b",
+            "re:concrete[^|]*\\|\\s*[\\d.]+\\s*(m3|m³|cum|cubic)",
+            "re:\\b(supply|supplied|deliver\\w*)\\b[^|]*\\bconcrete\\b",
+            "re:\\bconcrete\\b[^|]*\\b(supply|supplied|delivered|delivery)\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "a pump or barrow line (tight access)",
+          "synonyms": [
+            "pump",
+            "line pump",
+            "barrow",
+            "wheelbarrow",
+            "power barrow",
+            "dumper",
+            "mini loader",
+            "re:\\bbarrow\\w*"
+          ]
+        },
+        {
+          "label": "exposed aggregate finish",
+          "synonyms": [
+            "exposed aggregate",
+            "exposed agg",
+            "aggregate finish",
+            "retarder",
+            "wash off",
+            "washing off",
+            "re:\\bexposed\\b"
+          ]
+        }
+      ],
+      "shouldHave": [
+        {
+          "label": "formwork",
+          "synonyms": [
+            "formwork",
+            "form work",
+            "formboard",
+            "boxing",
+            "edge form",
+            "timber edge",
+            "pegs",
+            "re:\\bform(s|ing|ed|work)?\\b"
+          ]
+        },
+        {
+          "label": "mesh",
+          "synonyms": [
+            "mesh",
+            "SL62",
+            "SL72",
+            "SL82",
+            "SL92",
+            "reo",
+            "reinforcement",
+            "reinforcing"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "chairs",
+          "synonyms": [
+            "bar chair",
+            "mesh chair",
+            "spacer",
+            "re:\\bchairs?\\b"
+          ]
+        }
+      ],
+      "mustNot": [],
+      "expectedTrades": [
+        "concreting"
+      ],
+      "expectedFacts": [
+        {
+          "label": "area 15 m²",
+          "numbers": [
+            {
+              "value": 15,
+              "unit": "m2"
+            }
+          ]
+        },
+        {
+          "label": "exposed aggregate",
+          "text": [
+            "exposed aggregate",
+            "exposed agg",
+            "re:\\bexposed\\b"
+          ]
+        }
+      ],
+      "keyQuestion": null,
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "C3",
+      "title": "Patio with tight access",
+      "text": "back patio slab 5 x 3, only access is a side gate about 900 wide, customer wants exposed aggregate",
+      "note": "No key question needed: thickness falls back to the default and shows as an assumption."
+    },
+    {
+      "mustHave": [
+        {
+          "label": "premix",
+          "synonyms": [
+            "premix",
+            "pre-mix",
+            "pre mix",
+            "readymix",
+            "ready mix",
+            "ready-mix",
+            "ready mixed",
+            "N20",
+            "N25",
+            "N32",
+            "N40",
+            "re:\\b(20|25|32|40)\\s?mpa\\b",
+            "re:concrete[^|]*\\|\\s*[\\d.]+\\s*(m3|m³|cum|cubic)",
+            "re:\\b(supply|supplied|deliver\\w*)\\b[^|]*\\bconcrete\\b",
+            "re:\\bconcrete\\b[^|]*\\b(supply|supplied|delivered|delivery)\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "formwork",
+          "synonyms": [
+            "formwork",
+            "form work",
+            "formboard",
+            "boxing",
+            "edge form",
+            "timber edge",
+            "pegs",
+            "re:\\bform(s|ing|ed|work)?\\b"
+          ]
+        }
+      ],
+      "shouldHave": [
+        {
+          "label": "expansion joints",
+          "synonyms": [
+            "expansion joint",
+            "isolation joint",
+            "abelflex",
+            "expansion strip",
+            "joint filler",
+            "re:\\bexpansion\\b"
+          ]
+        },
+        {
+          "label": "saw cuts",
+          "synonyms": [
+            "saw cut",
+            "sawcut",
+            "saw cutting",
+            "control joint",
+            "crack control",
+            "re:\\bsaw\\w*\\b"
+          ]
+        }
+      ],
+      "mustNot": [],
+      "expectedTrades": [
+        "concreting"
+      ],
+      "expectedFacts": [
+        {
+          "label": "area 18 m² (or 15 m long)",
+          "numbers": [
+            {
+              "value": 18,
+              "unit": "m2"
+            },
+            {
+              "value": 15,
+              "unit": "m"
+            }
+          ]
+        }
+      ],
+      "keyQuestion": null,
+      "expectNoQuestions": false,
+      "pairWith": {
+        "job": "C5",
+        "role": "smaller"
+      },
+      "id": "C4",
+      "title": "Path down the side (hours pair, smaller)",
+      "text": "concrete path down the side of the house, 15m long 1.2m wide"
+    },
+    {
+      "mustHave": [
+        {
+          "label": "premix",
+          "synonyms": [
+            "premix",
+            "pre-mix",
+            "pre mix",
+            "readymix",
+            "ready mix",
+            "ready-mix",
+            "ready mixed",
+            "N20",
+            "N25",
+            "N32",
+            "N40",
+            "re:\\b(20|25|32|40)\\s?mpa\\b",
+            "re:concrete[^|]*\\|\\s*[\\d.]+\\s*(m3|m³|cum|cubic)",
+            "re:\\b(supply|supplied|deliver\\w*)\\b[^|]*\\bconcrete\\b",
+            "re:\\bconcrete\\b[^|]*\\b(supply|supplied|delivered|delivery)\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "formwork",
+          "synonyms": [
+            "formwork",
+            "form work",
+            "formboard",
+            "boxing",
+            "edge form",
+            "timber edge",
+            "pegs",
+            "re:\\bform(s|ing|ed|work)?\\b"
+          ]
+        }
+      ],
+      "shouldHave": [
+        {
+          "label": "expansion joints",
+          "synonyms": [
+            "expansion joint",
+            "isolation joint",
+            "abelflex",
+            "expansion strip",
+            "joint filler",
+            "re:\\bexpansion\\b"
+          ]
+        },
+        {
+          "label": "saw cuts",
+          "synonyms": [
+            "saw cut",
+            "sawcut",
+            "saw cutting",
+            "control joint",
+            "crack control",
+            "re:\\bsaw\\w*\\b"
+          ]
+        }
+      ],
+      "mustNot": [],
+      "expectedTrades": [
+        "concreting"
+      ],
+      "expectedFacts": [
+        {
+          "label": "area 54 m² (or 45 m long)",
+          "numbers": [
+            {
+              "value": 54,
+              "unit": "m2"
+            },
+            {
+              "value": 45,
+              "unit": "m"
+            }
+          ]
+        }
+      ],
+      "keyQuestion": null,
+      "expectNoQuestions": false,
+      "pairWith": {
+        "job": "C4",
+        "role": "larger",
+        "compare": [
+          {
+            "label": "expansion joints",
+            "synonyms": [
+              "expansion joint",
+              "isolation joint",
+              "abelflex",
+              "expansion strip",
+              "joint filler",
+              "re:\\bexpansion\\b"
+            ]
+          }
+        ]
+      },
+      "id": "C5",
+      "title": "Path around the house (hours pair, larger)",
+      "text": "concrete path around the whole house, 45m long 1.2m wide",
+      "note": "Pass: C5's labour is clearly more than C4's, but not a blind 3x (setup time doesn't triple)."
+    },
+    {
+      "mustHave": [
+        {
+          "label": "the \"Engineering by others\" flag",
+          "synonyms": [
+            "engineering by others",
+            "engineer",
+            "engineers",
+            "engineer's",
+            "engineering",
+            "engineered",
+            "structural design",
+            "re:\\bby others\\b"
+          ],
+          "where": "any"
+        }
+      ],
+      "shouldHave": [],
+      "mustNot": [
+        {
+          "label": "edge beam or footing sizes presented as fact",
+          "synonyms": [
+            "re:(edge beam|edge thickening|thickening|footing|beam)[^|]*\\b\\d{3,4}\\s?(mm|x)",
+            "re:\\b\\d{3,4}\\s?(mm)?\\s?(x\\s?\\d{3,4}\\s?(mm)?)?\\s[^|]*(edge beam|footing|thickening)"
+          ],
+          "unlessLine": [
+            "re:\\bassum\\w*",
+            "re:\\ballow\\w*",
+            "TBC",
+            "to be confirmed",
+            "provisional",
+            "re:\\bengineer\\w*",
+            "subject to",
+            "by others"
+          ]
+        }
+      ],
+      "expectedTrades": [
+        "concreting"
+      ],
+      "expectedFacts": [
+        {
+          "label": "area 48 m²",
+          "numbers": [
+            {
+              "value": 48,
+              "unit": "m2"
+            }
+          ]
+        }
+      ],
+      "keyQuestion": {
+        "text": "do they have the engineer's drawings",
+        "synonyms": [
+          "engineer",
+          "engineering",
+          "engineered",
+          "drawings",
+          "plans",
+          "design",
+          "specification",
+          "specs",
+          "re:\\bengineer\\w*"
+        ]
+      },
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "C6",
+      "title": "Granny flat slab (engineering flag)",
+      "text": "slab for a granny flat 8 x 6"
+    },
+    {
+      "mustHave": [
+        {
+          "label": "labour / service fee",
+          "synonyms": [
+            "re:."
+          ],
+          "category": "labour"
+        },
+        {
+          "label": "small fittings",
+          "synonyms": [
+            "fitting",
+            "flexi",
+            "flexible hose",
+            "braided hose",
+            "tap connector",
+            "connector",
+            "thread tape",
+            "teflon",
+            "PTFE",
+            "plumbers tape",
+            "sundries",
+            "consumables",
+            "sealant",
+            "silicone",
+            "washer",
+            "o-ring",
+            "isolation valve",
+            "isolating valve",
+            "mini stop",
+            "ministop",
+            "re:\\bhoses?\\b"
+          ],
+          "category": "material"
+        }
+      ],
+      "shouldHave": [],
+      "mustNot": [
+        {
+          "label": "a tap as a material line",
+          "synonyms": [
+            "re:\\b(mixer|taps?|tapware)\\b"
+          ],
+          "category": "material",
+          "unlessLine": [
+            "flexi",
+            "flexible",
+            "hose",
+            "connector",
+            "tape",
+            "washer",
+            "cartridge",
+            "o-ring",
+            "fitting",
+            "valve",
+            "sundries",
+            "consumable",
+            "sealant",
+            "silicone",
+            "supplied by",
+            "customer supplied",
+            "client supplied",
+            "by customer",
+            "by client",
+            "by others",
+            "re:@\\s*0(\\.0+)?\\s*\\|"
+          ]
+        }
+      ],
+      "expectedTrades": [
+        "plumbing"
+      ],
+      "expectedFacts": [],
+      "keyQuestion": null,
+      "expectNoQuestions": true,
+      "pairWith": null,
+      "id": "P1",
+      "title": "Tap swap, customer supplies the tap",
+      "text": "replace leaking kitchen mixer tap, customer is supplying the tap",
+      "note": "The generator's thin-description rule forces 1-3 questions on any text without a number, and this one has none, so the baseline will ask."
+    },
+    {
+      "mustHave": [
+        {
+          "label": "a 250 L electric unit",
+          "synonyms": [
+            "re:\\b250\\s?(l|lt|ltr|litre|liter)s?\\b",
+            "re:\\b250\\b[^|]*(hot water|hws|heater|cylinder|tank|unit)",
+            "re:(hot water|hws|heater|cylinder)[^|]*\\b250\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "removal and disposal of the old unit",
+          "synonyms": [
+            "re:(remov|disconnect|take away|decommission)\\w*[^|]*(old|existing)",
+            "re:(old|existing)[^|]*(remov|dispos|take away)",
+            "re:\\bdispos\\w*"
+          ],
+          "alsoNeeds": [
+            "disposal",
+            "tip fee",
+            "tipping",
+            "skip",
+            "skip bin",
+            "bin hire",
+            "cart away",
+            "carted away",
+            "waste removal",
+            "re:\\bdispos\\w*",
+            "re:\\btip\\b",
+            "re:(remov|take away)\\w*[^|]*(old|existing)"
+          ]
+        }
+      ],
+      "shouldHave": [
+        {
+          "label": "valves and fittings",
+          "synonyms": [
+            "valve",
+            "tempering valve",
+            "PTR",
+            "pressure relief",
+            "relief valve",
+            "expansion control",
+            "ECV",
+            "isolation valve",
+            "fitting",
+            "copper"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "a note about the access difficulty",
+          "synonyms": [
+            "access",
+            "upstairs",
+            "stairs",
+            "first floor",
+            "upper floor",
+            "difficult",
+            "tight",
+            "two-person",
+            "two person",
+            "2 person",
+            "two man",
+            "2 man",
+            "re:\\bcarry\\w*\\b"
+          ],
+          "where": "any"
+        }
+      ],
+      "mustNot": [],
+      "expectedTrades": [
+        "plumbing"
+      ],
+      "expectedFacts": [
+        {
+          "label": "250 L",
+          "numbers": [
+            {
+              "value": 250,
+              "unit": "L"
+            }
+          ]
+        }
+      ],
+      "keyQuestion": null,
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "P2",
+      "title": "Hot water swap",
+      "text": "hot water system died, 250L electric, like for like swap, it's in an upstairs cupboard",
+      "note": "No key question needed (brand or power supply may be confirmed, optional)."
+    },
+    {
+      "mustHave": [
+        {
+          "label": "call out (service call template)",
+          "synonyms": [
+            "call out",
+            "call-out",
+            "callout",
+            "service call",
+            "service fee",
+            "attendance",
+            "minimum charge",
+            "first hour",
+            "re:\\bcall\\b"
+          ],
+          "skipIfNoCallOut": true
+        },
+        {
+          "label": "time (labour)",
+          "synonyms": [
+            "re:."
+          ],
+          "category": "labour"
+        }
+      ],
+      "shouldHave": [],
+      "mustNot": [
+        {
+          "label": "a new toilet",
+          "synonyms": [
+            "re:\\b(new|replacement)\\b[^|]*\\b(toilet|pan|suite|cistern)\\b",
+            "toilet suite",
+            "re:\\b(toilet|pan)\\b[^|]*\\b(supply|supplied)\\b"
+          ],
+          "category": "material"
+        }
+      ],
+      "expectedTrades": [
+        "plumbing"
+      ],
+      "expectedFacts": [],
+      "keyQuestion": {
+        "text": "is it just the one toilet, or are other drains slow too",
+        "synonyms": [
+          "other drain",
+          "other toilet",
+          "other fixture",
+          "sinks",
+          "basin",
+          "shower",
+          "floor waste",
+          "slow",
+          "gurgl",
+          "re:\\bother\\b",
+          "re:\\bonly (one|1)\\b",
+          "re:\\bjust (the )?(one|1)\\b",
+          "more than one",
+          "how many"
+        ]
+      },
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "P3",
+      "title": "Blocked toilet (service call)",
+      "text": "blocked toilet",
+      "note": "The generator removes call-out lines when the tradie's call-out fee is off, so \"call out\" is only scored when it is on."
+    },
+    {
+      "mustHave": [
+        {
+          "label": "8 downlights",
+          "synonyms": [
+            "downlight",
+            "down light",
+            "down-light"
+          ],
+          "category": "material",
+          "qty": 8
+        },
+        {
+          "label": "labour",
+          "category": "labour",
+          "synonyms": [
+            "re:."
+          ]
+        }
+      ],
+      "shouldHave": [
+        {
+          "label": "disposal of the old fittings",
+          "synonyms": [
+            "disposal",
+            "halogen",
+            "re:\\bdispos\\w*",
+            "re:(remov|dispos)\\w*[^|]*(old|existing|halogen)"
+          ]
+        }
+      ],
+      "mustNot": [],
+      "expectedTrades": [
+        "electrical"
+      ],
+      "expectedFacts": [
+        {
+          "label": "8 downlights",
+          "numbers": [
+            {
+              "value": 8,
+              "unit": "downlight"
+            }
+          ]
+        }
+      ],
+      "keyQuestion": null,
+      "expectNoQuestions": true,
+      "pairWith": null,
+      "id": "E1",
+      "title": "Downlights",
+      "text": "install 8 LED downlights in the lounge replacing old halogens, single storey, roof access fine"
+    },
+    {
+      "mustHave": [
+        {
+          "label": "a new board",
+          "synonyms": [
+            "switchboard",
+            "switch board",
+            "enclosure",
+            "consumer unit",
+            "distribution board",
+            "meter box",
+            "meter panel",
+            "re:\\bboard\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "circuit protection devices",
+          "synonyms": [
+            "RCBO",
+            "RCD",
+            "safety switch",
+            "circuit breaker",
+            "breaker",
+            "MCB",
+            "main switch",
+            "surge"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "\"possible asbestos in old board\" flag",
+          "synonyms": [
+            "asbestos",
+            "ACM"
+          ],
+          "where": "any"
+        }
+      ],
+      "shouldHave": [],
+      "mustNot": [],
+      "expectedTrades": [
+        "electrical"
+      ],
+      "expectedFacts": [],
+      "keyQuestion": {
+        "text": "roughly how many circuits, or single or double storey",
+        "synonyms": [
+          "circuit",
+          "how many",
+          "storey",
+          "story",
+          "single",
+          "double",
+          "re:\\bways?\\b",
+          "bedroom"
+        ]
+      },
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "E2",
+      "title": "Switchboard upgrade",
+      "text": "switchboard upgrade, still has old ceramic fuses"
+    },
+    {
+      "mustHave": [
+        {
+          "label": "fence panels / sheets",
+          "synonyms": [
+            "panel",
+            "colorbond",
+            "infill",
+            "re:\\bsheets?\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "posts",
+          "synonyms": [
+            "re:\\bposts?\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "removal and disposal of the old paling",
+          "synonyms": [
+            "re:(remov|demoli|pull\\w* (down|out)|dismantl)\\w*[^|]*(old|existing|paling|timber|fence)",
+            "re:(old|existing|paling)[^|]*(remov|demoli|dispos)"
+          ],
+          "alsoNeeds": [
+            "disposal",
+            "tip fee",
+            "tipping",
+            "skip",
+            "skip bin",
+            "bin hire",
+            "cart away",
+            "carted away",
+            "waste removal",
+            "re:\\bdispos\\w*",
+            "re:\\btip\\b"
+          ]
+        }
+      ],
+      "shouldHave": [
+        {
+          "label": "rails",
+          "synonyms": [
+            "re:\\brails?\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "post concrete",
+          "synonyms": [
+            "concrete",
+            "post mix",
+            "postmix",
+            "post-mix",
+            "rapid set",
+            "rapidset",
+            "quick set",
+            "re:\\bmix\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "a note about splitting the cost with the neighbour",
+          "synonyms": [
+            "neighbour",
+            "neighbor",
+            "split",
+            "shared",
+            "50/50",
+            "half",
+            "dividing fence"
+          ],
+          "where": "any"
+        }
+      ],
+      "mustNot": [],
+      "expectedTrades": [
+        "fencing"
+      ],
+      "expectedFacts": [
+        {
+          "label": "30 m long",
+          "numbers": [
+            {
+              "value": 30,
+              "unit": "m"
+            }
+          ]
+        },
+        {
+          "label": "1.8 m high",
+          "numbers": [
+            {
+              "value": 1.8,
+              "unit": "m"
+            },
+            {
+              "value": 1800,
+              "unit": "mm"
+            }
+          ]
+        },
+        {
+          "label": "old paling removed",
+          "text": [
+            "re:(remov|demoli|pull\\w* (down|out)|dismantl)\\w*",
+            "old paling",
+            "existing paling"
+          ]
+        }
+      ],
+      "keyQuestion": {
+        "text": "who's paying (the customer only, or split with the neighbour)",
+        "synonyms": [
+          "split",
+          "neighbour",
+          "neighbor",
+          "share",
+          "sharing",
+          "50/50",
+          "half",
+          "re:\\bpay\\w*\\b",
+          "re:\\bcosts?\\b"
+        ]
+      },
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "F1",
+      "title": "Colorbond replacing paling",
+      "text": "30m colorbond fence 1.8 high, replacing old paling, shared with the neighbour"
+    },
+    {
+      "mustHave": [
+        {
+          "label": "turf",
+          "synonyms": [
+            "turf",
+            "sod",
+            "instant lawn",
+            "roll-on",
+            "re:\\b(kikuyu|buffalo|couch|zoysia|sir walter|tiftuf|eureka|nara)\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "removal of the old grass",
+          "synonyms": [
+            "re:(remov|strip|excavat|dig|scrap|cut out|clear|spray|poison)\\w*[^|]*(old|existing|grass|lawn|turf)",
+            "re:(old|existing)[^|]*(grass|lawn|turf)[^|]*(remov|strip)",
+            "turf cutter",
+            "sod cutter"
+          ]
+        }
+      ],
+      "shouldHave": [
+        {
+          "label": "soil prep / underlay",
+          "synonyms": [
+            "underlay",
+            "soil",
+            "topsoil",
+            "sandy loam",
+            "loam",
+            "prep",
+            "preparation",
+            "levelling",
+            "leveling",
+            "fertiliser",
+            "fertilizer",
+            "starter"
+          ]
+        },
+        {
+          "label": "disposal",
+          "synonyms": [
+            "disposal",
+            "tip fee",
+            "tipping",
+            "skip",
+            "skip bin",
+            "bin hire",
+            "cart away",
+            "carted away",
+            "waste removal",
+            "re:\\bdispos\\w*",
+            "re:\\btip\\b",
+            "green waste"
+          ]
+        }
+      ],
+      "mustNot": [],
+      "expectedTrades": [
+        "landscaping"
+      ],
+      "expectedFacts": [
+        {
+          "label": "area 50 m²",
+          "numbers": [
+            {
+              "value": 50,
+              "unit": "m2"
+            }
+          ]
+        },
+        {
+          "label": "old grass removed",
+          "text": [
+            "re:(remov|strip|excavat|scrap|cut out|clear)\\w*[^|\\n]*(old|existing|grass|lawn|turf)"
+          ]
+        }
+      ],
+      "keyQuestion": null,
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "L1",
+      "title": "Turf",
+      "text": "lay 50m2 of turf in the back yard, old grass needs removing",
+      "note": "No key question needed: the turf type falls back to a default and shows as an assumption."
+    },
+    {
+      "mustHave": [
+        {
+          "label": "decking boards",
+          "synonyms": [
+            "decking",
+            "deck board",
+            "merbau",
+            "spotted gum",
+            "blackbutt",
+            "ironbark",
+            "jarrah",
+            "re:\\bboards?\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "posts or footings",
+          "synonyms": [
+            "post",
+            "stump",
+            "pier",
+            "footing",
+            "post mix",
+            "stirrup"
+          ]
+        },
+        {
+          "label": "the frame (bearers and joists, or a frame line)",
+          "synonyms": [
+            "bearer",
+            "joist",
+            "frame",
+            "framing",
+            "subframe",
+            "sub-frame",
+            "sub frame"
+          ]
+        }
+      ],
+      "shouldHave": [
+        {
+          "label": "fixings",
+          "synonyms": [
+            "screw",
+            "fixing",
+            "nail",
+            "bolt",
+            "bracket",
+            "joist hanger",
+            "hanger",
+            "tek",
+            "re:\\bfix\\w*\\b"
+          ]
+        }
+      ],
+      "mustNot": [],
+      "expectedTrades": [
+        "carpentry"
+      ],
+      "expectedFacts": [
+        {
+          "label": "area 20 m²",
+          "numbers": [
+            {
+              "value": 20,
+              "unit": "m2"
+            }
+          ]
+        },
+        {
+          "label": "about 600 mm high",
+          "numbers": [
+            {
+              "value": 600,
+              "unit": "mm"
+            },
+            {
+              "value": 0.6,
+              "unit": "m"
+            }
+          ]
+        }
+      ],
+      "keyQuestion": {
+        "text": "does it need steps or a balustrade",
+        "synonyms": [
+          "step",
+          "stair",
+          "balustrade",
+          "balustrading",
+          "handrail",
+          "hand rail",
+          "railing",
+          "rail"
+        ]
+      },
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "K1",
+      "title": "Deck",
+      "text": "hardwood deck 4 x 5 off the back door, about 600 off the ground"
+    },
+    {
+      "mustHave": [
+        {
+          "label": "task: hang 3 pictures",
+          "synonyms": [
+            "picture",
+            "artwork",
+            "frame",
+            "re:\\bhang\\w*"
+          ],
+          "group": "tasks"
+        },
+        {
+          "label": "task: fix the sticking door",
+          "synonyms": [
+            "door",
+            "sticking",
+            "plane",
+            "planing"
+          ],
+          "group": "tasks"
+        },
+        {
+          "label": "task: replace 2 hinges",
+          "synonyms": [
+            "hinge"
+          ],
+          "group": "tasks"
+        },
+        {
+          "label": "hinges as a material",
+          "synonyms": [
+            "hinge"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "hourly or fixed labour",
+          "synonyms": [
+            "re:."
+          ],
+          "category": "labour"
+        }
+      ],
+      "shouldHave": [],
+      "mustNot": [],
+      "expectedTrades": [
+        "handyman"
+      ],
+      "expectedFacts": [
+        {
+          "label": "3 pictures",
+          "numbers": [
+            {
+              "value": 3,
+              "unit": "picture"
+            }
+          ]
+        },
+        {
+          "label": "2 hinges",
+          "numbers": [
+            {
+              "value": 2,
+              "unit": "hinge"
+            }
+          ]
+        }
+      ],
+      "keyQuestion": null,
+      "expectNoQuestions": true,
+      "pairWith": null,
+      "id": "H1",
+      "title": "Small jobs list",
+      "text": "hang 3 pictures, fix a sticking door, replace 2 cabinet hinges",
+      "optionalTrades": [
+        "carpentry"
+      ],
+      "note": "\"Three separate tasks\" means the three tasks are met by three different lines."
+    },
+    {
+      "mustHave": [
+        {
+          "label": "demolition and disposal",
+          "synonyms": [
+            "demolition",
+            "demolish",
+            "strip out",
+            "strip-out",
+            "rip out",
+            "re:\\bgut\\w*",
+            "re:\\b(remov|strip)\\w*\\b[^|]*(existing|old|tiles|bathroom|vanity|toilet|shower)"
+          ],
+          "alsoNeeds": [
+            "disposal",
+            "tip fee",
+            "tipping",
+            "skip",
+            "skip bin",
+            "bin hire",
+            "cart away",
+            "carted away",
+            "waste removal",
+            "re:\\bdispos\\w*",
+            "re:\\btip\\b"
+          ]
+        },
+        {
+          "label": "waterproofing",
+          "synonyms": [
+            "waterproof",
+            "waterproofing",
+            "membrane"
+          ]
+        },
+        {
+          "label": "tiling (walls and floor)",
+          "synonyms": [
+            "re:\\bwalls?\\b[^|]*\\btil\\w*",
+            "re:\\btil\\w*[^|]*\\bwalls?\\b",
+            "floor to ceiling",
+            "full height"
+          ],
+          "alsoNeeds": [
+            "re:\\bfloors?\\b[^|]*\\btil\\w*",
+            "re:\\btil\\w*[^|]*\\bfloors?\\b"
+          ]
+        },
+        {
+          "label": "plumbing",
+          "synonyms": [
+            "plumbing",
+            "plumber",
+            "rough-in",
+            "rough in",
+            "fit off",
+            "fit-off",
+            "re:\\bplumb\\w*",
+            "re:\\b(toilet|vanity|shower|mixer|waste|drain\\w*)\\b[^|]*\\b(install|connect|fit)\\w*",
+            "re:\\b(install|connect|fit)\\w*[^|]*\\b(toilet|vanity|shower|mixer|tap)"
+          ]
+        }
+      ],
+      "shouldHave": [
+        {
+          "label": "electrical (fan and lights)",
+          "synonyms": [
+            "exhaust fan",
+            "fan",
+            "lights",
+            "lighting",
+            "downlight",
+            "electrical",
+            "electrician",
+            "GPO",
+            "power point",
+            "powerpoint"
+          ]
+        },
+        {
+          "label": "an allowance line for fixtures",
+          "synonyms": [
+            "allowance",
+            "PC item",
+            "PC sum",
+            "prime cost",
+            "provisional",
+            "re:\\ballow\\w*\\b",
+            "re:\\bp\\.?c\\.?\\b"
+          ]
+        }
+      ],
+      "mustNot": [],
+      "expectedTrades": [
+        "demolition",
+        "plumbing",
+        "waterproofing",
+        "tiling"
+      ],
+      "expectedFacts": [
+        {
+          "label": "about 2 x 2.5 (5 m² floor)",
+          "numbers": [
+            {
+              "value": 5,
+              "unit": "m2"
+            }
+          ],
+          "text": [
+            "re:\\b2(\\.0)?\\s?(m\\s?)?[x×]\\s?2\\.5\\b"
+          ]
+        }
+      ],
+      "keyQuestion": {
+        "text": "who's supplying the fixtures and tiles",
+        "synonyms": [
+          "supply",
+          "supplying",
+          "supplied",
+          "provide",
+          "providing",
+          "provided",
+          "fixtures",
+          "tiles",
+          "selection",
+          "choose",
+          "budget",
+          "allowance",
+          "re:\\bwho\\b"
+        ]
+      },
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "M1",
+      "title": "Bathroom reno",
+      "text": "small bathroom about 2 x 2.5, gut it, new vanity toilet and shower, tiles floor to ceiling",
+      "optionalTrades": [
+        "electrical",
+        "carpentry"
+      ]
+    },
+    {
+      "mustHave": [
+        {
+          "label": "slab: premix",
+          "synonyms": [
+            "premix",
+            "pre-mix",
+            "pre mix",
+            "readymix",
+            "ready mix",
+            "ready-mix",
+            "ready mixed",
+            "N20",
+            "N25",
+            "N32",
+            "N40",
+            "re:\\b(20|25|32|40)\\s?mpa\\b",
+            "re:concrete[^|]*\\|\\s*[\\d.]+\\s*(m3|m³|cum|cubic)",
+            "re:\\b(supply|supplied|deliver\\w*)\\b[^|]*\\bconcrete\\b",
+            "re:\\bconcrete\\b[^|]*\\b(supply|supplied|delivered|delivery)\\b"
+          ],
+          "category": "material"
+        },
+        {
+          "label": "slab: formwork",
+          "synonyms": [
+            "formwork",
+            "form work",
+            "formboard",
+            "boxing",
+            "edge form",
+            "timber edge",
+            "pegs",
+            "re:\\bform(s|ing|ed|work)?\\b"
+          ]
+        },
+        {
+          "label": "2 outdoor lights",
+          "synonyms": [
+            "light",
+            "lighting",
+            "light fitting",
+            "wall light",
+            "spotlight",
+            "sensor light",
+            "floodlight",
+            "downlight"
+          ],
+          "category": "material",
+          "qty": 2
+        },
+        {
+          "label": "1 weatherproof GPO",
+          "synonyms": [
+            "GPO",
+            "power point",
+            "powerpoint",
+            "power outlet",
+            "socket",
+            "outlet",
+            "re:\\bweather\\s?proof\\b",
+            "re:\\bIP\\s?\\d\\d\\b"
+          ],
+          "category": "material",
+          "qty": 1
+        }
+      ],
+      "shouldHave": [
+        {
+          "label": "slab: mesh",
+          "synonyms": [
+            "mesh",
+            "SL62",
+            "SL72",
+            "SL82",
+            "SL92",
+            "reo",
+            "reinforcement",
+            "reinforcing"
+          ],
+          "category": "material"
+        }
+      ],
+      "mustNot": [],
+      "expectedTrades": [
+        "concreting",
+        "electrical"
+      ],
+      "expectedFacts": [
+        {
+          "label": "slab 24 m²",
+          "numbers": [
+            {
+              "value": 24,
+              "unit": "m2"
+            }
+          ]
+        },
+        {
+          "label": "2 outdoor lights",
+          "numbers": [
+            {
+              "value": 2,
+              "unit": "light"
+            }
+          ]
+        }
+      ],
+      "keyQuestion": null,
+      "expectNoQuestions": true,
+      "pairWith": null,
+      "id": "M2",
+      "title": "Outdoor area",
+      "text": "outdoor area, patio slab 6 x 4, 2 outdoor lights and a powerpoint"
+    },
+    {
+      "mustHave": [],
+      "shouldHave": [
+        {
+          "label": "water and drainage",
+          "synonyms": [
+            "drain",
+            "drainage",
+            "waste",
+            "water supply",
+            "hot and cold",
+            "re:\\bwater\\b",
+            "re:\\bplumb\\w*"
+          ]
+        },
+        {
+          "label": "electrical",
+          "synonyms": [
+            "GPO",
+            "power point",
+            "powerpoint",
+            "circuit",
+            "electrical",
+            "electrician",
+            "lights",
+            "re:\\bpower\\b"
+          ]
+        },
+        {
+          "label": "tub / cabinetry",
+          "synonyms": [
+            "tub",
+            "laundry tub",
+            "trough",
+            "cabinet",
+            "cabinetry",
+            "cupboard",
+            "joinery"
+          ]
+        }
+      ],
+      "mustNot": [],
+      "expectedTrades": [
+        "plumbing",
+        "electrical",
+        "carpentry"
+      ],
+      "expectedFacts": [],
+      "keyQuestion": {
+        "text": "is there water and drainage nearby, and what's included (tub, cabinets)",
+        "synonyms": [
+          "water",
+          "drain",
+          "drainage",
+          "waste",
+          "sewer",
+          "plumbing",
+          "tub",
+          "cabinet",
+          "included",
+          "include",
+          "supply",
+          "nearby",
+          "distance",
+          "how far"
+        ]
+      },
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "M3",
+      "title": "New laundry in the garage",
+      "text": "want a new laundry put in the garage",
+      "note": "The test set lists no must-have items here; the three item groups are logged as should have."
+    },
+    {
+      "mustHave": [
+        {
+          "label": "asks what the job is",
+          "synonyms": [
+            "what",
+            "job",
+            "work",
+            "describe",
+            "description",
+            "details",
+            "help",
+            "need"
+          ],
+          "where": "questions"
+        }
+      ],
+      "shouldHave": [],
+      "mustNot": [
+        {
+          "label": "any quote (line items)",
+          "synonyms": [],
+          "kind": "noItems"
+        }
+      ],
+      "expectedTrades": [],
+      "expectedFacts": [],
+      "keyQuestion": {
+        "text": "what the job is",
+        "synonyms": [
+          "what",
+          "job",
+          "work",
+          "describe",
+          "description",
+          "details",
+          "help",
+          "need"
+        ]
+      },
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "X1",
+      "title": "Not a job",
+      "text": "hi",
+      "note": "The generator always builds a quote from assumptions, so the baseline is expected to fail \"must not: any quote\"."
+    },
+    {
+      "mustHave": [
+        {
+          "label": "3 downlights",
+          "synonyms": [
+            "downlight",
+            "down light",
+            "down-light"
+          ],
+          "category": "material",
+          "qty": 3
+        },
+        {
+          "label": "tap repair",
+          "synonyms": [
+            "mixer",
+            "washer",
+            "cartridge",
+            "jumper valve",
+            "re:\\btaps?\\b",
+            "re:\\bleak\\w*"
+          ]
+        }
+      ],
+      "shouldHave": [],
+      "mustNot": [],
+      "expectedTrades": [
+        "electrical",
+        "plumbing"
+      ],
+      "expectedFacts": [
+        {
+          "label": "3 downlights",
+          "numbers": [
+            {
+              "value": 3,
+              "unit": "downlight"
+            }
+          ]
+        },
+        {
+          "label": "1 tap repair",
+          "text": [
+            "re:\\btaps?\\b",
+            "mixer"
+          ]
+        }
+      ],
+      "keyQuestion": null,
+      "expectNoQuestions": false,
+      "pairWith": null,
+      "id": "X2",
+      "title": "Typos, two trades",
+      "text": "need 3 dwnlights put in and fix leeky tap in kitchn"
+    }
+  ]
+}
